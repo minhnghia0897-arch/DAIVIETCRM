@@ -18,7 +18,9 @@ test("trả lời khách Zalo thì khách đồng ý video call và cơ hội sa
     timeout: 6000,
   });
 
-  // Điều hướng trong ứng dụng giữ trạng thái mô phỏng.
+  // Điều hướng trong ứng dụng giữ trạng thái mô phỏng. Điện thoại mở menu ngăn kéo trước.
+  const menu = page.getByRole("button", { name: "Mở menu" });
+  if (await menu.isVisible()) await menu.click();
   await page.getByRole("link", { name: "Cơ hội", exact: true }).click();
   const demo = page.getByRole("region", { name: "Demo, video call" });
   await expect(demo.getByRole("button", { name: /Nguyễn Thị Thu/ })).toBeVisible();
@@ -114,6 +116,29 @@ test("Sản phẩm, Kho, Chính sách gom trong một tab, chuyển bằng tab c
   await expect(nav.getByRole("link", { name: "Sản phẩm" })).toHaveAttribute("aria-current", "page");
   await sub.getByRole("link", { name: "Chính sách" }).click();
   await expect(page).toHaveURL(/policies/);
+});
+
+test("menu là sidebar dọc: thu gọn còn biểu tượng; điện thoại mở bằng nút menu, đổi trang tự đóng", async ({
+  page,
+}, testInfo) => {
+  await as(page, "owner", "home/");
+  const nav = page.getByRole("navigation", { name: "Ứng dụng" });
+  if (testInfo.project.name === "phone") {
+    await expect(nav.getByRole("link", { name: "Đơn hàng" })).not.toBeInViewport();
+    await page.getByRole("button", { name: "Mở menu" }).click();
+    await nav.getByRole("link", { name: "Đơn hàng" }).click();
+    await expect(page).toHaveURL(/orders/);
+    await expect(nav.getByRole("link", { name: "Đơn hàng" })).not.toBeInViewport();
+    return;
+  }
+  const box = await nav.boundingBox();
+  expect(box!.height).toBeGreaterThan(box!.width);
+  await expect(nav.getByText("Đơn hàng")).toBeVisible();
+  await nav.getByRole("button", { name: "Thu gọn menu" }).click();
+  await expect(nav.getByText("Đơn hàng")).toBeHidden();
+  await expect(nav.getByRole("link", { name: "Đơn hàng" })).toBeVisible();
+  await nav.getByRole("button", { name: "Mở rộng menu" }).click();
+  await expect(nav.getByText("Đơn hàng")).toBeVisible();
 });
 
 test("đơn giao lắp đã gộp vào Đơn hàng: một tab, đường dẫn cũ chuyển sang Đơn hàng", async ({ page }) => {

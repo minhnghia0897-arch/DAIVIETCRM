@@ -1032,28 +1032,49 @@
     place-items: center;
     padding: 0 3px;
   }
+  /* Sidebar ứng dụng: cột dọc bên trái, thu gọn được còn biểu tượng; màn hình hẹp mở dạng ngăn kéo. */
+  .c-frame {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+  }
   .c-nav {
     background: var(--surface);
     display: flex;
-    align-items: stretch;
-    border-bottom: 3px solid var(--brand);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.06);
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-direction: column;
+    flex: none;
+    width: 208px;
+    border-right: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: calc(100vh - 44px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
+  }
+  .c-nav.is-collapsed {
+    width: 56px;
+  }
+  .c-nav.is-collapsed .c-navtxt {
+    display: none;
   }
   .c-appname {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 16px 0 14px;
-    font-size: 16px;
+    padding: 12px 14px 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
     white-space: nowrap;
-    border-right: 1px solid var(--line-2);
+    border-bottom: 1px solid var(--line-2);
+    margin-bottom: 6px;
   }
   .c-waffle {
     display: grid;
     grid-template-columns: repeat(3, 4px);
     gap: 2.5px;
+    flex: none;
   }
   .c-waffle i {
     width: 4px;
@@ -1061,23 +1082,48 @@
     border-radius: 50%;
     background: var(--text-weak);
   }
-  .c-tab {
+  .c-tab,
+  .c-navfold {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     border: 0;
+    border-left: 3px solid transparent;
     background: none;
-    padding: 11px 11px 9px;
+    padding: 8px 14px 8px 17px;
     white-space: nowrap;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -3px;
     color: var(--text);
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
   }
-  .c-tab:hover {
+  .c-tab svg,
+  .c-navfold svg {
+    flex: none;
+    color: var(--text-weak);
+  }
+  .c-tab:hover,
+  .c-navfold:hover {
     background: var(--surface-2);
     text-decoration: none;
   }
   .c-tab[aria-current="page"] {
-    border-bottom-color: var(--brand-strong);
+    border-left-color: var(--brand-strong);
     font-weight: 600;
     background: var(--surface-2);
+    color: var(--brand-strong);
+  }
+  .c-tab[aria-current="page"] svg {
+    color: var(--brand-strong);
+  }
+  .c-navfold {
+    margin-top: auto;
+    color: var(--text-weak);
+    font-size: 12.5px;
+  }
+  .c-menubtn,
+  .c-navscrim {
+    display: none;
   }
   .c-shell {
     display: flex;
@@ -1173,6 +1219,40 @@
     }
   }
   @media (max-width: 900px) {
+    .c-menubtn {
+      display: grid;
+    }
+    .c-nav,
+    .c-nav.is-collapsed {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 44px;
+      height: auto;
+      width: min(260px, 85vw);
+      z-index: 46;
+      transform: translateX(-100%);
+      transition: transform 0.15s ease;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    }
+    .c-nav.is-collapsed .c-navtxt {
+      display: inline;
+    }
+    .c-nav.is-open {
+      transform: none;
+    }
+    .c-navfold {
+      display: none;
+    }
+    .c-navscrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      bottom: 44px;
+      border: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 45;
+    }
     .c-g84,
     .c-split,
     .c-rgrid,

@@ -2,7 +2,33 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ClipboardCheck, Pause, Play, ScrollText, Search, Send, Sparkles, X } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  Bot,
+  ClipboardCheck,
+  Contact,
+  House,
+  LayoutDashboard,
+  ListChecks,
+  Megaphone,
+  Menu,
+  MessageCircle,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pause,
+  Play,
+  ScrollText,
+  Search,
+  Send,
+  ShoppingCart,
+  Sparkles,
+  Target,
+  UsersRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { AccountMenu } from "@/components/shell/account-menu";
@@ -64,6 +90,49 @@ const VIEW_BY_PATH: [string, AiView][] = [
   ["/agents", "agents"],
 ];
 
+/** Biểu tượng của từng mục trong sidebar, theo đường dẫn của tab. */
+const NAV_ICON: Record<string, LucideIcon> = {
+  "/home": LayoutDashboard,
+  "/tasks": ListChecks,
+  "/opportunities": Target,
+  "/households": House,
+  "/orders": ShoppingCart,
+  "/inbox": MessageCircle,
+  "/channels": Megaphone,
+  "/reports": BarChart3,
+  "/agents": Bot,
+  "/products": Package,
+  "/inventory": Package,
+  "/policies": Package,
+  "/team": UsersRound,
+  "/customers": Contact,
+};
+
+const NAV_KEY = "dv_nav_collapsed";
+const navListeners = new Set<() => void>();
+const subscribeNav = (cb: () => void) => {
+  navListeners.add(cb);
+  return () => navListeners.delete(cb);
+};
+// Bộ nhớ cục bộ bị chặn thì nhớ trong phiên.
+let navCollapsedMem = false;
+function readNavCollapsed(): boolean {
+  try {
+    return localStorage.getItem(NAV_KEY) === "1";
+  } catch {
+    return navCollapsedMem;
+  }
+}
+function writeNavCollapsed(v: boolean) {
+  navCollapsedMem = v;
+  try {
+    localStorage.setItem(NAV_KEY, v ? "1" : "0");
+  } catch {
+    // Không ghi được thì dùng bộ nhớ trong phiên.
+  }
+  navListeners.forEach((cb) => cb());
+}
+
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
 
@@ -106,6 +175,18 @@ function ShellInner({
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [pop, setPop] = useState<"appr" | "feed" | null>(null);
   const [q, setQ] = useState("");
+  // Sidebar: màn hình rộng thu gọn được còn biểu tượng (nhớ trong trình duyệt); màn hình hẹp mở dạng ngăn kéo.
+  const collapsed = useSyncExternalStore(subscribeNav, readNavCollapsed, () => false);
+  function toggleCollapsed() {
+    writeNavCollapsed(!collapsed);
+  }
+  // Ngăn kéo menu trên điện thoại gắn với trang đang mở: đổi trang thì tự đóng.
+  const [navOpenAt, setNavOpenAt] = useState<string | null>(null);
+  const navOpen = navOpenAt === pathname;
+  const setNavOpen = (v: boolean | ((o: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(navOpen) : v;
+    setNavOpenAt(next ? pathname : null);
+  };
   const latest = useRef(state);
   useEffect(() => {
     latest.current = state;
@@ -197,6 +278,16 @@ function ShellInner({
     <ShellContext.Provider value={shell}>
       <div className="flex min-h-full flex-1 flex-col pb-11">
         <header className="c-gh">
+          <button
+            type="button"
+            className="c-ib c-menubtn"
+            aria-label="Mở menu"
+            aria-expanded={navOpen}
+            aria-controls="c-sidenav"
+            onClick={() => setNavOpen((o) => !o)}
+          >
+            <Menu size={18} />
+          </button>
           <span className="flex items-center gap-2 font-bold text-brand-strong">
             <span
               aria-hidden
@@ -265,131 +356,162 @@ function ShellInner({
             signOutAction={signOutAction}
           />
         </header>
-        <nav className="c-nav" aria-label="Ứng dụng">
-          <span className="c-appname">
-            <span className="c-waffle" aria-hidden>
-              {Array.from({ length: 9 }, (_, i) => (
-                <i key={i} />
-              ))}
-            </span>
-            {user.showroomName}
-          </span>
-          {tabs.map((t) => {
-            const active = (t.children?.map((c) => c.href) ?? [t.href]).some(
-              (h) => pathname === h || pathname.startsWith(h + "/"),
-            );
-            return (
-              <Link key={t.href} href={t.href} className="c-tab" aria-current={active ? "page" : undefined}>
-                {t.label}
-              </Link>
-            );
-          })}
-        </nav>
         {banner}
-        <div className="flex-1 bg-linear-to-b from-band to-page to-[220px]">
-          <div className="c-shell">
-            <div className="c-main">
-              {group && group.children!.length > 1 ? (
-                <nav aria-label={group.label} className="mb-3 flex flex-wrap gap-1.5">
-                  {group.children!.map((c) => {
-                    const on = pathname === c.href || pathname.startsWith(c.href + "/");
-                    return (
-                      <Link
-                        key={c.href}
-                        href={c.href}
-                        aria-current={on ? "page" : undefined}
-                        className={`c-btn ${on ? "is-brand" : ""}`}
-                      >
-                        {c.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              ) : null}
-              {children}
-            </div>
-            {aiOpen ? (
-              <aside className="c-card c-ai" aria-label="Trợ lý AI">
-                <div className="c-aih">
-                  <span className="c-oi is-round is-sm" style={{ background: "var(--ai)" }} aria-hidden>
-                    <Sparkles />
-                  </span>
-                  <b>Trợ lý AI</b>
-                  <span className="c-pill is-ai">Bản thử</span>
-                  <button
-                    type="button"
-                    className="c-ib ml-auto"
-                    aria-label="Đóng trợ lý AI"
-                    onClick={() => setAiOpen(false)}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="c-ctx">{ctxLine}</div>
-                <div className="c-msgs" aria-live="polite">
-                  {messages.length === 0 ? (
-                    <div className="c-ma">
-                      <p>
-                        Chào {user.shortName}, tôi đọc dữ liệu trong phạm vi quyền của bạn và chỉ đề xuất; mọi
-                        việc gửi đi đều cần người bấm xác nhận.
-                      </p>
-                    </div>
-                  ) : null}
-                  {messages.map((m) => (
-                    <div key={m.id} className="contents">
-                      <div className="c-mu">{m.question}</div>
-                      <div className="c-ma">
-                        {m.answer.paragraphs.map((p, i) => (
-                          <p key={i}>{p}</p>
-                        ))}
-                        {m.answer.bars ? (
-                          <div className="mt-1">
-                            {m.answer.bars.map(([label, v]) => (
-                              <div
-                                key={label}
-                                className="c-hbar"
-                                style={{ gridTemplateColumns: "1fr 90px 34px" }}
-                              >
-                                <span>{label}</span>
-                                <i>
-                                  <u style={{ width: `${v}%`, background: "var(--ai)" }} />
-                                </i>
-                                <span className="tabular">{v}%</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                        {m.answer.draft ? (
-                          <>
-                            <div className="c-draft">{m.answer.draft}</div>
-                            {can("message.zalo_send") ? (
-                              <button
-                                type="button"
-                                className="c-btn is-ai"
-                                onClick={() => toast("Đã gửi qua Zalo OA")}
-                              >
-                                <Send size={13} className="mr-1 inline" aria-hidden />
-                                Gửi qua Zalo
-                              </button>
-                            ) : (
-                              <span className="c-lbl">Bạn chưa có quyền gửi tin Zalo.</span>
-                            )}
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="c-sug" aria-label="Câu hỏi gợi ý">
-                  {AI_SUGGESTIONS[view].map((s) => (
-                    <button key={s} type="button" onClick={() => ask(s)}>
-                      {s}
+        <div className="c-frame">
+          {navOpen ? (
+            <button
+              type="button"
+              className="c-navscrim"
+              aria-label="Đóng menu"
+              onClick={() => setNavOpen(false)}
+            />
+          ) : null}
+          <nav
+            id="c-sidenav"
+            className={`c-nav ${collapsed ? "is-collapsed" : ""} ${navOpen ? "is-open" : ""}`}
+            aria-label="Ứng dụng"
+          >
+            <span className="c-appname" title={user.showroomName}>
+              <span className="c-waffle" aria-hidden>
+                {Array.from({ length: 9 }, (_, i) => (
+                  <i key={i} />
+                ))}
+              </span>
+              <span className="c-navtxt">{user.showroomName}</span>
+            </span>
+            {tabs.map((t) => {
+              const active = (t.children?.map((c) => c.href) ?? [t.href]).some(
+                (h) => pathname === h || pathname.startsWith(h + "/"),
+              );
+              const Icon = NAV_ICON[t.href] ?? Package;
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className="c-tab"
+                  aria-current={active ? "page" : undefined}
+                  title={collapsed ? t.label : undefined}
+                >
+                  <Icon size={17} aria-hidden />
+                  <span className="c-navtxt">{t.label}</span>
+                </Link>
+              );
+            })}
+            <button
+              type="button"
+              className="c-navfold"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
+            >
+              {collapsed ? <PanelLeftOpen size={17} aria-hidden /> : <PanelLeftClose size={17} aria-hidden />}
+              <span className="c-navtxt">Thu gọn</span>
+            </button>
+          </nav>
+          <div className="min-w-0 flex-1 bg-linear-to-b from-band to-page to-[220px]">
+            <div className="c-shell">
+              <div className="c-main">
+                {group && group.children!.length > 1 ? (
+                  <nav aria-label={group.label} className="mb-3 flex flex-wrap gap-1.5">
+                    {group.children!.map((c) => {
+                      const on = pathname === c.href || pathname.startsWith(c.href + "/");
+                      return (
+                        <Link
+                          key={c.href}
+                          href={c.href}
+                          aria-current={on ? "page" : undefined}
+                          className={`c-btn ${on ? "is-brand" : ""}`}
+                        >
+                          {c.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                ) : null}
+                {children}
+              </div>
+              {aiOpen ? (
+                <aside className="c-card c-ai" aria-label="Trợ lý AI">
+                  <div className="c-aih">
+                    <span className="c-oi is-round is-sm" style={{ background: "var(--ai)" }} aria-hidden>
+                      <Sparkles />
+                    </span>
+                    <b>Trợ lý AI</b>
+                    <span className="c-pill is-ai">Bản thử</span>
+                    <button
+                      type="button"
+                      className="c-ib ml-auto"
+                      aria-label="Đóng trợ lý AI"
+                      onClick={() => setAiOpen(false)}
+                    >
+                      <X size={16} />
                     </button>
-                  ))}
-                </div>
-                <AiInput onAsk={ask} />
-              </aside>
-            ) : null}
+                  </div>
+                  <div className="c-ctx">{ctxLine}</div>
+                  <div className="c-msgs" aria-live="polite">
+                    {messages.length === 0 ? (
+                      <div className="c-ma">
+                        <p>
+                          Chào {user.shortName}, tôi đọc dữ liệu trong phạm vi quyền của bạn và chỉ đề xuất;
+                          mọi việc gửi đi đều cần người bấm xác nhận.
+                        </p>
+                      </div>
+                    ) : null}
+                    {messages.map((m) => (
+                      <div key={m.id} className="contents">
+                        <div className="c-mu">{m.question}</div>
+                        <div className="c-ma">
+                          {m.answer.paragraphs.map((p, i) => (
+                            <p key={i}>{p}</p>
+                          ))}
+                          {m.answer.bars ? (
+                            <div className="mt-1">
+                              {m.answer.bars.map(([label, v]) => (
+                                <div
+                                  key={label}
+                                  className="c-hbar"
+                                  style={{ gridTemplateColumns: "1fr 90px 34px" }}
+                                >
+                                  <span>{label}</span>
+                                  <i>
+                                    <u style={{ width: `${v}%`, background: "var(--ai)" }} />
+                                  </i>
+                                  <span className="tabular">{v}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {m.answer.draft ? (
+                            <>
+                              <div className="c-draft">{m.answer.draft}</div>
+                              {can("message.zalo_send") ? (
+                                <button
+                                  type="button"
+                                  className="c-btn is-ai"
+                                  onClick={() => toast("Đã gửi qua Zalo OA")}
+                                >
+                                  <Send size={13} className="mr-1 inline" aria-hidden />
+                                  Gửi qua Zalo
+                                </button>
+                              ) : (
+                                <span className="c-lbl">Bạn chưa có quyền gửi tin Zalo.</span>
+                              )}
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="c-sug" aria-label="Câu hỏi gợi ý">
+                    {AI_SUGGESTIONS[view].map((s) => (
+                      <button key={s} type="button" onClick={() => ask(s)}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <AiInput onAsk={ask} />
+                </aside>
+              ) : null}
+            </div>
           </div>
         </div>
 
