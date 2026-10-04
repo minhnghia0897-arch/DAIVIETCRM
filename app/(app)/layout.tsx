@@ -3,6 +3,7 @@ import { Bell } from "@/components/shell/bell";
 import { DualClock } from "@/components/shell/dual-clock";
 import { TabBar } from "@/components/shell/tab-bar";
 import { ToastProvider } from "@/components/ui/toast";
+import { endViewAs } from "./view-as/actions";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import { formatDateTime, vnEndOfToday } from "@/lib/format";
@@ -63,6 +64,19 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       <TabBar showroomName={user.showroomName} tabs={visibleTabs(user.permissions)} />
+      {user.viewAs ? (
+        <form
+          action={endViewAs}
+          className="flex flex-wrap items-center gap-3 border-b border-warn bg-warn-soft px-4 py-2 text-warn"
+        >
+          <span className="font-semibold">
+            Đang xem như {user.fullName} ({user.roleName}). Chỉ đọc.
+          </span>
+          <button type="submit" className="font-semibold underline">
+            Thoát
+          </button>
+        </form>
+      ) : null}
       <div className="flex-1 bg-linear-to-b from-band to-page to-[220px]">
         <ToastProvider>{children}</ToastProvider>
       </div>

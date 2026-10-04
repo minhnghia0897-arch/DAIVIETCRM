@@ -11,6 +11,7 @@ import { Pill } from "@/components/ui/pill";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
+import { startViewAs } from "../../view-as/actions";
 import { changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive } from "../actions";
 
 interface User {
@@ -120,6 +121,15 @@ export function UsersTable(props: {
                       {props.canEditPermissions && !isOwnerRow ? (
                         <Button size="sm" variant="secondary" onClick={() => setEditing(u)}>
                           Chỉnh
+                        </Button>
+                      ) : null}{" "}
+                      {u.id !== props.meId && !isOwnerRow && u.isActive ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => startTransition(() => startViewAs(u.id))}
+                        >
+                          Xem như
                         </Button>
                       ) : null}{" "}
                       {u.id !== props.meId && !isOwnerRow ? (

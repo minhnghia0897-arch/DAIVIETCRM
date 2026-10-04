@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { requirePermission } from "@/lib/auth/session";
+import { requireWritable as requirePermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { siteUrl } from "@/lib/db/env";
 import { createClient } from "@/lib/db/server";

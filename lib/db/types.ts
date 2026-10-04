@@ -1534,6 +1534,58 @@ export type Database = {
           },
         ];
       };
+      view_as_sessions: {
+        Row: {
+          ended_at: string | null;
+          expires_at: string;
+          id: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at: string;
+          target_id: string;
+        };
+        Insert: {
+          ended_at?: string | null;
+          expires_at?: string;
+          id?: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at?: string;
+          target_id: string;
+        };
+        Update: {
+          ended_at?: string | null;
+          expires_at?: string;
+          id?: string;
+          owner_id?: string;
+          showroom_id?: string;
+          started_at?: string;
+          target_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "view_as_sessions_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "view_as_sessions_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "view_as_sessions_target_id_fkey";
+            columns: ["target_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       webhook_events: {
         Row: {
           error: string | null;
@@ -1707,12 +1759,33 @@ export type Database = {
       };
     };
     Functions: {
+      active_view_as: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          ended_at: string | null;
+          expires_at: string;
+          id: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at: string;
+          target_id: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "view_as_sessions";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       approval_permission: { Args: { p_type: string }; Returns: string };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
+      check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
+      effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       has_perm: { Args: { perm: string }; Returns: boolean };
       has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
+      has_real_perm: { Args: { perm: string }; Returns: boolean };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
       record_event: {
@@ -1727,6 +1800,15 @@ export type Database = {
         Returns: number;
       };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
+      view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
+      whoami: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          effective_uid: string;
+          real_uid: string;
+          view_as_session_id: string;
+        }[];
+      };
       write_audit: {
         Args: {
           p_action: string;

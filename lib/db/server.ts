@@ -6,10 +6,17 @@ import { cookies } from "next/headers";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 import type { Database } from "./types";
 
-/** Client chạy dưới phiên của người đang đăng nhập: RLS và has_perm áp đúng như người đó. */
-export async function createClient() {
+export const VIEW_AS_COOKIE = "dv_view_as";
+
+/**
+ * Client chạy dưới phiên của người đang đăng nhập: RLS và has_perm áp đúng như người đó.
+ * Khi Owner đang "Xem như", gửi kèm mã phiên để database tính quyền theo người được xem và chặn mọi thao tác ghi.
+ */
+export async function createClient({ ignoreViewAs = false }: { ignoreViewAs?: boolean } = {}) {
   const cookieStore = await cookies();
+  const viewAs = ignoreViewAs ? undefined : cookieStore.get(VIEW_AS_COOKIE)?.value;
   return createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
+    global: viewAs ? { headers: { "x-view-as": viewAs } } : undefined,
     cookies: {
       getAll() {
         return cookieStore.getAll();

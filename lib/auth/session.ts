@@ -13,6 +13,8 @@ export interface SessionUser {
   showroomName: string;
   roleName: string;
   permissions: ReadonlySet<string>;
+  /** Có khi Owner đang "Xem như" người này: mọi thao tác ghi bị chặn. */
+  viewAs: { sessionId: string; ownerName: string } | null;
 }
 
 /** Lấy người dùng và quyền hiệu lực một lần mỗi request (CLAUDE.md mục 5, Hàm kiểm tra). */
@@ -23,24 +25,33 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: profile }, { data: perms }] = await Promise.all([
+  // GET: chạy được cả khi đang "Xem như" (database chặn mọi lệnh ghi trong phiên đó).
+  const { data: who } = await supabase.rpc("whoami", undefined, { get: true }).maybeSingle();
+  const effectiveId = who?.effective_uid ?? user.id;
+  const viewAsSession = who?.view_as_session_id ?? null;
+
+  const [{ data: profile }, { data: perms }, owner] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, is_active, showroom_id, showrooms(name), roles(name)")
-      .eq("id", user.id)
+      .eq("id", effectiveId)
       .maybeSingle(),
-    supabase.rpc("my_permissions"),
+    supabase.rpc("my_permissions", undefined, { get: true }),
+    viewAsSession
+      ? supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   if (!profile || !profile.is_active) return null;
 
   return {
-    id: user.id,
+    id: effectiveId,
     email: user.email ?? null,
     fullName: profile.full_name,
     showroomId: profile.showroom_id,
     showroomName: profile.showrooms?.name ?? "",
     roleName: profile.roles?.name ?? "",
     permissions: new Set((perms ?? []) as string[]),
+    viewAs: viewAsSession ? { sessionId: viewAsSession, ownerName: owner.data?.full_name ?? "" } : null,
   };
 });
 
@@ -54,5 +65,12 @@ export async function requireUser(): Promise<SessionUser> {
 export async function requirePermission(perm: string): Promise<SessionUser> {
   const user = await requireUser();
   if (!user.permissions.has(perm)) redirect("/forbidden");
+  return user;
+}
+
+/** Dùng trong server action ghi dữ liệu: chặn khi đang "Xem như" (database cũng chặn). */
+export async function requireWritable(perm: string): Promise<SessionUser> {
+  const user = await requirePermission(perm);
+  if (user.viewAs) throw new Error("Đang xem như người dùng khác, chỉ đọc.");
   return user;
 }
