@@ -8,7 +8,7 @@ export function SettingsFrame({ user, children }: { user: SessionUser; children:
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row">
       <nav aria-label="Cài đặt" className="md:w-52 md:shrink-0">
-        <p className="mb-2 text-card-title font-bold">Cài đặt</p>
+        <h1 className="mb-2 text-card-title font-bold">Cài đặt</h1>
         <ul className="flex gap-1 overflow-x-auto md:flex-col">
           {items.map((i) => (
             <li key={i.href}>

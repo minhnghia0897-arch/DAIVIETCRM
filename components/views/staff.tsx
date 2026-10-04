@@ -15,45 +15,48 @@ const STATUS = {
 export function StaffView({ user }: { user: SessionUser }) {
   const rows = visibleStaff(user);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Hồ sơ nhân sự</CardTitle>
-        <span className="text-label text-text-weak">{rows.length} người</span>
-      </CardHeader>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] border-collapse">
-          <thead className="bg-surface-2 text-left">
-            <tr>
-              <th className="px-[14px] py-2 font-semibold">Mã</th>
-              <th className="px-3 py-2 font-semibold">Tên</th>
-              <th className="px-3 py-2 font-semibold">Chức danh</th>
-              <th className="px-3 py-2 font-semibold">Quản lý</th>
-              <th className="px-3 py-2 font-semibold">Vào làm</th>
-              <th className="px-3 py-2 font-semibold">Trạng thái</th>
-              <th className="px-3 py-2 font-semibold">Kỹ năng</th>
-              <th className="px-3 py-2 font-semibold">Trực</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((s) => (
-              <tr key={s.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
-                <td className="tabular px-[14px] py-1">{s.code}</td>
-                <td className="px-3 py-1 font-semibold">{s.fullName}</td>
-                <td className="px-3 py-1">{s.title}</td>
-                <td className="px-3 py-1">{s.managerId ? staffName(s.managerId) : "—"}</td>
-                <td className="tabular px-3 py-1">{formatDate(s.joinedAt)}</td>
-                <td className="px-3 py-1">
-                  <Pill tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Pill>
-                </td>
-                <td className="px-3 py-1">{s.skills.join(", ")}</td>
-                <td className="px-3 py-1">
-                  {s.onDuty ? <Pill tone="ok">Đang trực</Pill> : <Pill>Nghỉ</Pill>}
-                </td>
+    <>
+      <h1 className="sr-only">Đội ngũ: hồ sơ nhân sự</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Hồ sơ nhân sự</CardTitle>
+          <span className="text-label text-text-weak">{rows.length} người</span>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] border-collapse">
+            <thead className="bg-surface-2 text-left">
+              <tr>
+                <th className="px-[14px] py-2 font-semibold">Mã</th>
+                <th className="px-3 py-2 font-semibold">Tên</th>
+                <th className="px-3 py-2 font-semibold">Chức danh</th>
+                <th className="px-3 py-2 font-semibold">Quản lý</th>
+                <th className="px-3 py-2 font-semibold">Vào làm</th>
+                <th className="px-3 py-2 font-semibold">Trạng thái</th>
+                <th className="px-3 py-2 font-semibold">Kỹ năng</th>
+                <th className="px-3 py-2 font-semibold">Trực</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+            </thead>
+            <tbody>
+              {rows.map((s) => (
+                <tr key={s.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
+                  <td className="tabular px-[14px] py-1">{s.code}</td>
+                  <td className="px-3 py-1 font-semibold">{s.fullName}</td>
+                  <td className="px-3 py-1">{s.title}</td>
+                  <td className="px-3 py-1">{s.managerId ? staffName(s.managerId) : "—"}</td>
+                  <td className="tabular px-3 py-1">{formatDate(s.joinedAt)}</td>
+                  <td className="px-3 py-1">
+                    <Pill tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Pill>
+                  </td>
+                  <td className="px-3 py-1">{s.skills.join(", ")}</td>
+                  <td className="px-3 py-1">
+                    {s.onDuty ? <Pill tone="ok">Đang trực</Pill> : <Pill>Nghỉ</Pill>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
   );
 }

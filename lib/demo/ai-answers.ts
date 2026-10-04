@@ -96,7 +96,7 @@ export function aiAnswer(question: string, c: AiContext): AiAnswer {
       ],
     };
   if (t.includes("bước tiếp") && opp) return { paragraphs: [`${opp.name}: ${opp.next}`] };
-  if (t.includes("tóm tắt hộ")) {
+  if (t.includes("tóm tắt hộ gia đình")) {
     const payers = h.members
       .filter((m) => m.loc === "KR")
       .map((m) => `${m.name} ở ${m.city} là người trả tiền`);

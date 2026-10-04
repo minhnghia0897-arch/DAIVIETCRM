@@ -115,3 +115,10 @@ test("Sản phẩm, Kho, Chính sách gom trong một tab, chuyển bằng tab c
   await sub.getByRole("link", { name: "Chính sách" }).click();
   await expect(page).toHaveURL(/policies/);
 });
+
+test("trang không có hoặc ngoài quyền báo bằng tiếng Việt, không lộ dữ liệu", async ({ page }) => {
+  await as(page, "telesale", "customers/c-lan/");
+  await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
+  await expect(page.getByText("This page could not be found")).toHaveCount(0);
+  await expect(page.getByText("Phạm Ngọc Lan")).toHaveCount(0);
+});

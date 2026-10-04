@@ -33,7 +33,10 @@ export function CrmInbox() {
   const list = [...state.convs].sort((a, b) => order[a.status] - order[b.status]);
 
   return (
-    <section className="c-card c-inbox" aria-label="Hội thoại">
+    <section className="c-card c-inbox" aria-labelledby="inbox-title">
+      <h1 id="inbox-title" className="sr-only">
+        Hội thoại
+      </h1>
       <div className="c-ibl" aria-label="Danh sách hội thoại">
         {list.map((x) => (
           <button

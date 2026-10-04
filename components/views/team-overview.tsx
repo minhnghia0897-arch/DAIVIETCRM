@@ -17,6 +17,7 @@ export function TeamOverviewView({ user }: { user: SessionUser }) {
 
   return (
     <>
+      <h1 className="sr-only">Đội ngũ</h1>
       <Card>
         <CardHeader>
           <CardTitle>Tháng 10, theo kỳ, telesale</CardTitle>
