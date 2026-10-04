@@ -94,6 +94,8 @@ Giản lược để dễ nhìn:
 - **Hàng nút:** tối đa 3–4 nút chính bên trái; hành động ít dùng (mở hồ sơ hộ, hỏi AI, đánh dấu thất bại) là nút phụ trầm (không viền, chữ xám) dồn sang phải để hàng nút không rớt dòng.
 - **Trang theo kiểu kênh Slack:** đầu trang chỉ có tiêu đề là thanh phẳng (không khung, kẻ một đường dưới); biểu tượng đối tượng trong ô bo 8px nền nhạt cùng tông, tiêu đề đậm 800; dòng tóm tắt chữ xám bên dưới.
 - **Tab lọc, tab con và tab trong trang** (lọc đơn, lọc khách, Sản phẩm/Kho/Chính sách, Đội ngũ, Hoạt động/Báo giá…) cùng một kiểu thanh tab kênh Slack: chữ xám đậm 600, tab đang chọn chữ đậm 800 có gạch chân 2px màu `--brand`, cả thanh kẻ một đường dưới, nhiều tab thì cuộn ngang, không rớt dòng. Không dùng nút viên thuốc cho bộ lọc.
+- **Khu Cài đặt** kiểu trang Tùy chọn của Slack: tiêu đề "Cài đặt" to đậm; menu trái mục đang mở nền `--brand` chữ trắng đậm, mục khác chữ thường rê chuột nền xám nhạt; nội dung từng phần nằm phẳng không khung, tiêu đề phần 20px đậm 800 có đường kẻ dưới.
+- **Nút dùng chung** (Button của `components/ui`) cùng kiểu với nút trong CRM: chữ đậm; nút phụ viền xám chữ màu chữ chính; nút nguy hiểm chữ đỏ.
 - **Danh sách dạng bảng** nằm thẳng trên nền, không khung bao; đầu cột chữ nhỏ xám không nền; tên ở cột đầu chữ đậm màu chữ chính như danh bạ Slack (rê chuột gạch chân); hàng cao 44px, rê chuột nền xám nhạt.
 - **Chút màu để dễ nhìn:** biểu tượng sidebar mỗi mục một tông sáng (mục đang chọn biểu tượng trắng); biểu tượng đầu trang trong ô bo 8px nền nhạt 14% cùng tông với màu loại màn hình; biểu tượng trong nút mang màu theo nghĩa (gọi xanh lá, AI tím, hộ gia đình tím xanh); nút **Gọi** nền xanh lá `--ok` như nút chính của Slack; hành động hủy, thất bại chữ đỏ.
 

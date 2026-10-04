@@ -1532,3 +1532,29 @@
     }
   }
 }
+
+/*
+ * Khu Cài đặt kiểu trang Tùy chọn của Slack: các phần nằm phẳng trên nền, tiêu đề phần to và đậm, kẻ một đường
+ * dưới tiêu đề. Đặt ngoài @layer để thắng lớp tiện ích Tailwind của Card dùng chung.
+ */
+.c-setbody .c-card,
+.c-setbody section.rounded-card {
+  border-width: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.c-setbody .c-card > .c-ch:first-child,
+.c-setbody section.rounded-card > div:first-child {
+  border-bottom: 1px solid var(--line-2);
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+}
+.c-setbody .c-card > .c-ch:first-child h2,
+.c-setbody section.rounded-card > div:first-child h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+.c-setbody .c-card + .c-card,
+.c-setbody section.rounded-card + section.rounded-card {
+  margin-top: 20px;
+}

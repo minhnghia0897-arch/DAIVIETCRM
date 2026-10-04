@@ -120,7 +120,7 @@ export function PermissionMatrix({
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
-          <thead className="sticky top-0 bg-surface-2 text-left">
+          <thead className="sticky top-0 border-b border-line bg-surface text-left text-label text-text-weak">
             <tr>
               <th className="px-[14px] py-2 font-semibold">Quyền</th>
               {roles.map((r) => (

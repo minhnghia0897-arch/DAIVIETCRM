@@ -82,7 +82,7 @@ export function CrmReports() {
           <div className="c-cb c-funnel">
             {FUNNEL.map(([label, n], i) => (
               <div key={label}>
-                <div className="c-fb" style={{ width: `${Math.max(28, (n / maxFunnel) * 100)}%` }}>
+                <div className="c-fb" style={{ width: `${Math.max(42, (n / maxFunnel) * 100)}%` }}>
                   {label}: {n}
                   {i > 0 ? (
                     <span className="ml-auto pl-2 font-normal opacity-85">{pct(n, FUNNEL[i - 1][1])}</span>
