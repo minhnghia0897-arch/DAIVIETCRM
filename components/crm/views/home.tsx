@@ -53,7 +53,7 @@ export function CrmHome() {
       : [];
 
   return (
-    <div className="c-stack">
+    <div className="c-stack c-flat">
       {integrationAlerts.length ? (
         <p
           role="alert"

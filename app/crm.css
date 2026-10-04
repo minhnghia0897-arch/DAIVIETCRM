@@ -1558,3 +1558,60 @@
 .c-setbody section.rounded-card + section.rounded-card {
   margin-top: 20px;
 }
+
+/*
+ * Trang tổng hợp kiểu Slack (Trang chủ, Việc cần làm, Cơ hội): các phần nằm phẳng trên nền, không khung; tiêu đề
+ * phần có đường kẻ dưới; cột tách bằng khoảng trắng; tên trong danh sách in đậm màu chữ chính. Ngoài @layer để
+ * thắng lớp tiện ích.
+ */
+.c-flat .c-card {
+  border-width: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.c-flat .c-card > .c-ch:first-child {
+  border-bottom: 1px solid var(--line-2);
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-bottom: 4px;
+}
+.c-flat .c-card > .c-cb,
+.c-flat .c-card > ul,
+.c-flat .c-card > ol {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.c-flat .c-card > .c-phd {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.c-flat .c-kpis {
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.c-flat .c-kpis > div:first-child {
+  padding-left: 2px;
+}
+.c-flat .c-g84,
+.c-flat .c-rgrid,
+.c-flat .c-split {
+  column-gap: 32px;
+}
+.c-flat .c-stack > * + * {
+  margin-top: 24px;
+}
+.c-flat .c-link.font-semibold {
+  color: var(--text);
+  font-weight: 700;
+}
+.c-flat .c-empty {
+  border-width: 0;
+}
+/* Bảng cơ hội: cột nền xám nhạt không viền, thẻ trắng viền mảnh, rê chuột nổi nhẹ. */
+.c-flat .c-col {
+  border-width: 0;
+  background: var(--surface-2);
+}
+.c-flat .c-kc:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}

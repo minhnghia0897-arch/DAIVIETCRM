@@ -21,7 +21,7 @@ export function CrmOpportunities() {
   const open = opps.filter((o) => o.stage < 5);
 
   return (
-    <div className="c-stack">
+    <div className="c-stack c-flat">
       <section className="c-card">
         <PageHead
           icon={Target}

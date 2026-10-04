@@ -58,7 +58,7 @@ export function CrmTasks() {
     ) : null;
 
   return (
-    <div className="c-stack">
+    <div className="c-stack c-flat">
       <section className="c-card">
         <PageHead icon={ListChecks} color="var(--obj-call)" kicker="Việc và duyệt" title="Việc cần làm">
           <div className="c-ftabs" role="tablist" aria-label="Phạm vi">
