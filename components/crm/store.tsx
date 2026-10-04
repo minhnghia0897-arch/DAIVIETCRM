@@ -25,6 +25,13 @@ import { decideIntake, type IntakeDecision, type KnownContact, type KnownLead } 
 import type { ImportRow } from "@/lib/leads/import";
 import { weeklyWindows, type MarketWindows } from "@/lib/leads/windows";
 import { maskPhone, normalizePhone } from "@/lib/phone";
+import {
+  connectBlockers,
+  healthCheck,
+  initialState as initialIntegration,
+  type IntegrationState,
+} from "@/lib/integrations/connection";
+import { getIntegration, integrations, type IntegrationKey } from "@/lib/integrations/registry";
 import type { Policy, QuoteInput, QuoteResult } from "@/lib/sales/pricing";
 import { CUSTOMERS, KPIS, ORDERS, PRODUCTS, STAFF, STOCK, VARIANTS, type Order } from "@/lib/demo/data";
 import { fromChannelList, type Consent } from "@/lib/cdp/consent";
@@ -240,6 +247,8 @@ export interface Settings {
   replyMode: Record<string, ReplyMode>;
   prereqs: Record<string, string[]>;
   connected: string[];
+  /** Trạng thái từng đấu nối; khóa bí mật chỉ lưu ngày cập nhật, không lưu giá trị. */
+  integrationStates: Record<string, IntegrationState>;
   policies: Policy[];
 }
 
@@ -624,6 +633,7 @@ function initialState(): State {
       replyMode: { zalo_oa: "crm", meta_messenger: "external", pancake: "external", tiktok_messaging: "off" },
       prereqs: { zalo_oa: ["oa_verified"], email_smtp: ["domain"] },
       connected: [],
+      integrationStates: Object.fromEntries(integrations.map((d) => [d.key, initialIntegration(d)])),
       policies: POLICIES,
     },
   };
@@ -730,6 +740,12 @@ type Action =
   | { type: "orderAdvance"; orderId: string; actor: string }
   | { type: "orderIssueStock"; orderId: string; actor: string }
   | { type: "orderCod"; orderId: string; actor: string }
+  | { type: "intConfig"; key: string; config: Record<string, unknown>; actor: string }
+  | { type: "intSecret"; key: string; name: string; actor: string }
+  | { type: "intConnect"; key: string; actor: string }
+  | { type: "intTest"; key: string; actor: string }
+  | { type: "intPause"; key: string; paused: boolean; actor: string }
+  | { type: "intDisconnect"; key: string; actor: string }
   | { type: "setTarget"; staffId: string; revenue: number; calls: number; actor: string }
   | { type: "addAbsence"; staffId: string; date: string; kind: Absence["kind"]; actor: string }
   | { type: "addCoaching"; note: Omit<CoachingNote, "id">; actor: string }
@@ -1786,6 +1802,140 @@ function reducer(s: State, a: Action): State {
         `${pending.length} lead, ${orphan.length} việc chia cho ${a.to.join(", ")}`,
       );
     }
+    case "intConfig":
+      return addAudit(
+        setInt(s, a.key, (st) => ({ ...st, config: a.config })),
+        a.actor,
+        "Sửa cấu hình đấu nối",
+        getIntegration(a.key as IntegrationKey).name,
+        Object.keys(a.config).join(", "),
+      );
+    case "intSecret": {
+      // Giá trị khóa không bao giờ vào trạng thái hay nhật ký; chỉ ghi đã có và ngày cập nhật.
+      const def = getIntegration(a.key as IntegrationKey);
+      return addAudit(
+        setInt(s, a.key, (st) => ({
+          ...st,
+          secrets: { ...st.secrets, [a.name]: simDate(s.minutes).toISOString() },
+        })),
+        a.actor,
+        "Thay khóa bí mật",
+        def.name,
+        def.secretLabels?.[a.name as keyof typeof def.secretLabels] ?? a.name,
+      );
+    }
+    case "intConnect": {
+      const def = getIntegration(a.key as IntegrationKey);
+      const cur = s.settings.integrationStates[a.key];
+      if (!cur || connectBlockers(def, cur).length) return s;
+      const now = simDate(s.minutes);
+      const tokens: Record<string, string> = {};
+      // OAuth: nhận token khi Owner đăng nhập và cấp quyền; token Page Meta dài hạn khoảng 60 ngày.
+      if (def.connectMode === "oauth")
+        for (const t of def.secrets.filter((x) => /token/.test(x))) tokens[t] = now.toISOString();
+      const withTokens: IntegrationState = {
+        ...cur,
+        secrets: { ...cur.secrets, ...tokens },
+        tokenExpiresAt:
+          def.connectMode === "oauth" ? new Date(now.getTime() + 60 * 86_400_000).toISOString() : undefined,
+      };
+      const h = healthCheck(def, withTokens, s.settings.prereqs[a.key] ?? []);
+      const next: IntegrationState = h.ok
+        ? {
+            ...withTokens,
+            status: "connected",
+            connectedAt: now.toISOString(),
+            lastSuccessAt: now.toISOString(),
+            lastError: undefined,
+          }
+        : { ...withTokens, status: "error", lastError: h.message, lastErrorAt: now.toISOString() };
+      return addAudit(
+        setInt(s, a.key, () => ({
+          ...next,
+          log: [
+            {
+              at: now.toISOString(),
+              type: "Kết nối",
+              status: h.ok ? ("processed" as const) : ("failed" as const),
+              error: h.ok ? undefined : h.message,
+            },
+            ...cur.log,
+          ].slice(0, 50),
+        })),
+        a.actor,
+        h.ok ? "Kết nối đấu nối" : "Kết nối đấu nối thất bại",
+        def.name,
+        h.message,
+      );
+    }
+    case "intTest": {
+      const def = getIntegration(a.key as IntegrationKey);
+      const cur = s.settings.integrationStates[a.key];
+      if (!cur || cur.status !== "connected") return s;
+      const now = simDate(s.minutes).toISOString();
+      const h = healthCheck(def, cur, s.settings.prereqs[a.key] ?? []);
+      const TEST: Record<string, string> = {
+        meta_lead_ads: "Lead thử từ công cụ test lead của Meta",
+        zalo_oa: "Tin nhắn thử từ Zalo OA",
+        email_smtp: "Thư thử gửi tới Owner",
+        call_provider: "Cuộc gọi thử qua tổng đài giả lập",
+        pancake: "Đọc hội thoại thử từ Pancake",
+      };
+      let ns = setInt(s, a.key, (st) => ({
+        ...st,
+        status: h.ok ? "connected" : "error",
+        lastEventAt: now,
+        lastSuccessAt: h.ok ? now : st.lastSuccessAt,
+        lastError: h.ok ? undefined : h.message,
+        lastErrorAt: h.ok ? st.lastErrorAt : now,
+        log: [
+          {
+            at: now,
+            type: TEST[a.key] ?? "Dữ liệu thử",
+            status: h.ok ? ("processed" as const) : ("failed" as const),
+            error: h.ok ? undefined : h.message,
+          },
+          ...st.log,
+        ].slice(0, 50),
+      }));
+      // Lead thử từ Form Facebook đi đúng đường của lead thật: chuẩn hóa số, chống trùng, phân lead.
+      if (h.ok && a.key === "meta_lead_ads")
+        ns = reducer(ns, {
+          type: "createLead",
+          name: "Lead thử Facebook",
+          phoneRaw: "+82 10 4000 1234",
+          market: "KR",
+          source: "Facebook Ads nhắm người Việt tại Hàn",
+          product: "Ghế massage DV-X9",
+          note: "Dữ liệu thử từ màn Tích hợp",
+          actor: "Form quảng cáo Facebook",
+        });
+      return addAudit(ns, a.actor, "Gửi dữ liệu thử", def.name, h.message);
+    }
+    case "intPause":
+      return addAudit(
+        setInt(s, a.key, (st) => ({ ...st, status: a.paused ? "paused" : "connected" })),
+        a.actor,
+        a.paused ? "Tạm dừng đấu nối" : "Chạy lại đấu nối",
+        getIntegration(a.key as IntegrationKey).name,
+        "",
+      );
+    case "intDisconnect": {
+      const def = getIntegration(a.key as IntegrationKey);
+      return addAudit(
+        setInt(s, a.key, (st) => ({
+          ...st,
+          status: "not_connected",
+          tokenExpiresAt: undefined,
+          // Ngắt thì thu hồi token; khóa nhập tay (App Secret, API key) giữ lại để kết nối lại.
+          secrets: Object.fromEntries(Object.entries(st.secrets).filter(([k]) => !/token/.test(k))),
+        })),
+        a.actor,
+        "Ngắt kết nối",
+        def.name,
+        "",
+      );
+    }
     case "orderCod":
       return addAudit(
         { ...s, orders: s.orders.map((x) => (x.id === a.orderId ? { ...x, codApproved: true } : x)) },
@@ -1944,6 +2094,15 @@ export function orderFacts(o: OrderRec): OrderFacts {
     codApproved: o.codApproved,
     stockIssued: o.stockIssued,
     serialsAssigned: o.lines.every((l) => !needsSerial(l.variantId) || Boolean(l.serial)),
+  };
+}
+
+function setInt(s: State, key: string, f: (st: IntegrationState) => IntegrationState): State {
+  const cur = s.settings.integrationStates[key];
+  if (!cur) return s;
+  return {
+    ...s,
+    settings: { ...s.settings, integrationStates: { ...s.settings.integrationStates, [key]: f(cur) } },
   };
 }
 

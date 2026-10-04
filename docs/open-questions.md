@@ -26,3 +26,8 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
 14. `leads.recipient_province` trùng tỉnh của khách người nhận; đề xuất chỉ giữ một nơi lưu (giữ trên lead khi chưa có hồ sơ người nhận).
 15. Giới hạn giảm giá theo vai trò: cho đặt thêm riêng từng người.
 16. Thuật ngữ "QLSR" trong bản demo chưa có trong `DESIGN.md`; đề xuất dùng "Quản lý showroom" cho người hiển thị, quyền vẫn theo mã quyền.
+
+## Đấu nối
+
+17. **Lưu khóa đấu nối thật:** màn Cài đặt, Tích hợp đã có đủ luồng (nhập cấu hình, nhập khóa, kết nối, gửi dữ liệu thử, tạm dừng, ngắt) nhưng bản demo chỉ mô phỏng. Để chạy thật cần một migration mới: cột trạng thái trên `integrations` theo mục 10.2 và hàm `security definer` ghi khóa vào Supabase Vault (chỉ Owner, `settings.integrations`), không bao giờ trả giá trị khóa về trình duyệt. Chờ duyệt trước khi làm vì đổi schema.
+18. **OAuth Meta và Zalo** cần ứng dụng đứng tên showroom và tên miền thật cho địa chỉ chuyển hướng (câu hỏi mở 1, 6 ở `CLAUDE.md`).

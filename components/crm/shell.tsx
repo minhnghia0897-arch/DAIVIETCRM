@@ -432,6 +432,18 @@ function ShellInner({
               </span>
             </Link>
           ) : null}
+          {can("settings.integrations") &&
+          Object.values(state.settings.integrationStates).some((x) => x.status === "error") ? (
+            <Link
+              href="/settings/integrations"
+              className="flex items-center gap-1.5 border-r border-line-2 px-3 text-label whitespace-nowrap text-err"
+            >
+              <span className="c-lbltxt">Đấu nối lỗi</span>
+              <span className="c-cnt">
+                {Object.values(state.settings.integrationStates).filter((x) => x.status === "error").length}
+              </span>
+            </Link>
+          ) : null}
           {shortcuts?.map((s) => (
             <span key={s.label} className="flex items-center px-3 text-label whitespace-nowrap">
               {s.label}&nbsp;<b className="tabular">({s.count})</b>

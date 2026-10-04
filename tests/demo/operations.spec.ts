@@ -188,10 +188,9 @@ test("Cài đặt: kênh trả lời ở công cụ khác thì hộp thư chỉ 
   page,
 }) => {
   await as(page, "owner", "settings/integrations/");
-  await page
-    .getByRole("button", { name: /Zalo OA/ })
-    .first()
-    .click();
+  const zaloRow = page.getByRole("listitem", { name: "Zalo OA" });
+  await zaloRow.getByRole("button", { name: "Zalo OA" }).click();
+  await zaloRow.getByRole("tab", { name: "Cấu hình" }).click();
   await page
     .getByRole("radiogroup", { name: "Chế độ trả lời Zalo OA" })
     .getByLabel("Trả lời ở công cụ khác, CRM chỉ đọc")

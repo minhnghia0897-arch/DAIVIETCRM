@@ -27,6 +27,17 @@ export interface Prerequisite {
   helpUrl?: string;
 }
 
+export type ConnectMode = "oauth" | "api_key";
+
+/** Ô cấu hình không bí mật hiện trên tab Cấu hình; giá trị kiểm bằng `configSchema`. */
+export interface ConfigField {
+  key: string;
+  label: string;
+  kind: "text" | "list" | "mapping" | "select";
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+}
+
 export interface IntegrationDefinition {
   key: string;
   name: string;
@@ -39,7 +50,22 @@ export interface IntegrationDefinition {
   configSchema: z.ZodType;
   secrets: string[];
   supportsReplyMode?: boolean;
+  /** Có khi màn Cài đặt đã cho kết nối (OAuth hoặc nhập khóa); không có thì hiện "Sắp có". */
+  connectMode?: ConnectMode;
+  configFields?: readonly ConfigField[];
+  /** Nhãn tiếng Việt cho từng khóa bí mật. */
+  secretLabels?: Readonly<Record<string, string>>;
 }
+
+/** Trường lead mà câu hỏi của form quảng cáo được ánh xạ sang (CLAUDE.md 10.4). */
+export const LEAD_FIELDS = [
+  { value: "full_name", label: "Họ tên" },
+  { value: "phone", label: "Số điện thoại" },
+  { value: "country_of_residence", label: "Quốc gia đang sống" },
+  { value: "recipient_province", label: "Tỉnh người nhận" },
+  { value: "product_interest", label: "Sản phẩm quan tâm" },
+  { value: "occasion", label: "Dịp tặng" },
+] as const;
 
 const noConfig = z.object({});
 
@@ -58,11 +84,21 @@ export const integrations = [
       { key: "lead_access", label: "Đã cấp quyền truy cập lead cho ứng dụng CRM trong Business Manager" },
     ],
     configSchema: z.object({
-      pageId: z.string().optional(),
-      formIds: z.array(z.string()).default([]),
+      pageId: z.string().regex(/^\d{5,20}$/, "ID Page là dãy số"),
+      formIds: z.array(z.string().regex(/^\d{5,20}$/, "ID form là dãy số")).min(1, "Chọn ít nhất một form"),
       fieldMapping: z.record(z.string(), z.string()).default({}),
     }),
     secrets: ["meta_app_secret", "meta_page_access_token"],
+    connectMode: "oauth",
+    configFields: [
+      { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
+      { key: "formIds", label: "ID các form cần nhận", kind: "list", placeholder: "Mỗi dòng một ID form" },
+      { key: "fieldMapping", label: "Ánh xạ câu hỏi của form sang trường lead", kind: "mapping" },
+    ],
+    secretLabels: {
+      meta_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",
+      meta_page_access_token: "Page access token (lấy qua đăng nhập Facebook)",
+    },
   },
   {
     key: "zalo_oa",
@@ -76,8 +112,16 @@ export const integrations = [
       { key: "oa_verified", label: "Zalo OA đã xác thực" },
       { key: "oa_growth_plan", label: "Đã nâng Zalo OA lên gói Tăng trưởng trở lên" },
     ],
-    configSchema: z.object({ oaId: z.string().optional() }),
+    configSchema: z.object({ oaId: z.string().regex(/^\d{5,25}$/, "ID OA là dãy số") }),
     secrets: ["zalo_app_secret", "zalo_refresh_token"],
+    connectMode: "oauth",
+    configFields: [
+      { key: "oaId", label: "ID Zalo OA", kind: "text", placeholder: "Ví dụ 4318000000000000000" },
+    ],
+    secretLabels: {
+      zalo_app_secret: "Secret key của ứng dụng Zalo (kiểm chữ ký webhook)",
+      zalo_refresh_token: "Refresh token OA (lấy qua đăng nhập Zalo OA)",
+    },
     supportsReplyMode: true,
   },
   {
@@ -92,8 +136,26 @@ export const integrations = [
       { key: "domain", label: "Đã chốt tên miền của showroom" },
       { key: "spf_dkim", label: "Tên miền đã có bản ghi SPF và DKIM" },
     ],
-    configSchema: z.object({ fromAddress: z.string().optional(), host: z.string().optional() }),
+    configSchema: z.object({
+      host: z.string().min(3, "Nhập máy chủ SMTP"),
+      port: z.string().regex(/^\d{2,5}$/, "Cổng là số, thường 465 hoặc 587"),
+      username: z.string().min(1, "Nhập tên đăng nhập SMTP"),
+      fromAddress: z.email("Địa chỉ gửi chưa đúng dạng email"),
+    }),
     secrets: ["smtp_password"],
+    connectMode: "api_key",
+    configFields: [
+      { key: "host", label: "Máy chủ SMTP", kind: "text", placeholder: "smtp.example.com" },
+      { key: "port", label: "Cổng", kind: "text", placeholder: "587" },
+      { key: "username", label: "Tên đăng nhập", kind: "text" },
+      {
+        key: "fromAddress",
+        label: "Địa chỉ gửi",
+        kind: "text",
+        placeholder: "no-reply@daivietshowroomq4.vn",
+      },
+    ],
+    secretLabels: { smtp_password: "Mật khẩu SMTP" },
   },
   {
     key: "call_provider",
@@ -104,8 +166,21 @@ export const integrations = [
     implemented: false,
     capabilities: ["inbound_calls", "outbound_calls"],
     prerequisites: [{ key: "provider_chosen", label: "Đã chọn nhà cung cấp tổng đài" }],
-    configSchema: noConfig,
+    configSchema: z.object({
+      adapter: z.enum(["mock"], "Hiện chỉ có tổng đài giả lập để kiểm thử"),
+      webhookPath: z.string().default("/api/webhooks/call/mock"),
+    }),
     secrets: ["call_provider_api_key"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "adapter",
+        label: "Nhà cung cấp",
+        kind: "select",
+        options: [{ value: "mock", label: "Tổng đài giả lập (kiểm thử)" }],
+      },
+    ],
+    secretLabels: { call_provider_api_key: "API key tổng đài" },
   },
   {
     key: "pancake",
@@ -116,8 +191,13 @@ export const integrations = [
     implemented: false,
     capabilities: ["inbound_messages"],
     prerequisites: [{ key: "pancake_api_scope", label: "Đã kiểm tra gói Pancake có mở API" }],
-    configSchema: noConfig,
+    configSchema: z.object({ pageIds: z.array(z.string().min(1)).min(1, "Nhập ít nhất một trang Pancake") }),
     secrets: ["pancake_api_key"],
+    connectMode: "api_key",
+    configFields: [
+      { key: "pageIds", label: "ID các trang trên Pancake", kind: "list", placeholder: "Mỗi dòng một ID" },
+    ],
+    secretLabels: { pancake_api_key: "API key Pancake" },
     supportsReplyMode: true,
   },
   {

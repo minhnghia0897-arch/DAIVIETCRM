@@ -3,9 +3,8 @@
 import { useState } from "react";
 
 import { Switch } from "@/components/ui/switch";
-import { groupLabels, integrations, phaseLabels, type IntegrationGroup } from "@/lib/integrations/registry";
 import { useShell } from "../shell-context";
-import { useCrm, type ReplyMode, type Settings } from "../store";
+import { useCrm, type Settings } from "../store";
 
 // Các mục Cài đặt chạy bằng dữ liệu mô phỏng (CLAUDE.md 11.2). Mỗi thay đổi ghi nhật ký kiểm toán.
 
@@ -453,149 +452,7 @@ export function CatalogSettings() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tích hợp
-// ---------------------------------------------------------------------------
-
-const REPLY: Record<ReplyMode, string> = {
-  crm: "Trả lời trên CRM",
-  external: "Trả lời ở công cụ khác, CRM chỉ đọc",
-  off: "Tắt",
-};
-
-export function IntegrationSettings() {
-  const { state } = useCrm();
-  const save = useSave();
-  const [open, setOpen] = useState<string | null>(null);
-  const groups = Object.keys(groupLabels) as IntegrationGroup[];
-  const { prereqs, replyMode } = state.settings;
-
-  return (
-    <div className="c-stack">
-      {groups.map((g) => (
-        <Card key={g} title={groupLabels[g]}>
-          <ul className="m-0 list-none p-0">
-            {integrations
-              .filter((i) => i.group === g)
-              .map((i) => {
-                const done = prereqs[i.key] ?? [];
-                const reqs = i.prerequisites as readonly { key: string; label: string }[];
-                const ready = reqs.every((p) => done.includes(p.key));
-                const isOpen = open === i.key;
-                return (
-                  <li key={i.key} className="border-t border-line-2 py-2 first:border-t-0">
-                    <button
-                      type="button"
-                      className="flex w-full flex-wrap items-center gap-2 text-left"
-                      aria-expanded={isOpen}
-                      onClick={() => setOpen(isOpen ? null : i.key)}
-                    >
-                      <b className="min-w-40 flex-1">{i.name}</b>
-                      <span className="c-pill is-n">{phaseLabels[i.phase]}</span>
-                      <span className={`c-pill ${i.implemented ? "is-warn" : "is-n"}`}>
-                        {i.implemented ? "Chưa kết nối" : "Sắp có"}
-                      </span>
-                      <span className="c-lbl">
-                        Điều kiện {done.filter((d) => reqs.some((p) => p.key === d)).length}/{reqs.length}
-                      </span>
-                    </button>
-                    <p className="c-lbl mt-0.5 mb-0">{i.description}</p>
-                    {isOpen ? (
-                      <div className="mt-2 grid gap-3 rounded-control bg-surface-2 p-3 sm:grid-cols-2">
-                        <div>
-                          <b>Điều kiện tiên quyết</b>
-                          {reqs.length ? (
-                            <ul className="mt-1 mb-0 list-none space-y-1 p-0">
-                              {reqs.map((p) => {
-                                const on = done.includes(p.key);
-                                return (
-                                  <li key={p.key}>
-                                    <label className="flex items-start gap-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={on}
-                                        onChange={() =>
-                                          save(
-                                            {
-                                              prereqs: {
-                                                ...prereqs,
-                                                [i.key]: on
-                                                  ? done.filter((d) => d !== p.key)
-                                                  : [...done, p.key],
-                                              },
-                                            },
-                                            on ? "Bỏ đánh dấu điều kiện" : "Đánh dấu điều kiện",
-                                            `${i.name}: ${p.label}`,
-                                          )
-                                        }
-                                        className="mt-1"
-                                      />
-                                      {p.label}
-                                    </label>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <p className="c-lbl m-0">Không có.</p>
-                          )}
-                          {ready && reqs.length ? (
-                            <p className="mt-1 mb-0 text-ok">
-                              Đã đủ điều kiện. Đấu nối sẽ bật khi phần mềm có adapter.
-                            </p>
-                          ) : null}
-                          <p className="c-lbl mt-1 mb-0">Hướng dẫn: docs/integrations/{i.key}.md</p>
-                        </div>
-                        <div>
-                          {"supportsReplyMode" in i && i.supportsReplyMode ? (
-                            <>
-                              <b>Chế độ trả lời</b>
-                              <div
-                                className="mt-1 space-y-1"
-                                role="radiogroup"
-                                aria-label={`Chế độ trả lời ${i.name}`}
-                              >
-                                {(Object.keys(REPLY) as ReplyMode[]).map((m) => (
-                                  <label key={m} className="flex items-center gap-2">
-                                    <input
-                                      type="radio"
-                                      name={`reply-${i.key}`}
-                                      checked={(replyMode[i.key] ?? "crm") === m}
-                                      onChange={() =>
-                                        save(
-                                          { replyMode: { ...replyMode, [i.key]: m } },
-                                          "Đổi chế độ trả lời",
-                                          `${i.name}: ${REPLY[m]}`,
-                                        )
-                                      }
-                                    />
-                                    {REPLY[m]}
-                                  </label>
-                                ))}
-                              </div>
-                              <p className="c-lbl mt-1 mb-0">Mỗi kênh chỉ có một nơi trả lời.</p>
-                            </>
-                          ) : null}
-                          <b className="mt-2 block">Bí mật</b>
-                          <p className="c-lbl m-0">
-                            {i.secrets.length
-                              ? `${i.secrets.length} khóa, chưa có. Giá trị không bao giờ hiện lại sau khi lưu.`
-                              : "Không cần khóa."}
-                          </p>
-                          <b className="mt-2 block">Nhật ký</b>
-                          <p className="c-lbl m-0">Chưa có sự kiện nào.</p>
-                        </div>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-          </ul>
-        </Card>
-      ))}
-    </div>
-  );
-}
+export { IntegrationSettings } from "./integrations";
 
 // ---------------------------------------------------------------------------
 // Nhật ký kiểm toán
