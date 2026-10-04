@@ -4,6 +4,24 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 
 import { useToast } from "@/components/ui/toast";
 import {
+  CATALOGS,
+  LEAD_INFO,
+  MARKETS_SEED,
+  SHIFTS_SEED,
+  TASKS_SEED,
+  TASK_RULES_SEED,
+  missingInfo,
+  newLeadInfo,
+  type CatalogItem,
+  type LeadInfo,
+  type MarketSetting,
+  type Shift,
+  type Task,
+  type TaskRule,
+} from "@/lib/demo/ops-data";
+import { POLICIES } from "@/lib/demo/sales-catalog";
+import type { Policy, QuoteInput, QuoteResult } from "@/lib/sales/pricing";
+import {
   AGENTS,
   CHAIRS,
   CONVERSATIONS,
@@ -38,11 +56,78 @@ export interface FeedItem {
 
 export interface QueueItem {
   id: string;
+  /** agent: đề xuất của agent AI; discount: báo giá giảm vượt mức; payment: xác nhận tiền đã về. */
+  kind: "agent" | "discount" | "payment";
   agent: AgentId;
   text: string;
   why: string;
   okText: string;
   time: string;
+  /** Quyền cần có để duyệt. */
+  perm: string;
+  /** Người đề xuất; người đề xuất không tự duyệt được (trừ Owner, có ghi nhận riêng). */
+  requestedBy?: string;
+  ref?: string;
+}
+
+export interface Activity {
+  id: string;
+  oppId: string;
+  time: string;
+  kind: "call" | "zalo" | "note" | "stage" | "quote" | "payment" | "task" | "info" | "reveal" | "delivery";
+  text: string;
+  actor: string;
+}
+
+export interface QuoteRec {
+  id: string;
+  token: string;
+  oppId: string;
+  lines: QuoteInput["lines"];
+  province: string;
+  result: QuoteResult;
+  status: "pending_approval" | "sent" | "viewed" | "accepted" | "rejected";
+  createdBy: string;
+  time: string;
+  validUntil: string;
+}
+
+export interface PaymentRec {
+  id: string;
+  deliveryId: string;
+  type: "deposit" | "balance";
+  method: string;
+  amount: number;
+  reference: string;
+  status: "recorded" | "confirmed" | "rejected";
+  recordedBy: string;
+  confirmedBy?: string;
+  time: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  time: string;
+  actor: string;
+  action: string;
+  entity: string;
+  detail: string;
+}
+
+export type ReplyMode = "crm" | "external" | "off";
+
+export interface Settings {
+  callMode: "external" | "provider";
+  slaMinutes: number;
+  maxUncontacted: number;
+  markets: MarketSetting[];
+  shifts: Shift[];
+  taskRules: TaskRule[];
+  catalogs: Record<string, { title: string; items: CatalogItem[] }>;
+  replyMode: Record<string, ReplyMode>;
+  prereqs: Record<string, string[]>;
+  connected: string[];
+  policies: Policy[];
 }
 
 interface State {
@@ -66,6 +151,26 @@ interface State {
   occasionsDone: string[];
   traceSel: string | null;
   seq: number;
+  leadInfo: Record<string, LeadInfo>;
+  activities: Activity[];
+  tasks: Task[];
+  quotes: QuoteRec[];
+  payments: PaymentRec[];
+  audit: AuditEntry[];
+  settings: Settings;
+}
+
+/** Ngày giờ thật tương ứng với phút mô phỏng (ngày 04/10/2026, giờ VN). */
+export const simDate = (m: number) => new Date(Date.UTC(2026, 9, 3, 17, 0) + m * 60_000);
+
+/** Hạn của việc: giờ hôm nay, ngày mai, hoặc ngày/tháng. */
+export function fmtDue(due: number): string {
+  const day = Math.floor(due / 1440);
+  const t = fmtMinutes(due);
+  if (day === 0) return `${t} hôm nay`;
+  if (day === 1) return `${t} ngày mai`;
+  const d = new Date(Date.UTC(2026, 9, 4 + day));
+  return `${t} ${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export const fmtMinutes = (m: number) =>
@@ -151,7 +256,7 @@ function agentEvent(
   }
 }
 
-function approvalEvent(r: Rand): Omit<QueueItem, "id" | "time"> {
+function approvalEvent(r: Rand): Omit<QueueItem, "id" | "time" | "kind" | "perm"> {
   const k = pick(r, KR_NAMES);
   const roll = r();
   if (roll < 0.34)
@@ -189,7 +294,7 @@ function step(s: State, r: Rand): State {
       ...s,
       minutes,
       seq,
-      queue: [{ ...e, id: `q${seq}`, time }, ...s.queue],
+      queue: [{ ...e, kind: "agent", perm: "order.discount_approve", id: `q${seq}`, time }, ...s.queue],
       agentCount: { ...s.agentCount, [e.agent]: s.agentCount[e.agent] + 1 },
     };
   }
@@ -233,6 +338,91 @@ function initialState(): State {
     occasionsDone: [],
     traceSel: null,
     seq: 0,
+    leadInfo: LEAD_INFO,
+    activities: [
+      {
+        id: "a1",
+        oppId: "o1",
+        time: "30/09",
+        kind: "info",
+        text: "Lead từ Facebook Ads nhắm người Việt tại Hàn, đã đồng ý nhận tư vấn",
+        actor: "Hệ thống",
+      },
+      {
+        id: "a2",
+        oppId: "o1",
+        time: "01/10",
+        kind: "call",
+        text: "Gọi điện thoại · Nghe máy, quan tâm · Tặng bố mẹ ở Nghệ An dịp Tết, ngân sách trên 80tr",
+        actor: "Thảo",
+      },
+      {
+        id: "a3",
+        oppId: "o1",
+        time: "02/10",
+        kind: "quote",
+        text: "Gửi báo giá DV-X9, khách đã xem 2 lần",
+        actor: "Thảo",
+      },
+      {
+        id: "a4",
+        oppId: "o1",
+        time: "03/10",
+        kind: "zalo",
+        text: "Khách hỏi lắp tận Nghệ An, lo mua online bị lừa",
+        actor: "Khách",
+      },
+      {
+        id: "a5",
+        oppId: "o3",
+        time: "20/08",
+        kind: "info",
+        text: "Lead từ quảng cáo, sau đó không nghe máy 3 lần",
+        actor: "Hệ thống",
+      },
+      {
+        id: "a6",
+        oppId: "o3",
+        time: "04/10",
+        kind: "zalo",
+        text: "Phản hồi tin nhắc 20/10, hỏi còn ưu đãi không",
+        actor: "Khách",
+      },
+    ],
+    tasks: TASKS_SEED,
+    quotes: [],
+    payments: [],
+    audit: [
+      {
+        id: "au1",
+        time: "03/10 16:20",
+        actor: "Hà",
+        action: "Bật quyền",
+        entity: "Sale admin",
+        detail: "Xuất danh sách khách ra file",
+      },
+      {
+        id: "au2",
+        time: "04/10 08:41",
+        actor: "Thảo",
+        action: "Xem số điện thoại",
+        entity: "Lead Nguyễn Thị Thu",
+        detail: "Số người đặt, chế độ gọi ngoài hệ thống",
+      },
+    ],
+    settings: {
+      callMode: "external",
+      slaMinutes: 5,
+      maxUncontacted: 8,
+      markets: MARKETS_SEED,
+      shifts: SHIFTS_SEED,
+      taskRules: TASK_RULES_SEED,
+      catalogs: CATALOGS,
+      replyMode: { zalo_oa: "crm", meta_messenger: "external", pancake: "external", tiktok_messaging: "off" },
+      prereqs: { zalo_oa: ["oa_verified"], email_smtp: ["domain"] },
+      connected: [],
+      policies: POLICIES,
+    },
   };
   // Dữ liệu ban đầu sinh bằng hạt cố định để server và trình duyệt hiển thị giống nhau.
   const r = mulberry32(20261004);
@@ -250,8 +440,8 @@ type Action =
   | { type: "decide"; id: string; ok: boolean }
   | { type: "toggleAgent"; id: AgentId }
   | { type: "selectOpp"; id: string }
-  | { type: "advanceOpp" }
-  | { type: "loseOpp" }
+  | { type: "advanceOpp"; actor?: string }
+  | { type: "loseOpp"; reason?: string; actor?: string }
   | { type: "callOpp"; id: string }
   | { type: "assignOccasion"; label: string }
   | { type: "selectHouse"; id: string }
@@ -263,7 +453,44 @@ type Action =
   | { type: "closeConv" }
   | { type: "reply"; text: string }
   | { type: "customerFollowUp"; convId: string }
-  | { type: "selectTrace"; id: string };
+  | { type: "selectTrace"; id: string }
+  | { type: "updateLeadInfo"; oppId: string; patch: Partial<LeadInfo>; actor: string }
+  | { type: "revealPhone"; oppId: string; who: "buyer" | "recipient"; actor: string }
+  | {
+      type: "logCall";
+      oppId: string;
+      channel: "Điện thoại" | "Zalo" | "Tổng đài";
+      outcome: string;
+      note: string;
+      callbackAt?: number;
+      actor: string;
+    }
+  | { type: "addNote"; oppId: string; text: string; actor: string }
+  | { type: "addDate"; oppId: string; label: string; date: string; actor: string }
+  | { type: "completeTask"; id: string; outcome: string; actor: string }
+  | { type: "missTask"; id: string; actor: string }
+  | {
+      type: "sendQuote";
+      oppId: string;
+      token: string;
+      lines: QuoteInput["lines"];
+      province: string;
+      result: QuoteResult;
+      actor: string;
+    }
+  | { type: "markQuote"; id: string; status: "viewed" | "accepted" | "rejected"; actor: string }
+  | {
+      type: "recordPayment";
+      deliveryId: string;
+      payType: "deposit" | "balance";
+      method: string;
+      amount: number;
+      reference: string;
+      actor: string;
+    }
+  | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
+  | { type: "setSettings"; patch: Partial<Settings>; actor: string; label: string; detail?: string }
+  | { type: "audit"; actor: string; action: string; entity: string; detail: string };
 
 function pushFeed(s: State, agent: AgentId, text: string, result: string, money = false): State {
   const minutes = s.minutes + 1;
@@ -285,6 +512,8 @@ function reducer(s: State, a: Action): State {
     case "decide": {
       const q = s.queue.find((x) => x.id === a.id);
       if (!q) return s;
+      if (q.kind !== "agent")
+        return reducer(s, { type: "approve", id: a.id, ok: a.ok, actor: "Quản lý", isOwner: true });
       const rest = { ...s, queue: s.queue.filter((x) => x.id !== a.id) };
       return a.ok
         ? { ...pushFeed(rest, q.agent, q.okText, "Quản lý đã duyệt"), autoCount: s.autoCount + 1 }
@@ -295,21 +524,27 @@ function reducer(s: State, a: Action): State {
     case "selectOpp":
       return { ...s, oppSel: a.id };
     case "advanceOpp": {
+      // Người chỉ chuyển tay Lead mới → Đã liên hệ → Demo; từ Báo giá trở đi do báo giá và đơn sinh ra.
       const o = s.opps.find((x) => x.id === s.oppSel);
-      if (!o || o.stage >= 5) return s;
-      const next = { ...o, stage: o.stage + 1 };
-      let ns: State = { ...s, opps: s.opps.map((x) => (x.id === o.id ? next : x)) };
-      if (next.stage === 4) {
-        ns = {
-          ...pushFeed(ns, "tele", `${o.name} đặt cọc ${o.product}`, `+${tr(o.value)}`, true),
-          revenue: ns.revenue + o.value,
-        };
-      }
-      return ns;
+      if (!o || o.stage >= 2) return s;
+      if (o.stage === 1 && missingInfo(s.leadInfo[o.id] ?? newLeadInfo("VN")).length) return s;
+      const ns = setStage(s, o.id, o.stage + 1);
+      return addActivity(ns, o.id, "stage", `Chuyển sang ${STAGES[o.stage + 1]}`, a.actor ?? o.owner);
     }
     case "loseOpp": {
-      const opps = s.opps.filter((x) => x.id !== s.oppSel);
-      return { ...s, opps, oppSel: opps[0]?.id ?? "" };
+      // Đánh thất bại hủy các việc đã lên lịch kèm lý do, không xóa (CLAUDE.md mục 6).
+      const id = s.oppSel;
+      const opps = s.opps.filter((x) => x.id !== id);
+      return {
+        ...s,
+        opps,
+        oppSel: opps[0]?.id ?? "",
+        tasks: s.tasks.map((t) =>
+          t.oppId === id && t.status === "open"
+            ? { ...t, status: "cancelled", outcome: `Lead thất bại: ${a.reason ?? ""}` }
+            : t,
+        ),
+      };
     }
     case "callOpp": {
       const o = s.opps.find((x) => x.id === a.id);
@@ -357,7 +592,21 @@ function reducer(s: State, a: Action): State {
       };
       return {
         ...pushFeed(
-          { ...s, opps: [opp, ...s.opps] },
+          {
+            ...s,
+            opps: [opp, ...s.opps],
+            leadInfo: {
+              ...s.leadInfo,
+              [opp.id]: {
+                ...newLeadInfo(m.loc),
+                buyFor: "other",
+                recipientName:
+                  h.members.find((x) => x.role !== "Người đặt" && x.role !== "Tiềm năng")?.name ?? "",
+                recipientRelation: "Bố mẹ",
+                recipientProvince: h.place.split(", ").pop() ?? "",
+              },
+            },
+          },
           "house",
           `Tạo cơ hội "${c.title}" cho ${c.to}`,
           "Đã tạo",
@@ -371,7 +620,11 @@ function reducer(s: State, a: Action): State {
     case "advanceDelivery": {
       const d = s.deliveries.find((x) => x.id === s.delSel);
       if (!d || d.step >= 5) return s;
+      // Xuất kho cần thu đủ tiền theo chính sách thanh toán (đơn sinh trong phiên mô phỏng).
+      if (d.step === 1 && d.totalVnd !== undefined && (d.paidVnd ?? 0) < d.totalVnd) return s;
       let ns = s;
+      if (d.step === 1 && d.oppId) ns = setStage(ns, d.oppId, 5);
+      if (d.step === 4) ns = completeDelivery(ns, d);
       if (d.step === 3) ns = pushFeed(ns, "trust", `Gửi video bàn giao đơn ${d.id} cho ${d.buyer}`, "Đã gửi");
       if (d.step === 4) ns = pushFeed(ns, "trust", `Xin đánh giá từ ${d.buyer} cho đơn ${d.id}`, "Đã gửi");
       const next = { ...d, step: d.step + 1, flag: d.step === 0 || d.step === 2 ? null : d.flag };
@@ -442,7 +695,425 @@ function reducer(s: State, a: Action): State {
     }
     case "selectTrace":
       return { ...s, traceSel: a.id };
+
+    case "updateLeadInfo": {
+      const before = s.leadInfo[a.oppId] ?? newLeadInfo("VN");
+      const after = { ...before, ...a.patch };
+      const ns = { ...s, leadInfo: { ...s.leadInfo, [a.oppId]: after } };
+      const changed = Object.keys(a.patch).filter(
+        (k) => before[k as keyof LeadInfo] !== after[k as keyof LeadInfo],
+      );
+      if (!changed.length) return s;
+      const text =
+        "keepSurprise" in a.patch
+          ? after.keepSurprise
+            ? "Bật Giữ bất ngờ: không liên hệ người nhận"
+            : "Tắt Giữ bất ngờ: người đặt đã cho phép liên hệ người nhận"
+          : `Cập nhật thông tin: ${changed.map((k) => INFO_LABEL[k] ?? k).join(", ")}`;
+      return addActivity(ns, a.oppId, "info", text, a.actor);
+    }
+    case "revealPhone": {
+      const o = s.opps.find((x) => x.id === a.oppId);
+      return addAudit(
+        addActivity(
+          s,
+          a.oppId,
+          "reveal",
+          `Xem số ${a.who === "buyer" ? "người đặt" : "người nhận"} để gọi`,
+          a.actor,
+        ),
+        a.actor,
+        "Xem số điện thoại",
+        `Lead ${o?.name ?? a.oppId}`,
+        `Số ${a.who === "buyer" ? "người đặt" : "người nhận"}, chế độ gọi ngoài hệ thống`,
+      );
+    }
+    case "logCall": {
+      const o = s.opps.find((x) => x.id === a.oppId);
+      if (!o) return s;
+      let ns = addActivity(
+        s,
+        a.oppId,
+        a.channel === "Zalo" ? "zalo" : "call",
+        `${a.channel === "Tổng đài" ? "Gọi qua tổng đài" : `Gọi ${a.channel === "Zalo" ? "qua Zalo" : "điện thoại"} (ghi tay)`} · ${a.outcome}${a.note ? ` · ${a.note}` : ""}`,
+        a.actor,
+      );
+      // Liên hệ đi đầu tiên đặt giai đoạn Đã liên hệ và đóng việc Liên hệ đầu tiên.
+      if (o.stage === 0) ns = setStage(ns, o.id, 1);
+      ns = {
+        ...ns,
+        tasks: ns.tasks.map((t) =>
+          t.oppId === o.id && t.status === "open" && (t.type === "first_contact" || t.type === "callback")
+            ? { ...t, status: "done", outcome: a.outcome }
+            : t,
+        ),
+      };
+      if (a.callbackAt !== undefined) {
+        ns = addTask(ns, {
+          type: "callback",
+          title: `Gọi lại ${o.name}${a.note ? `: ${a.note}` : ""}`,
+          oppId: o.id,
+          owner: o.owner,
+          due: a.callbackAt,
+          priority: "normal",
+          source: "user",
+        });
+      }
+      return ns;
+    }
+    case "addNote":
+      return addActivity(s, a.oppId, "note", a.text, a.actor);
+    case "addDate": {
+      const info = s.leadInfo[a.oppId] ?? newLeadInfo("VN");
+      const ns = {
+        ...s,
+        leadInfo: {
+          ...s.leadInfo,
+          [a.oppId]: { ...info, dates: [...info.dates, { label: a.label, date: a.date }] },
+        },
+      };
+      return addActivity(ns, a.oppId, "info", `Thêm ngày quan trọng: ${a.label} ${a.date}`, a.actor);
+    }
+    case "completeTask": {
+      const t = s.tasks.find((x) => x.id === a.id);
+      if (!t) return s;
+      const ns = {
+        ...s,
+        tasks: s.tasks.map((x) =>
+          x.id === a.id ? { ...x, status: "done" as const, outcome: a.outcome } : x,
+        ),
+      };
+      return t.oppId
+        ? addActivity(
+            ns,
+            t.oppId,
+            "task",
+            `Hoàn thành: ${t.title}${a.outcome ? ` · ${a.outcome}` : ""}`,
+            a.actor,
+          )
+        : ns;
+    }
+    case "missTask":
+      return { ...s, tasks: s.tasks.map((x) => (x.id === a.id ? { ...x, status: "missed" as const } : x)) };
+
+    case "sendQuote": {
+      const o = s.opps.find((x) => x.id === a.oppId);
+      if (!o) return s;
+      const seq = s.seq + 1;
+      const needs = a.result.approvalsNeeded;
+      const q: QuoteRec = {
+        id: `Q${1040 + seq}`,
+        token: a.token,
+        oppId: a.oppId,
+        lines: a.lines,
+        province: a.province,
+        result: a.result,
+        status: needs.length ? "pending_approval" : "sent",
+        createdBy: a.actor,
+        time: fmtMinutes(s.minutes),
+        validUntil: "11/10/2026",
+      };
+      let ns: State = { ...s, seq, quotes: [q, ...s.quotes] };
+      if (needs.length) {
+        ns = {
+          ...ns,
+          queue: [
+            {
+              id: `qa${seq}`,
+              kind: "discount",
+              agent: "tele",
+              text: `Báo giá ${q.id} cho ${o.name}: ${vnd(a.result.totals.total)}`,
+              why: needs.map((n) => n.reason).join("; "),
+              okText: `Đã duyệt báo giá ${q.id}`,
+              time: fmtMinutes(s.minutes),
+              perm: "order.discount_approve",
+              requestedBy: a.actor,
+              ref: q.id,
+            },
+            ...ns.queue,
+          ],
+        };
+        return addActivity(ns, o.id, "quote", `Tạo báo giá ${q.id}, chờ duyệt giảm giá`, a.actor);
+      }
+      return markSent(ns, q.id, a.actor);
+    }
+    case "markQuote": {
+      const q = s.quotes.find((x) => x.id === a.id);
+      if (!q) return s;
+      let ns: State = { ...s, quotes: s.quotes.map((x) => (x.id === a.id ? { ...x, status: a.status } : x)) };
+      const label = { viewed: "Khách đã xem", accepted: "Khách đã đồng ý", rejected: "Khách từ chối" }[
+        a.status
+      ];
+      ns = addActivity(ns, q.oppId, "quote", `${label} báo giá ${q.id}`, a.actor);
+      if (a.status === "accepted") ns = createOrder(ns, q, a.actor);
+      return ns;
+    }
+    case "recordPayment": {
+      const seq = s.seq + 1;
+      const d = s.deliveries.find((x) => x.id === a.deliveryId);
+      if (!d) return s;
+      const p: PaymentRec = {
+        id: `P${700 + seq}`,
+        deliveryId: a.deliveryId,
+        type: a.payType,
+        method: a.method,
+        amount: a.amount,
+        reference: a.reference,
+        status: "recorded",
+        recordedBy: a.actor,
+        time: fmtMinutes(s.minutes),
+      };
+      let ns: State = {
+        ...s,
+        seq,
+        payments: [p, ...s.payments],
+        queue: [
+          {
+            id: `qp${seq}`,
+            kind: "payment",
+            agent: "trust",
+            text: `Khoản ${a.payType === "deposit" ? "cọc" : "thanh toán"} ${vnd(a.amount)} của đơn ${d.id} (${d.buyer}), ${a.method}${a.reference ? `, nội dung "${a.reference}"` : ""}`,
+            why: "Xác nhận tiền đã về tài khoản",
+            okText: `Đã xác nhận ${vnd(a.amount)} cho đơn ${d.id}`,
+            time: fmtMinutes(s.minutes),
+            perm: "payment.confirm",
+            requestedBy: a.actor,
+            ref: p.id,
+          },
+          ...s.queue,
+        ],
+      };
+      if (d.oppId)
+        ns = addActivity(
+          ns,
+          d.oppId,
+          "payment",
+          `Ghi nhận ${vnd(a.amount)} (${a.method}), chờ xác nhận`,
+          a.actor,
+        );
+      return ns;
+    }
+    case "approve": {
+      const q = s.queue.find((x) => x.id === a.id);
+      if (!q) return s;
+      if (q.requestedBy === a.actor && !a.isOwner) return s;
+      let ns: State = { ...s, queue: s.queue.filter((x) => x.id !== a.id) };
+      const self = q.requestedBy === a.actor;
+      ns = addAudit(
+        ns,
+        a.actor,
+        a.ok ? (self ? "Tự duyệt (Owner)" : "Duyệt") : "Từ chối",
+        q.kind === "discount"
+          ? `Báo giá ${q.ref}`
+          : q.kind === "payment"
+            ? `Thanh toán ${q.ref}`
+            : "Đề xuất agent",
+        q.text,
+      );
+      if (q.kind === "discount") {
+        const quote = ns.quotes.find((x) => x.id === q.ref);
+        if (!quote) return ns;
+        if (!a.ok) {
+          ns = {
+            ...ns,
+            quotes: ns.quotes.map((x) => (x.id === quote.id ? { ...x, status: "rejected" } : x)),
+          };
+          return addActivity(ns, quote.oppId, "quote", `Báo giá ${quote.id} bị từ chối giảm giá`, a.actor);
+        }
+        return markSent(ns, quote.id, a.actor);
+      }
+      if (q.kind === "payment") {
+        const p = ns.payments.find((x) => x.id === q.ref);
+        if (!p) return ns;
+        ns = {
+          ...ns,
+          payments: ns.payments.map((x) =>
+            x.id === p.id ? { ...x, status: a.ok ? "confirmed" : "rejected", confirmedBy: a.actor } : x,
+          ),
+        };
+        if (!a.ok) return ns;
+        const d = ns.deliveries.find((x) => x.id === p.deliveryId)!;
+        const paid = (d.paidVnd ?? 0) + p.amount;
+        const full = d.totalVnd !== undefined && paid >= d.totalVnd;
+        ns = {
+          ...ns,
+          deliveries: ns.deliveries.map((x) =>
+            x.id === d.id
+              ? { ...x, paidVnd: paid, payment: full ? "Đã thanh toán đủ" : `Đã thu ${vnd(paid)}` }
+              : x,
+          ),
+        };
+        if (d.oppId) {
+          ns = addActivity(ns, d.oppId, "payment", `Xác nhận tiền về ${vnd(p.amount)}`, a.actor);
+          const o = ns.opps.find((x) => x.id === d.oppId);
+          // Đơn đã cọc đủ mức tối thiểu thì lead sang Đặt cọc (CLAUDE.md mục 6) và tính doanh thu đã cọc.
+          if (o && o.stage < 4 && paid >= (d.depositMin ?? 0)) {
+            ns = setStage(ns, o.id, 4);
+            ns = {
+              ...pushFeed(ns, "tele", `${o.name} đặt cọc ${o.product}`, `+${tr(o.value)}`, true),
+              revenue: ns.revenue + o.value,
+            };
+            ns = addTask(ns, {
+              type: "delivery_step",
+              title: `Xác nhận người nhận và lịch giao đơn ${d.id}`,
+              deliveryId: d.id,
+              oppId: o.id,
+              owner: o.owner,
+              due: ns.minutes + 24 * 60,
+              priority: "high",
+              source: "rule",
+              ruleKey: "confirm_recipient",
+            });
+          }
+        }
+        return ns;
+      }
+      return a.ok
+        ? { ...pushFeed(ns, q.agent, q.okText, "Quản lý đã duyệt"), autoCount: ns.autoCount + 1 }
+        : pushFeed(ns, q.agent, `Từ chối: ${q.text}`, "Từ chối");
+    }
+    case "setSettings":
+      return addAudit(
+        { ...s, settings: { ...s.settings, ...a.patch } },
+        a.actor,
+        a.label,
+        "Cài đặt",
+        a.detail ?? "",
+      );
+    case "audit":
+      return addAudit(s, a.actor, a.action, a.entity, a.detail);
   }
+}
+
+const INFO_LABEL: Record<string, string> = {
+  buyFor: "mua cho ai",
+  recipientName: "tên người nhận",
+  recipientRelation: "quan hệ",
+  recipientProvince: "tỉnh người nhận",
+  occasion: "dịp",
+  occasionDate: "ngày dịp",
+  budget: "ngân sách",
+  market: "thị trường",
+};
+
+export const vnd = (v: number) => `${new Intl.NumberFormat("vi-VN").format(v)}đ`;
+
+function setStage(s: State, oppId: string, stage: number): State {
+  return { ...s, opps: s.opps.map((o) => (o.id === oppId ? { ...o, stage: Math.max(o.stage, stage) } : o)) };
+}
+
+function addActivity(s: State, oppId: string, kind: Activity["kind"], text: string, actor: string): State {
+  const seq = s.seq + 1;
+  return {
+    ...s,
+    seq,
+    activities: [{ id: `ac${seq}`, oppId, time: fmtMinutes(s.minutes), kind, text, actor }, ...s.activities],
+  };
+}
+
+function addAudit(s: State, actor: string, action: string, entity: string, detail: string): State {
+  const seq = s.seq + 1;
+  return {
+    ...s,
+    seq,
+    audit: [
+      { id: `au${seq}`, time: `04/10 ${fmtMinutes(s.minutes)}`, actor, action, entity, detail },
+      ...s.audit,
+    ],
+  };
+}
+
+function addTask(s: State, t: Omit<Task, "id" | "status">): State {
+  const seq = s.seq + 1;
+  return { ...s, seq, tasks: [{ ...t, id: `t${seq + 100}`, status: "open" }, ...s.tasks] };
+}
+
+function markSent(s: State, quoteId: string, actor: string): State {
+  const q = s.quotes.find((x) => x.id === quoteId)!;
+  let ns: State = { ...s, quotes: s.quotes.map((x) => (x.id === quoteId ? { ...x, status: "sent" } : x)) };
+  ns = setStage(ns, q.oppId, 3);
+  return addActivity(
+    ns,
+    q.oppId,
+    "quote",
+    `Gửi báo giá ${q.id} (${vnd(q.result.totals.total)}), link /q/${q.token}`,
+    actor,
+  );
+}
+
+function createOrder(s: State, q: QuoteRec, actor: string): State {
+  const o = s.opps.find((x) => x.id === q.oppId)!;
+  const info = s.leadInfo[o.id] ?? newLeadInfo("VN");
+  const n = 1028 + s.deliveries.filter((d) => d.quoteId).length;
+  const first = q.result.lines.find((l) => !l.isGift);
+  const d: Delivery = {
+    id: `DV-${n}`,
+    buyer: o.name,
+    buyerCity: info.market === "KR" ? o.city : "",
+    recipient:
+      info.buyFor === "self"
+        ? o.name
+        : info.recipientName
+          ? `${info.recipientName} (${info.recipientRelation.toLowerCase()})`
+          : "Chưa xác nhận",
+    address: q.province,
+    product: first?.name ?? o.product,
+    value: Math.round(q.result.totals.total / 100_000) / 10,
+    payment: "Chưa thanh toán",
+    step: 0,
+    eta: "Chờ cọc",
+    houseId: o.houseId,
+    note: `Sinh từ báo giá ${q.id}. Cọc tối thiểu ${vnd(q.result.deposit.minimum)}, giữ hàng ${q.result.deposit.holdDays} ngày.`,
+    flag: info.keepSurprise ? "Giữ bất ngờ: chưa liên hệ người nhận" : null,
+    oppId: o.id,
+    quoteId: q.id,
+    totalVnd: q.result.totals.total,
+    depositMin: q.result.deposit.minimum,
+    paidVnd: 0,
+    hasFilter: q.result.lines.some((l) => l.name.includes("Máy lọc")),
+  };
+  const ns = { ...s, deliveries: [d, ...s.deliveries], delSel: d.id };
+  return addActivity(ns, o.id, "delivery", `Tạo đơn ${d.id} từ báo giá ${q.id}`, actor);
+}
+
+function completeDelivery(s: State, d: Delivery): State {
+  // Hoàn tất sinh việc chăm sóc theo luật đang bật (CLAUDE.md 8.7, task_rules).
+  let ns = s;
+  const owner = s.opps.find((o) => o.id === d.oppId)?.owner ?? "Thảo";
+  const rules = new Set(s.settings.taskRules.filter((r) => r.active).map((r) => r.key));
+  if (rules.has("post_delivery_3d"))
+    ns = addTask(ns, {
+      type: "post_delivery_call",
+      title: `Gọi hỏi thăm ${d.buyer} sau 3 ngày dùng ${d.product}`,
+      deliveryId: d.id,
+      oppId: d.oppId,
+      owner,
+      due: s.minutes + 3 * 24 * 60,
+      priority: "normal",
+      source: "rule",
+      ruleKey: "post_delivery_3d",
+    });
+  if (d.hasFilter && rules.has("consumable_cycle"))
+    ns = addTask(ns, {
+      type: "consumable_reminder",
+      title: `Nhắc thay lõi lọc cho ${d.recipient}`,
+      deliveryId: d.id,
+      oppId: d.oppId,
+      owner: "",
+      due: s.minutes + 180 * 24 * 60,
+      priority: "normal",
+      source: "rule",
+      ruleKey: "consumable_cycle",
+    });
+  if (d.oppId)
+    ns = addActivity(
+      ns,
+      d.oppId,
+      "delivery",
+      `Đơn ${d.id} hoàn tất, sinh phiếu bảo hành; khách sang "Đang sử dụng"`,
+      "Hệ thống",
+    );
+  return ns;
 }
 
 function updateConv(s: State, id: string, f: (c: Conversation) => Conversation): State {
@@ -506,3 +1177,4 @@ export function useCrm() {
 }
 
 export { DELIVERY_STEPS, STAGES, agentById };
+export type { State as CrmState };

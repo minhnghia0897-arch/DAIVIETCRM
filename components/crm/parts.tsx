@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { agentById, type AgentId, type Loc, type TimelineKind } from "@/lib/demo/crm-data";
+import { useShell } from "./shell-context";
 import { useCrm, type FeedItem, type QueueItem } from "./store";
 
 // Mảnh giao diện dùng chung cho các màn hình theo bản mẫu.
@@ -131,46 +132,65 @@ export function FeedList({
   );
 }
 
-export function ApprovalList({ items, canDecide }: { items: QueueItem[]; canDecide: boolean }) {
+const KIND_LABEL: Record<QueueItem["kind"], string> = {
+  agent: "Đề xuất agent",
+  discount: "Duyệt giảm giá",
+  payment: "Xác nhận tiền",
+};
+
+/** Hàng chờ duyệt dùng chung: mỗi mục kiểm quyền riêng; người đề xuất không tự duyệt (trừ Owner, có ghi nhật ký). */
+export function ApprovalList({ items }: { items: QueueItem[] }) {
   const { act } = useCrm();
+  const { can, me, isOwner } = useShell();
   if (!items.length) return <p className="c-empty">Không có việc chờ duyệt.</p>;
   return (
     <div>
-      {items.map((q) => (
-        <div key={q.id} className="c-appr">
-          <div className="flex items-start gap-2">
-            <AgentIcon id={q.agent} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div>{q.text}</div>
-              <div className="c-lbl">
-                {q.why} · {q.time}
+      {items.map((q) => {
+        const self = q.requestedBy === me;
+        const allowed = can(q.perm) && (!self || isOwner);
+        return (
+          <div key={q.id} className="c-appr">
+            <div className="flex items-start gap-2">
+              <AgentIcon id={q.agent} size="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="c-lbl">
+                  {KIND_LABEL[q.kind]}
+                  {q.requestedBy ? ` · ${q.requestedBy} đề xuất` : ""} · {q.time}
+                </div>
+                <div>{q.text}</div>
+                <span className="c-pill is-warn mt-1 whitespace-normal">Cần duyệt: {q.why}</span>
               </div>
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[30px]">
+              {allowed ? (
+                <>
+                  <button
+                    type="button"
+                    className="c-btn is-brand"
+                    onClick={() => act({ type: "approve", id: q.id, ok: true, actor: me, isOwner }, q.okText)}
+                  >
+                    Duyệt
+                  </button>
+                  <button
+                    type="button"
+                    className="c-btn"
+                    onClick={() =>
+                      act({ type: "approve", id: q.id, ok: false, actor: me, isOwner }, "Đã từ chối")
+                    }
+                  >
+                    Từ chối
+                  </button>
+                  {self ? <span className="c-lbl">Bạn tự đề xuất; lần duyệt này được ghi riêng.</span> : null}
+                </>
+              ) : self ? (
+                <span className="c-lbl">Bạn là người đề xuất, cần người khác duyệt.</span>
+              ) : (
+                <span className="c-lbl">Chờ người có quyền duyệt.</span>
+              )}
+            </div>
           </div>
-          <div className="mt-2 flex gap-1.5 pl-[30px]">
-            {canDecide ? (
-              <>
-                <button
-                  type="button"
-                  className="c-btn is-brand"
-                  onClick={() => act({ type: "decide", id: q.id, ok: true }, "Đã duyệt")}
-                >
-                  Duyệt
-                </button>
-                <button
-                  type="button"
-                  className="c-btn"
-                  onClick={() => act({ type: "decide", id: q.id, ok: false }, "Đã từ chối")}
-                >
-                  Từ chối
-                </button>
-              </>
-            ) : (
-              <span className="c-pill is-warn">Chờ quản lý duyệt</span>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -8,22 +8,28 @@ import type { SessionUser } from "@/lib/auth/types";
 // Người dùng của bản demo tĩnh: chọn vai trò thay cho đăng nhập, lưu ở trình duyệt.
 // Quyền lấy đúng mặc định theo vai trò trong lib/auth/permissions.ts, nên giao diện ẩn hiện y như bản thật.
 
-export const DEMO_ROLES: Record<RoleKey, { id: string; fullName: string; roleName: string; note: string }> = {
+export const DEMO_ROLES: Record<
+  RoleKey,
+  { id: string; fullName: string; shortName: string; roleName: string; note: string }
+> = {
   owner: {
     id: "11111111-1111-4111-8111-000000000001",
     fullName: "Hà Owner",
+    shortName: "Hà",
     roleName: "Chủ hệ thống",
     note: "Toàn quyền, bật tắt quyền, thấy giá vốn, cả đội",
   },
   sale_admin: {
     id: "11111111-1111-4111-8111-000000000002",
     fullName: "Minh Sale admin",
+    shortName: "Minh",
     roleName: "Sale admin",
     note: "Điều phối lead, xem cả đội, không thấy giá vốn",
   },
   telesale: {
     id: "11111111-1111-4111-8111-000000000003",
     fullName: "Thảo",
+    shortName: "Thảo",
     roleName: "Telesale",
     note: "Chỉ thấy khách, đơn, hiệu suất của mình",
   },
@@ -40,6 +46,7 @@ export function demoUser(role: RoleKey): SessionUser {
     showroomId: "4a000000-0000-4000-8000-000000000004",
     showroomName: "Showroom Quận 4",
     roleName: r.roleName,
+    roleKey: role,
     permissions: new Set(PERMISSIONS.filter((p) => p.defaults.includes(role)).map((p) => p.key)),
     viewAs: null,
   };

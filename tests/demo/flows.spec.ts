@@ -23,7 +23,8 @@ test("trả lời khách Zalo thì khách đồng ý video call và cơ hội sa
   const demo = page.getByRole("region", { name: "Demo, video call" });
   await expect(demo.getByRole("button", { name: /Nguyễn Thị Thu/ })).toBeVisible();
   await demo.getByRole("button", { name: /Nguyễn Thị Thu/ }).click();
-  await page.getByRole("button", { name: "Gửi báo giá" }).click();
+  await page.getByRole("button", { name: "Tạo báo giá" }).click();
+  await page.getByRole("button", { name: "Gửi báo giá", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Báo giá" }).getByRole("button", { name: /Nguyễn Thị Thu/ }),
   ).toBeVisible();
@@ -72,11 +73,32 @@ test("telesale chỉ thấy việc của mình, không vào được Agent", asy
   await expect(page.getByRole("button", { name: /Hộ Phạm/ })).toHaveCount(0);
 });
 
-for (const path of ["home/", "opportunities/", "households/", "deliveries/", "inbox/", "reports/"]) {
+for (const path of [
+  "home/",
+  "tasks/",
+  "opportunities/",
+  "households/",
+  "deliveries/",
+  "inbox/",
+  "reports/",
+  "policies/",
+  "settings/integrations/",
+  "settings/markets/",
+  "settings/audit/",
+]) {
   test(`không tràn ngang: ${path}`, async ({ page }) => {
-    await as(page, "sale_admin", path);
+    await as(page, "owner", path);
     await expect(page.locator(".c-main")).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
   });
 }
+
+test("không tràn ngang khi mở trình tạo báo giá", async ({ page }) => {
+  await as(page, "owner", "opportunities/");
+  await page.getByRole("button", { name: /Nguyễn Thị Thu/ }).click();
+  await page.getByRole("button", { name: "Tạo báo giá" }).click();
+  await expect(page.getByRole("group", { name: "Kết quả định giá" })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(overflow).toBe(false);
+});

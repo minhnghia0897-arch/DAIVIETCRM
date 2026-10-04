@@ -3,16 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ClipboardCheck, Pause, Play, ScrollText, Search, Send, Sparkles, X } from "lucide-react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { AccountMenu } from "@/components/shell/account-menu";
 import { ToastProvider, useToast } from "@/components/ui/toast";
@@ -20,6 +11,7 @@ import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo
 import { HOUSES, houseById } from "@/lib/demo/crm-data";
 import { visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
+import { ShellContext } from "./shell-context";
 import { CrmProvider, fmtMinutes, useCrm } from "./store";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
@@ -28,27 +20,15 @@ import { CrmProvider, fmtMinutes, useCrm } from "./store";
 
 export interface ShellUser {
   fullName: string;
+  /** Tên gọi ngắn, khớp cột "người phụ trách" của dữ liệu mô phỏng. */
+  shortName: string;
   roleName: string;
+  roleKey: string;
   showroomName: string;
   permissions: string[];
 }
 
-interface ShellCtx {
-  perms: ReadonlySet<string>;
-  can: (perm: string) => boolean;
-  /** Tên gọi ngắn của người dùng, khớp cột "người phụ trách" trong dữ liệu mô phỏng. */
-  me: string;
-  /** Mở khung trợ lý AI và hỏi một câu. */
-  ask: (question: string) => void;
-}
-
-const ShellContext = createContext<ShellCtx | null>(null);
-
-export function useShell() {
-  const ctx = useContext(ShellContext);
-  if (!ctx) throw new Error("useShell must be used inside CrmShell");
-  return ctx;
-}
+export { useShell } from "./shell-context";
 
 export function CrmShell(props: {
   user: ShellUser;
@@ -148,10 +128,15 @@ function ShellInner({
     [view],
   );
 
-  const me = user.fullName.split(" ").pop() ?? user.fullName;
-  const shell = useMemo(() => ({ perms, can, ask, me }), [perms, can, ask, me]);
+  const me = user.shortName;
+  // Quyền chỉ Owner (không cấp được) dùng để nhận ra Owner, không suy từ tên vai trò.
+  const isOwner = perms.has("settings.permissions");
+  const roleKey = user.roleKey;
+  const shell = useMemo(
+    () => ({ perms, can, ask, me, isOwner, roleKey }),
+    [perms, can, ask, me, isOwner, roleKey],
+  );
 
-  const canDecide = can("order.discount_approve");
   const tabs = visibleTabs(perms);
 
   function search(text: string) {
@@ -285,8 +270,8 @@ function ShellInner({
                   {messages.length === 0 ? (
                     <div className="c-ma">
                       <p>
-                        Chào {user.fullName.split(" ").pop()}, tôi đọc dữ liệu trong phạm vi quyền của bạn và
-                        chỉ đề xuất; mọi việc gửi đi đều cần người bấm xác nhận.
+                        Chào {user.shortName}, tôi đọc dữ liệu trong phạm vi quyền của bạn và chỉ đề xuất; mọi
+                        việc gửi đi đều cần người bấm xác nhận.
                       </p>
                     </div>
                   ) : null}
@@ -363,7 +348,7 @@ function ShellInner({
               </span>
             </div>
             {pop === "appr" ? (
-              <ApprovalList items={state.queue} canDecide={canDecide} />
+              <ApprovalList items={state.queue} />
             ) : (
               <FeedList items={state.feed} limit={20} />
             )}

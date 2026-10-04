@@ -24,7 +24,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const [{ data: profile }, { data: perms }, owner] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, is_active, showroom_id, showrooms(name), roles(name)")
+      .select("full_name, is_active, showroom_id, showrooms(name), roles(key, name)")
       .eq("id", effectiveId)
       .maybeSingle(),
     supabase.rpc("my_permissions", undefined, { get: true }),
@@ -41,6 +41,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     showroomId: profile.showroom_id,
     showroomName: profile.showrooms?.name ?? "",
     roleName: profile.roles?.name ?? "",
+    roleKey: profile.roles?.key ?? "",
     permissions: new Set((perms ?? []) as string[]),
     viewAs: viewAsSession ? { sessionId: viewAsSession, ownerName: owner.data?.full_name ?? "" } : null,
   };

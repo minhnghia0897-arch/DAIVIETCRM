@@ -18,7 +18,12 @@ export function CrmInbox() {
   const [text, setText] = useState("");
   const trs = useRef<HTMLDivElement>(null);
   const c = state.convs.find((x) => x.id === state.convSel) ?? state.convs[0];
-  const canSend = can("message.zalo_send");
+  // Mỗi kênh chỉ một nơi trả lời: kênh đặt "trả lời ở công cụ khác" thì ô soạn chỉ đọc (CLAUDE.md 10.1, 11.2).
+  const channelKey = { Zalo: "zalo_oa", Facebook: "meta_messenger", "TikTok Live": "", Hotline: "" }[
+    c.channel
+  ];
+  const mode = channelKey ? (state.settings.replyMode[channelKey] ?? "crm") : "crm";
+  const canSend = can("message.zalo_send") && mode === "crm";
 
   useEffect(() => {
     trs.current?.scrollTo({ top: trs.current.scrollHeight });
@@ -132,7 +137,13 @@ export function CrmInbox() {
             </button>
           </form>
         ) : (
-          <p className="c-reply c-lbl m-0">Bạn chỉ xem được hội thoại này.</p>
+          <p className="c-reply c-lbl m-0">
+            {mode === "external"
+              ? "Kênh này đang được trả lời trên Pancake, CRM chỉ đọc."
+              : mode === "off"
+                ? "Kênh này đang tắt trong Cài đặt, Tích hợp."
+                : "Bạn chỉ xem được hội thoại này."}
+          </p>
         )}
       </div>
 

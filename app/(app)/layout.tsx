@@ -14,7 +14,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <CrmShell
       user={{
         fullName: user.fullName,
+        shortName: user.fullName.split(" ").pop() ?? user.fullName,
         roleName: user.roleName,
+        roleKey: user.roleKey,
         showroomName: user.showroomName,
         permissions: [...user.permissions],
       }}

@@ -214,7 +214,7 @@ export function CrmHome() {
                 <span className="c-pill is-warn">{state.queue.length}</span>
               </span>
             </div>
-            <ApprovalList items={state.queue.slice(0, 4)} canDecide={can("order.discount_approve")} />
+            <ApprovalList items={state.queue.slice(0, 4)} />
           </section>
         </div>
       </div>

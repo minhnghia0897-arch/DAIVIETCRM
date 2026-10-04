@@ -9,6 +9,7 @@ export interface NavTab {
 
 export const NAV_TABS: NavTab[] = [
   { href: "/home", label: "Trang chủ", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
+  { href: "/tasks", label: "Việc cần làm", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/opportunities", label: "Cơ hội", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/households", label: "Hộ gia đình", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/deliveries", label: "Đơn & giao lắp", anyOf: ["order.view_own", "order.view_all"], ready: true },
@@ -18,6 +19,7 @@ export const NAV_TABS: NavTab[] = [
   { href: "/agents", label: "Agent", anyOf: ["settings.integrations"], ready: true },
   { href: "/products", label: "Sản phẩm", anyOf: ["product.view"], ready: true },
   { href: "/inventory", label: "Kho", anyOf: ["inventory.view"], ready: true },
+  { href: "/policies", label: "Chính sách", anyOf: ["policy.view"], ready: true },
   { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: true },
   { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
@@ -33,6 +35,14 @@ export interface SettingsItem {
 export const SETTINGS_ITEMS: SettingsItem[] = [
   { href: "/settings/users", label: "Người dùng", perm: "settings.users" },
   { href: "/settings/permissions", label: "Phân quyền", perm: "settings.permissions" },
+  { href: "/settings/shifts", label: "Ca trực", perm: "settings.assignment" },
+  { href: "/settings/assignment", label: "Phân lead", perm: "settings.assignment" },
+  { href: "/settings/markets", label: "Thị trường", perm: "settings.assignment" },
+  { href: "/settings/task-rules", label: "Luật sinh việc", perm: "settings.assignment" },
+  { href: "/settings/call-mode", label: "Chế độ gọi", perm: "settings.integrations" },
+  { href: "/settings/catalog", label: "Danh mục", perm: "catalog.manage" },
+  { href: "/settings/integrations", label: "Tích hợp", perm: "settings.integrations" },
+  { href: "/settings/audit", label: "Nhật ký kiểm toán", perm: "audit.view" },
 ];
 
 export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {

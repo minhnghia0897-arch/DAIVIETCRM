@@ -735,6 +735,13 @@ export interface Delivery {
   houseId?: string;
   note: string;
   flag: string | null;
+  /** Đơn sinh từ báo giá trong phiên mô phỏng: liên kết cơ hội, tiền tính bằng đồng. */
+  oppId?: string;
+  quoteId?: string;
+  totalVnd?: number;
+  depositMin?: number;
+  paidVnd?: number;
+  hasFilter?: boolean;
 }
 
 export const DELIVERIES: Delivery[] = [
@@ -750,6 +757,7 @@ export const DELIVERIES: Delivery[] = [
     step: 1,
     eta: "10/10",
     houseId: "h5",
+    oppId: "o10",
     note: "Người nhận đã xác nhận qua điện thoại. Thang máy chung cư cần đăng ký trước.",
     flag: null,
   },
@@ -764,6 +772,7 @@ export const DELIVERIES: Delivery[] = [
     payment: "Đã cọc 20tr",
     step: 0,
     eta: "Trước 23 tháng Chạp",
+    oppId: "o9",
     note: "Khách muốn giữ bất ngờ, chưa cho phép gọi người nhận.",
     flag: "Chờ phép liên hệ người nhận",
   },

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { CrmShell } from "@/components/crm/shell";
 import { DemoUserProvider } from "@/components/demo/demo-user";
-import { setDemoRole } from "@/lib/demo/session";
+import { DEMO_ROLES, setDemoRole } from "@/lib/demo/session";
 import { visibleSettings } from "@/lib/nav";
 
 // Khung ứng dụng của bản demo tĩnh: cùng khung với app/(app)/layout.tsx, người dùng lấy từ vai trò đã chọn.
@@ -16,7 +16,9 @@ export default function DemoAppLayout({ children }: { children: React.ReactNode 
         <CrmShell
           user={{
             fullName: user.fullName,
+            shortName: Object.values(DEMO_ROLES).find((r) => r.id === user.id)?.shortName ?? user.fullName,
             roleName: user.roleName,
+            roleKey: user.roleKey,
             showroomName: user.showroomName,
             permissions: [...user.permissions],
           }}
