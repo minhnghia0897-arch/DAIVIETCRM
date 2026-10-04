@@ -1,11 +1,11 @@
 name: Pages
 
-# Đăng bản demo tĩnh (docs/reference/daiviet-crm-q4.html, dữ liệu mô phỏng) lên GitHub Pages.
-# Bản CRM thật cần máy chủ nên chạy trên Vercel, không chạy trên Pages.
+# Đăng bản demo tĩnh của chính giao diện đang dựng lên GitHub Pages, dữ liệu mô phỏng,
+# đăng nhập bằng cách chọn vai trò: https://minhnghia0897-arch.github.io/DAIVIETCRM/
+# Bản mẫu tham chiếu ban đầu nằm ở /DAIVIETCRM/mau/ để so sánh.
 on:
   push:
     branches: [main, claude/great-keller-r6thv5]
-    paths: [docs/reference/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -25,13 +25,22 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          DEMO_EXPORT: "1"
       - run: |
-          mkdir -p _site
-          cp docs/reference/daiviet-crm-q4.html _site/index.html
-          touch _site/.nojekyll
+          mkdir -p out/mau
+          cp docs/reference/daiviet-crm-q4.html out/mau/index.html
+          touch out/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: out
       - id: deployment
         uses: actions/deploy-pages@v4

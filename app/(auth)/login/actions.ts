@@ -23,6 +23,7 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
 
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // Chỉ thoát trên thiết bị này; thu hồi mọi phiên là việc của thao tác khóa người dùng.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }

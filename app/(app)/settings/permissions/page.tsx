@@ -4,6 +4,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 
+import { createRole, toggleRolePermission } from "../actions";
 import { PermissionMatrix } from "./permission-matrix";
 
 export const metadata: Metadata = { title: "Phân quyền · Đại Việt CRM" };
@@ -36,6 +37,7 @@ export default async function PermissionsPage() {
       roles={sortedRoles.map((r) => ({ id: r.id, name: r.name, isOwner: r.is_owner }))}
       permissions={rows}
       granted={(grants ?? []).map((g) => `${g.role_id}:${g.permission_key}`)}
+      actions={{ toggleRolePermission, createRole }}
     />
   );
 }

@@ -55,3 +55,12 @@ test("Owner khóa telesale thì lead của họ về hàng chưa phân", async (
   const phuc = page.getByRole("listitem").filter({ hasText: "Phạm Ngọc Lan" });
   await expect(phuc.getByText("Chưa phân")).toBeVisible();
 });
+
+test("đăng xuất từ menu tài khoản", async ({ page }) => {
+  await login(page, USERS.thao);
+  await page.getByRole("button", { name: "Tài khoản" }).click();
+  await page.getByRole("menuitem", { name: "Đăng xuất" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/home");
+  await expect(page).toHaveURL(/\/login$/);
+});

@@ -4,6 +4,8 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 
+import { startViewAs } from "../../view-as/actions";
+import { changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive } from "../actions";
 import { UsersTable } from "./users-table";
 
 export const metadata: Metadata = { title: "Người dùng · Đại Việt CRM" };
@@ -20,6 +22,7 @@ export default async function UsersPage() {
 
   return (
     <UsersTable
+      actions={{ changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive, startViewAs }}
       meId={me.id}
       canEditPermissions={me.permissions.has("settings.permissions")}
       users={(profiles ?? []).map((p) => ({

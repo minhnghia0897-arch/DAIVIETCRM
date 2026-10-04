@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 
-import { createRole, toggleRolePermission } from "../actions";
+import type { ActionResult } from "../types";
 
 interface Role {
   id: string;
@@ -24,14 +24,21 @@ interface Perm {
   sensitive: boolean;
 }
 
+export interface PermissionMatrixActions {
+  toggleRolePermission: (input: { roleId: string; permission: string; on: boolean }) => Promise<ActionResult>;
+  createRole: (input: { name: string }) => Promise<ActionResult>;
+}
+
 export function PermissionMatrix({
   roles,
   permissions,
   granted,
+  actions: { toggleRolePermission, createRole },
 }: {
   roles: Role[];
   permissions: Perm[];
   granted: string[];
+  actions: PermissionMatrixActions;
 }) {
   const toast = useToast();
   const [state, setState] = useState(() => new Set(granted));

@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/db/admin";
 import { siteUrl } from "@/lib/db/env";
 import { createClient } from "@/lib/db/server";
 
-export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
+import type { ActionResult } from "./types";
 
 const permLabel = (key: string) => PERMISSIONS.find((p) => p.key === key)?.label ?? key;
 

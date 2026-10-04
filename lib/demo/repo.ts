@@ -1,6 +1,4 @@
-import "server-only";
-
-import type { SessionUser } from "@/lib/auth/session";
+import type { SessionUser } from "@/lib/auth/types";
 
 import {
   CUSTOMERS,

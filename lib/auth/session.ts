@@ -5,17 +5,8 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/db/server";
 
-export interface SessionUser {
-  id: string;
-  email: string | null;
-  fullName: string;
-  showroomId: string;
-  showroomName: string;
-  roleName: string;
-  permissions: ReadonlySet<string>;
-  /** Có khi Owner đang "Xem như" người này: mọi thao tác ghi bị chặn. */
-  viewAs: { sessionId: string; ownerName: string } | null;
-}
+export type { SessionUser } from "./types";
+import type { SessionUser } from "./types";
 
 /** Lấy người dùng và quyền hiệu lực một lần mỗi request (CLAUDE.md mục 5, Hàm kiểm tra). */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {

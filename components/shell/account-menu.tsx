@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
-
-import { signOut } from "@/app/(auth)/login/actions";
+import { startTransition } from "react";
 
 export function AccountMenu({
   fullName,
   roleName,
   settings,
+  signOutAction,
 }: {
   fullName: string;
   roleName: string;
   settings: { href: string; label: string }[];
+  /** Server action đăng xuất ở bản thật; hàm phía trình duyệt ở bản demo tĩnh. */
+  signOutAction: () => void | Promise<void>;
 }) {
   const initials = fullName
     .split(" ")
@@ -54,16 +56,13 @@ export function AccountMenu({
             </>
           ) : null}
           <DropdownMenu.Separator className="my-1 h-px bg-line-2" />
-          <form action={signOut}>
-            <DropdownMenu.Item asChild>
-              <button
-                type="submit"
-                className="block w-full rounded-control px-3 py-2 text-left outline-none data-highlighted:bg-surface-2"
-              >
-                Đăng xuất
-              </button>
-            </DropdownMenu.Item>
-          </form>
+          <DropdownMenu.Item
+            // Gọi trực tiếp khi chọn: menu đóng ngay khi chọn nên không dùng form (form bị gỡ trước khi gửi).
+            onSelect={() => startTransition(() => signOutAction())}
+            className="block w-full cursor-pointer rounded-control px-3 py-2 text-left outline-none data-highlighted:bg-surface-2"
+          >
+            Đăng xuất
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

@@ -3,6 +3,7 @@ import { Bell } from "@/components/shell/bell";
 import { DualClock } from "@/components/shell/dual-clock";
 import { TabBar } from "@/components/shell/tab-bar";
 import { ToastProvider } from "@/components/ui/toast";
+import { signOut } from "../(auth)/login/actions";
 import { endViewAs } from "./view-as/actions";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
@@ -60,6 +61,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             fullName={user.fullName}
             roleName={user.roleName}
             settings={visibleSettings(user.permissions)}
+            signOutAction={signOut}
           />
         </div>
       </header>

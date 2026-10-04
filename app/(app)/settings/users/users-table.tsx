@@ -11,8 +11,7 @@ import { Pill } from "@/components/ui/pill";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
-import { startViewAs } from "../../view-as/actions";
-import { changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive } from "../actions";
+import type { ActionResult } from "../types";
 
 interface User {
   id: string;
@@ -36,7 +35,21 @@ interface Perm {
   group: string;
 }
 
+export interface UsersTableActions {
+  changeRole: (userId: string, roleId: string) => Promise<ActionResult>;
+  inviteUser: (input: { email: string; fullName: string; roleId: string }) => Promise<ActionResult>;
+  resetOverrides: (userId: string) => Promise<ActionResult>;
+  setPermissionOverride: (input: {
+    userId: string;
+    permission: string;
+    state: "role" | "grant" | "revoke";
+  }) => Promise<ActionResult>;
+  setUserActive: (userId: string, active: boolean) => Promise<ActionResult>;
+  startViewAs: (userId: string) => Promise<void>;
+}
+
 export function UsersTable(props: {
+  actions: UsersTableActions;
   meId: string;
   canEditPermissions: boolean;
   users: User[];
@@ -45,6 +58,8 @@ export function UsersTable(props: {
   roleGrants: string[];
   permissions: Perm[];
 }) {
+  const { changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive, startViewAs } =
+    props.actions;
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [lockTarget, setLockTarget] = useState<User | null>(null);
