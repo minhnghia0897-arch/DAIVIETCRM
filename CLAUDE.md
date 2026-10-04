@@ -874,7 +874,10 @@ lib/
 supabase/
   migrations/      # mọi thay đổi schema
   functions/       # process-webhooks, refresh-zalo-token, sla-check, meta-reconcile
-  seed.sql         # vai trò, quyền, danh mục mẫu, dữ liệu giả cho dev
+  migrations/*_reference_data.sql  # showroom, thị trường, vai trò, quyền (sinh từ lib/auth/permissions.ts), danh mục mặc định: cần ở mọi môi trường
+  seed.sql         # chỉ dữ liệu giả cho dev (người dùng, khách, lead giả)
+  tests/           # kiểm thử RLS bằng pgTAP
+  templates/       # email lời mời, đặt lại mật khẩu tiếng Việt
 docs/
   reference/daiviet-crm-q4.html
   integrations/*.md
@@ -892,6 +895,7 @@ tests/
 - Sau mỗi thay đổi schema, sinh lại type TypeScript từ Supabase.
 - Trước khi báo xong một việc: chạy `lint`, `typecheck`, `test`, và e2e của phần liên quan. Báo rõ cái gì đã kiểm, cái gì chưa.
 - Không commit secret, file `.env`, dữ liệu khách thật. Seed chỉ dùng dữ liệu giả.
+- Thêm, đổi quyền: sửa `lib/auth/permissions.ts`, chạy `node scripts/gen-permission-seed.mts` và đưa khối SQL vào một migration mới; unit test sẽ báo nếu migration và code lệch nhau.
 - Chữ trên giao diện viết theo `DESIGN.md` mục giọng văn. Không để chữ tiếng Anh lọt ra màn hình người dùng.
 - Khi không chắc về nghiệp vụ, hỏi anh thay vì đoán. Ghi các câu hỏi mở vào `docs/open-questions.md`.
 
@@ -906,6 +910,7 @@ pnpm test:e2e       # playwright
 pnpm test:rls       # kiểm thử chính sách RLS (pgTAP, supabase test db)
 pnpm format         # prettier
 pnpm db:start       # Supabase local (cần Docker)
+pnpm db:reset       # dựng lại DB local từ migration và seed (chạy trước e2e)
 pnpm db:migrate     # supabase migration up
 pnpm db:types       # sinh type
 ```
