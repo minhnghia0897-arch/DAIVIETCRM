@@ -72,7 +72,7 @@ Tháng 1 chỉ làm giao diện sáng. Đặt token theo cách thêm giao diện
 
 ### Chữ
 
-- **Font:** Be Vietnam Pro (thiết kế cho tiếng Việt, dấu rõ ở cỡ nhỏ), nạp bằng `next/font/google`, các độ đậm 400, 500, 600, 700. Dự phòng: `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`.
+- **Font:** font hệ thống như bản mẫu: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`, cỡ gốc 13,5px. Không nạp font web, để trang mở nhanh trên điện thoại và hiển thị dấu tiếng Việt bằng font của máy.
 - **Số:** mọi bảng, chỉ số, đồng hồ, tiền dùng `font-variant-numeric: tabular-nums`.
 
 | Cấp | Cỡ / dòng | Độ đậm | Dùng cho |
@@ -114,7 +114,7 @@ Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monos
 ```
 
 - **Header toàn cục:** logo chữ Đại Việt kèm biểu tượng đơn giản tự thiết kế; ô tìm kiếm theo tên và mọi định danh (số VN, số quốc tế, Zalo); **đồng hồ đôi** giờ VN và giờ của thị trường nước ngoài được chọn trong Cài đặt (mặc định Hàn Quốc; luôn hiện, trừ màn hình dưới 900px thì chỉ hiện trong menu avatar); công tắc **Trực** cho người nhận lead; chuông thông báo; avatar.
-- **Thanh tab ứng dụng:** tên showroom bên trái; các tab chỉ hiện nếu người dùng có quyền xem. Thứ tự: Trang chủ, Lead, Khách (hồ sơ khách 360 và lọc theo vòng đời, mục 6.15), Hộp thư, Đơn hàng, Sản phẩm (gồm Combo, Chính sách ở tab con), Kho, Đội ngũ, Báo cáo. Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi"; Cài đặt nằm trong menu avatar. Tab đang chọn có gạch dưới 3px màu `--brand-strong`, chữ đậm.
+- **Thanh tab ứng dụng:** tên showroom bên trái; các tab chỉ hiện nếu người dùng có quyền xem. Thứ tự theo bản mẫu: Trang chủ, Cơ hội, Hộ gia đình, Đơn & giao lắp, Hội thoại, Kênh & nội dung, Báo cáo, Agent; sau đó Sản phẩm (gồm Combo, Chính sách ở tab con), Kho, Đội ngũ, Khách (hồ sơ khách 360 và lọc theo vòng đời, mục 6.15), Đơn hàng. Bên phải vùng nội dung là khung **Trợ lý AI** (mở sẵn trên màn hình từ 1250px, lớp phủ trên màn hình hẹp): dòng ngữ cảnh "Đang xem…", câu hỏi gợi ý theo màn hình, bản nháp tin có nút gửi cần người bấm. Thanh tiện ích dưới cùng có Chờ duyệt (kèm số), Nhật ký agent, Tạm dừng agent (chỉ người có `settings.integrations`). Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi"; Cài đặt nằm trong menu avatar. Tab đang chọn có gạch dưới 3px màu `--brand-strong`, chữ đậm.
 - **Utility bar dưới đáy:** cố định, cao 44px, chứa lối tắt theo vai trò. Telesale: việc hôm nay, hẹn gọi lại hôm nay, lead quá hạn của tôi. Sale admin: lead chưa phân, quá hạn toàn đội, việc hậu bán quá hạn, hàng chờ duyệt.
 - **Chỗ cho panel trợ lý AI:** dành sẵn cột phải 360px, tháng 1 không hiển thị.
 - **Banner "Xem như":** khi Owner bật chế độ xem như người dùng khác, một dải màu `--warn` nền nhạt chạy ngang dưới thanh tab: "Đang xem như Thảo (Telesale). Chỉ đọc. [Thoát]".

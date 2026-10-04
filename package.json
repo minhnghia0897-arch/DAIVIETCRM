@@ -18,7 +18,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
-    "db:types": "supabase gen types typescript --local > lib/db/types.ts && prettier --write lib/db/types.ts"
+    "db:types": "supabase gen types typescript --local > lib/db/types.ts && prettier --write lib/db/types.ts",
+    "test:demo": "DEMO_EXPORT=1 next build && playwright test -c playwright.demo.config.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

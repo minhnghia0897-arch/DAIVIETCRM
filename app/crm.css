@@ -878,7 +878,7 @@
     flex: none;
     position: sticky;
     top: 12px;
-    height: calc(100vh - 150px);
+    height: calc(100vh - 190px);
     display: flex;
     flex-direction: column;
     border-top: 3px solid var(--ai);
