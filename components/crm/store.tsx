@@ -29,6 +29,7 @@ import {
   connectBlockers,
   healthCheck,
   initialState as initialIntegration,
+  isOauthToken,
   type IntegrationState,
 } from "@/lib/integrations/connection";
 import { getIntegration, integrations, type IntegrationKey } from "@/lib/integrations/registry";
@@ -1832,7 +1833,7 @@ function reducer(s: State, a: Action): State {
       const tokens: Record<string, string> = {};
       // OAuth: nhận token khi Owner đăng nhập và cấp quyền; token Page Meta dài hạn khoảng 60 ngày.
       if (def.connectMode === "oauth")
-        for (const t of def.secrets.filter((x) => /token/.test(x))) tokens[t] = now.toISOString();
+        for (const t of def.secrets.filter((x) => isOauthToken(def, x))) tokens[t] = now.toISOString();
       const withTokens: IntegrationState = {
         ...cur,
         secrets: { ...cur.secrets, ...tokens },
@@ -1932,7 +1933,7 @@ function reducer(s: State, a: Action): State {
           status: "not_connected",
           tokenExpiresAt: undefined,
           // Ngắt thì thu hồi token; khóa nhập tay (App Secret, API key) giữ lại để kết nối lại.
-          secrets: Object.fromEntries(Object.entries(st.secrets).filter(([k]) => !/token/.test(k))),
+          secrets: Object.fromEntries(Object.entries(st.secrets).filter(([k]) => !isOauthToken(def, k))),
         })),
         a.actor,
         "Ngắt kết nối",

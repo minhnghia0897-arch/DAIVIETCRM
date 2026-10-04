@@ -185,6 +185,58 @@ test("đấu nối giai đoạn sau: form TikTok đưa lead thử vào CRM, kho 
   await expect(page.getByRole("button", { name: /Lead thử TikTok/ })).toBeVisible();
 });
 
+test("ô nhiều dòng giữ đủ từng ID, chuyển tab không mất cấu hình đang nhập, Pancake không có chế độ trả lời", async ({
+  page,
+}) => {
+  await as(page, "owner", "settings/integrations/");
+  const row = page.getByRole("listitem", { name: "Form quảng cáo Facebook" });
+  await row.getByRole("button", { name: "Thiết lập" }).click();
+  await row.getByRole("tab", { name: "Cấu hình" }).click();
+  const forms = row.getByLabel("ID các form cần nhận");
+  await forms.click();
+  await page.keyboard.type("2200000000001\n2200000000002");
+  await expect(forms).toHaveValue("2200000000001\n2200000000002");
+  await row.getByLabel("ID Page Facebook").fill("104857300000001");
+  // Sang tab khác rồi quay lại: cấu hình chưa lưu vẫn còn.
+  await row.getByRole("tab", { name: "Điều kiện" }).click();
+  await row.getByRole("tab", { name: "Cấu hình" }).click();
+  await expect(row.getByLabel("ID Page Facebook")).toHaveValue("104857300000001");
+  await row.getByRole("button", { name: "Lưu cấu hình" }).click();
+  await expect(row.getByText("Còn thiếu: App Secret của ứng dụng Meta.")).toBeVisible();
+
+  const pancake = page.getByRole("listitem", { name: "Pancake" });
+  await pancake.getByRole("button", { name: "Pancake", exact: true }).click();
+  await expect(pancake.getByText(/Pancake chỉ đưa hội thoại vào CRM để đọc/)).toBeVisible();
+  await expect(pancake.getByRole("radiogroup")).toHaveCount(0);
+});
+
+test("ngắt Gửi chuyển đổi về Facebook giữ access token nhập tay; đấu nối lỗi hiện cảnh báo trên trang chủ", async ({
+  page,
+}) => {
+  await as(page, "owner", "settings/integrations/");
+  const capi = page.getByRole("listitem", { name: "Gửi chuyển đổi về Facebook" });
+  await capi.getByRole("button", { name: "Thiết lập" }).click();
+  await capi.getByLabel("Access token Conversions API").fill("x");
+  await capi.getByRole("button", { name: "Lưu khóa" }).click();
+  await capi.getByRole("tab", { name: "Cấu hình" }).click();
+  await capi.getByLabel("ID Pixel hoặc tập dữ liệu").fill("880000000000001");
+  await capi.getByLabel("Đặt cọc").check();
+  await capi.getByRole("button", { name: "Lưu cấu hình" }).click();
+  // Chỉ đánh dấu Pixel, chưa có câu xin đồng ý: kết nối báo lỗi.
+  await capi.getByRole("tab", { name: "Điều kiện" }).click();
+  await capi.getByLabel(/Pixel hoặc tập dữ liệu sự kiện/).check();
+  await capi.getByRole("button", { name: "Kết nối", exact: true }).click();
+  await expect(capi.getByRole("alert")).toContainText("Chưa có căn cứ đồng ý gửi dữ liệu đo lường");
+  await capi.getByRole("button", { name: "Ngắt kết nối" }).click();
+  await expect(capi.getByRole("button", { name: "Kết nối", exact: true })).toBeVisible();
+  await capi.getByRole("button", { name: "Kết nối", exact: true }).click();
+
+  await page.getByRole("navigation", { name: "Ứng dụng" }).getByRole("link", { name: "Trang chủ" }).click();
+  await expect(page.getByRole("alert", { name: "Cảnh báo đấu nối" })).toContainText(
+    "Gửi chuyển đổi về Facebook đang lỗi",
+  );
+});
+
 test("sale admin không vào được Tích hợp", async ({ page }) => {
   await as(page, "sale_admin", "settings/integrations/");
   await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();

@@ -8,6 +8,7 @@ import {
   actionsFor,
   configErrors,
   connectBlockers,
+  isOauthToken,
   missingSummary,
   prerequisiteWarnings,
   requiredSecrets,
@@ -305,10 +306,23 @@ function Drawer({ def, st, initialTab }: { def: Def; st: IntegrationState; initi
         ))}
       </div>
       {def.note ? <p className="mt-0 mb-2 rounded-control bg-surface px-2.5 py-1.5">{def.note}</p> : null}
-      {tab === "prereq" ? <Prerequisites def={def} /> : null}
-      {tab === "config" ? <ConfigForm def={def} st={st} /> : null}
-      {tab === "secret" ? <Secrets def={def} st={st} /> : null}
-      {tab === "log" ? <Log st={st} /> : null}
+      {/* Các tab giữ nguyên trong cây, chỉ ẩn, để cấu hình đang nhập dở không mất khi chuyển tab. */}
+      <div hidden={tab !== "prereq"}>
+        <Prerequisites def={def} />
+      </div>
+      {hasConfig ? (
+        <div hidden={tab !== "config"}>
+          <ConfigForm def={def} st={st} />
+        </div>
+      ) : null}
+      {def.secrets.length ? (
+        <div hidden={tab !== "secret"}>
+          <Secrets def={def} st={st} />
+        </div>
+      ) : null}
+      <div hidden={tab !== "log"}>
+        <Log st={st} />
+      </div>
     </div>
   );
 }
@@ -364,6 +378,14 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
   const { state, act } = useCrm();
   const { me } = useShell();
   const [draft, setDraft] = useState<Record<string, unknown>>(st.config);
+  // Ô nhiều dòng giữ nguyên chữ đang gõ; mảng giá trị tách từ đó, để xuống dòng không làm dính hai ID.
+  const [listText, setListText] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (def.configFields ?? [])
+        .filter((f) => f.kind === "list")
+        .map((f) => [f.key, ((st.config[f.key] as string[] | undefined) ?? []).join("\n")]),
+    ),
+  );
   const [submitted, setSubmitted] = useState(false);
   const errors = configErrors(def, draft);
   const replyMode = state.settings.replyMode;
@@ -451,16 +473,17 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
                     <textarea
                       aria-label={f.label}
                       placeholder={f.placeholder}
-                      value={((draft[f.key] as string[] | undefined) ?? []).join("\n")}
-                      onChange={(e) =>
+                      value={listText[f.key] ?? ""}
+                      onChange={(e) => {
+                        setListText({ ...listText, [f.key]: e.target.value });
                         setDraft({
                           ...draft,
                           [f.key]: e.target.value
-                            .split("\n")
+                            .split(/[\n,]/)
                             .map((x) => x.trim())
                             .filter(Boolean),
-                        })
-                      }
+                        });
+                      }}
                       className={`${field} h-16`}
                     />
                   ) : f.kind === "select" ? (
@@ -544,7 +567,7 @@ function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
     <ul className="m-0 list-none space-y-2 p-0">
       {def.secrets.map((name) => {
         const label = def.secretLabels?.[name] ?? name;
-        const viaOauth = def.connectMode === "oauth" && /token/.test(name);
+        const viaOauth = isOauthToken(def, name);
         return (
           <li key={name}>
             <b>{label}</b>

@@ -219,7 +219,7 @@ export const integrations = [
     ],
     secretLabels: { pancake_api_key: "API key Pancake" },
     testLabel: "Đọc hội thoại thử từ Pancake",
-    supportsReplyMode: true,
+    note: 'Pancake chỉ đưa hội thoại vào CRM để đọc. Kênh đội đang trả lời ở Pancake thì đặt chế độ "Trả lời ở công cụ khác" ở chính kênh đó (Zalo OA, Tin nhắn Facebook).',
   },
   {
     key: "meta_messenger",

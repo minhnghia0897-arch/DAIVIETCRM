@@ -6,6 +6,7 @@ import {
   connectBlockers,
   healthCheck,
   initialState,
+  isOauthToken,
   missingSummary,
   PREREQ_ERRORS,
   requiredSecrets,
@@ -66,6 +67,13 @@ describe("kết nối đấu nối", () => {
   it("OAuth chỉ cần khóa ký webhook trước, token nhận khi đăng nhập", () => {
     expect(requiredSecrets(meta)).toEqual(["meta_app_secret"]);
     expect(requiredSecrets(smtp)).toEqual(["smtp_password"]);
+  });
+
+  it("chỉ token nhận qua OAuth mới là token tự động; access token nhập tay của khóa API phải nhập và được giữ", () => {
+    const capi = getIntegration("meta_capi");
+    expect(isOauthToken(capi, "capi_access_token")).toBe(false);
+    expect(requiredSecrets(capi)).toEqual(["capi_access_token"]);
+    expect(isOauthToken(meta, "meta_page_access_token")).toBe(true);
   });
 
   it("kiểm cấu hình bằng schema, báo lỗi theo nhãn ô", () => {

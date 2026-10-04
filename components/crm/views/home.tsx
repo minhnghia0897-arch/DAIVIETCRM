@@ -4,10 +4,12 @@ import { Gauge } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { tokenDaysLeft } from "@/lib/integrations/connection";
+import { integrations } from "@/lib/integrations/registry";
 import { DAYS_LEFT, GOAL, OCCASIONS, TEAM, tr, ty } from "@/lib/demo/crm-data";
 import { ApprovalList, Avatar, FeedList, LocTag, PageHead } from "../parts";
 import { useShell } from "../shell";
-import { fmtMinutes, useCrm } from "../store";
+import { fmtMinutes, simDate, useCrm } from "../store";
 import { AssignSelect, SlaPill, slaStats } from "./lead-intake";
 
 const TEAM_COLORS = ["#0176D3", "#E07A2E", "#7526E3", "#0B827C", "#C23934", "#3E4A59"];
@@ -36,8 +38,38 @@ export function CrmHome() {
         b.score - a.score,
     );
 
+  // Đấu nối lỗi hoặc token sắp hết hạn: báo trên trang chủ sale admin và Owner (CLAUDE.md 11.2).
+  const integrationAlerts =
+    team || can("settings.integrations")
+      ? integrations.flatMap((d) => {
+          const st = state.settings.integrationStates[d.key];
+          if (!st) return [];
+          if (st.status === "error") return [`${d.name} đang lỗi`];
+          const days = tokenDaysLeft(st, simDate(state.minutes));
+          return st.status === "connected" && days !== null && days < 3
+            ? [`${d.name}: token còn ${Math.max(0, days)} ngày`]
+            : [];
+        })
+      : [];
+
   return (
     <div className="c-stack">
+      {integrationAlerts.length ? (
+        <p
+          role="alert"
+          aria-label="Cảnh báo đấu nối"
+          className="m-0 rounded-control bg-err-soft px-3 py-2 text-err"
+        >
+          {integrationAlerts.join(" · ")}.{" "}
+          {can("settings.integrations") ? (
+            <Link href="/settings/integrations" className="underline">
+              Mở Tích hợp để xử lý
+            </Link>
+          ) : (
+            "Báo Owner kiểm tra ở Cài đặt, Tích hợp. Lead có thể chưa vào CRM trong lúc này."
+          )}
+        </p>
+      ) : null}
       <section className="c-card">
         <PageHead icon={Gauge} color="var(--brand)" kicker="Quý IV/2026 · Showroom Quận 4" title="Trang chủ">
           <span className="c-lbl">

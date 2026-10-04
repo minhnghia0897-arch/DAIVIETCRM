@@ -40,10 +40,17 @@ export function initialState(def: IntegrationDefinition): IntegrationState {
   return { status: def.connectMode ? "not_connected" : "not_available", config: {}, secrets: {}, log: [] };
 }
 
+/**
+ * Token nhận tự động khi Owner đăng nhập OAuth (thu hồi khi ngắt). Khóa nhập tay, kể cả access token của
+ * đấu nối dùng khóa API như Conversions API, không thuộc nhóm này và được giữ lại khi ngắt.
+ */
+export function isOauthToken(def: IntegrationDefinition, name: string): boolean {
+  return def.connectMode === "oauth" && /token/.test(name);
+}
+
 /** Khóa phải có trước khi kết nối. Đấu nối OAuth tự nhận token khi đăng nhập, chỉ cần khóa ký webhook. */
 export function requiredSecrets(def: IntegrationDefinition): string[] {
-  if (def.connectMode === "oauth") return def.secrets.filter((s) => !/token/.test(s));
-  return [...def.secrets];
+  return def.secrets.filter((s) => !isOauthToken(def, s));
 }
 
 export function configErrors(def: IntegrationDefinition, config: Record<string, unknown>): string[] {
