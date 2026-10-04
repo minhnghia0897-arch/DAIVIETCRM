@@ -74,3 +74,10 @@ export async function requireWritable(perm: string): Promise<SessionUser> {
   if (user.viewAs) throw new Error("Đang xem như người dùng khác, chỉ đọc.");
   return user;
 }
+
+/** Trang cần một trong các quyền. */
+export async function requireAnyPermission(perms: string[]): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!perms.some((p) => user.permissions.has(p))) redirect("/forbidden");
+  return user;
+}

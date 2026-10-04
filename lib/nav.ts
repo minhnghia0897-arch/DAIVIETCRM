@@ -10,12 +10,12 @@ export interface NavTab {
 export const NAV_TABS: NavTab[] = [
   { href: "/home", label: "Trang chủ", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/leads", label: "Lead", anyOf: ["lead.view_own", "lead.view_all"], ready: false },
-  { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: false },
+  { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/inbox", label: "Hộp thư", anyOf: ["message.zalo_send", "message.view_all"], ready: false },
-  { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: false },
-  { href: "/products", label: "Sản phẩm", anyOf: ["product.view"], ready: false },
-  { href: "/inventory", label: "Kho", anyOf: ["inventory.view"], ready: false },
-  { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: false },
+  { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
+  { href: "/products", label: "Sản phẩm", anyOf: ["product.view"], ready: true },
+  { href: "/inventory", label: "Kho", anyOf: ["inventory.view"], ready: true },
+  { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: true },
   { href: "/reports", label: "Báo cáo", anyOf: ["report.own", "report.team"], ready: false },
 ];
 
@@ -32,7 +32,10 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 ];
 
 export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
-  return NAV_TABS.filter((t) => t.ready && t.anyOf.some((p) => perms.has(p)));
+  return NAV_TABS.filter((t) => t.ready && t.anyOf.some((p) => perms.has(p))).map((t) =>
+    // Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi" (DESIGN.md 4).
+    t.href === "/team" && !perms.has("kpi.team") ? { ...t, label: "Hiệu suất của tôi" } : t,
+  );
 }
 
 export function visibleSettings(perms: ReadonlySet<string>): SettingsItem[] {
