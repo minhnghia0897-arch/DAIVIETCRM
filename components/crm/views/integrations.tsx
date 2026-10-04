@@ -8,7 +8,9 @@ import {
   actionsFor,
   configErrors,
   connectBlockers,
+  missingSummary,
   prerequisiteWarnings,
+  requiredSecrets,
   tokenDaysLeft,
   type IntegrationState,
   type IntegrationStatus,
@@ -43,11 +45,6 @@ const REPLY: Record<ReplyMode, string> = {
   off: "Tắt",
 };
 
-const OAUTH_SCOPES: Record<string, string> = {
-  meta_lead_ads: "Facebook: pages_show_list, pages_manage_metadata, leads_retrieval, pages_read_engagement",
-  zalo_oa: "Zalo OA: đọc và gửi tin nhắn, đọc thông tin người theo dõi",
-};
-
 const SAMPLE_QUESTIONS = [
   "Họ và tên",
   "Số điện thoại",
@@ -73,7 +70,7 @@ const DEFS = integrations as readonly Def[];
 
 export function IntegrationSettings() {
   const { state } = useCrm();
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ key: string; tab: Tab } | null>(null);
   const states = state.settings.integrationStates;
   const count = (st: IntegrationStatus) => DEFS.filter((d) => states[d.key]?.status === st).length;
 
@@ -88,11 +85,15 @@ export function IntegrationSettings() {
         >
           <span className="c-pill is-ok">Đã kết nối {count("connected")}</span>
           {count("error") ? <span className="c-pill is-err">Lỗi {count("error")}</span> : null}
-          <span className="c-pill is-n">Sắp có {count("not_available")}</span>
+          <span className="c-pill is-n">Chưa kết nối {count("not_connected")}</span>
+          {count("not_available") ? (
+            <span className="c-pill is-n">Sắp có {count("not_available")}</span>
+          ) : null}
         </PageHead>
         <p className="c-lbl mx-4 mt-0 mb-3">
           Bản mô phỏng: bấm Kết nối chưa gọi API thật của nhà cung cấp. Khi chạy thật, khóa lưu ở Supabase
-          Vault, webhook kiểm chữ ký và mọi thao tác ở đây ghi nhật ký kiểm toán.
+          Vault, webhook kiểm chữ ký và mọi thao tác ở đây ghi nhật ký kiểm toán. Đấu nối ngoài tháng 1 cấu
+          hình sẵn được ở đây; adapter thật làm theo giai đoạn ghi trên nhãn.
         </p>
       </section>
       {(Object.keys(groupLabels) as IntegrationGroup[]).map((g) => (
@@ -106,8 +107,8 @@ export function IntegrationSettings() {
                 key={d.key}
                 def={d}
                 st={states[d.key]}
-                open={open === d.key}
-                onToggle={() => setOpen(open === d.key ? null : d.key)}
+                tab={open?.key === d.key ? open.tab : null}
+                onOpen={(tab) => setOpen(tab ? { key: d.key, tab } : null)}
               />
             ))}
           </ul>
@@ -120,19 +121,29 @@ export function IntegrationSettings() {
 function IntegrationRow({
   def,
   st,
-  open,
-  onToggle,
+  tab,
+  onOpen,
 }: {
   def: Def;
   st: IntegrationState;
-  open: boolean;
-  onToggle: () => void;
+  /** Tab đang mở của drawer; null là đóng. */
+  tab: Tab | null;
+  onOpen: (tab: Tab | null) => void;
 }) {
   const { state, act } = useCrm();
   const { me } = useShell();
   const [oauth, setOauth] = useState(false);
   const done = state.settings.prereqs[def.key] ?? [];
   const blockers = connectBlockers(def, st);
+  const missing = missingSummary(def, st);
+  const open = tab !== null;
+  const connectLabel = def.connectMode === "enable" ? "Bật" : "Kết nối";
+  // Mở thẳng tab còn thiếu: khóa trước, rồi cấu hình.
+  const setupTab: Tab = requiredSecrets(def).some((x) => !st.secrets[x])
+    ? "secret"
+    : configErrors(def, st.config).length
+      ? "config"
+      : "prereq";
   const warnings = prerequisiteWarnings(def, done);
   const days = tokenDaysLeft(st, simDate(state.minutes));
   const actions = actionsFor(st.status);
@@ -149,7 +160,7 @@ function IntegrationRow({
           type="button"
           className="c-link min-w-40 flex-1 font-semibold"
           aria-expanded={open}
-          onClick={onToggle}
+          onClick={() => onOpen(open ? null : "prereq")}
         >
           {def.name}
         </button>
@@ -159,15 +170,13 @@ function IntegrationRow({
           <span className={`c-pill ${days < 3 ? "is-err" : "is-n"}`}>Token còn {days} ngày</span>
         ) : null}
         <span className="flex flex-wrap gap-1">
-          {actions.includes("connect") ? (
-            <button
-              type="button"
-              className="c-btn is-brand"
-              disabled={blockers.length > 0}
-              title={blockers.join("; ") || undefined}
-              onClick={connect}
-            >
-              Kết nối
+          {actions.includes("connect") && blockers.length ? (
+            <button type="button" className="c-btn is-brand" onClick={() => onOpen(setupTab)}>
+              Thiết lập
+            </button>
+          ) : actions.includes("connect") ? (
+            <button type="button" className="c-btn is-brand" onClick={connect}>
+              {connectLabel}
             </button>
           ) : null}
           {actions.includes("test") ? (
@@ -229,8 +238,8 @@ function IntegrationRow({
           {st.lastError}
         </p>
       ) : null}
-      {st.status === "not_connected" && blockers.length ? (
-        <p className="c-lbl mt-1 mb-0">Để kết nối: {blockers.join("; ")}. Mở chi tiết để nhập.</p>
+      {st.status === "not_connected" && missing.length ? (
+        <p className="c-lbl mt-1 mb-0">Còn thiếu: {missing.join(", ")}.</p>
       ) : null}
       {oauth ? (
         <div
@@ -240,8 +249,8 @@ function IntegrationRow({
         >
           <b>Cửa sổ đăng nhập của nhà cung cấp (mô phỏng)</b>
           <p className="c-lbl my-1">
-            CRM xin quyền: {OAUTH_SCOPES[def.key]}. Owner đăng nhập bằng tài khoản quản trị Page hoặc OA của
-            showroom.
+            CRM xin quyền: {def.oauthScopes}. Owner đăng nhập bằng tài khoản quản trị của showroom trên nhà
+            cung cấp.
           </p>
           {warnings.length ? (
             <p className="my-1 text-warn">Chưa đánh dấu điều kiện: {warnings.join("; ")}.</p>
@@ -263,16 +272,16 @@ function IntegrationRow({
           </div>
         </div>
       ) : null}
-      {open ? <Drawer def={def} st={st} /> : null}
+      {tab ? <Drawer key={tab} def={def} st={st} initialTab={tab} /> : null}
     </li>
   );
 }
 
 type Tab = "prereq" | "config" | "secret" | "log";
 
-function Drawer({ def, st }: { def: Def; st: IntegrationState }) {
+function Drawer({ def, st, initialTab }: { def: Def; st: IntegrationState; initialTab: Tab }) {
   const hasConfig = Boolean(def.configFields?.length) || Boolean(def.supportsReplyMode);
-  const [tab, setTab] = useState<Tab>("prereq");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const tabs: [Tab, string][] = [
     ["prereq", "Điều kiện"],
     ...(hasConfig ? ([["config", "Cấu hình"]] as [Tab, string][]) : []),
@@ -295,6 +304,7 @@ function Drawer({ def, st }: { def: Def; st: IntegrationState }) {
           </button>
         ))}
       </div>
+      {def.note ? <p className="mt-0 mb-2 rounded-control bg-surface px-2.5 py-1.5">{def.note}</p> : null}
       {tab === "prereq" ? <Prerequisites def={def} /> : null}
       {tab === "config" ? <ConfigForm def={def} st={st} /> : null}
       {tab === "secret" ? <Secrets def={def} st={st} /> : null}
@@ -410,6 +420,29 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
                     Form mới chưa ánh xạ thì lead vẫn vào, phần chưa ánh xạ lưu trong chi tiết nguồn và báo
                     Owner.
                   </p>
+                </fieldset>
+              ) : f.kind === "checks" ? (
+                <fieldset className="m-0 border-0 p-0" aria-label={f.label}>
+                  <legend className="c-lbl">{f.label}</legend>
+                  {f.options?.map((o) => {
+                    const cur = (draft[f.key] as string[] | undefined) ?? [];
+                    const on = cur.includes(o.value);
+                    return (
+                      <label key={o.value} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() =>
+                            setDraft({
+                              ...draft,
+                              [f.key]: on ? cur.filter((x) => x !== o.value) : [...cur, o.value],
+                            })
+                          }
+                        />
+                        {o.label}
+                      </label>
+                    );
+                  })}
                 </fieldset>
               ) : (
                 <label className="c-lbl block">

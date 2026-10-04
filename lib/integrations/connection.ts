@@ -52,7 +52,9 @@ export function configErrors(def: IntegrationDefinition, config: Record<string, 
   return r.error.issues.map((i) => {
     const field = def.configFields?.find((f) => f.key === String(i.path[0]));
     // Thông báo mặc định của zod là tiếng Anh; ô bỏ trống hoặc sai kiểu thì báo bằng lời người dùng hiểu.
-    const message = i.code === "invalid_type" ? "Chưa nhập" : i.message;
+    const value = config[String(i.path[0])];
+    const empty = value === undefined || value === "";
+    const message = i.code === "invalid_type" || empty ? "Chưa nhập" : i.message;
     return field ? `${field.label}: ${message}` : message;
   });
 }
@@ -64,6 +66,16 @@ export function connectBlockers(def: IntegrationDefinition, st: IntegrationState
   for (const s of requiredSecrets(def))
     if (!st.secrets[s]) out.push(`Chưa nhập ${def.secretLabels?.[s] ?? s}`);
   out.push(...configErrors(def, st.config));
+  return out;
+}
+
+/** Phần còn thiếu viết gọn cho dòng tóm tắt: tên khóa bỏ phần giải thích, ô bỏ trống chỉ ghi tên ô. */
+export function missingSummary(def: IntegrationDefinition, st: IntegrationState): string[] {
+  if (!def.connectMode) return [];
+  const out = requiredSecrets(def)
+    .filter((s) => !st.secrets[s])
+    .map((s) => (def.secretLabels?.[s] ?? s).replace(/\s*\(.*\)$/, ""));
+  for (const e of configErrors(def, st.config)) out.push(e.replace(/: Chưa nhập$/, ""));
   return out;
 }
 
@@ -86,6 +98,26 @@ export const PREREQ_ERRORS: Record<string, string> = {
   domain: "Chưa có tên miền để gửi thư.",
   pancake_api_scope: "Gói Pancake đang dùng không mở API.",
   provider_chosen: "Chưa chọn nhà cung cấp tổng đài.",
+  messaging_permission: "Meta chưa duyệt quyền nhắn tin cho ứng dụng nên chưa nhận được tin của Page.",
+  one_reply_place:
+    "Page đang được trả lời ở công cụ khác. Đặt kênh đó chỉ đọc hoặc ngắt Page khỏi công cụ đó trước, mỗi kênh chỉ một nơi trả lời.",
+  tiktok_ads_app: "TikTok từ chối đọc lead vì tài khoản quảng cáo chưa ủy quyền cho ứng dụng.",
+  tiktok_messaging_access: "TikTok chưa cấp quyền Business Messaging API cho tài khoản này.",
+  tiktok_vn_open: "TikTok chưa mở Business Messaging cho khu vực Việt Nam.",
+  partner_center_app: "Chưa có ứng dụng trên TikTok Shop Partner Center.",
+  shop_authorized: "Shop chưa ủy quyền cho ứng dụng nên không đọc được đơn.",
+  zns_templates: "Zalo từ chối gửi vì mẫu tin ZNS chưa được duyệt.",
+  zca_balance: "Tài khoản Zalo Cloud hết tiền, tin ZNS không gửi được. Nạp thêm rồi thử lại.",
+  pixel: "Chưa có Pixel hoặc tập dữ liệu sự kiện trên Meta.",
+  tiktok_pixel: "Chưa có TikTok Pixel để nhận sự kiện.",
+  consent_text:
+    "Chưa có căn cứ đồng ý gửi dữ liệu đo lường. Thêm câu xin đồng ý vào form và kịch bản gọi trước khi gửi.",
+  company_account: "Tài khoản nhận tiền phải đứng tên pháp nhân của showroom.",
+  legal_remittance: "Chưa xác nhận kênh nhận tiền từ nước ngoài hợp pháp.",
+  einvoice_provider: "Chưa chọn nhà cung cấp hóa đơn điện tử.",
+  legal_entity: "Chưa chốt pháp nhân xuất hóa đơn nên chưa đăng ký được mã số thuế với nhà cung cấp.",
+  recordings: "Tổng đài chưa có ghi âm để chép lời.",
+  ai_policy: "Chưa thống nhất việc AI được làm và người duyệt. Ghi rõ rồi mới bật trợ lý AI.",
 };
 
 export function healthCheck(

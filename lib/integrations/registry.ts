@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 // Sổ đăng ký đấu nối (CLAUDE.md mục 10.2, 10.3). Trang Cài đặt, Tích hợp đọc từ đây.
-// Đấu nối chưa làm vẫn khai báo với `implemented: false` để hiện "Sắp có" kèm điều kiện tiên quyết.
+// `implemented` cho biết đã có adapter thật hay chưa; bản demo mô phỏng kết nối cho mọi đấu nối có `connectMode`.
+// Đấu nối không có `connectMode` hiện "Sắp có" kèm điều kiện tiên quyết.
 
 export type IntegrationGroup = "channels" | "calls" | "ads_measurement" | "finance" | "operations" | "ai";
 
@@ -27,13 +28,14 @@ export interface Prerequisite {
   helpUrl?: string;
 }
 
-export type ConnectMode = "oauth" | "api_key";
+/** oauth: Owner đăng nhập nhà cung cấp; api_key: nhập khóa; enable: dịch vụ nội bộ, chỉ cần bật. */
+export type ConnectMode = "oauth" | "api_key" | "enable";
 
 /** Ô cấu hình không bí mật hiện trên tab Cấu hình; giá trị kiểm bằng `configSchema`. */
 export interface ConfigField {
   key: string;
   label: string;
-  kind: "text" | "list" | "mapping" | "select";
+  kind: "text" | "list" | "mapping" | "select" | "checks";
   placeholder?: string;
   options?: { value: string; label: string }[];
 }
@@ -55,6 +57,12 @@ export interface IntegrationDefinition {
   configFields?: readonly ConfigField[];
   /** Nhãn tiếng Việt cho từng khóa bí mật. */
   secretLabels?: Readonly<Record<string, string>>;
+  /** Quyền CRM xin khi Owner đăng nhập OAuth. */
+  oauthScopes?: string;
+  /** Loại sự kiện ghi nhật ký khi bấm "Gửi dữ liệu thử". */
+  testLabel?: string;
+  /** Lưu ý nghiệp vụ hiện trong chi tiết đấu nối. */
+  note?: string;
 }
 
 /** Trường lead mà câu hỏi của form quảng cáo được ánh xạ sang (CLAUDE.md 10.4). */
@@ -67,7 +75,13 @@ export const LEAD_FIELDS = [
   { value: "occasion", label: "Dịp tặng" },
 ] as const;
 
-const noConfig = z.object({});
+const digits = (message: string) => z.string().regex(/^\d{5,25}$/, message);
+
+const CONVERSION_EVENTS = [
+  { value: "deposit", label: "Đặt cọc" },
+  { value: "delivered", label: "Giao lắp xong" },
+  { value: "repeat", label: "Mua lại, mua thêm" },
+];
 
 export const integrations = [
   {
@@ -90,6 +104,8 @@ export const integrations = [
     }),
     secrets: ["meta_app_secret", "meta_page_access_token"],
     connectMode: "oauth",
+    oauthScopes: "Facebook: pages_show_list, pages_manage_metadata, leads_retrieval, pages_read_engagement",
+    testLabel: "Lead thử từ công cụ test lead của Meta",
     configFields: [
       { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
       { key: "formIds", label: "ID các form cần nhận", kind: "list", placeholder: "Mỗi dòng một ID form" },
@@ -115,6 +131,8 @@ export const integrations = [
     configSchema: z.object({ oaId: z.string().regex(/^\d{5,25}$/, "ID OA là dãy số") }),
     secrets: ["zalo_app_secret", "zalo_refresh_token"],
     connectMode: "oauth",
+    oauthScopes: "Zalo OA: đọc và gửi tin nhắn, đọc thông tin người theo dõi",
+    testLabel: "Tin nhắn thử từ Zalo OA",
     configFields: [
       { key: "oaId", label: "ID Zalo OA", kind: "text", placeholder: "Ví dụ 4318000000000000000" },
     ],
@@ -156,6 +174,7 @@ export const integrations = [
       },
     ],
     secretLabels: { smtp_password: "Mật khẩu SMTP" },
+    testLabel: "Thư thử gửi tới Owner",
   },
   {
     key: "call_provider",
@@ -181,6 +200,7 @@ export const integrations = [
       },
     ],
     secretLabels: { call_provider_api_key: "API key tổng đài" },
+    testLabel: "Cuộc gọi thử qua tổng đài giả lập",
   },
   {
     key: "pancake",
@@ -198,6 +218,7 @@ export const integrations = [
       { key: "pageIds", label: "ID các trang trên Pancake", kind: "list", placeholder: "Mỗi dòng một ID" },
     ],
     secretLabels: { pancake_api_key: "API key Pancake" },
+    testLabel: "Đọc hội thoại thử từ Pancake",
     supportsReplyMode: true,
   },
   {
@@ -208,9 +229,22 @@ export const integrations = [
     phase: "month_2",
     implemented: false,
     capabilities: ["inbound_messages", "outbound_messages"],
-    prerequisites: [{ key: "messaging_permission", label: "Ứng dụng Meta đã được duyệt quyền nhắn tin" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "messaging_permission", label: "Ứng dụng Meta đã được duyệt quyền nhắn tin" },
+      { key: "one_reply_place", label: "Page này không còn được trả lời ở Pancake hoặc công cụ khác" },
+    ],
+    configSchema: z.object({ pageId: digits("ID Page là dãy số") }),
+    secrets: ["messenger_app_secret", "messenger_page_access_token"],
+    connectMode: "oauth",
+    oauthScopes: "Facebook: pages_messaging, pages_manage_metadata, pages_show_list",
+    configFields: [
+      { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
+    ],
+    secretLabels: {
+      messenger_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",
+      messenger_page_access_token: "Page access token (lấy qua đăng nhập Facebook)",
+    },
+    testLabel: "Tin nhắn thử từ Messenger",
     supportsReplyMode: true,
   },
   {
@@ -222,8 +256,29 @@ export const integrations = [
     implemented: false,
     capabilities: ["inbound_leads"],
     prerequisites: [{ key: "tiktok_ads_app", label: "Tài khoản quảng cáo đã ủy quyền cho ứng dụng" }],
-    configSchema: noConfig,
-    secrets: [],
+    configSchema: z.object({
+      advertiserId: digits("ID tài khoản quảng cáo là dãy số"),
+      formIds: z.array(digits("ID form là dãy số")).min(1, "Chọn ít nhất một form"),
+      fieldMapping: z.record(z.string(), z.string()).default({}),
+    }),
+    secrets: ["tiktok_app_secret", "tiktok_ads_access_token"],
+    connectMode: "oauth",
+    oauthScopes: "TikTok for Business: quản lý lead (đọc lead Instant Form)",
+    configFields: [
+      {
+        key: "advertiserId",
+        label: "ID tài khoản quảng cáo TikTok",
+        kind: "text",
+        placeholder: "Ví dụ 7200000000000000001",
+      },
+      { key: "formIds", label: "ID các form cần nhận", kind: "list", placeholder: "Mỗi dòng một ID form" },
+      { key: "fieldMapping", label: "Ánh xạ câu hỏi của form sang trường lead", kind: "mapping" },
+    ],
+    secretLabels: {
+      tiktok_app_secret: "App secret của ứng dụng TikTok (kiểm chữ ký webhook)",
+      tiktok_ads_access_token: "Access token quảng cáo (lấy qua đăng nhập TikTok)",
+    },
+    testLabel: "Lead thử từ form TikTok",
   },
   {
     key: "tiktok_messaging",
@@ -233,9 +288,27 @@ export const integrations = [
     phase: "when_available",
     implemented: false,
     capabilities: ["inbound_messages", "outbound_messages"],
-    prerequisites: [{ key: "tiktok_messaging_access", label: "Đã được cấp quyền Business Messaging API" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "tiktok_messaging_access", label: "Đã được cấp quyền Business Messaging API" },
+      { key: "tiktok_vn_open", label: "Đã xác nhận TikTok mở Business Messaging cho Việt Nam" },
+    ],
+    configSchema: z.object({ businessId: digits("ID tài khoản TikTok Business là dãy số") }),
+    secrets: ["tiktok_msg_app_secret", "tiktok_msg_access_token"],
+    connectMode: "oauth",
+    oauthScopes: "TikTok Business Messaging: đọc và trả lời tin khách nhắn trước",
+    configFields: [
+      {
+        key: "businessId",
+        label: "ID tài khoản TikTok Business",
+        kind: "text",
+        placeholder: "Ví dụ 7300000000000000001",
+      },
+    ],
+    secretLabels: {
+      tiktok_msg_app_secret: "App secret của ứng dụng TikTok (kiểm chữ ký webhook)",
+      tiktok_msg_access_token: "Access token nhắn tin (lấy qua đăng nhập TikTok)",
+    },
+    testLabel: "Tin nhắn thử từ TikTok",
     supportsReplyMode: true,
   },
   {
@@ -246,9 +319,34 @@ export const integrations = [
     phase: "month_3",
     implemented: false,
     capabilities: ["inbound_orders"],
-    prerequisites: [{ key: "partner_center_app", label: "Đã đăng ký ứng dụng trên Partner Center" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "partner_center_app", label: "Đã đăng ký ứng dụng trên Partner Center" },
+      { key: "shop_authorized", label: "Shop đã ủy quyền cho ứng dụng" },
+    ],
+    configSchema: z.object({
+      shopId: z.string().regex(/^[A-Za-z0-9]{5,30}$/, "ID shop gồm chữ và số"),
+      warehouseId: z.enum(["wh-q4", "wh-dv"], "Chọn kho giữ hàng cho đơn TikTok Shop"),
+    }),
+    secrets: ["tiktok_shop_app_secret", "tiktok_shop_access_token"],
+    connectMode: "oauth",
+    oauthScopes: "TikTok Shop: đọc đơn hàng, cập nhật trạng thái giao",
+    configFields: [
+      { key: "shopId", label: "ID shop TikTok", kind: "text", placeholder: "Ví dụ 7495000001" },
+      {
+        key: "warehouseId",
+        label: "Kho giữ hàng cho đơn sàn",
+        kind: "select",
+        options: [
+          { value: "wh-q4", label: "Kho showroom Q4" },
+          { value: "wh-dv", label: "Kho Đại Việt" },
+        ],
+      },
+    ],
+    secretLabels: {
+      tiktok_shop_app_secret: "App secret trên Partner Center (kiểm chữ ký webhook)",
+      tiktok_shop_access_token: "Access token shop (lấy qua ủy quyền shop)",
+    },
+    testLabel: "Đơn thử từ TikTok Shop (không giữ hàng)",
   },
   {
     key: "zalo_zns",
@@ -258,9 +356,27 @@ export const integrations = [
     phase: "month_3",
     implemented: false,
     capabilities: ["outbound_messages"],
-    prerequisites: [{ key: "zns_templates", label: "Mẫu tin ZNS đã được duyệt" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "zns_templates", label: "Mẫu tin ZNS đã được duyệt" },
+      { key: "zca_balance", label: "Tài khoản Zalo Cloud đã nạp tiền" },
+    ],
+    configSchema: z.object({
+      orderTemplateId: digits("ID mẫu là dãy số"),
+      deliveryTemplateId: digits("ID mẫu là dãy số"),
+    }),
+    secrets: ["zns_app_secret", "zns_access_token"],
+    connectMode: "oauth",
+    oauthScopes: "Zalo OA: gửi tin ZNS theo mẫu đã duyệt",
+    configFields: [
+      { key: "orderTemplateId", label: "ID mẫu xác nhận đơn", kind: "text", placeholder: "Ví dụ 312345" },
+      { key: "deliveryTemplateId", label: "ID mẫu lịch giao lắp", kind: "text", placeholder: "Ví dụ 312346" },
+    ],
+    secretLabels: {
+      zns_app_secret: "Secret key của ứng dụng Zalo",
+      zns_access_token: "Access token ZNS (lấy qua đăng nhập Zalo OA)",
+    },
+    testLabel: "Tin ZNS thử tới số Việt Nam của Owner",
+    note: "Chỉ gửi tới số Việt Nam. Người đặt ở nước ngoài dùng số +82 nhận tin qua Zalo OA.",
   },
   {
     key: "meta_capi",
@@ -270,9 +386,28 @@ export const integrations = [
     phase: "month_2",
     implemented: false,
     capabilities: ["outbound_events"],
-    prerequisites: [{ key: "pixel", label: "Đã có Pixel hoặc tập dữ liệu sự kiện" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "pixel", label: "Đã có Pixel hoặc tập dữ liệu sự kiện" },
+      { key: "consent_text", label: "Form và kịch bản gọi đã có câu xin đồng ý gửi dữ liệu đo lường" },
+    ],
+    configSchema: z.object({
+      datasetId: digits("ID tập dữ liệu là dãy số"),
+      events: z.array(z.string()).min(1, "Chọn ít nhất một sự kiện"),
+    }),
+    secrets: ["capi_access_token"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "datasetId",
+        label: "ID Pixel hoặc tập dữ liệu",
+        kind: "text",
+        placeholder: "Ví dụ 880000000000001",
+      },
+      { key: "events", label: "Sự kiện gửi về", kind: "checks", options: CONVERSION_EVENTS },
+    ],
+    secretLabels: { capi_access_token: "Access token Conversions API" },
+    testLabel: "Sự kiện thử (số điện thoại đã băm SHA-256, chỉ khách đã đồng ý)",
+    note: "Chỉ gửi khách có đồng ý mục đích đo lường quảng cáo; số điện thoại và email băm SHA-256 trước khi gửi.",
   },
   {
     key: "tiktok_events",
@@ -282,9 +417,23 @@ export const integrations = [
     phase: "month_2",
     implemented: false,
     capabilities: ["outbound_events"],
-    prerequisites: [],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "tiktok_pixel", label: "Đã có TikTok Pixel" },
+      { key: "consent_text", label: "Form và kịch bản gọi đã có câu xin đồng ý gửi dữ liệu đo lường" },
+    ],
+    configSchema: z.object({
+      pixelCode: z.string().regex(/^[A-Z0-9]{10,30}$/, "Mã Pixel gồm chữ in hoa và số"),
+      events: z.array(z.string()).min(1, "Chọn ít nhất một sự kiện"),
+    }),
+    secrets: ["tiktok_events_token"],
+    connectMode: "api_key",
+    configFields: [
+      { key: "pixelCode", label: "Mã TikTok Pixel", kind: "text", placeholder: "Ví dụ CABC123DEF456GH" },
+      { key: "events", label: "Sự kiện gửi về", kind: "checks", options: CONVERSION_EVENTS },
+    ],
+    secretLabels: { tiktok_events_token: "Access token Events API" },
+    testLabel: "Sự kiện thử (đã băm SHA-256, chỉ khách đã đồng ý)",
+    note: "Chỉ gửi khách có đồng ý mục đích đo lường quảng cáo; dữ liệu định danh băm SHA-256 trước khi gửi.",
   },
   {
     key: "bank_webhook",
@@ -294,9 +443,33 @@ export const integrations = [
     phase: "month_2",
     implemented: false,
     capabilities: ["inbound_payments"],
-    prerequisites: [{ key: "company_account", label: "Tài khoản ngân hàng đứng tên pháp nhân" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "company_account", label: "Tài khoản ngân hàng đứng tên pháp nhân" },
+      { key: "legal_remittance", label: "Tiền từ nước ngoài chỉ nhận qua ngân hàng hoặc kiều hối hợp pháp" },
+    ],
+    configSchema: z.object({
+      provider: z.enum(["sepay", "casso"], "Chọn dịch vụ báo số dư"),
+      bankName: z.string().min(2, "Nhập tên ngân hàng"),
+      accountNumber: z.string().regex(/^\d{6,20}$/, "Số tài khoản là dãy số"),
+    }),
+    secrets: ["bank_api_key", "bank_webhook_secret"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "provider",
+        label: "Dịch vụ báo biến động số dư",
+        kind: "select",
+        options: [
+          { value: "sepay", label: "SePay" },
+          { value: "casso", label: "Casso" },
+        ],
+      },
+      { key: "bankName", label: "Ngân hàng", kind: "text", placeholder: "Ví dụ Vietcombank" },
+      { key: "accountNumber", label: "Số tài khoản nhận", kind: "text", placeholder: "Ví dụ 0071000123456" },
+    ],
+    secretLabels: { bank_api_key: "API key dịch vụ", bank_webhook_secret: "Khóa ký webhook" },
+    testLabel: "Giao dịch thử, nội dung có mã đơn",
+    note: "Nội dung chuyển khoản theo mã đơn (Q4-2610-0001) để tự khớp; giao dịch không khớp vào hàng chờ sale admin. Tiền khớp vẫn cần người xác nhận cho tới khi Owner bật tự xác nhận.",
   },
   {
     key: "einvoice",
@@ -306,9 +479,35 @@ export const integrations = [
     phase: "month_3",
     implemented: false,
     capabilities: ["outbound_invoices"],
-    prerequisites: [{ key: "einvoice_provider", label: "Đã chọn nhà cung cấp hóa đơn điện tử" }],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [
+      { key: "einvoice_provider", label: "Đã chọn nhà cung cấp hóa đơn điện tử" },
+      { key: "legal_entity", label: "Đã chốt pháp nhân xuất hóa đơn" },
+    ],
+    configSchema: z.object({
+      provider: z.enum(["misa", "viettel", "vnpt"], "Chọn nhà cung cấp hóa đơn"),
+      taxCode: z.string().regex(/^\d{10}(-\d{3})?$/, "Mã số thuế gồm 10 số, chi nhánh thêm -xxx"),
+      serial: z.string().regex(/^[0-9A-Z]{6,8}$/, "Ký hiệu hóa đơn gồm 6 đến 8 ký tự in hoa, ví dụ 1C26TDV"),
+      username: z.string().min(1, "Nhập tài khoản API"),
+    }),
+    secrets: ["einvoice_password"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "provider",
+        label: "Nhà cung cấp",
+        kind: "select",
+        options: [
+          { value: "misa", label: "MISA meInvoice" },
+          { value: "viettel", label: "Viettel SInvoice" },
+          { value: "vnpt", label: "VNPT Invoice" },
+        ],
+      },
+      { key: "taxCode", label: "Mã số thuế", kind: "text", placeholder: "Ví dụ 0312345678" },
+      { key: "serial", label: "Ký hiệu hóa đơn", kind: "text", placeholder: "Ví dụ 1C26TDV" },
+      { key: "username", label: "Tài khoản API", kind: "text" },
+    ],
+    secretLabels: { einvoice_password: "Mật khẩu API hóa đơn" },
+    testLabel: "Hóa đơn nháp thử (không phát hành)",
   },
   {
     key: "file_storage",
@@ -319,8 +518,22 @@ export const integrations = [
     implemented: false,
     capabilities: ["file_storage"],
     prerequisites: [],
-    configSchema: noConfig,
+    configSchema: z.object({
+      provider: z.enum(["supabase"], "Chọn nơi lưu"),
+      linkMinutes: z.string().regex(/^([1-9]|[1-5]\d|60)$/, "Thời hạn link từ 1 đến 60 phút"),
+    }),
     secrets: [],
+    connectMode: "enable",
+    configFields: [
+      {
+        key: "provider",
+        label: "Nơi lưu",
+        kind: "select",
+        options: [{ value: "supabase", label: "Supabase Storage, bucket riêng tư" }],
+      },
+      { key: "linkMinutes", label: "Thời hạn link xem (phút)", kind: "text", placeholder: "10" },
+    ],
+    testLabel: "Tải ảnh thử lên kho riêng tư, tạo link ký ngắn hạn",
   },
   {
     key: "mcp_server",
@@ -331,8 +544,25 @@ export const integrations = [
     implemented: false,
     capabilities: ["ai_processing"],
     prerequisites: [],
-    configSchema: noConfig,
+    configSchema: z.object({ tools: z.array(z.string()).min(1, "Chọn ít nhất một nhóm dữ liệu") }),
     secrets: [],
+    connectMode: "enable",
+    configFields: [
+      {
+        key: "tools",
+        label: "Nhóm dữ liệu được đọc (chỉ đọc)",
+        kind: "checks",
+        options: [
+          { value: "leads", label: "Lead và cơ hội" },
+          { value: "customers", label: "Hồ sơ khách 360" },
+          { value: "orders", label: "Báo giá, đơn hàng" },
+          { value: "products", label: "Sản phẩm, tồn khả dụng, chính sách" },
+          { value: "tasks", label: "Việc cần làm" },
+        ],
+      },
+    ],
+    testLabel: "Gọi thử công cụ đọc dưới quyền Owner",
+    note: "Chỉ đọc, chạy dưới quyền người đang dùng; không trả số điện thoại đầy đủ hay giá vốn.",
   },
   {
     key: "ai_speech",
@@ -343,8 +573,27 @@ export const integrations = [
     implemented: false,
     capabilities: ["ai_processing"],
     prerequisites: [{ key: "recordings", label: "Tổng đài đã có ghi âm" }],
-    configSchema: noConfig,
-    secrets: [],
+    configSchema: z.object({
+      provider: z.enum(["google", "fpt", "viettel"], "Chọn nhà cung cấp"),
+      retentionDays: z.string().regex(/^\d{1,3}$/, "Số ngày giữ bản chép là số"),
+    }),
+    secrets: ["ai_speech_api_key"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "provider",
+        label: "Nhà cung cấp",
+        kind: "select",
+        options: [
+          { value: "google", label: "Google Cloud Speech-to-Text" },
+          { value: "fpt", label: "FPT.AI Speech" },
+          { value: "viettel", label: "Viettel AI" },
+        ],
+      },
+      { key: "retentionDays", label: "Giữ bản chép (ngày)", kind: "text", placeholder: "90" },
+    ],
+    secretLabels: { ai_speech_api_key: "API key chuyển giọng nói" },
+    testLabel: "Chép thử một đoạn ghi âm mẫu",
   },
   {
     key: "ai_llm",
@@ -354,9 +603,42 @@ export const integrations = [
     phase: "month_3",
     implemented: false,
     capabilities: ["ai_processing"],
-    prerequisites: [],
-    configSchema: noConfig,
-    secrets: [],
+    prerequisites: [{ key: "ai_policy", label: "Đã thống nhất việc AI được làm và người duyệt" }],
+    configSchema: z.object({
+      model: z.enum(["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"], "Chọn mô hình"),
+      features: z.array(z.string()).default([]),
+      monthlyBudget: z.string().regex(/^\d{1,12}$/, "Giới hạn chi phí là số đồng"),
+    }),
+    secrets: ["ai_llm_api_key"],
+    connectMode: "api_key",
+    configFields: [
+      {
+        key: "model",
+        label: "Mô hình",
+        kind: "select",
+        options: [
+          { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (cân bằng)" },
+          { value: "claude-opus-5-5", label: "Claude Opus 5.5 (mạnh nhất)" },
+          { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (nhanh, rẻ)" },
+        ],
+      },
+      {
+        key: "features",
+        label: "Chức năng bật (mặc định tắt hết)",
+        kind: "checks",
+        options: [
+          { value: "summary", label: "Tóm tắt hồ sơ khách, cuộc gọi" },
+          { value: "next_task", label: "Đề xuất việc tiếp theo" },
+          { value: "offer", label: "Đề xuất offer qua hàm định giá" },
+          { value: "draft", label: "Soạn tin nháp" },
+          { value: "household", label: "Đề xuất gộp hộ" },
+        ],
+      },
+      { key: "monthlyBudget", label: "Giới hạn chi phí tháng (đồng)", kind: "text", placeholder: "2000000" },
+    ],
+    secretLabels: { ai_llm_api_key: "API key mô hình ngôn ngữ" },
+    testLabel: "Câu hỏi thử (đã che số điện thoại)",
+    note: "Mọi kết quả AI là đề xuất có người xác nhận; không gửi số điện thoại đầy đủ hay giấy tờ tùy thân sang mô hình.",
   },
 ] as const satisfies readonly IntegrationDefinition[];
 

@@ -1874,13 +1874,6 @@ function reducer(s: State, a: Action): State {
       if (!cur || cur.status !== "connected") return s;
       const now = simDate(s.minutes).toISOString();
       const h = healthCheck(def, cur, s.settings.prereqs[a.key] ?? []);
-      const TEST: Record<string, string> = {
-        meta_lead_ads: "Lead thử từ công cụ test lead của Meta",
-        zalo_oa: "Tin nhắn thử từ Zalo OA",
-        email_smtp: "Thư thử gửi tới Owner",
-        call_provider: "Cuộc gọi thử qua tổng đài giả lập",
-        pancake: "Đọc hội thoại thử từ Pancake",
-      };
       let ns = setInt(s, a.key, (st) => ({
         ...st,
         status: h.ok ? "connected" : "error",
@@ -1891,7 +1884,7 @@ function reducer(s: State, a: Action): State {
         log: [
           {
             at: now,
-            type: TEST[a.key] ?? "Dữ liệu thử",
+            type: def.testLabel ?? "Dữ liệu thử",
             status: h.ok ? ("processed" as const) : ("failed" as const),
             error: h.ok ? undefined : h.message,
           },
@@ -1909,6 +1902,17 @@ function reducer(s: State, a: Action): State {
           product: "Ghế massage DV-X9",
           note: "Dữ liệu thử từ màn Tích hợp",
           actor: "Form quảng cáo Facebook",
+        });
+      if (h.ok && a.key === "tiktok_lead_forms")
+        ns = reducer(ns, {
+          type: "createLead",
+          name: "Lead thử TikTok",
+          phoneRaw: "0909 400 123",
+          market: "VN",
+          source: "Form quảng cáo TikTok",
+          product: "Máy lọc nước",
+          note: "Dữ liệu thử từ màn Tích hợp",
+          actor: "Form quảng cáo TikTok",
         });
       return addAudit(ns, a.actor, "Gửi dữ liệu thử", def.name, h.message);
     }

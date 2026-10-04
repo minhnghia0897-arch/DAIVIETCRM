@@ -6,29 +6,61 @@ import {
   connectBlockers,
   healthCheck,
   initialState,
+  missingSummary,
+  PREREQ_ERRORS,
   requiredSecrets,
   tokenDaysLeft,
 } from "@/lib/integrations/connection";
-import { getIntegration, integrations } from "@/lib/integrations/registry";
+import { getIntegration, integrations, type IntegrationDefinition } from "@/lib/integrations/registry";
 
 const meta = getIntegration("meta_lead_ads");
 const smtp = getIntegration("email_smtp");
 
 describe("kết nối đấu nối", () => {
   it("đấu nối chưa có cách kết nối thì là Sắp có", () => {
-    expect(initialState(getIntegration("tiktok_shop")).status).toBe("not_available");
+    const later: IntegrationDefinition = { ...meta, key: "later", connectMode: undefined };
+    expect(initialState(later).status).toBe("not_available");
     expect(initialState(meta).status).toBe("not_connected");
-    expect(
-      connectBlockers(getIntegration("tiktok_shop"), initialState(getIntegration("tiktok_shop"))),
-    ).toHaveLength(1);
+    expect(connectBlockers(later, initialState(later))).toHaveLength(1);
   });
 
-  it("đấu nối có kết nối thì có đủ nhãn cho khóa và ô cấu hình", () => {
-    for (const i of integrations) {
-      if (!("connectMode" in i)) continue;
-      for (const s of i.secrets)
-        expect(i.secretLabels?.[s as keyof typeof i.secretLabels], `${i.key}.${s}`).toBeTruthy();
+  it("mọi đấu nối trong sổ đăng ký đều cấu hình được: có cách kết nối, nhãn khóa, nhãn ô, nội dung thử", () => {
+    for (const d of integrations as readonly IntegrationDefinition[]) {
+      expect(d.connectMode, d.key).toBeTruthy();
+      expect(d.testLabel, d.key).toBeTruthy();
+      if (d.connectMode === "oauth") expect(d.oauthScopes, d.key).toBeTruthy();
+      for (const s of d.secrets) expect(d.secretLabels?.[s], `${d.key}.${s}`).toBeTruthy();
+      // Mọi khóa của schema có ô nhập tương ứng, để lỗi cấu hình luôn chỉ ra được ô cần sửa.
+      const shape = Object.keys((d.configSchema as unknown as { shape: object }).shape);
+      for (const k of shape.filter((x) => x !== "webhookPath"))
+        expect(
+          d.configFields?.some((f) => f.key === k),
+          `${d.key}.${k}`,
+        ).toBe(true);
+      for (const p of d.prerequisites) expect(PREREQ_ERRORS[p.key], `${d.key}.${p.key}`).toBeTruthy();
     }
+  });
+
+  it("dòng tóm tắt chỉ ghi tên phần còn thiếu", () => {
+    expect(missingSummary(meta, initialState(meta))).toEqual([
+      "App Secret của ứng dụng Meta",
+      "ID Page Facebook",
+      "ID các form cần nhận",
+    ]);
+    const ai = getIntegration("ai_llm");
+    // AI mặc định không bật chức năng nào; vẫn kết nối được khi đủ mô hình, giới hạn chi phí và khóa.
+    expect(
+      connectBlockers(ai, {
+        ...initialState(ai),
+        config: { model: "claude-sonnet-5-5", monthlyBudget: "2000000" },
+        secrets: { ai_llm_api_key: "2026-10-04" },
+      }),
+    ).toEqual([]);
+    expect(
+      missingSummary(getIntegration("call_provider"), initialState(getIntegration("call_provider"))),
+    ).toEqual(["API key tổng đài", "Nhà cung cấp"]);
+    const storage = getIntegration("file_storage");
+    expect(requiredSecrets(storage)).toEqual([]);
   });
 
   it("OAuth chỉ cần khóa ký webhook trước, token nhận khi đăng nhập", () => {

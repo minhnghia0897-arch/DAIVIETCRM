@@ -15,10 +15,14 @@ test.beforeEach(async ({}, testInfo) => {
 
 async function setupMeta(page: Page) {
   const row = page.getByRole("listitem", { name: "Form quảng cáo Facebook" });
-  await expect(row.getByRole("button", { name: "Kết nối" })).toBeDisabled();
-  await row.getByRole("button", { name: "Form quảng cáo Facebook" }).click();
+  await expect(row.getByText("Còn thiếu: App Secret của ứng dụng Meta, ID Page Facebook")).toBeVisible();
+  // Thiết lập mở thẳng tab còn thiếu (khóa trước).
+  await row.getByRole("button", { name: "Thiết lập" }).click();
+  await expect(row.getByRole("tab", { name: "Bí mật" })).toHaveAttribute("aria-selected", "true");
 
   await row.getByRole("tab", { name: "Cấu hình" }).click();
+  await row.getByRole("button", { name: "Lưu cấu hình" }).click();
+  await expect(row.getByLabel("Lỗi cấu hình")).toContainText("ID Page Facebook: Chưa nhập");
   await row.getByLabel("ID Page Facebook").fill("abc");
   await row.getByRole("button", { name: "Lưu cấu hình" }).click();
   await expect(row.getByLabel("Lỗi cấu hình")).toContainText("ID Page là dãy số");
@@ -119,14 +123,66 @@ test("khóa API: email SMTP kết nối khi đủ cấu hình và khóa; đấu 
   await row.getByRole("button", { name: "Kết nối", exact: true }).click();
   await expect(row.getByText("Đã kết nối", { exact: true })).toBeVisible();
 
-  const shop = page.getByRole("listitem", { name: "TikTok Shop" });
-  await expect(shop.getByText("Sắp có", { exact: true })).toBeVisible();
-  await expect(shop.getByRole("button", { name: "Kết nối" })).toHaveCount(0);
+  await expect(page.getByText("Sắp có", { exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Tài khoản", exact: true }).click();
   await page.getByRole("menuitem", { name: "Nhật ký kiểm toán" }).click();
   await expect(page.getByRole("cell", { name: "Thay khóa bí mật" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Kết nối đấu nối", exact: true })).toBeVisible();
+});
+
+test("đấu nối giai đoạn sau: form TikTok đưa lead thử vào CRM, kho lưu trữ chỉ cần bật, trợ lý AI mặc định tắt chức năng", async ({
+  page,
+}) => {
+  await as(page, "owner", "settings/integrations/");
+  const tk = page.getByRole("listitem", { name: "Form quảng cáo TikTok" });
+  await tk.getByRole("button", { name: "Thiết lập" }).click();
+  await tk.getByLabel(/App secret của ứng dụng TikTok/).fill("x");
+  await tk.getByRole("button", { name: "Lưu khóa" }).click();
+  await tk.getByRole("tab", { name: "Cấu hình" }).click();
+  await tk.getByLabel("ID tài khoản quảng cáo TikTok").fill("7200000000000000001");
+  await tk.getByLabel("ID các form cần nhận").fill("7300000000001");
+  await tk.getByRole("button", { name: "Lưu cấu hình" }).click();
+  await tk.getByRole("tab", { name: "Điều kiện" }).click();
+  await tk.getByLabel(/ủy quyền cho ứng dụng/).check();
+  await tk.getByRole("button", { name: "Kết nối", exact: true }).click();
+  await tk
+    .getByRole("dialog", { name: /Cấp quyền/ })
+    .getByRole("button", { name: "Cho phép" })
+    .click();
+  await expect(tk.getByText("Đã kết nối", { exact: true })).toBeVisible();
+  await tk.getByRole("button", { name: "Gửi dữ liệu thử" }).click();
+
+  const fs = page.getByRole("listitem", { name: "Lưu video bàn giao" });
+  await fs.getByRole("button", { name: "Thiết lập" }).click();
+  await fs.getByLabel("Nơi lưu").selectOption("supabase");
+  await fs.getByLabel("Thời hạn link xem (phút)").fill("90");
+  await fs.getByRole("button", { name: "Lưu cấu hình" }).click();
+  await expect(fs.getByLabel("Lỗi cấu hình")).toContainText("Thời hạn link từ 1 đến 60 phút");
+  await fs.getByLabel("Thời hạn link xem (phút)").fill("10");
+  await fs.getByRole("button", { name: "Lưu cấu hình" }).click();
+  await fs.getByRole("button", { name: "Bật", exact: true }).click();
+  await expect(fs.getByText("Đã kết nối", { exact: true })).toBeVisible();
+
+  const ai = page.getByRole("listitem", { name: "Trợ lý AI" });
+  await ai.getByRole("button", { name: "Trợ lý AI", exact: true }).click();
+  await expect(ai.getByText(/Mọi kết quả AI là đề xuất có người xác nhận/)).toBeVisible();
+  await ai.getByRole("tab", { name: "Cấu hình" }).click();
+  for (const box of await ai
+    .getByRole("group", { name: /Chức năng bật/ })
+    .getByRole("checkbox")
+    .all())
+    await expect(box).not.toBeChecked();
+
+  const zns = page.getByRole("listitem", { name: "Tin ZNS" });
+  await zns.getByRole("button", { name: "Tin ZNS" }).click();
+  await expect(zns.getByText(/Chỉ gửi tới số Việt Nam/)).toBeVisible();
+
+  await page
+    .getByRole("navigation", { name: "Ứng dụng" })
+    .getByRole("link", { name: "Cơ hội", exact: true })
+    .click();
+  await expect(page.getByRole("button", { name: /Lead thử TikTok/ })).toBeVisible();
 });
 
 test("sale admin không vào được Tích hợp", async ({ page }) => {
