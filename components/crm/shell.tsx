@@ -6,11 +6,13 @@ import { Bell, ClipboardCheck, Pause, Play, ScrollText, Search, Send, Sparkles, 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { AccountMenu } from "@/components/shell/account-menu";
+import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
 import { HOUSES, houseById } from "@/lib/demo/crm-data";
 import { visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
+import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
 import { CrmProvider, fmtMinutes, useCrm } from "./store";
 
@@ -138,6 +140,7 @@ function ShellInner({
   );
 
   const tabs = visibleTabs(perms);
+  const sla = slaStats(state);
   const group = tabs.find((t) =>
     t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
   );
@@ -204,6 +207,21 @@ function ShellInner({
           <span className="c-tz ml-auto" aria-label="Giờ mô phỏng">
             VN <b>{fmtMinutes(state.minutes)}</b> · Hàn <b>{fmtMinutes(state.minutes + 120)}</b>
           </span>
+          {can("lead.receive") && state.receivers.some((r) => r.name === me) ? (
+            <label className="flex items-center gap-1.5 text-label whitespace-nowrap">
+              <Switch
+                label="Đang trực"
+                checked={Boolean(state.receivers.find((r) => r.name === me)?.onDuty)}
+                onCheckedChange={(v) =>
+                  act(
+                    { type: "toggleDuty", name: me, actor: me },
+                    v ? "Đã bật trực, bắt đầu nhận lead" : "Đã tắt trực, không nhận lead mới",
+                  )
+                }
+              />
+              <span className="hidden sm:inline">Trực</span>
+            </label>
+          ) : null}
           <button
             type="button"
             className={`c-ib ${aiOpen ? "is-on" : ""}`}
@@ -399,6 +417,19 @@ function ShellInner({
               {state.paused ? <Play size={15} aria-hidden /> : <Pause size={15} aria-hidden />}
               <span className="c-lbltxt">{state.paused ? "Chạy tiếp agent" : "Tạm dừng agent"}</span>
             </button>
+          ) : null}
+          {can("lead.view_all") ? (
+            <Link
+              href="/home"
+              className="flex items-center gap-1.5 border-r border-line-2 px-3 text-label whitespace-nowrap"
+            >
+              <span className="c-lbltxt">Quá SLA</span>
+              <span className={`c-cnt ${sla.overdue.length ? "" : "opacity-40"}`}>{sla.overdue.length}</span>
+              <span className="c-lbltxt">· Chưa phân</span>
+              <span className={`c-cnt ${sla.unassigned.length ? "" : "opacity-40"}`}>
+                {sla.unassigned.length}
+              </span>
+            </Link>
           ) : null}
           {shortcuts?.map((s) => (
             <span key={s.label} className="flex items-center px-3 text-label whitespace-nowrap">

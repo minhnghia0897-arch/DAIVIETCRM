@@ -1,16 +1,19 @@
 "use client";
 
 import { Target } from "lucide-react";
+import { useState } from "react";
 
 import { STAGES, tr } from "@/lib/demo/crm-data";
 import { LocTag, PageHead } from "../parts";
 import { useShell } from "../shell";
 import { useCrm } from "../store";
+import { ImportPanel, NewLeadForm, SlaPill } from "./lead-intake";
 import { LeadProfile } from "./lead-profile";
 
 export function CrmOpportunities() {
   const { state, act } = useCrm();
   const { can, me } = useShell();
+  const [panel, setPanel] = useState<"new" | "import" | null>(null);
 
   const all = can("lead.view_all");
   const opps = all ? state.opps : state.opps.filter((o) => o.owner === me);
@@ -29,8 +32,28 @@ export function CrmOpportunities() {
           <span className="c-lbl">
             {open.length} đang mở · pipeline <b>{tr(open.reduce((s, o) => s + o.value, 0))}</b>
           </span>
+          {can("lead.create") ? (
+            <button
+              type="button"
+              className="c-btn is-brand"
+              onClick={() => setPanel(panel === "new" ? null : "new")}
+            >
+              Tạo lead
+            </button>
+          ) : null}
+          {can("lead.import") ? (
+            <button
+              type="button"
+              className="c-btn"
+              onClick={() => setPanel(panel === "import" ? null : "import")}
+            >
+              Nhập file
+            </button>
+          ) : null}
         </PageHead>
       </section>
+      {panel === "new" ? <NewLeadForm onDone={() => setPanel(null)} /> : null}
+      {panel === "import" ? <ImportPanel onDone={() => setPanel(null)} /> : null}
 
       <div className="c-kb" aria-label="Bảng cơ hội theo giai đoạn">
         {STAGES.map((stage, i) => {
@@ -60,11 +83,19 @@ export function CrmOpportunities() {
                     </span>
                   </div>
                   <div className="c-lbl">
-                    {o.city ? <LocTag loc="KR" city={o.city} /> : <LocTag loc="VN" />} → {o.to}
+                    {(state.leadInfo[o.id]?.market ?? (o.city ? "KR" : "VN")) === "KR" ? (
+                      <LocTag loc="KR" city={o.city || undefined} />
+                    ) : (
+                      <LocTag loc="VN" />
+                    )}
+                    {o.to ? ` → ${o.to}` : ""}
                   </div>
                   <div className="c-kf">
                     <span className="flex-1 truncate">{o.product.replace("Ghế massage ", "Ghế ")}</span>
                     <span className="tabular">{tr(o.value)}</span>
+                  </div>
+                  <div className="mt-1 empty:hidden">
+                    <SlaPill oppId={o.id} />
                   </div>
                 </button>
               ))}

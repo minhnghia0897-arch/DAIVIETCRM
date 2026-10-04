@@ -11,6 +11,7 @@ import { PROVINCES_ALL } from "@/lib/demo/sales-catalog";
 import { LocTag, Steps } from "../parts";
 import { useShell } from "../shell-context";
 import { fmtDue, fmtMinutes, useCrm, type Activity, type CrmState } from "../store";
+import { AssignSelect, SlaPill } from "./lead-intake";
 import { QuoteBuilder, QuoteList } from "./quote-builder";
 
 const RELATIONS = ["Bố", "Mẹ", "Bố mẹ", "Vợ", "Chồng", "Con", "Ông bà", "Anh chị em", "Bạn", "Khác"];
@@ -96,9 +97,14 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
     <section className="c-card" aria-label={`Hồ sơ lead ${opp.name}`}>
       <div className="c-ch">
         <h2>{opp.name}</h2>
-        {info.market === "KR" ? <LocTag loc="KR" city={opp.city} /> : <LocTag loc="VN" />}
+        {info.market === "KR" ? <LocTag loc="KR" city={opp.city || undefined} /> : <LocTag loc="VN" />}
         <span className="c-r">
-          <span className="c-lbl">Phụ trách {opp.owner}</span>
+          {can("lead.assign") ? (
+            <AssignSelect oppId={opp.id} />
+          ) : (
+            <span className="c-lbl">Phụ trách {opp.owner || "chưa phân"}</span>
+          )}
+          <SlaPill oppId={opp.id} />
           <span className="c-pill is-n">{STAGES[opp.stage]}</span>
         </span>
       </div>

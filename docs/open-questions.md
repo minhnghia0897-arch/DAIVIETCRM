@@ -14,7 +14,7 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
 
 ## Bán hàng
 
-8. **Lead thất bại dưới 30 ngày rồi khách quay lại:** luật chống trùng chưa nói. Đề xuất: mở lại lead cũ, giữ người phụ trách.
+8. **Lead thất bại dưới 30 ngày rồi khách quay lại:** luật chống trùng chưa nói. Đề xuất: mở lại lead cũ, giữ người phụ trách. Bản demo hiện làm bước an toàn: không tạo lead mới, tạo việc "Làm nóng lại" cho người giữ cũ để họ quyết định mở lại (`lib/leads/dedupe.ts`, `attach_recent_lost`).
 9. **Đơn đã xác nhận chưa giữ hàng:** hai đơn cùng xác nhận chiếc cuối cùng đều lọt. Đề xuất: giữ hàng tạm khi xác nhận, hết giữ sau 24–48 giờ nếu chưa cọc.
 10. **Khách bấm đồng ý trên trang báo giá công khai:** chỉ sinh đơn nháp, không giữ hàng, không gửi chuyển đổi, tạo việc cho người bán.
 11. **Yêu cầu xóa dữ liệu** đụng chứng từ phải lưu theo luật kế toán (sổ kho, đơn, hóa đơn). Đề xuất: ẩn danh hóa khách, giữ chứng từ.

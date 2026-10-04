@@ -2,11 +2,13 @@
 
 import { Gauge } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { DAYS_LEFT, GOAL, OCCASIONS, TEAM, tr, ty } from "@/lib/demo/crm-data";
 import { ApprovalList, Avatar, FeedList, LocTag, PageHead } from "../parts";
 import { useShell } from "../shell";
 import { fmtMinutes, useCrm } from "../store";
+import { AssignSelect, SlaPill, slaStats } from "./lead-intake";
 
 const TEAM_COLORS = ["#0176D3", "#E07A2E", "#7526E3", "#0B827C", "#C23934", "#3E4A59"];
 
@@ -14,13 +16,25 @@ const TEAM_COLORS = ["#0176D3", "#E07A2E", "#7526E3", "#0B827C", "#C23934", "#3E
 export function CrmHome() {
   const { state, act } = useCrm();
   const { can, me: owner } = useShell();
+  const router = useRouter();
+  const sla = slaStats(state);
+  const openLead = (id: string) => {
+    act({ type: "selectOpp", id });
+    router.push("/opportunities");
+  };
   const team = can("lead.view_all");
   const pct = Math.min(100, (state.revenue / GOAL) * 100);
   // Mốc kỳ vọng: số ngày đã qua của quý / tổng số ngày quý.
   const expected = ((92 - DAYS_LEFT) / 92) * 100;
   const calls = state.opps
-    .filter((o) => o.stage <= 1 && (team || o.owner === owner))
-    .sort((a, b) => b.score - a.score);
+    .filter((o) => o.owner && o.stage <= 1 && (team || o.owner === owner))
+    // Lead mới chưa liên hệ (đang chạy SLA) lên đầu, sau đó theo điểm.
+    .sort(
+      (a, b) =>
+        Number(b.stage === 0) - Number(a.stage === 0) ||
+        (state.leadMeta[a.id]?.slaDue ?? 1e9) - (state.leadMeta[b.id]?.slaDue ?? 1e9) ||
+        b.score - a.score,
+    );
 
   return (
     <div className="c-stack">
@@ -188,24 +202,57 @@ export function CrmHome() {
               {calls.map((o) => (
                 <div key={o.id} className="c-cq">
                   <div className="min-w-0 flex-1">
-                    <b>{o.name}</b> {o.city ? <LocTag loc="KR" city={o.city} /> : <LocTag loc="VN" />}
+                    <b>{o.name}</b> {o.city ? <LocTag loc="KR" city={o.city} /> : <LocTag loc="VN" />}{" "}
+                    <SlaPill oppId={o.id} />
                     <div className="c-lbl">
                       {o.product.replace("Ghế massage ", "Ghế ")} · {o.source} · điểm {o.score}
                     </div>
                   </div>
                   {can("call.make") ? (
-                    <button
-                      type="button"
-                      className="c-btn"
-                      onClick={() => act({ type: "callOpp", id: o.id }, `Đang gọi ${o.name}`)}
-                    >
-                      Gọi
+                    <button type="button" className="c-btn" onClick={() => openLead(o.id)}>
+                      Mở và gọi
                     </button>
                   ) : null}
                 </div>
               ))}
             </div>
           </section>
+
+          {team ? (
+            <section className="c-card" aria-label="Lead cần điều phối">
+              <div className="c-ch">
+                <h2>Lead cần điều phối</h2>
+                <span className="c-r">
+                  <span className={`c-pill ${sla.overdue.length ? "is-err" : "is-n"}`}>
+                    Quá SLA {sla.overdue.length}
+                  </span>
+                  <span className={`c-pill ${sla.unassigned.length ? "is-warn" : "is-n"}`}>
+                    Chưa phân {sla.unassigned.length}
+                  </span>
+                </span>
+              </div>
+              <div className="c-team">
+                {[...sla.overdue, ...sla.unassigned, ...sla.waiting].length === 0 ? (
+                  <p className="c-empty">Không có lead quá hạn hay chưa phân.</p>
+                ) : null}
+                {[...sla.overdue, ...sla.unassigned, ...sla.waiting].map((o) => (
+                  <div key={o.id} className="c-cq flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <button type="button" className="c-link font-semibold" onClick={() => openLead(o.id)}>
+                        {o.name}
+                      </button>{" "}
+                      <SlaPill oppId={o.id} />
+                      <div className="c-lbl">
+                        {o.source}
+                        {o.owner ? ` · đang giữ: ${o.owner}` : ""}
+                      </div>
+                    </div>
+                    <AssignSelect oppId={o.id} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="c-card">
             <div className="c-ch">

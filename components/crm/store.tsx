@@ -20,6 +20,11 @@ import {
   type TaskRule,
 } from "@/lib/demo/ops-data";
 import { POLICIES } from "@/lib/demo/sales-catalog";
+import { routeLead, type Receiver } from "@/lib/leads/assign";
+import { decideIntake, type IntakeDecision, type KnownContact, type KnownLead } from "@/lib/leads/dedupe";
+import type { ImportRow } from "@/lib/leads/import";
+import { weeklyWindows, type MarketWindows } from "@/lib/leads/windows";
+import { maskPhone, normalizePhone } from "@/lib/phone";
 import type { Policy, QuoteInput, QuoteResult } from "@/lib/sales/pricing";
 import {
   AGENTS,
@@ -116,6 +121,35 @@ export interface AuditEntry {
 
 export type ReplyMode = "crm" | "external" | "off";
 
+export interface ReceiverState {
+  name: string;
+  canReceive: boolean;
+  active: boolean;
+  onDuty: boolean;
+  absent: boolean;
+}
+
+/** Dữ liệu phân lead và SLA của một cơ hội; thời gian là phút mô phỏng. */
+export interface LeadMeta {
+  phoneE164: string | null;
+  phoneInvalid?: boolean;
+  createdAt: number;
+  assignedAt?: number;
+  slaDue?: number;
+  firstContactAt?: number;
+  windowUntil?: number;
+}
+
+export interface ClosedLead {
+  id: string;
+  name: string;
+  phoneE164: string;
+  stage: "lost" | "won";
+  closedAt: number;
+  reason: string;
+  owner: string;
+}
+
 export interface Settings {
   callMode: "external" | "provider";
   slaMinutes: number;
@@ -158,6 +192,10 @@ interface State {
   payments: PaymentRec[];
   audit: AuditEntry[];
   settings: Settings;
+  receivers: ReceiverState[];
+  lastAssigned: string | null;
+  leadMeta: Record<string, LeadMeta>;
+  closedLeads: ClosedLead[];
 }
 
 /** Ngày giờ thật tương ứng với phút mô phỏng (ngày 04/10/2026, giờ VN). */
@@ -339,6 +377,47 @@ function initialState(): State {
     traceSel: null,
     seq: 0,
     leadInfo: LEAD_INFO,
+    receivers: [
+      { name: "Thảo", canReceive: true, active: true, onDuty: true, absent: false },
+      { name: "An", canReceive: true, active: true, onDuty: false, absent: false },
+    ],
+    lastAssigned: "Thảo",
+    leadMeta: Object.fromEntries(
+      Object.entries(LEAD_INFO).map(([id, info]) => {
+        const p = normalizePhone(info.buyerPhone, info.market);
+        const fresh = id === "o5";
+        return [
+          id,
+          {
+            phoneE164: p.valid ? p.e164 : null,
+            createdAt: fresh ? 9 * 60 : -1440,
+            assignedAt: fresh ? 9 * 60 + 12 : -1440,
+            slaDue: fresh ? 9 * 60 + 17 : -1435,
+            firstContactAt: fresh ? undefined : -1430,
+          } satisfies LeadMeta,
+        ];
+      }),
+    ),
+    closedLeads: [
+      {
+        id: "x1",
+        name: "Trần Thị Bích",
+        phoneE164: "+84908123344",
+        stage: "lost",
+        closedAt: -10 * 1440,
+        reason: "Giá cao",
+        owner: "Thảo",
+      },
+      {
+        id: "x2",
+        name: "Đỗ Văn Hậu",
+        phoneE164: "+821077778888",
+        stage: "lost",
+        closedAt: -45 * 1440,
+        reason: "Chưa tin mua từ xa",
+        owner: "Thảo",
+      },
+    ],
     activities: [
       {
         id: "a1",
@@ -490,7 +569,20 @@ type Action =
     }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
   | { type: "setSettings"; patch: Partial<Settings>; actor: string; label: string; detail?: string }
-  | { type: "audit"; actor: string; action: string; entity: string; detail: string };
+  | { type: "audit"; actor: string; action: string; entity: string; detail: string }
+  | {
+      type: "createLead";
+      name: string;
+      phoneRaw: string;
+      market: "KR" | "VN" | "unknown";
+      source: string;
+      product: string;
+      note: string;
+      actor: string;
+    }
+  | { type: "assignLead"; oppId: string; to: string; actor: string }
+  | { type: "toggleDuty"; name: string; actor: string }
+  | { type: "importLeads"; rows: ImportRow[]; duplicateMode: "skip" | "update" | "activity"; actor: string };
 
 function pushFeed(s: State, agent: AgentId, text: string, result: string, money = false): State {
   const minutes = s.minutes + 1;
@@ -506,7 +598,7 @@ function pushFeed(s: State, agent: AgentId, text: string, result: string, money 
 function reducer(s: State, a: Action): State {
   switch (a.type) {
     case "tick":
-      return s.paused ? s : step(s, Math.random);
+      return releaseWaiting(s.paused ? s : step(s, Math.random));
     case "togglePause":
       return { ...s, paused: !s.paused };
     case "decide": {
@@ -534,10 +626,27 @@ function reducer(s: State, a: Action): State {
     case "loseOpp": {
       // Đánh thất bại hủy các việc đã lên lịch kèm lý do, không xóa (CLAUDE.md mục 6).
       const id = s.oppSel;
+      const lost = s.opps.find((x) => x.id === id);
       const opps = s.opps.filter((x) => x.id !== id);
+      const phone = s.leadMeta[id]?.phoneE164;
       return {
         ...s,
         opps,
+        closedLeads:
+          lost && phone
+            ? [
+                {
+                  id,
+                  name: lost.name,
+                  phoneE164: phone,
+                  stage: "lost",
+                  closedAt: s.minutes,
+                  reason: a.reason ?? "",
+                  owner: lost.owner,
+                },
+                ...s.closedLeads,
+              ]
+            : s.closedLeads,
         oppSel: opps[0]?.id ?? "",
         tasks: s.tasks.map((t) =>
           t.oppId === id && t.status === "open"
@@ -738,8 +847,11 @@ function reducer(s: State, a: Action): State {
         `${a.channel === "Tổng đài" ? "Gọi qua tổng đài" : `Gọi ${a.channel === "Zalo" ? "qua Zalo" : "điện thoại"} (ghi tay)`} · ${a.outcome}${a.note ? ` · ${a.note}` : ""}`,
         a.actor,
       );
-      // Liên hệ đi đầu tiên đặt giai đoạn Đã liên hệ và đóng việc Liên hệ đầu tiên.
+      // Liên hệ đi đầu tiên đặt giai đoạn Đã liên hệ, dừng đồng hồ SLA và đóng việc Liên hệ đầu tiên.
       if (o.stage === 0) ns = setStage(ns, o.id, 1);
+      const meta = ns.leadMeta[o.id];
+      if (meta && meta.firstContactAt === undefined)
+        ns = { ...ns, leadMeta: { ...ns.leadMeta, [o.id]: { ...meta, firstContactAt: ns.minutes } } };
       ns = {
         ...ns,
         tasks: ns.tasks.map((t) =>
@@ -982,7 +1094,367 @@ function reducer(s: State, a: Action): State {
       );
     case "audit":
       return addAudit(s, a.actor, a.action, a.entity, a.detail);
+
+    case "createLead": {
+      const market = a.market;
+      const p = normalizePhone(a.phoneRaw, market === "KR" ? "KR" : "VN");
+      const e164 = p.valid ? p.e164 : null;
+      const decision = e164 ? intakeDecision(s, e164) : ({ action: "new_contact" } as IntakeDecision);
+      if (decision.action === "attach_open") {
+        const o = s.opps.find((x) => x.id === decision.leadId)!;
+        let ns = addActivity(
+          s,
+          o.id,
+          "info",
+          `Lead mới từ ${a.source} trùng số, đã nối vào lead này${a.note ? `: ${a.note}` : ""}`,
+          a.actor,
+        );
+        if (o.owner)
+          ns = addTask(ns, {
+            type: "callback",
+            title: `${o.name} vừa để lại thông tin lần nữa qua ${a.source}`,
+            oppId: o.id,
+            owner: o.owner,
+            due: s.minutes + s.settings.slaMinutes,
+            priority: "high",
+            source: "rule",
+          });
+        return { ...ns, oppSel: o.id };
+      }
+      if (decision.action === "attach_recent_lost") {
+        const c = s.closedLeads.find((x) => x.id === decision.leadId)!;
+        return addTask(
+          addAudit(
+            s,
+            a.actor,
+            "Gộp lead",
+            c.name,
+            `Lead mới từ ${a.source} trùng khách vừa thất bại ${Math.round((s.minutes - c.closedAt) / 1440)} ngày trước (${c.reason})`,
+          ),
+          {
+            type: "reactivation",
+            title: `${c.name} quay lại qua ${a.source} sau khi thất bại vì "${c.reason}", xem xét mở lại`,
+            owner: c.owner,
+            due: s.minutes + 60,
+            priority: "high",
+            source: "rule",
+          },
+        );
+      }
+      const inferred =
+        market !== "unknown"
+          ? market
+          : p.valid && p.country === "KR"
+            ? "KR"
+            : p.valid && p.country === "VN"
+              ? "VN"
+              : "unknown";
+      const seq = s.seq + 1;
+      const id = `o${seq + 200}`;
+      const price = PRODUCT_VALUE.find(([k]) => a.product.includes(k))?.[1] ?? 0;
+      const opp: Opportunity = {
+        id,
+        name: a.name,
+        city: "",
+        to: "",
+        product: a.product,
+        value: price,
+        stage: 0,
+        source: a.source,
+        owner: "",
+        score: 50,
+        occasion: "",
+        next: "Gọi trong 5 phút, hỏi đủ 4 thông tin: mua cho ai, tỉnh người nhận, dịp, ngân sách.",
+      };
+      const info: LeadInfo = {
+        ...newLeadInfo(inferred === "KR" ? "KR" : "VN"),
+        buyerPhone: e164 ?? a.phoneRaw,
+        buyerPhoneMasked: e164 ? maskPhone(e164) : `${a.phoneRaw} (sai)`,
+        tags: a.source.includes("Giới thiệu") ? ["referral"] : [],
+      };
+      let ns: State = {
+        ...s,
+        seq,
+        opps: [opp, ...s.opps],
+        oppSel: id,
+        leadInfo: { ...s.leadInfo, [id]: info },
+        leadMeta: { ...s.leadMeta, [id]: { phoneE164: e164, phoneInvalid: !e164, createdAt: s.minutes } },
+      };
+      ns = addActivity(
+        ns,
+        id,
+        "info",
+        `Lead tạo tay từ ${a.source}${decision.action === "new_lead" ? " (khách cũ, tạo lead mới)" : ""}${a.note ? `: ${a.note}` : ""}`,
+        a.actor,
+      );
+      if (!e164)
+        ns = addTask(ns, {
+          type: "data_fix",
+          title: `Số của lead ${a.name} không hợp lệ (${a.phoneRaw}), cần kiểm tra`,
+          oppId: id,
+          owner: "",
+          due: s.minutes + 120,
+          priority: "normal",
+          source: "rule",
+          ruleKey: "phone_invalid",
+        });
+      ns = pushFeed(ns, "lead", `Lead mới ${a.name} từ ${a.source}`, "Đã nhận");
+      return routeOpp(ns, id);
+    }
+    case "assignLead": {
+      const o = s.opps.find((x) => x.id === a.oppId);
+      if (!o || o.owner === a.to) return s;
+      const meta = s.leadMeta[o.id];
+      let ns: State = {
+        ...s,
+        opps: s.opps.map((x) => (x.id === o.id ? { ...x, owner: a.to } : x)),
+        tasks: s.tasks.map((t) => (t.oppId === o.id && t.status === "open" ? { ...t, owner: a.to } : t)),
+      };
+      if (meta && meta.firstContactAt === undefined)
+        ns = {
+          ...ns,
+          leadMeta: {
+            ...ns.leadMeta,
+            [o.id]: {
+              ...meta,
+              windowUntil: undefined,
+              assignedAt: s.minutes,
+              slaDue: a.to ? s.minutes + s.settings.slaMinutes : undefined,
+            },
+          },
+        };
+      return addActivity(
+        ns,
+        o.id,
+        "info",
+        a.to ? `${o.owner ? `Chuyển từ ${o.owner} sang` : "Giao cho"} ${a.to}` : "Chuyển về hàng Chưa phân",
+        a.actor,
+      );
+    }
+    case "toggleDuty": {
+      const ns = {
+        ...s,
+        receivers: s.receivers.map((r) => (r.name === a.name ? { ...r, onDuty: !r.onDuty } : r)),
+      };
+      const on = ns.receivers.find((r) => r.name === a.name)?.onDuty;
+      // Có người vào trực thì lead đang nằm ở hàng Chưa phân (không chờ khung) được chia lại.
+      if (!on) return ns;
+      return ns.opps
+        .filter(
+          (o) =>
+            !o.owner && o.stage === 0 && ns.leadMeta[o.id] && ns.leadMeta[o.id].windowUntil === undefined,
+        )
+        .reduce((acc, o) => routeOpp(acc, o.id), ns);
+    }
+    case "importLeads": {
+      let ns = s;
+      let created = 0;
+      let dup = 0;
+      for (const r of a.rows) {
+        if (r.status === "ok") {
+          const seq = ns.seq + 1;
+          const id = `o${seq + 200}`;
+          const owner = ns.receivers.some((x) => x.name === r.previousOwner) ? r.previousOwner : "";
+          ns = {
+            ...ns,
+            seq,
+            opps: [
+              {
+                id,
+                name: r.name,
+                city: "",
+                to: r.province,
+                product: r.product || "Chưa rõ",
+                value: PRODUCT_VALUE.find(([k]) => r.product.includes(k))?.[1] ?? 0,
+                stage: r.lastContact ? 1 : 0,
+                source: "Dữ liệu cũ nhập lại",
+                owner,
+                score: 40,
+                occasion: "",
+                next: "Lead cũ: làm nóng lại bằng video khách thật cùng tỉnh trước khi gọi.",
+              },
+              ...ns.opps,
+            ],
+            leadInfo: {
+              ...ns.leadInfo,
+              [id]: {
+                ...newLeadInfo(r.country === "KR" ? "KR" : "VN"),
+                buyerPhone: r.e164!,
+                buyerPhoneMasked: maskPhone(r.e164!),
+                recipientProvince: r.province,
+              },
+            },
+            leadMeta: {
+              ...ns.leadMeta,
+              [id]: {
+                phoneE164: r.e164,
+                createdAt: ns.minutes,
+                firstContactAt: r.lastContact ? -1 : undefined,
+              },
+            },
+          };
+          ns = addActivity(
+            ns,
+            id,
+            "info",
+            `Nhập từ dữ liệu cũ (dòng ${r.line})${r.note ? `: ${r.note}` : ""}`,
+            a.actor,
+          );
+          created++;
+        } else if (r.status === "duplicate_existing" && a.duplicateMode !== "skip" && r.e164) {
+          const d = intakeDecision(ns, r.e164);
+          if (d.action === "attach_open") {
+            dup++;
+            if (a.duplicateMode === "update" && r.province) {
+              const info = ns.leadInfo[d.leadId];
+              if (info && !info.recipientProvince)
+                ns = {
+                  ...ns,
+                  leadInfo: { ...ns.leadInfo, [d.leadId]: { ...info, recipientProvince: r.province } },
+                };
+            }
+            ns = addActivity(
+              ns,
+              d.leadId,
+              "info",
+              `Dữ liệu cũ (dòng ${r.line}): ${r.note || "trùng số, không tạo lead mới"}`,
+              a.actor,
+            );
+          }
+        }
+      }
+      return addAudit(
+        ns,
+        a.actor,
+        "Nhập file lead",
+        "Dữ liệu cũ",
+        `${created} lead mới, ${dup} dòng trùng đã ${a.duplicateMode === "update" ? "cập nhật" : "ghi hoạt động"}`,
+      );
+    }
   }
+}
+
+const PRODUCT_VALUE: [string, number][] = [
+  ["DV-X9", 79.9],
+  ["DV-S7", 49.9],
+  ["DV-M5", 29.9],
+  ["lọc nước", 16.9],
+];
+
+/** Thị trường của khách sang khung gọi; thị trường chưa rõ thì không chờ khung. */
+export function marketWindows(s: State, market: string): MarketWindows | null {
+  const m = s.settings.markets.find((x) => x.code === market && x.active);
+  return m ? weeklyWindows(m.timezone, m.weekday, m.weekend) : null;
+}
+
+/** Quyết định chống trùng cho một số điện thoại đã chuẩn hóa, theo dữ liệu đang có. */
+export function intakeDecision(s: State, e164: string): IntakeDecision {
+  const contacts: KnownContact[] = [
+    ...s.opps.map((o) => ({
+      id: o.id,
+      identities: s.leadMeta[o.id]?.phoneE164
+        ? [{ type: "phone" as const, value: s.leadMeta[o.id].phoneE164! }]
+        : [],
+    })),
+    ...s.closedLeads.map((c) => ({ id: c.id, identities: [{ type: "phone" as const, value: c.phoneE164 }] })),
+  ];
+  const leads: KnownLead[] = [
+    ...s.opps.map((o) => ({ id: o.id, contactId: o.id, stage: "contacted" as const })),
+    ...s.closedLeads.map((c) => ({
+      id: c.id,
+      contactId: c.id,
+      stage: c.stage,
+      closedAt: simDate(c.closedAt),
+    })),
+  ];
+  return decideIntake([{ type: "phone", value: e164 }], simDate(s.minutes), contacts, leads);
+}
+
+function receiversOf(s: State): Receiver[] {
+  return s.receivers.map((r) => ({
+    id: r.name,
+    canReceive: r.canReceive,
+    active: r.active,
+    onDuty: r.onDuty,
+    absent: r.absent,
+    uncontacted: s.opps.filter(
+      (o) =>
+        o.owner === r.name &&
+        o.stage === 0 &&
+        s.leadMeta[o.id] &&
+        s.leadMeta[o.id].firstContactAt === undefined,
+    ).length,
+  }));
+}
+
+const fromDate = (d: Date) => Math.round((d.getTime() - simDate(0).getTime()) / 60_000);
+
+/** Chạy luật phân lead cho một cơ hội đang chưa có người giữ. */
+function routeOpp(s: State, oppId: string): State {
+  const o = s.opps.find((x) => x.id === oppId);
+  if (!o) return s;
+  const info = s.leadInfo[oppId];
+  const r = routeLead({
+    at: simDate(s.minutes),
+    market: info ? marketWindows(s, info.market) : null,
+    receivers: receiversOf(s),
+    lastAssignedId: s.lastAssigned,
+    maxUncontacted: s.settings.maxUncontacted,
+    slaMinutes: s.settings.slaMinutes,
+  });
+  const meta = s.leadMeta[oppId];
+  if (r.kind === "wait") {
+    const until = fromDate(r.until);
+    return addActivity(
+      { ...s, leadMeta: { ...s.leadMeta, [oppId]: { ...meta, windowUntil: until } } },
+      oppId,
+      "info",
+      `Ngoài khung gọi của khách, chờ tới ${fmtDue(until)} (giờ VN) mới giao`,
+      "Hệ thống",
+    );
+  }
+  if (r.kind === "unassigned")
+    return addActivity(
+      { ...s, leadMeta: { ...s.leadMeta, [oppId]: { ...meta, windowUntil: undefined } } },
+      oppId,
+      "info",
+      "Không có telesale đang trực, lead vào hàng Chưa phân",
+      "Hệ thống",
+    );
+  const slaDue = fromDate(r.slaDueAt);
+  let ns: State = {
+    ...s,
+    lastAssigned: r.assigneeId,
+    opps: s.opps.map((x) => (x.id === oppId ? { ...x, owner: r.assigneeId } : x)),
+    leadMeta: { ...s.leadMeta, [oppId]: { ...meta, windowUntil: undefined, assignedAt: s.minutes, slaDue } },
+  };
+  ns = addActivity(
+    ns,
+    oppId,
+    "info",
+    `Phân vòng tròn cho ${r.assigneeId}, hạn liên hệ ${fmtMinutes(slaDue)}`,
+    "Hệ thống",
+  );
+  return addTask(ns, {
+    type: "first_contact",
+    title: `Gọi lead mới ${o.name} (${o.source})`,
+    oppId,
+    owner: r.assigneeId,
+    due: slaDue,
+    priority: "high",
+    source: "rule",
+    ruleKey: "lead_new_sla",
+  });
+}
+
+/** Việc nền mô phỏng: lead đang chờ khung gọi được giao khi tới đầu khung. */
+function releaseWaiting(s: State): State {
+  return s.opps
+    .filter(
+      (o) =>
+        !o.owner && s.leadMeta[o.id]?.windowUntil !== undefined && s.leadMeta[o.id].windowUntil! <= s.minutes,
+    )
+    .reduce((acc, o) => routeOpp(acc, o.id), s);
 }
 
 const INFO_LABEL: Record<string, string> = {
