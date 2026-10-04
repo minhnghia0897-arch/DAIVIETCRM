@@ -94,14 +94,14 @@ Các đấu nối ngoài tháng 1 trong mục 10.3 (chỉ khai báo trong sổ �
 
 | Lớp | Lựa chọn |
 |---|---|
-| Web | Next.js (App Router), TypeScript `strict` |
-| UI | Tailwind CSS + shadcn/ui, tùy biến theo token trong `DESIGN.md` |
+| Web | Next.js 16 (App Router), TypeScript `strict`. Bản này đổi nhiều API so với bản cũ: đọc `AGENTS.md` và tài liệu trong `node_modules/next/dist/docs/` trước khi viết code Next |
+| UI | Tailwind CSS 4 + shadcn/ui (Radix), tùy biến theo token trong `DESIGN.md`, khai báo ở `app/globals.css`. Máy chủ shadcn bị chặn trong môi trường cloud, nên thành phần được chép tay vào `components/ui/` theo đúng mẫu shadcn |
 | Dữ liệu, xác thực, lưu trữ | Supabase: Postgres, Auth, Row Level Security, Storage, Edge Functions, Vault cho secret |
 | Hàng đợi, việc nền | Bảng `jobs` trong Postgres + Supabase Cron (pg_cron) gọi Edge Function; không thêm hạ tầng mới trong tháng 1 |
 | Triển khai | Vercel (web), Supabase (DB và function) |
 | Kiểm tra dữ liệu vào | zod ở mọi biên: form, route handler, webhook |
 | Số điện thoại | `libphonenumber-js` |
-| Thời gian | `date-fns` + `date-fns-tz`; lưu UTC, hiển thị `Asia/Ho_Chi_Minh`; giờ địa phương của khách theo timezone của thị trường trong `markets` (ví dụ `Asia/Seoul`) |
+| Thời gian | `date-fns` 4 + `@date-fns/tz` (bản thay cho `date-fns-tz`); lưu UTC, hiển thị `Asia/Ho_Chi_Minh`; giờ địa phương của khách theo timezone của thị trường trong `markets` (ví dụ `Asia/Seoul`) |
 | Kiểm thử | Vitest (đơn vị), Playwright (đầu cuối theo vai trò), kiểm thử RLS bằng SQL |
 
 Không thêm thư viện lớn ngoài danh sách khi chưa hỏi.
@@ -903,7 +903,9 @@ pnpm lint
 pnpm typecheck
 pnpm test           # vitest
 pnpm test:e2e       # playwright
-pnpm test:rls       # kiểm thử chính sách RLS
+pnpm test:rls       # kiểm thử chính sách RLS (pgTAP, supabase test db)
+pnpm format         # prettier
+pnpm db:start       # Supabase local (cần Docker)
 pnpm db:migrate     # supabase migration up
 pnpm db:types       # sinh type
 ```
