@@ -277,6 +277,8 @@ export interface Task {
   outcome?: string;
   source: "user" | "rule" | "ai";
   ruleKey?: string;
+  /** Tăng mỗi lần việc vừa được đổi trong phiên, để dòng việc nháy màu một lần (không lưu). */
+  flash?: number;
 }
 
 const h = (hh: number, mm = 0) => hh * 60 + mm;

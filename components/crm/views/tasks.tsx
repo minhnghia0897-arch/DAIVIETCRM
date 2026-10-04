@@ -1,6 +1,6 @@
 "use client";
 
-import { ListChecks } from "lucide-react";
+import { CalendarX, Check, Clock, ListChecks, PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -177,8 +177,13 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
   const [outcome, setOutcome] = useState("");
   const [closing, setClosing] = useState(false);
   const mine = t.owner === me || (t.owner === "" && can("lead.view_all"));
+  const open = t.status === "open";
   return (
-    <li className="border-t border-line-2 py-2 first:border-t-0">
+    // Đổi khóa khi việc vừa thay đổi để dòng gắn lại và nháy màu một lần (DESIGN.md: phản hồi tức thì).
+    <li
+      key={`${t.id}-${t.flash ?? 0}`}
+      className={`c-hrow border-t border-line-2 py-2 first:border-t-0 ${t.flash ? "c-flash" : ""}`}
+    >
       <div className="flex flex-wrap items-start gap-2">
         <span className={`c-pill ${overdue ? "is-err" : t.priority === "high" ? "is-warn" : "is-n"}`}>
           {fmtDue(t.due)}
@@ -197,18 +202,51 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
             {t.source === "rule" ? "Luật tự sinh" : t.source === "ai" ? "AI đề xuất" : "Người tạo"}
           </div>
         </div>
-        {mine && !closing ? (
-          <span className="flex gap-1.5">
-            <button type="button" className="c-btn is-brand" onClick={() => setClosing(true)}>
-              Xong
+        {mine && open && !closing ? (
+          // Thanh nút hiện khi rê chuột hoặc khi dòng có tiêu điểm bàn phím, như thanh thao tác tin nhắn Slack.
+          <span className="c-hacts" role="group" aria-label={`Thao tác: ${t.title}`}>
+            <button
+              type="button"
+              aria-label="Xong"
+              title="Xong"
+              onClick={() =>
+                act({ type: "completeTask", id: t.id, outcome: "", actor: me }, "Đã xong việc", {
+                  undo: true,
+                })
+              }
+            >
+              <Check size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Dời 1 giờ"
+              title="Dời 1 giờ"
+              onClick={() =>
+                act({ type: "snoozeTask", id: t.id, minutes: 60, actor: me }, "Đã dời việc 1 giờ", {
+                  undo: true,
+                })
+              }
+            >
+              <Clock size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Xong và ghi kết quả"
+              title="Xong và ghi kết quả"
+              onClick={() => setClosing(true)}
+            >
+              <PenLine size={16} aria-hidden />
             </button>
             {overdue ? (
               <button
                 type="button"
-                className="c-btn"
-                onClick={() => act({ type: "missTask", id: t.id, actor: me }, "Đã ghi lỡ hẹn")}
+                aria-label="Lỡ hẹn"
+                title="Lỡ hẹn"
+                onClick={() =>
+                  act({ type: "missTask", id: t.id, actor: me }, "Đã ghi lỡ hẹn", { undo: true })
+                }
               >
-                Lỡ hẹn
+                <CalendarX size={16} aria-hidden />
               </button>
             ) : null}
           </span>
@@ -219,7 +257,9 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
           className="mt-2 flex flex-wrap gap-1.5 pl-1"
           onSubmit={(e) => {
             e.preventDefault();
-            act({ type: "completeTask", id: t.id, outcome: outcome.trim(), actor: me }, "Đã hoàn thành việc");
+            act({ type: "completeTask", id: t.id, outcome: outcome.trim(), actor: me }, "Đã xong việc", {
+              undo: true,
+            });
           }}
         >
           <input
@@ -228,6 +268,7 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
             value={outcome}
             onChange={(e) => setOutcome(e.target.value)}
             className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1"
+            autoFocus
           />
           <button type="submit" className="c-btn is-brand">
             Lưu

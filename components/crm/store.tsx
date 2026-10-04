@@ -687,6 +687,9 @@ type Action =
   | { type: "addNote"; oppId: string; text: string; actor: string }
   | { type: "addDate"; oppId: string; label: string; date: string; actor: string }
   | { type: "completeTask"; id: string; outcome: string; actor: string }
+  | { type: "snoozeTask"; id: string; minutes: number; actor: string }
+  /** Hoàn tác: trả lại trạng thái ngay trước thao tác (bản demo giữ ảnh chụp trong 5 giây). */
+  | { type: "restore"; state: State }
   | { type: "missTask"; id: string; actor: string }
   | {
       type: "sendQuote";
@@ -1060,7 +1063,9 @@ function reducer(s: State, a: Action): State {
       const ns = {
         ...s,
         tasks: s.tasks.map((x) =>
-          x.id === a.id ? { ...x, status: "done" as const, outcome: a.outcome } : x,
+          x.id === a.id
+            ? { ...x, status: "done" as const, outcome: a.outcome, flash: (x.flash ?? 0) + 1 }
+            : x,
         ),
       };
       return t.oppId
@@ -1074,7 +1079,26 @@ function reducer(s: State, a: Action): State {
         : ns;
     }
     case "missTask":
-      return { ...s, tasks: s.tasks.map((x) => (x.id === a.id ? { ...x, status: "missed" as const } : x)) };
+      return {
+        ...s,
+        tasks: s.tasks.map((x) =>
+          x.id === a.id ? { ...x, status: "missed" as const, flash: (x.flash ?? 0) + 1 } : x,
+        ),
+      };
+    case "snoozeTask": {
+      const t = s.tasks.find((x) => x.id === a.id);
+      if (!t || t.status !== "open") return s;
+      const due = Math.max(t.due, s.minutes) + a.minutes;
+      const ns = {
+        ...s,
+        tasks: s.tasks.map((x) => (x.id === a.id ? { ...x, due, flash: (x.flash ?? 0) + 1 } : x)),
+      };
+      return t.oppId
+        ? addActivity(ns, t.oppId, "task", `Dời việc "${t.title}" sang ${fmtMinutes(due)}`, a.actor)
+        : ns;
+    }
+    case "restore":
+      return a.state;
 
     case "sendQuote": {
       const o = s.opps.find((x) => x.id === a.oppId);
@@ -2506,7 +2530,8 @@ interface Ctx {
   state: State;
   dispatch: (a: Action) => void;
   /** Gửi hành động và báo toast. */
-  act: (a: Action, message?: string) => void;
+  /** `undo`: toast kèm nút Hoàn tác trả lại trạng thái ngay trước thao tác. */
+  act: (a: Action, message?: string, opts?: { undo?: boolean }) => void;
 }
 
 const CrmContext = createContext<Ctx | null>(null);
@@ -2526,10 +2551,17 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
   }, [state.paused]);
 
   const act = useCallback(
-    (a: Action, message?: string) => {
+    (a: Action, message?: string, opts?: { undo?: boolean }) => {
       const before = latest.current;
       dispatch(a);
-      if (message) toast(message);
+      if (message)
+        toast(
+          message,
+          "ok",
+          opts?.undo
+            ? { label: "Hoàn tác", onClick: () => dispatch({ type: "restore", state: before }) }
+            : undefined,
+        );
       if (a.type === "reply") {
         const conv = before.convs.find((c) => c.id === before.convSel);
         if (conv?.followUp) {

@@ -141,6 +141,76 @@ test("menu là sidebar dọc: thu gọn còn biểu tượng; điện thoại m�
   await expect(nav.getByText("Đơn hàng")).toBeVisible();
 });
 
+test("ô tìm nhanh Ctrl K và phím tắt kiểu Slack", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Phím tắt dùng trên máy tính");
+  await as(page, "owner", "home/");
+  await page.keyboard.press("Control+k");
+  const dlg = page.getByRole("dialog", { name: "Tìm nhanh" });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole("combobox").fill("0012");
+  await expect(dlg.getByRole("option").first()).toContainText("Q4-2610-0012");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/orders\/o-0012/);
+  await expect(dlg).toHaveCount(0);
+
+  // Lead tìm theo tên, không dấu cũng được.
+  await page.keyboard.press("Control+k");
+  await dlg.getByRole("combobox").fill("nguyen thi thu");
+  await dlg
+    .getByRole("option", { name: /Nguyễn Thị Thu/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/opportunities/);
+  await expect(page.getByRole("region", { name: "Hồ sơ lead Nguyễn Thị Thu" })).toBeVisible();
+
+  // G rồi T về Việc cần làm; ? mở bảng phím tắt; Esc đóng.
+  await page.locator("body").click({ position: { x: 600, y: 140 } });
+  await page.keyboard.press("g");
+  await page.keyboard.press("t");
+  await expect(page).toHaveURL(/tasks/);
+  await page.keyboard.press("?");
+  await expect(dlg.getByLabel("Phím tắt")).toContainText("Mở ô tìm nhanh");
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+});
+
+test("rê chuột vào việc hiện nút; Xong và Dời 1 giờ có Hoàn tác", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Rê chuột trên máy tính");
+  // Việc giao cho Thảo: chỉ người nhận việc thấy nút thao tác.
+  await as(page, "telesale", "tasks/");
+  const today = page.getByRole("region", { name: "Hôm nay" });
+  const row = today.getByRole("listitem").filter({ hasText: "Gọi hỏi thăm anh Khoa" });
+  await row.hover();
+  const bar = row.getByRole("group", { name: /Thao tác/ });
+  await expect(bar).toBeVisible();
+  await bar.getByRole("button", { name: "Dời 1 giờ" }).click();
+  await expect(today.getByRole("listitem").filter({ hasText: "Gọi hỏi thăm anh Khoa" })).toContainText(
+    "11:00",
+  );
+  await page.getByRole("button", { name: "Hoàn tác" }).click();
+  await expect(today.getByRole("listitem").filter({ hasText: "Gọi hỏi thăm anh Khoa" })).toContainText(
+    "10:00",
+  );
+
+  const row2 = today.getByRole("listitem").filter({ hasText: "Gọi hỏi thăm anh Khoa" });
+  await row2.hover();
+  await row2.getByRole("button", { name: "Xong", exact: true }).click();
+  await expect(today.getByText("Gọi hỏi thăm anh Khoa")).toHaveCount(0);
+  await page.getByRole("button", { name: "Hoàn tác" }).click();
+  await expect(today.getByText("Gọi hỏi thăm anh Khoa")).toBeVisible();
+});
+
+test("telesale tìm nhanh chỉ thấy lead của mình", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Phím tắt dùng trên máy tính");
+  await as(page, "telesale", "home/");
+  await page.keyboard.press("Control+k");
+  const dlg = page.getByRole("dialog", { name: "Tìm nhanh" });
+  await dlg.getByRole("combobox").fill("Phạm Minh Đức");
+  await expect(dlg.getByRole("option")).toHaveCount(0);
+  await dlg.getByRole("combobox").fill("Hộ Phạm");
+  await expect(dlg.getByRole("option")).toHaveCount(0);
+});
+
 test("đơn giao lắp đã gộp vào Đơn hàng: một tab, đường dẫn cũ chuyển sang Đơn hàng", async ({ page }) => {
   await as(page, "owner", "deliveries/");
   await expect(page).toHaveURL(/\/orders\/?$/);

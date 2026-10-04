@@ -35,9 +35,11 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
-import { HOUSES, houseById } from "@/lib/demo/crm-data";
+import { HOUSES, STAGES, houseById } from "@/lib/demo/crm-data";
+import { CUSTOMERS } from "@/lib/demo/data";
 import { NAV_SECTIONS, visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
+import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
 import { ORDER_STATUS } from "@/lib/demo/labels";
@@ -176,6 +178,10 @@ function ShellInner({
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [pop, setPop] = useState<"appr" | "feed" | null>(null);
   const [q, setQ] = useState("");
+  // Ô tìm nhanh Ctrl/⌘ K và phím tắt kiểu Slack.
+  const [quick, setQuick] = useState<"search" | "help" | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const goPrefix = useRef(0);
   // Sidebar: màn hình rộng thu gọn được còn biểu tượng (nhớ trong trình duyệt); màn hình hẹp mở dạng ngăn kéo.
   const collapsed = useSyncExternalStore(subscribeNav, readNavCollapsed, () => false);
   function toggleCollapsed() {
@@ -247,6 +253,97 @@ function ShellInner({
     t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
   );
 
+  const GO: Record<string, string> = {
+    h: "/home",
+    t: "/tasks",
+    c: "/opportunities",
+    d: "/orders",
+    k: "/customers",
+    i: "/inbox",
+  };
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setQuick((v) => (v ? null : "search"));
+        return;
+      }
+      const el = e.target as HTMLElement | null;
+      const typing = el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === "?") {
+        e.preventDefault();
+        setQuick("help");
+      } else if (e.key.toLowerCase() === "g") {
+        goPrefix.current = Date.now();
+      } else if (Date.now() - goPrefix.current < 1200 && GO[e.key.toLowerCase()]) {
+        goPrefix.current = 0;
+        const href = GO[e.key.toLowerCase()];
+        if (tabs.some((t) => t.href === href || t.children?.some((c) => c.href === href))) router.push(href);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  function quickItems(): QuickItem[] {
+    const team = can("lead.view_all");
+    const pages: QuickItem[] = [
+      ...tabs.flatMap((t): { href: string; label: string }[] => (t.children?.length ? t.children : [t])),
+      ...settings,
+    ].map((t) => ({
+      id: `p${t.href}`,
+      label: t.label,
+      hint: t.href.startsWith("/settings") ? "Cài đặt" : "Màn hình",
+      group: "Màn hình" as const,
+      run: () => router.push(t.href),
+    }));
+    const leads: QuickItem[] = state.opps
+      .filter((o) => team || o.owner === me)
+      .map((o) => ({
+        id: `l${o.id}`,
+        label: o.name,
+        hint: `${o.product} · ${STAGES[o.stage]}${o.owner ? ` · ${o.owner}` : ""}`,
+        group: "Lead" as const,
+        run: () => {
+          act({ type: "selectOpp", id: o.id });
+          router.push("/opportunities");
+        },
+      }));
+    const orders: QuickItem[] = visibleOrders(state.orders, perms, user.id).map((o) => ({
+      id: `o${o.id}`,
+      label: o.code,
+      hint: `${orderPeople(o).buyer} · ${ORDER_STATUS[o.status].label}`,
+      group: "Đơn hàng" as const,
+      run: () => router.push(`/orders/${o.id}`),
+    }));
+    const houses: QuickItem[] = team
+      ? HOUSES.map((h) => ({
+          id: `h${h.id}`,
+          label: h.name,
+          hint: h.members.map((m) => m.name).join(", "),
+          group: "Hộ gia đình" as const,
+          run: () => {
+            act({ type: "selectHouse", id: h.id });
+            router.push("/households");
+          },
+        }))
+      : [];
+    const customers: QuickItem[] = team
+      ? CUSTOMERS.map((c) => ({
+          id: `c${c.id}`,
+          label: c.fullName,
+          hint: `Khách · ${c.phoneMasked}`,
+          group: "Khách" as const,
+          run: () => router.push(`/customers/${c.id}`),
+        }))
+      : [];
+    return [...pages, ...leads, ...orders, ...houses, ...customers];
+  }
+
   function search(text: string) {
     const t = fold(text);
     if (!t) return;
@@ -316,11 +413,20 @@ function ShellInner({
           >
             <Search size={14} aria-hidden />
             <input
+              ref={searchRef}
               aria-label="Tìm kiếm"
               placeholder="Tìm hộ gia đình, khách, mã đơn…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
+            <button
+              type="button"
+              className="c-search-k"
+              aria-label="Mở ô tìm nhanh (Ctrl K)"
+              onClick={() => setQuick("search")}
+            >
+              Ctrl K
+            </button>
           </form>
           <span className="c-tz ml-auto" aria-label="Giờ mô phỏng">
             VN <b>{fmtMinutes(state.minutes)}</b> · Hàn <b>{fmtMinutes(state.minutes + 120)}</b>
@@ -566,6 +672,10 @@ function ShellInner({
               <FeedList items={state.feed} limit={20} />
             )}
           </div>
+        ) : null}
+
+        {quick ? (
+          <QuickSwitcher items={quickItems()} showHelp={quick === "help"} onClose={() => setQuick(null)} />
         ) : null}
 
         <footer className="c-util" aria-label="Tiện ích">

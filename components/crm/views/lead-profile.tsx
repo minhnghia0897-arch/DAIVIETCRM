@@ -262,6 +262,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
                 act(
                   { type: "loseOpp", reason: lostReason, actor: me },
                   `Đã đánh thất bại: ${lostReason}. Việc đã lên lịch được hủy kèm lý do`,
+                  { undo: true },
                 );
               }}
             >
