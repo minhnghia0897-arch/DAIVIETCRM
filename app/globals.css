@@ -111,7 +111,9 @@
   --shadow-card: var(--shadow-card);
   --shadow-pop: var(--shadow-pop);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    var(--font-app), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
 
   /* Cỡ chữ theo DESIGN.md: tiêu đề trang, tiêu đề card, chỉ số lớn, thân, nhãn, pill */
   --text-page-title: 18px;

@@ -1,8 +1,19 @@
 // Thanh tab ứng dụng (DESIGN.md 4). Tab chỉ hiện khi người dùng có một trong các quyền xem
 // và màn hình đã được dựng (`ready`). Không bao giờ suy từ tên vai trò.
+export type NavSection = "work" | "sales" | "insight" | "admin";
+
+/** Nhóm mục trên sidebar, theo thứ tự hiển thị. */
+export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
+  { key: "work", label: "Làm việc" },
+  { key: "sales", label: "Bán hàng" },
+  { key: "insight", label: "Theo dõi" },
+  { key: "admin", label: "Quản trị" },
+];
+
 export interface NavTab {
   href: string;
   label: string;
+  section: NavSection;
   anyOf: string[];
   ready: boolean;
   /** Tab gom nhiều màn hình: hiện thành tab con, mỗi tab con theo quyền riêng. */
@@ -10,18 +21,61 @@ export interface NavTab {
 }
 
 export const NAV_TABS: NavTab[] = [
-  { href: "/home", label: "Trang chủ", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/tasks", label: "Việc cần làm", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/opportunities", label: "Cơ hội", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/households", label: "Hộ gia đình", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
-  { href: "/inbox", label: "Hội thoại", anyOf: ["message.zalo_send", "message.view_all"], ready: true },
-  { href: "/channels", label: "Kênh & nội dung", anyOf: ["report.team"], ready: true },
-  { href: "/reports", label: "Báo cáo", anyOf: ["report.own", "report.team"], ready: true },
-  { href: "/agents", label: "Agent", anyOf: ["settings.integrations"], ready: true },
+  {
+    href: "/home",
+    label: "Trang chủ",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/tasks",
+    label: "Việc cần làm",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/opportunities",
+    label: "Cơ hội",
+    section: "sales",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/households",
+    label: "Hộ gia đình",
+    section: "sales",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/orders",
+    label: "Đơn hàng",
+    section: "sales",
+    anyOf: ["order.view_own", "order.view_all"],
+    ready: true,
+  },
+  {
+    href: "/inbox",
+    label: "Hội thoại",
+    section: "work",
+    anyOf: ["message.zalo_send", "message.view_all"],
+    ready: true,
+  },
+  { href: "/channels", label: "Kênh & nội dung", section: "insight", anyOf: ["report.team"], ready: true },
+  {
+    href: "/reports",
+    label: "Báo cáo",
+    section: "insight",
+    anyOf: ["report.own", "report.team"],
+    ready: true,
+  },
+  { href: "/agents", label: "Agent", section: "admin", anyOf: ["settings.integrations"], ready: true },
   {
     href: "/products",
     label: "Sản phẩm",
+    section: "sales",
     anyOf: ["product.view", "inventory.view", "policy.view"],
     ready: true,
     children: [
@@ -30,8 +84,14 @@ export const NAV_TABS: NavTab[] = [
       { href: "/policies", label: "Chính sách", perm: "policy.view" },
     ],
   },
-  { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: true },
-  { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
+  { href: "/team", label: "Đội ngũ", section: "insight", anyOf: ["kpi.own", "kpi.team"], ready: true },
+  {
+    href: "/customers",
+    label: "Khách",
+    section: "sales",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
 ];
 
 export interface SettingsItem {

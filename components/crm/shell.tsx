@@ -36,7 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
 import { HOUSES, houseById } from "@/lib/demo/crm-data";
-import { visibleTabs } from "@/lib/nav";
+import { NAV_SECTIONS, visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
@@ -233,6 +233,14 @@ function ShellInner({
   );
 
   const tabs = visibleTabs(perms);
+  // Số đếm kiểu Slack trên sidebar: việc mở của tôi, hội thoại cần người, lead quá SLA.
+  const navCounts: Record<string, number> = {
+    "/tasks": state.tasks.filter((t) => t.status === "open" && t.owner === me).length,
+    "/inbox": state.convs.filter((c) => c.status === "need").length,
+  };
+  const duty = state.receivers.some((r) => r.name === me)
+    ? Boolean(state.receivers.find((r) => r.name === me)?.onDuty)
+    : null;
   const sla = slaStats(state);
   const group = tabs.find((t) =>
     t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
@@ -288,7 +296,7 @@ function ShellInner({
           >
             <Menu size={18} />
           </button>
-          <span className="flex items-center gap-2 font-bold text-brand-strong">
+          <span className="flex items-center gap-2 font-bold text-white">
             <span
               aria-hidden
               className="flex size-7 items-center justify-center rounded-control bg-brand text-white"
@@ -371,30 +379,52 @@ function ShellInner({
             className={`c-nav ${collapsed ? "is-collapsed" : ""} ${navOpen ? "is-open" : ""}`}
             aria-label="Ứng dụng"
           >
-            <span className="c-appname" title={user.showroomName}>
-              <span className="c-waffle" aria-hidden>
-                {Array.from({ length: 9 }, (_, i) => (
-                  <i key={i} />
-                ))}
+            <div className="c-appname" title={user.showroomName}>
+              <span className="c-navlogo" aria-hidden>
+                Q4
               </span>
-              <span className="c-navtxt">{user.showroomName}</span>
-            </span>
-            {tabs.map((t) => {
-              const active = (t.children?.map((c) => c.href) ?? [t.href]).some(
-                (h) => pathname === h || pathname.startsWith(h + "/"),
-              );
-              const Icon = NAV_ICON[t.href] ?? Package;
+              <span className="c-navtxt min-w-0">
+                <b className="block truncate">{user.showroomName}</b>
+                {duty !== null ? (
+                  <span className={`c-navduty ${duty ? "is-on" : ""}`}>
+                    <i aria-hidden />
+                    {duty ? "Đang trực" : "Không trực"}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            {NAV_SECTIONS.map((sec) => {
+              const items = tabs.filter((t) => t.section === sec.key);
+              if (!items.length) return null;
               return (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  className="c-tab"
-                  aria-current={active ? "page" : undefined}
-                  title={collapsed ? t.label : undefined}
-                >
-                  <Icon size={17} aria-hidden />
-                  <span className="c-navtxt">{t.label}</span>
-                </Link>
+                <div key={sec.key} className="c-navsec">
+                  <span className="c-navhead c-navtxt">{sec.label}</span>
+                  {items.map((t) => {
+                    const active = (t.children?.map((c) => c.href) ?? [t.href]).some(
+                      (h) => pathname === h || pathname.startsWith(h + "/"),
+                    );
+                    const Icon = NAV_ICON[t.href] ?? Package;
+                    const count = navCounts[t.href] ?? 0;
+                    return (
+                      <Link
+                        key={t.href}
+                        href={t.href}
+                        className="c-tab"
+                        aria-current={active ? "page" : undefined}
+                        title={collapsed ? t.label : undefined}
+                        aria-description={count ? `${count} cần xử lý` : undefined}
+                      >
+                        <Icon size={16} strokeWidth={2.25} aria-hidden />
+                        <span className="c-navtxt flex-1 truncate">{t.label}</span>
+                        {count ? (
+                          <span className="c-navcnt" aria-hidden>
+                            {count}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
             <button
