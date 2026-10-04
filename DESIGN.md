@@ -8,7 +8,7 @@ Tài liệu thiết kế cho Claude Code. Đọc cùng `CLAUDE.md`. Bố cục t
 
 | Người dùng | Bối cảnh | Việc chính | Điều họ cần từ giao diện |
 |---|---|---|---|
-| Telesale | Ngồi máy tính hoặc cầm điện thoại, gọi liên tục, nhiều ca tối theo giờ Hàn | Gọi đúng người, đúng lúc, ghi kết quả nhanh | Biết ngay gọi ai tiếp theo, bấm một lần là gọi, ghi kết quả dưới 30 giây |
+| Telesale | Ngồi máy tính hoặc cầm điện thoại, gọi liên tục, có ca tối cho khách ở nước ngoài | Gọi đúng người, đúng lúc, ghi kết quả nhanh, chăm sóc khách đã mua | Biết ngay việc quan trọng nhất tiếp theo, bấm một lần là gọi, ghi kết quả dưới 30 giây |
 | Sale admin | Máy tính, giám sát cả đội | Không để lead nào nguội, phân lại khi quá tải | Thấy ngay lead chưa phân, quá hạn, ai đang ôm nhiều |
 | Owner | Máy tính hoặc điện thoại, xem nhanh | Kiểm soát quyền và dữ liệu, xem hiệu quả | Bật tắt quyền dễ, kiểm tra được người khác đang thấy gì |
 
@@ -17,8 +17,9 @@ Tài liệu thiết kế cho Claude Code. Đọc cùng `CLAUDE.md`. Bố cục t
 ## 2. Nguyên tắc thiết kế
 
 1. **Hồ sơ là bàn làm việc.** Telesale không phải rời trang hồ sơ để gọi, nhắn Zalo, ghi kết quả hay hẹn gọi lại.
-2. **Hai quốc gia luôn hiện diện.** Mọi chỗ có người hoặc thời gian đều cho biết người đó ở Việt Nam hay Hàn Quốc và giờ địa phương của họ. Đây là đặc điểm riêng của sản phẩm, là chỗ duy nhất được dùng màu nhấn mạnh tay.
-3. **Người đặt và người nhận là hai người.** Hiển thị thành cặp có hướng: người đặt → người nhận.
+2. **Thị trường của khách luôn hiện diện.** Mọi chỗ có người hoặc thời gian đều cho biết khách đang sống ở thị trường nào và giờ địa phương của họ khi khác giờ VN. Thị trường là thuộc tính của khách đọc từ cấu hình, không thiết kế riêng cho Hàn Quốc. Đây là chỗ duy nhất được dùng màu nhấn mạnh tay.
+3. **Người đặt và người nhận có thể là hai người.** Khi khác nhau, hiển thị thành cặp có hướng: người đặt → người nhận. Khi mua cho chính mình, gộp thành một thẻ.
+7. **Mỗi màn hình trả lời "việc gì quan trọng nhất tiếp theo".** Trang chủ, hồ sơ lead, hồ sơ khách đều mở đầu bằng việc cần làm (từ `tasks`) chứ không bằng số liệu để xem.
 4. **Chỉ hiện cái người dùng được phép.** Không có quyền thì không hiện nút, không hiện dữ liệu. Không dùng nút xám chờ người dùng đoán vì sao.
 5. **Mật độ vừa phải cho người làm việc cả ngày.** Ưu tiên bảng và danh sách dày thông tin, chữ đủ lớn để đọc lâu không mỏi. Không chia nội dung thành hàng loạt thẻ giống hệt nhau.
 6. **Trạng thái nói bằng chữ, màu chỉ hỗ trợ.** Mọi pill có chữ; không có chỗ nào chỉ dựa vào màu.
@@ -63,8 +64,9 @@ Khai báo token dạng CSS variables trong `app/globals.css`, ánh xạ sang Tai
 |---|---|---|
 | `--loc-kr` | `#1F3FA8` | `#E8EEFF` |
 | `--loc-vn` | `#B42318` | `#FDECEA` |
+| `--loc-other` | `#3E4A59` | `#ECEFF3` |
 
-Chỉ dùng cho tag quốc gia và đồng hồ đôi. Không dùng cho mục đích khác.
+Thị trường mới thêm sau dùng `--loc-other` cho tới khi được gán màu riêng. Chỉ dùng cho tag quốc gia và đồng hồ đôi. Không dùng cho mục đích khác.
 
 Tháng 1 chỉ làm giao diện sáng. Đặt token theo cách thêm giao diện tối sau này chỉ cần định nghĩa lại biến.
 
@@ -98,10 +100,10 @@ Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monos
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│ [Logo Đại Việt]   [ Tìm khách, SĐT VN hoặc +82…        ]  09:12 VN 11:12 Hàn │
+│ [Logo Đại Việt]   [ Tìm khách, tên hoặc số điện thoại…  ]  09:12 VN 11:12 Hàn │
 │                                                   [Trực ●] [Chuông] [Avatar]│
 ├────────────────────────────────────────────────────────────────────────────┤
-│ ⋮⋮⋮ Showroom Quận 4 │ Trang chủ │ Lead │ Hộp thư │ Sản phẩm │ Báo cáo │ Cài đặt│
+│ ⋮⋮⋮ Q4 │ Trang chủ │ Lead │ Khách │ Hộp thư │ Đơn hàng │ Sản phẩm │ Kho │ Đội ngũ │ Báo cáo │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  (nội dung màn hình)                                                       │
@@ -111,9 +113,9 @@ Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monos
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Header toàn cục:** logo chữ Đại Việt kèm biểu tượng đơn giản tự thiết kế; ô tìm kiếm theo tên, số VN, số +82; **đồng hồ đôi** giờ VN và giờ Hàn (luôn hiện, trừ màn hình dưới 900px thì chỉ hiện trong menu avatar); công tắc **Trực** cho người nhận lead; chuông thông báo; avatar.
-- **Thanh tab ứng dụng:** tên showroom bên trái; các tab chỉ hiện nếu người dùng có quyền xem. Tab đang chọn có gạch dưới 3px màu `--brand-strong`, chữ đậm.
-- **Utility bar dưới đáy:** cố định, cao 44px, chứa lối tắt theo vai trò. Telesale: hẹn gọi lại hôm nay, lead quá hạn của tôi. Sale admin: lead chưa phân, quá hạn toàn đội.
+- **Header toàn cục:** logo chữ Đại Việt kèm biểu tượng đơn giản tự thiết kế; ô tìm kiếm theo tên và mọi định danh (số VN, số quốc tế, Zalo); **đồng hồ đôi** giờ VN và giờ của thị trường nước ngoài được chọn trong Cài đặt (mặc định Hàn Quốc; luôn hiện, trừ màn hình dưới 900px thì chỉ hiện trong menu avatar); công tắc **Trực** cho người nhận lead; chuông thông báo; avatar.
+- **Thanh tab ứng dụng:** tên showroom bên trái; các tab chỉ hiện nếu người dùng có quyền xem. Thứ tự: Trang chủ, Lead, Khách (hồ sơ khách 360 và lọc theo vòng đời, mục 6.15), Hộp thư, Đơn hàng, Sản phẩm (gồm Combo, Chính sách ở tab con), Kho, Đội ngũ, Báo cáo. Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi"; Cài đặt nằm trong menu avatar. Tab đang chọn có gạch dưới 3px màu `--brand-strong`, chữ đậm.
+- **Utility bar dưới đáy:** cố định, cao 44px, chứa lối tắt theo vai trò. Telesale: việc hôm nay, hẹn gọi lại hôm nay, lead quá hạn của tôi. Sale admin: lead chưa phân, quá hạn toàn đội, việc hậu bán quá hạn, hàng chờ duyệt.
 - **Chỗ cho panel trợ lý AI:** dành sẵn cột phải 360px, tháng 1 không hiển thị.
 - **Banner "Xem như":** khi Owner bật chế độ xem như người dùng khác, một dải màu `--warn` nền nhạt chạy ngang dưới thanh tab: "Đang xem như Thảo (Telesale). Chỉ đọc. [Thoát]".
 
@@ -145,13 +147,13 @@ Card nhỏ ngay dưới path khi lead chưa đủ bốn thông tin bắt buộc:
 
 ```
 Cần hỏi ở cuộc gọi này
-  ✓ Người nhận: Bố mẹ
+  ✓ Mua cho: Bố mẹ           [Chính mình | Bố mẹ | Vợ, chồng | Người khác]
   ○ Tỉnh người nhận          [chọn tỉnh ▾]
-  ○ Dịp tặng                 [Tết | 20/10 | Sinh nhật | Mừng thọ | Khác]
+  ○ Dịp mua                  [Tết | 20/10 | Sinh nhật | Mừng thọ | Dùng cho gia đình | Khác]
   ○ Ngân sách                [<30tr | 30–50tr | 50–80tr | >80tr]
 ```
 
-Chọn trực tiếp tại chỗ, lưu ngay, không mở form riêng. Đủ bốn thông tin thì card tự thu gọn thành một dòng.
+Chọn trực tiếp tại chỗ, lưu ngay, không mở form riêng. Chọn "Chính mình" thì dòng tỉnh người nhận lấy theo khách. Ngày nghe được trong cuộc gọi (sinh nhật, mừng thọ) có ô "Ghi ngày quan trọng" ngay dưới. Đủ bốn thông tin thì card tự thu gọn thành một dòng. Thiếu thông tin thì nút **Tạo báo giá** khóa kèm lý do.
 
 ### 5.4 Cặp người đặt → người nhận
 
@@ -163,7 +165,7 @@ Chọn trực tiếp tại chỗ, lưu ngay, không mở form riêng. Đủ bố
 └────────────────────────────┘   └────────────────────────────┘
 ```
 
-Thẻ người đặt có vạch trái 3px màu `--brand`. Luôn hiện giờ địa phương của người ở Hàn.
+Thẻ người đặt có vạch trái 3px màu `--brand`. Luôn hiện giờ địa phương của người ở nước ngoài. Khi lead bật **Giữ bất ngờ**, thẻ người nhận có dải `--warn` nhạt "Không liên hệ người nhận khi người đặt chưa cho phép" và không có nút Gọi, Nhắn, Hiện số. Người dùng chung số hiện "Liên hệ qua số của <tên>".
 
 ### 5.5 Số điện thoại và nút gọi
 
@@ -175,9 +177,9 @@ Thẻ người đặt có vạch trái 3px màu `--brand`. Luôn hiện giờ đ
 
 ### 5.6 Tag quốc gia và đồng hồ đôi
 
-- Tag: chữ "Hàn Quốc" hoặc "Việt Nam", 11px đậm 600, bo 4px, màu theo `--loc-*`. Không dùng cờ hay emoji.
-- Đồng hồ đôi ở header: `09:12 VN  11:12 Hàn`, giờ đậm, chữ VN và Hàn nhạt.
-- Trong danh sách lead của khách ở Hàn: cột "Giờ khách" hiện giờ Hàn hiện tại; tô `--ok` khi đang trong khung gọi tốt (mặc định 19:00–22:30 giờ Hàn), `--text-weak` khi ngoài khung.
+- Tag: tên thị trường ("Việt Nam", "Hàn Quốc", …), 11px đậm 600, bo 4px, màu theo `--loc-*`. Không dùng cờ hay emoji. Khách chưa rõ thị trường hiện tag "Chưa rõ nơi ở" nền `--surface-2`, telesale bấm vào để chọn.
+- Đồng hồ đôi ở header: `09:12 VN  11:12 Hàn`, giờ đậm, chữ VN và tên thị trường nhạt.
+- Trong danh sách lead: cột "Giờ khách" hiện giờ địa phương của khách ở nước ngoài; tô `--ok` khi đang trong khung gọi tốt của thị trường đó, `--text-weak` khi ngoài khung. Khách ở VN để trống cột này.
 
 ### 5.7 Bảng ghi kết quả cuộc gọi
 
@@ -206,7 +208,7 @@ Tab: Ghi kết quả gọi | Tin Zalo | Ghi chú | Hẹn gọi lại. Tab Tin Za
 ```
 [■] Lead   Lead của tôi ▾                     [Tìm trong danh sách] [Tạo lead]
 23 lead, sắp xếp theo hạn SLA, cập nhật vài giây trước
-[Mới] [Quá hạn] [Hẹn hôm nay] [Khách ở Hàn] [Nguồn ▾] [Giai đoạn ▾]
+[Mới] [Quá hạn] [Hẹn hôm nay] [Chờ khung gọi] [Thị trường ▾] [Nguồn ▾] [Giai đoạn ▾]
 ┌──────────────┬───────────┬──────────┬──────────┬───────────┬─────────┬──────┐
 │ Tên          │ Ở         │ Giờ khách│ Nguồn    │ Giai đoạn │ SLA     │ Giao │
 ├──────────────┼───────────┼──────────┼──────────┼───────────┼─────────┼──────┤
@@ -225,7 +227,7 @@ Tab: Ghi kết quả gọi | Tin Zalo | Ghi chú | Hẹn gọi lại. Tab Tin Za
 | Còn trên 2 phút | `Còn 3:12`, chữ `--text-weak` |
 | Còn dưới 2 phút | `Còn 1:05`, nền `--warn` nhạt |
 | Quá hạn | `Quá 4 phút`, nền `--err` nhạt |
-| Hẹn theo giờ Hàn | `Gọi lúc 19:00 giờ Hàn`, nền `--loc-kr` nhạt |
+| Chờ khung gọi của thị trường khách | `Gọi lúc 19:00 giờ Hàn`, nền `--loc-*` nhạt của thị trường đó |
 | Đã liên hệ | `Đã gọi sau 2:40`, chữ `--ok` |
 
 ### 5.12 Pill trạng thái
@@ -247,6 +249,21 @@ Pill luôn có chữ. Bảng ý nghĩa: `--ok` thành công, đúng hạn; `--wa
 - Đang tải: khung xương theo đúng bố cục cuối, không dùng vòng xoay giữa trang.
 - Lỗi: nói chuyện gì xảy ra và cần làm gì. Ví dụ: "Không gửi được tin Zalo vì đã quá thời gian được nhắn cho khách này. Hãy gọi điện hoặc chờ khách nhắn lại." Không xin lỗi chung chung, không hiện mã lỗi kỹ thuật cho người dùng (mã lỗi để trong chi tiết có thể mở ra).
 
+### 5.15 Việc tiếp theo
+
+Danh sách việc từ `tasks`, dùng ở trang chủ, hồ sơ lead, hồ sơ khách, hồ sơ đơn.
+
+```
+Việc tiếp theo
+  ● Gọi hỏi thăm sau giao, ghế DV-X9        Hạn hôm nay        [Gọi] [Xong]
+  ● Nhắc thay lõi lọc máy ion kiềm          Còn 5 ngày          [Nhắn Zalo] [Xong]
+  ○ Nhắc dịp mừng thọ bố (12/11)            Còn 39 ngày         [Hẹn lại]
+```
+
+- Mỗi dòng: chấm ưu tiên (đậm là ưu tiên cao), tên việc là câu hành động, hạn bằng chữ, nút hành động trực tiếp và nút **Xong**. Bấm Xong mở ô kết quả một dòng (không bắt buộc).
+- Quá hạn: hạn chuyển `--err` nhạt. Việc sinh từ luật có nhãn nhỏ "Tự động"; từ tháng 3, việc AI đề xuất có nhãn `--ai` "AI đề xuất" và phải bấm nhận mới thành việc của mình.
+- Sắp theo hạn rồi ưu tiên. Không quá 5 dòng mỗi khối; có liên kết "Xem tất cả".
+
 ---
 
 ## 6. Màn hình tháng 1
@@ -265,9 +282,12 @@ Pill luôn có chữ. Bảng ý nghĩa: `--ok` thành công, đúng hạn; `--wa
 ├────────────────────────────────────────────┤
 │ Hàng chờ (danh sách sắp theo SLA và giờ khách) │
 └────────────────────────────────────────────┘
+┌ Chăm sóc khách đã mua (5.15) ──────────────┐
+│ Gọi hỏi thăm sau giao, nhắc thay lõi, dịp tặng │
+└────────────────────────────────────────────┘
 ```
 
-Thẻ "Gọi tiếp theo" là điểm nhấn của trang: một khách, đủ bối cảnh, một nút gọi. Phím `N` chuyển sang khách kế tiếp.
+Thẻ "Gọi tiếp theo" là điểm nhấn của trang: một khách, đủ bối cảnh, một nút gọi. Phím `N` chuyển sang khách kế tiếp. Thứ tự ưu tiên của thẻ: lead mới trong SLA, lead vừa tới khung gọi, hẹn gọi lại đến giờ, rồi việc hậu bán đến hạn.
 
 ### 6.2 Trang chủ sale admin
 
@@ -278,6 +298,8 @@ Thẻ "Gọi tiếp theo" là điểm nhấn của trang: một khách, đủ b�
 ├ Quá hạn SLA ────────────────────┤ │ An    Nghỉ ○  Chưa gọi 0  Hẹn 1  │
 │ ... ai giữ, quá bao lâu [Giao lại]│ └──────────────────────────────────┘
 └─────────────────────────────────┘ ┌ Tích hợp ── Meta ● Zalo ● Tổng đài ●┐
+┌ Chờ khung gọi (theo thị trường) ┐ ┌ Hàng chờ duyệt ── Giảm giá 1 │ Thanh toán 2 ┐
+┌ Việc hậu bán quá hạn ───────────┐
 ```
 
 Ô tích hợp chỉ hiện chấm trạng thái và lần nhận dữ liệu gần nhất; bấm vào mở trang Cài đặt nếu có quyền.
@@ -325,7 +347,7 @@ Tìm quyền [            ]
 
 - Mỗi ô là công tắc bật tắt, lưu ngay, toast "Đã bật Xuất danh sách khách cho Sale admin".
 - Cột Owner khóa, không tắt được. Quyền "Bật tắt quyền" không có công tắc ở cột khác.
-- Quyền nhạy cảm (`contact.phone_reveal`, `lead.export`, `call.recording_all`, `lead.delete`) có nhãn nhỏ "Nhạy cảm" màu `--warn`; bật lên phải xác nhận một lần.
+- Quyền nhạy cảm (`contact.phone_reveal`, `lead.export`, `call.recording_all`, `lead.delete`, `product.view_cost`, `payment.confirm`, `payment.refund`, `order.export`, `order.discount_approve`) có nhãn nhỏ "Nhạy cảm" màu `--warn`; bật lên phải xác nhận một lần.
 - Tên quyền hiển thị bằng câu tiếng Việt dễ hiểu, mã quyền chỉ hiện khi rê chuột.
 
 **Người dùng và quyền riêng:**
@@ -350,6 +372,150 @@ Bấm "Chỉnh" mở drawer bên phải liệt kê mọi quyền với ba trạn
 ### 6.7 Báo cáo cơ bản
 
 Bốn khối: lead theo nguồn (cột ngang), tỷ lệ gọi trong 5 phút theo người (bảng), phễu giai đoạn, lý do thất bại. Bộ lọc thời gian: hôm nay, 7 ngày, 30 ngày, tùy chọn. Telesale chỉ thấy số của mình; sale admin thấy cả đội.
+
+### 6.8 Sản phẩm
+
+Danh sách dạng bảng: ảnh nhỏ, tên, danh mục, số SKU, giá bán đang áp, tồn khả dụng tổng, trạng thái. Lọc theo danh mục, còn hàng, đang bán.
+
+Hồ sơ sản phẩm: page header (icon đối tượng sản phẩm), tab **Thông tin** (mô tả, ảnh, bảo hành, giao lắp: cồng kềnh hay hàng nhỏ, số người lắp, cân nặng), tab **SKU** (bảng SKU với giá theo từng bảng giá và tồn theo kho), tab **Lịch sử giá**, tab **Chính sách đang áp** (danh sách khuyến mãi và combo có chứa sản phẩm). Cột giá vốn và biên lợi nhuận chỉ xuất hiện khi có quyền; không có quyền thì cột không tồn tại, không phải để trống.
+
+### 6.9 Kho
+
+```
+Tồn kho   [Kho showroom Q4 ▾]                    [Lập phiếu nhập] [Chuyển kho] [Kiểm kê]
+┌ SKU ─────────────┬ Có ─┬ Đang giữ ┬ Khả dụng ┬ Ngưỡng ┬ Trạng thái ─────┐
+│ Ghế DV-X9 nâu    │  6  │    4     │    2     │   3    │ Sắp hết         │
+│ Ghế DV-S7 đen    │  9  │    2     │    7     │   3    │ Đủ hàng         │
+└──────────────────┴─────┴──────────┴──────────┴────────┴─────────────────┘
+```
+
+- Cột **Khả dụng** đậm nhất vì đó là số người bán cần. Sắp hết nền `--warn` nhạt, hết hàng nền `--err` nhạt.
+- Bấm một dòng mở drawer: tồn theo từng kho, các đơn đang giữ hàng (mã đơn, hạn giữ), danh sách serial, sổ kho của SKU.
+- **Phiếu kho:** màn hình riêng giống chứng từ, có trạng thái Nháp → Đã ghi sổ. Nút "Ghi sổ" có hộp xác nhận ghi rõ số thay đổi từng SKU. Phiếu đã ghi sổ chỉ xem, sửa bằng phiếu điều chỉnh.
+- **Kiểm kê:** nhập số đếm theo từng dòng (hỗ trợ quét mã vạch trên điện thoại), cột chênh lệch tô màu, nút gửi duyệt.
+
+### 6.10 Combo và Chính sách
+
+- **Combo:** trình dựng hai cột: trái chọn SKU và số lượng, đánh dấu món tặng; phải là thẻ tóm tắt cập nhật ngay: tổng giá lẻ, giá combo, khách tiết kiệm, tồn combo lắp được, biên lợi nhuận (nếu có quyền).
+- **Chính sách:** danh sách nhóm theo loại (Khuyến mãi, Giao lắp, Đặt cọc, Thanh toán, Bảo hành, Đổi trả, Giới hạn giảm giá), mỗi dòng có trạng thái, thời gian hiệu lực, phiên bản. Trình sửa là form theo loại, viết điều kiện và lợi ích bằng câu đọc được: "Khi đơn có **Ghế DV-X9** và đặt **trước 13/10/2026** thì **tặng Gối massage cổ** và **miễn phí lắp đặt**."
+- **Thử chính sách:** cột trái nhập giỏ hàng, kênh, tỉnh người nhận, ngày, quốc gia người đặt; cột phải hiển thị kết quả hàm định giá: từng dòng, chính sách đã áp và lý do, chính sách bị loại và lý do, phí, tổng, mức cọc, cảnh báo. Đây là cách Owner kiểm tra trước khi bật.
+
+### 6.11 Báo giá
+
+- Tạo từ hồ sơ lead bằng nút **Tạo báo giá**; người đặt và người nhận điền sẵn từ lead.
+- Bố cục: thêm sản phẩm hoặc combo bằng ô tìm nhanh; mỗi dòng hiện tồn khả dụng; khối chính sách tự áp hiện ngay dưới giỏ; giảm tay vượt giới hạn hiện cảnh báo "Cần Owner duyệt" trước khi gửi.
+- Nút **Gửi báo giá** mở lựa chọn: sao chép link, gửi qua Zalo OA (nếu khách đang trong hội thoại).
+- **Trang báo giá cho khách** (`/q/<token>`): thiết kế riêng cho điện thoại, không có khung ứng dụng. Trên cùng là logo Đại Việt và dòng "Báo giá dành cho anh chị <tên>"; thẻ người đặt → người nhận; danh sách sản phẩm có ảnh; tổng tiền và mức cọc nổi bật; chính sách giao lắp, bảo hành viết thành câu ngắn; thông tin chuyển khoản tài khoản công ty kèm nội dung chuyển khoản theo mã báo giá; hạn hiệu lực. Không hiện thông tin nội bộ, không hiện số điện thoại đầy đủ.
+
+### 6.12 Đơn hàng
+
+Danh sách: mã đơn, người đặt (kèm tag quốc gia), người nhận và tỉnh, tổng tiền, đã trả, còn lại, trạng thái, người bán, ngày hẹn giao. Lọc nhanh: Chờ duyệt, Chờ cọc, Đang giữ hàng, Sắp hết hạn giữ, Chờ giao, Đang giao, Hoàn tất.
+
+Hồ sơ đơn:
+
+```
+Page header: Đơn Q4-2610-0012   [Hàn Quốc]            [Ghi thanh toán] [Chuyển bước] [⋯]
+Path: Xác nhận → Đã cọc → Sẵn sàng giao → Đang giao → Đã lắp → Hoàn tất
+┌ Cột trái 2/3 ──────────────────────────────┐ ┌ Cột phải 1/3 ───────────────┐
+│ Người đặt → Người nhận (5.4), lời nhắn quà,  │ │ Tiền                         │
+│ cờ "Giữ bất ngờ"                             │ │ Tổng       79.900.000đ       │
+│ Sản phẩm (dòng, serial khi đã xuất kho)      │ │ Đã xác nhận 20.000.000đ      │
+│ Chính sách đã áp (ảnh chụp lúc chốt)         │ │ Chờ xác nhận 0đ              │
+│ Giao lắp: các bước, ngày hẹn, ghi chú        │ │ Còn lại    59.900.000đ       │
+│ Dòng hoạt động của đơn                       │ │ Các khoản thanh toán         │
+└──────────────────────────────────────────────┘ │ Giữ hàng: còn 9 ngày         │
+                                                  │ Bảo hành (khi hoàn tất)      │
+                                                  └──────────────────────────────┘
+```
+
+- Cờ **Giữ bất ngờ** hiện thành dải `--warn` nhạt trên thẻ người nhận: "Không liên hệ người nhận khi người đặt chưa cho phép." Nút gọi người nhận bị ẩn khi cờ đang bật.
+- **Ghi thanh toán:** form ngắn gồm loại (cọc, phần còn lại, hoàn tiền), số tiền, phương thức, mã giao dịch, ảnh chứng từ. Khoản mới có trạng thái "Chờ xác nhận" màu `--warn` cho đến khi người có quyền xác nhận.
+- Chuyển bước không đủ điều kiện thì hiện ngay dưới path điều kiện còn thiếu (ví dụ: "Chưa gán serial cho Ghế DV-X9").
+
+### 6.13 Hàng chờ duyệt và xác nhận
+
+- **Duyệt giảm giá** (Owner): mỗi dòng là một báo giá hoặc đơn, người đề xuất, mức giảm, lý do, biên lợi nhuận sau giảm (nếu có quyền), nút Duyệt và Từ chối kèm ô lý do.
+- **Thanh toán chờ xác nhận** (Sale admin, Owner): mỗi dòng hiện số tiền, mã giao dịch, ảnh chứng từ phóng to được, đơn liên quan; khoản do chính người đang xem ghi nhận thì không có nút Xác nhận.
+- Cả hai hàng chờ có lối tắt trên utility bar kèm số lượng.
+
+### 6.14 Đội ngũ
+
+Menu riêng, tách khỏi Báo cáo kinh doanh. Tab con: Tổng quan đội, Chỉ tiêu, Ca trực và chấm công, Hồ sơ nhân sự, Kèm cặp, Bàn giao. Mỗi tab con chỉ hiện khi có quyền.
+
+**Bộ chọn chung ở đầu mọi trang Đội ngũ:** kỳ (Hôm nay, Tuần này, Tháng này, Tùy chọn), cách đo (Theo kỳ hoặc Theo lô lead, có dòng giải thích ngắn khi rê chuột), nhóm vai trò.
+
+**Tổng quan đội**
+
+```
+Tháng 10   Theo kỳ ▾   Telesale ▾
+┌ Đội: Doanh thu đã cọc 1,21 tỷ / 1,5 tỷ (81%) │ Gọi trong SLA 87% │ Chốt (lô lead) 10,3% ┐
+┌ Người ──┬ Trực ┬ Doanh thu đã cọc ────────┬ Đơn ┬ Cuộc gọi/ngày ┬ SLA ─┬ Đủ thông tin ┬ Chốt ┬ Cảnh báo ┐
+│ Thảo    │  ●   │ ███████████░ 92% 460tr   │  8  │  41 / 40      │ 94%  │    88%       │ 12%  │          │
+│ An      │  ○   │ ██████░░░░░░ 54% 270tr   │  5  │  28 / 40      │ 71%  │    62%       │  8%  │ 3 lead   │
+│         │      │                          │     │               │      │              │      │ đánh thất│
+│         │      │                          │     │               │      │              │      │ bại sớm  │
+└─────────┴──────┴──────────────────────────┴─────┴───────────────┴──────┴──────────────┴──────┴──────────┘
+```
+
+- Cột chỉ số có chỉ tiêu hiện thanh tiến độ so với chỉ tiêu đã tính theo ngày làm thực tế, kèm "dự báo cuối kỳ" khi rê chuột.
+- Tô màu theo **chỉ tiêu**, không theo thứ hạng: đạt hoặc vượt `--ok`, dưới 80% tiến độ thời gian `--warn`, dưới 50% `--err`. Không có cúp, huy chương hay màu vàng bạc đồng.
+- Sắp xếp theo bất kỳ cột nào. Bảng xếp hạng có tên chỉ hiện với người có `kpi.leaderboard`, hoặc khi Owner bật cho cả đội.
+- Cột Cảnh báo gom các tín hiệu cần quản lý chú ý: đánh thất bại sớm, xem số bất thường, nhiều lead quá hạn, trực trễ nhiều lần. Bấm vào mở danh sách bản ghi.
+- Bấm tên người mở trang hiệu suất cá nhân.
+
+**Hiệu suất cá nhân** (cũng là trang "Hiệu suất của tôi" của telesale)
+
+```
+[Ảnh] Thảo, Telesale, quản lý: Hà (Sale admin)     Tháng 10 ▾   Theo kỳ ▾
+┌ Kết quả ─────────────────────────┐ ┌ Tốc độ ───────────────┐ ┌ Chất lượng ──────────┐
+│ Doanh thu đã cọc  460tr / 500tr   │ │ Gọi trong SLA   94%    │ │ Đủ thông tin   88%   │
+│ Đơn 8, giá trị TB 57,5tr          │ │ Liên hệ đầu (tv) 2:40  │ │ Lead → demo    31%   │
+│ Giảm TB 2,1%, cần duyệt 1 đơn     │ │ Hẹn đúng giờ    90%    │ │ Báo giá → cọc  44%   │
+└───────────────────────────────────┘ └────────────────────────┘ └──────────────────────┘
+Phễu cá nhân so với đội, xu hướng theo ngày, cơ cấu nguồn lead và tỷ lệ chốt theo nguồn
+Lý do thất bại, danh sách việc cần làm ngay (lead quá hạn, hẹn gọi lại bị lỡ)
+```
+
+- Mỗi khối là một nhóm chỉ số theo đúng nhóm trong `CLAUDE.md` mục 9.4: Hoạt động, Tốc độ, Chất lượng, Kết quả, Tuân thủ. Khối Tuân thủ chỉ hiện với quản lý.
+- Mỗi chỉ số hiện ba thứ: giá trị, chỉ tiêu (nếu có), **trung vị đội** (không hiện tên người khác).
+- Với telesale, trang mở đầu bằng khối "Việc cần làm ngay" thay vì khối Kết quả: số liệu phải dẫn tới hành động, không chỉ để xem.
+- Mọi số bấm được, mở đúng danh sách bản ghi tạo nên số đó.
+- Cuộc gọi ghi tay ở chế độ gọi ngoài hệ thống có ký hiệu nhỏ "ghi tay" bên cạnh số cuộc gọi.
+
+**Chỉ tiêu:** bảng người × chỉ số theo kỳ, sửa trực tiếp trong ô; nút "Áp chỉ tiêu mẫu cho nhóm"; ô đã chỉnh khác mẫu được tô nền `--brand` nhạt.
+
+**Ca trực và chấm công:** lịch tuần theo người; mỗi ca hiện dải xếp ca và dải giờ trực thực tế chồng lên nhau, phần lệch tô `--warn`; ngày nghỉ tô xám có nhãn loại nghỉ. Tổng giờ trực tuần ở cột cuối.
+
+**Hồ sơ nhân sự:** danh sách người kèm chức danh, vai trò hệ thống, quản lý, trạng thái làm việc, ngày vào làm. Hồ sơ một người gồm thông tin làm việc, kỹ năng, lịch sử trạng thái. Không có trường giấy tờ tùy thân, tài khoản ngân hàng hay lương.
+
+**Kèm cặp:** dòng thời gian ghi chú theo người, mỗi ghi chú có mục tiêu cải thiện và hạn xem lại; ghi chú chưa chia sẻ có nhãn "Chỉ quản lý thấy".
+
+**Bàn giao:** trình 4 bước có thanh tiến trình: Khóa tài khoản → Xem việc đang giữ (đếm theo loại: lead, hẹn gọi lại, báo giá, đơn, hội thoại) → Chọn người nhận và cách chia → Xác nhận và xuất biên bản. Bước khóa tài khoản có hộp xác nhận ghi rõ người này sẽ bị đăng xuất ngay và lead, việc đang mở của họ về hàng "Chưa phân".
+
+### 6.15 Khách: hồ sơ khách 360 và danh sách theo vòng đời
+
+Đây là màn hình của lớp CDP: trả lời khách này là ai, đang ở đâu trong vòng đời, đã có gì, việc gì nên làm tiếp.
+
+**Danh sách Khách:** bộ lọc nhanh theo giai đoạn vòng đời (Lead, Khách mới, Đang sử dụng, Khách thân, Ngủ đông, Có rủi ro), thị trường, tỉnh, sản phẩm đang dùng, dịp sắp tới trong 30 ngày. Mỗi hàng: tên kèm tag thị trường, giai đoạn, sản phẩm đang dùng, lần tương tác gần nhất, việc đang mở. Chỉ hiện khách mà người dùng được xem theo quyền lead, đơn.
+
+**Hồ sơ khách:**
+
+```
+Page header: [■] Khách  Nguyễn Thị Thu  [Hàn Quốc]  Đang sử dụng           [Gọi] [Zalo] [Tạo lead] [⋯]
+Highlights: Đã chi 79,9tr │ 1 đơn │ Hộ Nguyễn │ Tương tác gần nhất 3 ngày trước │ Đồng ý: Gọi, Zalo
+┌ Cột trái 2/3 ─────────────────────────────┐ ┌ Cột phải 1/3 ────────────────────────┐
+│ Việc tiếp theo (5.15)                       │ │ Định danh: số Hàn, số VN, Zalo (che)  │
+│ Dòng sự kiện thống nhất: lead, gọi, tin,    │ │ Đồng ý theo mục đích và kênh          │
+│ báo giá, đơn, thanh toán, giao lắp,         │ │ Hộ gia đình và thành viên             │
+│ bảo hành (5.8, lọc theo loại)               │ │ Sản phẩm đang dùng, bảo hành, lõi lọc │
+│                                             │ │ Ngày quan trọng sắp tới               │
+│                                             │ │ Các lead và đơn                       │
+└─────────────────────────────────────────────┘ └───────────────────────────────────────┘
+```
+
+- Giai đoạn vòng đời là pill có chữ, tính từ dữ liệu, không có nút sửa tay; rê chuột hiện lý do ("Đã giao lắp 15/09, chưa có đơn mới").
+- Đồng ý hiện từng kênh có chữ "Được gọi", "Được nhắn Zalo", "Không nhận khuyến mãi"; kênh không được phép thì nút tương ứng khóa kèm lý do (đây là thiếu điều kiện nghiệp vụ, mục 7).
+- Từ tháng 3, cột phải có khối "AI gợi ý" màu `--ai`: offer phù hợp và lý do, luôn qua hàm định giá, cần người bấm dùng.
 
 ---
 
@@ -398,6 +564,21 @@ Phím tắt không hoạt động khi con trỏ đang ở trong ô nhập.
 | Giao cho | Assign |
 | Hẹn gọi lại | Callback |
 | Thất bại (kèm lý do) | Lost, hủy |
+| Báo giá | Quote, bảng báo giá |
+| Đơn hàng | Order, đơn đặt |
+| Giữ hàng | Reserve, booking |
+| Phiếu kho, ghi sổ | Chứng từ kho, post |
+| Đội ngũ, nhân sự | Team, HR |
+| Chỉ tiêu | Target, KPI target |
+| Chỉ số | KPI, metric |
+| Trung vị đội | Median |
+| Bàn giao | Offboarding, handover |
+| Chính sách | Policy, rule |
+| Việc, việc tiếp theo | Task, to-do, next best action |
+| Vòng đời, giai đoạn vòng đời | Lifecycle, stage |
+| Thị trường | Market, region |
+| Giữ bất ngờ | Surprise mode |
+| Đồng ý | Consent, opt-in |
 | Đang trực | Online, available |
 | Giờ Hàn | KST, giờ Korea |
 

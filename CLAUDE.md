@@ -9,9 +9,10 @@ Bản demo tham chiếu (HTML tĩnh, dữ liệu mô phỏng) đặt tại `docs
 ## 1. Bối cảnh sản phẩm
 
 - **Doanh nghiệp:** showroom Đại Việt Quận 4, TP.HCM, bán online và offline. Showroom Q4 là mô hình chuẩn để nhân ra các showroom khác, nên mọi bảng dữ liệu đều phải có `showroom_id` ngay từ đầu.
-- **Trọng tâm bán hàng hiện tại:** ghế massage. Khách chính là **người Việt đang sống ở Hàn Quốc đặt mua làm quà, giao cho bố mẹ, người thân ở Việt Nam**. Ngoài ra có khách trong nước và khách đến showroom.
-- **Hệ quả nghiệp vụ quan trọng nhất:** một giao dịch thường có **hai người khác nhau ở hai quốc gia**: người đặt và trả tiền (số +82, ở Hàn) và người nhận, người dùng (số VN hoặc chưa có số, ở tỉnh). Mô hình dữ liệu phải tách hai vai trò này ngay từ tháng 1.
-- **Mô hình bán:** chạy quảng cáo thu lead → telesale gọi chốt; lead cũ được làm nóng lại rồi telesale gọi lại.
+- **Sản phẩm:** ghế massage là trọng tâm hiện tại, kèm máy lọc nước, lõi lọc, vật tư và quà tặng.
+- **Khách hàng:** CRM phục vụ **mọi khách của showroom**: khách trong nước mua cho mình hoặc làm quà, khách đến showroom, khách online, và người Việt ở nước ngoài (hiện đông nhất là Hàn Quốc) mua tặng người thân ở Việt Nam. **Không thiết kế riêng cho một thị trường.** Thị trường là một thuộc tính của khách (`country_of_residence`, nhân viên xác nhận khi gọi, ví dụ gắn cờ Hàn Quốc); mọi xử lý theo thị trường (khung giờ gọi, giờ địa phương, kênh liên lạc được phép) đọc từ cấu hình thị trường ở mục 7, không viết cứng cho Hàn Quốc.
+- **Hệ quả nghiệp vụ quan trọng nhất:** một giao dịch **có thể** có hai người khác nhau: người đặt và trả tiền, và người nhận, người dùng (có thể ở tỉnh khác, nước khác, chưa có số). Mua cho chính mình là trường hợp người nhận trùng người đặt. Mô hình dữ liệu phải tách hai vai trò này ngay từ tháng 1.
+- **Mô hình bán:** chạy quảng cáo thu lead → telesale gọi chốt; lead cũ được làm nóng lại rồi telesale gọi lại; khách đã mua được chăm sóc hậu bán, nhắc thay vật tư, mời mua thêm và giới thiệu.
 - **Hiện trạng:** trước đây showroom làm thủ công hoàn toàn. Đây là bản thí điểm chuẩn hóa công nghệ đầu tiên, nên danh mục, quy trình và ca làm việc đều đang được định nghĩa cùng lúc với phần mềm. Mọi thứ có thể thay đổi phải nằm trong Cài đặt, không viết cứng trong code.
 - **Tên miền:** `daivietshowroomq4` (đuôi tên miền chưa chốt, xem mục 16).
 - **Người dùng hệ thống trong tháng 1:**
@@ -20,6 +21,41 @@ Bản demo tham chiếu (HTML tĩnh, dữ liệu mô phỏng) đặt tại `docs
   - **Telesale:** gọi và chăm sóc lead được giao.
   - Các vai trò khác (tiếp khách showroom, marketing, editor, KOC và sàn, admin kênh) sẽ thêm sau. Hệ thống phân quyền phải cho phép tạo vai trò mới mà không sửa code.
 - **Ngôn ngữ giao diện:** tiếng Việt toàn bộ. Tên biến, bảng, hàm trong code dùng tiếng Anh.
+- **Phạm vi khách:** khách là **khách của showroom** (`showroom_id`). Bảng `showrooms` có sẵn `organization_id` (có thể null) để sau này liên kết hồ sơ cùng một người giữa các showroom; giai đoạn 1 không làm liên kết này.
+
+### 1.1 Mục đích: CDP và CRM phối hợp
+
+Hai lớp cùng phục vụ một câu hỏi: **khách này là ai, đang ở đâu trong vòng đời, và việc đúng nhất cần làm tiếp theo là gì** để ra chuyển đổi, chăm sóc hậu bán và tái bán.
+
+| Lớp | Trách nhiệm | Thành phần chính |
+|---|---|---|
+| **CDP** (hiểu khách) | Gom mọi định danh và mọi sự kiện của một khách, một hộ thành một hồ sơ thống nhất; tính giai đoạn vòng đời, tín hiệu, ngày quan trọng; giữ căn cứ đồng ý | `contacts`, `contact_identities`, `households`, `consents`, `events`, `important_dates`, `customer_lifecycle` (mục 4) |
+| **CRM** (hành động) | Biến hiểu biết thành việc cụ thể cho đúng người, đúng lúc; ghi lại kết quả để CDP học tiếp | `leads`, `tasks`, `approvals`, báo giá, đơn, thanh toán, giao lắp, bảo hành (mục 4, 8) |
+| **Hiệu suất** | Đo người làm việc theo kết quả và theo việc quan trọng, không theo số thao tác | Đội ngũ, chỉ tiêu, chỉ số (mục 9) |
+| **AI** (từ tháng 2) | Đọc hồ sơ CDP, đề xuất việc tiếp theo, offer phù hợp, soạn nháp; người duyệt | Mục 10.7 |
+
+**Vòng đời khách** (`lifecycle_stage`, tính từ `events`, không sửa tay):
+
+```
+Người lạ → Lead (đang tư vấn) → Khách mới (đã cọc, chờ giao) → Đang sử dụng (đã giao lắp, trong chăm sóc hậu bán)
+        → Khách thân (mua lại, mua thêm trong hộ, giới thiệu người khác)
+Nhánh: Ngủ đông (quá lâu không tương tác) · Có rủi ro (khiếu nại, bảo hành mở, đổi trả) · Ngừng liên hệ (rút đồng ý, yêu cầu xóa)
+```
+
+Mỗi giai đoạn có **việc chuẩn** do luật sinh ra trong `tasks` (mục 4, Việc cần làm): lead mới thì gọi trong SLA; khách mới thì xác nhận người nhận, lịch giao; đang sử dụng thì gọi hỏi thăm sau giao, nhắc thay lõi, nhắc bảo hành; khách thân thì nhắc dịp tặng, mời giới thiệu; ngủ đông thì làm nóng lại. Giai đoạn 1 luật viết bằng cấu hình; từ tháng 3 AI đề xuất thêm.
+
+### 1.2 Tiêu chí thành công
+
+Sản phẩm được coi là thành công khi đạt được sáu điều sau. Mọi tính năng phải phục vụ ít nhất một điều; tính năng không phục vụ điều nào thì không làm.
+
+| Mục tiêu | Đo bằng (khai báo trong `lib/kpi/definitions.ts`) |
+|---|---|
+| **Hiểu rõ vòng đời khách** | Tỷ lệ khách có đủ định danh, thị trường, người nhận, đồng ý; tỷ lệ khách có giai đoạn vòng đời xác định; mọi tương tác nằm trên một dòng thời gian |
+| **Chốt đơn** | Tỷ lệ gọi trong SLA; tỷ lệ lead → đặt cọc theo lô lead; thời gian từ lead đến cọc |
+| **Chăm sóc toàn diện** | Tỷ lệ đơn được gọi hỏi thăm sau giao đúng hạn; tỷ lệ nhắc thay lõi được thực hiện; thời gian xử lý bảo hành; tỷ lệ việc hậu bán quá hạn |
+| **Tái bán** | Tỷ lệ khách mua lại hoặc mua thêm trong hộ trong 12 tháng; số lead từ giới thiệu; doanh thu từ khách cũ |
+| **Offer phù hợp** | Tỷ lệ báo giá được chấp nhận; mức giảm trung bình; tỷ lệ chính sách, combo được dùng; (từ tháng 3) tỷ lệ đề xuất AI được chấp nhận |
+| **Đội ngũ tinh gọn, làm đúng việc quan trọng** | Doanh thu và đơn trên mỗi nhân sự; tỷ lệ việc ưu tiên cao hoàn thành đúng hạn; số thao tác tay thay được bằng luật hoặc AI; thời gian nhập liệu trên mỗi cuộc gọi |
 
 ---
 
@@ -33,8 +69,10 @@ Bản demo tham chiếu (HTML tĩnh, dữ liệu mô phỏng) đặt tại `docs
 
 1. Đăng nhập, mời người dùng, phân quyền bật tắt theo vai trò và theo từng người (mục 5).
 2. Thu lead từ: Form quảng cáo Facebook, Zalo OA, nhập tay nhanh (khách đến showroom, bình luận live, giới thiệu), nhập file CSV lead cũ.
-3. Chuẩn hóa số điện thoại VN và Hàn, chống trùng theo số.
-4. Phân lead tự động theo luật (vòng tròn, khung giờ Hàn), đồng hồ SLA 5 phút, cảnh báo quá hạn.
+3. Chuẩn hóa số điện thoại VN và quốc tế, chống trùng theo định danh (`contact_identities`).
+4. Phân lead tự động theo luật (vòng tròn, khung gọi theo thị trường của khách), đồng hồ SLA 5 phút, cảnh báo quá hạn.
+15. **Nền CDP (mục 1.1, 4):** định danh nhiều số, nhiều kênh cho một khách; đồng ý theo mục đích và kênh; dòng sự kiện thống nhất; ngày quan trọng; giai đoạn vòng đời; hồ sơ khách 360.
+16. **Việc cần làm và hàng chờ duyệt thống nhất (mục 4):** mọi việc của người (hẹn gọi lại, gọi hậu bán, nhắc thay lõi, xác nhận tiền, duyệt giảm giá…) nằm trong `tasks` và `approvals`; luật sinh việc cấu hình được.
 5. Hồ sơ lead: thông tin người đặt, người nhận, dịp tặng, ngân sách, sản phẩm quan tâm; giai đoạn; dòng hoạt động; ghi kết quả cuộc gọi; hẹn gọi lại.
 6. Ghi nhận cuộc gọi ở **chế độ gọi ngoài hệ thống** (chưa có tổng đài, mục 10): telesale gọi bằng điện thoại hoặc Zalo, ghi kết quả trên CRM. Dựng sẵn lớp adapter tổng đài và adapter giả lập để khi có số tổng đài chỉ cần cắm vào.
 7. Hộp thư Zalo OA: nhận và trả lời tin ngay trên hồ sơ.
@@ -63,7 +101,7 @@ Các đấu nối ngoài tháng 1 trong mục 10.3 (chỉ khai báo trong sổ �
 | Triển khai | Vercel (web), Supabase (DB và function) |
 | Kiểm tra dữ liệu vào | zod ở mọi biên: form, route handler, webhook |
 | Số điện thoại | `libphonenumber-js` |
-| Thời gian | `date-fns` + `date-fns-tz`; lưu UTC, hiển thị `Asia/Ho_Chi_Minh`, giờ Hàn `Asia/Seoul` |
+| Thời gian | `date-fns` + `date-fns-tz`; lưu UTC, hiển thị `Asia/Ho_Chi_Minh`; giờ địa phương của khách theo timezone của thị trường trong `markets` (ví dụ `Asia/Seoul`) |
 | Kiểm thử | Vitest (đơn vị), Playwright (đầu cuối theo vai trò), kiểm thử RLS bằng SQL |
 
 Không thêm thư viện lớn ngoài danh sách khi chưa hỏi.
@@ -76,35 +114,47 @@ Tất cả bảng nghiệp vụ có: `id uuid pk default gen_random_uuid()`, `sh
 
 ### Bảng chính
 
-- `showrooms` — id, name, code (`Q4`), timezone.
-- `profiles` — gắn với `auth.users`: full_name, role_id, is_active, is_on_duty (đang trực nhận lead), call_extension (máy nhánh tổng đài).
+- `showrooms` — id, name, code (`Q4`), timezone, organization_id (có thể null, chừa cho liên kết nhiều showroom).
+- `markets` — cấu hình thị trường theo showroom: country_code (`VN`, `KR`, …), tên hiển thị, timezone, `call_windows` (các khung gọi tốt theo giờ địa phương của khách, theo ngày trong tuần), kênh liên lạc được phép (ví dụ ZNS chỉ cho số VN), is_active. Seed `VN` và `KR`; thêm thị trường mới không sửa code.
+- `profiles` — gắn với `auth.users`: full_name, role_id, is_active, call_extension (máy nhánh tổng đài). Trạng thái đang trực **không lưu cột riêng**, đọc từ `duty_sessions` đang mở (mục 9.2).
 - `households` — hộ gia đình: display_name, province, district, note. Tháng 1 chỉ tạo và gắn tay.
-- `contacts` — một con người:
-  - full_name, phone_e164 (unique theo showroom, có thể null), phone_raw, country_of_residence (`VN` | `KR` | khác), city
-  - zalo_user_id, fb_psid
+- `contacts` — một con người, thuộc một showroom:
+  - full_name, country_of_residence (mã trong `markets` hoặc `unknown`, nhân viên xác nhận), city, province
   - household_id, relation_in_household (con trai, con gái, bố, mẹ…)
-  - consent_marketing (bool), consent_at, consent_source
+  - `contact_via_contact_id` (có thể null): người không có số riêng, liên lạc qua số của người khác trong hộ ("dùng chung số bố")
+  - `lifecycle_stage` (đọc từ `customer_lifecycle`, không sửa tay)
+- `contact_identities` — mọi định danh của một khách: type (`phone` | `zalo_user_id` | `fb_psid` | `email` | `tiktok`), value (số lưu dạng E.164), value_raw, is_primary, verified_at, source. **Unique (showroom_id, type, value)**: một định danh chỉ thuộc một khách; một khách có thể có nhiều định danh (số Hàn và số VN, Zalo, Facebook). Người dùng chung số thì không có định danh riêng mà dùng `contact_via_contact_id`.
+- `consents` — căn cứ đồng ý theo **mục đích và kênh**: contact_id, purpose (`care` chăm sóc đơn đang có | `marketing` tin khuyến mãi, làm nóng lead | `ads_measurement` gửi dữ liệu băm về nền tảng quảng cáo), channel (`call` | `zalo_oa` | `zns` | `sms` | `email` | `all`), granted (bool), source (form quảng cáo, lời nói trong cuộc gọi, khách tự bấm…), `provided_by_contact_id` (khi thông tin do người khác cung cấp, ví dụ người đặt cung cấp số bố mẹ), granted_at, withdrawn_at. Mọi gửi tin, gọi làm nóng, gửi dữ liệu ra ngoài đều kiểm tra bảng này ở server.
+- `important_dates` — ngày quan trọng của khách: contact_id, type (sinh nhật, mừng thọ, ngày cưới, ngày giỗ…), date, lặp lại hằng năm, nguồn. Nguồn cho việc nhắc dịp tặng.
 - `leads` — một lần khách có nhu cầu:
-  - contact_id (người đặt), recipient_contact_id (người nhận, có thể null)
+  - contact_id (người đặt), recipient_contact_id (người nhận; bằng contact_id khi mua cho chính mình; null khi chưa biết)
+  - `keep_surprise` (bool): không liên hệ người nhận khi người đặt chưa cho phép. Đặt ở lead, đơn tạo từ lead kế thừa. Server chặn gọi, nhắn, hiện số người nhận khi cờ bật.
   - source (enum, mục 6), source_detail jsonb (campaign_id, adset_id, ad_id, form_id, leadgen_id, page_id, zalo_event…)
   - product_interest_id, occasion_id, occasion_date, budget_range, recipient_province
-  - stage (enum: `new`, `contacted`, `demo`, `quoted`, `deposit`, `won`, `lost`), lost_reason_id
-  - assigned_to, assigned_at, first_contact_at, sla_due_at, next_callback_at
+  - stage (enum: `new`, `contacted`, `demo`, `quoted`, `deposit`, `won`, `lost`), lost_reason_id. Quy tắc chuyển giai đoạn ở mục 6, Giai đoạn lead.
+  - assigned_to, assigned_at, first_contact_at, sla_due_at
+  - `window_wait_until` (có thể null): lead đang chờ khung gọi của thị trường khách (mục 7)
   - score (int, tháng 1 tính bằng luật đơn giản)
-- `activities` — dòng thời gian thống nhất: lead_id, contact_id, type (`call`, `zalo_in`, `zalo_out`, `note`, `stage_change`, `assignment`, `callback_set`, `lead_created`, `merge`), payload jsonb, actor_id (null nếu hệ thống).
+- `events` — **dòng sự kiện thống nhất của CDP**, chỉ thêm, không sửa, không xóa: type, occurred_at, contact_id, household_id, lead_id, order_id, actor_type (`user` | `system` | `ai` | `customer`), actor_id, payload jsonb. Gồm cả sự kiện bán hàng và hậu bán: `lead_created`, `call`, `zalo_in`, `zalo_out`, `note`, `stage_change`, `assignment`, `merge`, `quote_sent`, `quote_viewed`, `quote_accepted`, `order_status_changed`, `payment_recorded`, `payment_confirmed`, `delivery_step`, `warranty_created`, `warranty_claim`, `consent_changed`, `task_done`… Không lưu số điện thoại đầy đủ hay nội dung tin nhắn trong payload (nội dung tin nằm ở `messages`).
+- `activities` — view trên `events` cho dòng hoạt động của hồ sơ lead, khách, hộ, đơn.
+- `customer_lifecycle` — giai đoạn vòng đời và tín hiệu của từng khách (mục 1.1): stage, stage_since, last_interaction_at, total_paid, orders_count, owned_products, open_tasks, flags (bảo hành mở, khiếu nại, ngủ đông). Tính lại khi có sự kiện mới và gom hằng đêm.
 - `calls` — provider, provider_call_id (unique), direction, from_e164, to_e164, agent_id, started_at, duration_sec, status (`answered`, `missed`, `busy`, `failed`), recording_path (Storage), outcome_id.
 - `conversations`, `messages` — channel (`zalo` tháng 1), external_user_id, contact_id, last_inbound_at; messages: direction, external_message_id (unique), text, attachments jsonb, sent_by.
 - Danh mục: `lead_sources`, `lost_reasons`, `occasions`, `call_outcomes` (đều có `showroom_id`, `label`, `sort`, `is_active`).
-- `assignment_rules` — mode (`round_robin`), kr_call_window (mặc định 19:00–22:30 giờ Hàn), working_hours, sla_minutes (mặc định 5).
+- `assignment_rules` — mode (`round_robin`), working_hours, sla_minutes (mặc định 5), max_uncontacted_per_person (N). Khung gọi theo thị trường đọc từ `markets`.
+- `tasks` — **mọi việc cần người làm**: type (`callback` hẹn gọi lại | `first_contact` | `post_delivery_call` gọi hỏi thăm sau giao | `consumable_reminder` nhắc thay lõi | `occasion_reminder` nhắc dịp tặng | `reactivation` làm nóng lại | `delivery_step` | `warranty_followup` | `data_fix` sửa số sai, thiếu thông tin…), title, contact_id, lead_id, order_id, assigned_to, due_at, priority, status (`open` | `done` | `cancelled` | `missed`), done_at, outcome, source (`user` | `rule` | `ai`), rule_key. Một lead có thể có nhiều hẹn gọi lại; hoàn thành, lỡ hẹn được ghi lại để tính chỉ số.
+- `task_rules` — luật sinh việc theo sự kiện hoặc theo lịch, cấu hình được: rule_key, trigger (sự kiện hoặc lịch), điều kiện, loại việc, hạn (ví dụ 3 ngày sau `delivery_step = installed`), người nhận (người bán trên đơn, người giữ lead, hàng chung), is_active. Seed bộ luật cho từng giai đoạn vòng đời ở mục 1.1.
+- `approvals` — **hàng chờ duyệt dùng chung**: type (`discount` | `payment_confirm` | `stock_count` | `ai_proposal` từ tháng 2…), entity, entity_id, requested_by (người hoặc agent AI), reason, payload, status (`pending` | `approved` | `rejected` | `expired`), decided_by, decided_at, decision_note. Người đề xuất không tự duyệt được đề xuất của mình (trừ Owner, có ghi nhận riêng trong báo cáo kiểm soát).
+- `notifications` — thông báo trong ứng dụng (chuông): user_id, type, title, link, read_at. Không chứa số điện thoại đầy đủ hay nội dung tin nhắn.
 - `webhook_events` — hộp nhận thô: provider, external_id, signature_valid, payload jsonb, status (`received`, `processed`, `failed`), error, unique (provider, external_id).
 - `integrations` — một dòng cho mỗi đấu nối trong sổ đăng ký; cấu trúc chi tiết ở mục 10.2.
 - `jobs` — type, payload, run_at, attempts, status, last_error.
-- `audit_logs` — actor_id, action, entity, entity_id, metadata jsonb, ip, at. Không cho sửa, không cho xóa.
+- `audit_logs` — actor_type (`user` | `system` | `ai`), actor_id, action, entity, entity_id, metadata jsonb, ip, at. Không cho sửa, không cho xóa. Không chứa số điện thoại đầy đủ hay nội dung tin nhắn.
 
 ### Bảng phân quyền
 
 - `roles` — key, name, is_system.
-- `permissions` — key, group, description (seed từ code, mục 5).
+- `permissions` — key, group, description, `grantable` (false với các quyền chỉ Owner: không cấp được qua vai trò lẫn quyền riêng từng người), `sensitive` (seed từ code, mục 5).
 - `role_permissions` — role_id, permission_key.
 - `user_permission_overrides` — user_id, permission_key, effect (`grant` | `revoke`), set_by, set_at.
 
@@ -120,8 +170,8 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 
 ### Nguyên tắc
 
-1. **Quyền hiệu lực = quyền của vai trò, cộng các quyền được cấp riêng, trừ các quyền bị thu riêng.** Thu riêng luôn thắng cấp riêng.
-2. **Chỉ Owner** được thay đổi quyền, vai trò, mời và khóa người dùng. Quyền `settings.permissions` không cấp được cho vai trò khác.
+1. **Quyền hiệu lực = quyền của vai trò, cộng các quyền được cấp riêng, trừ các quyền bị thu riêng.** Thu riêng luôn thắng cấp riêng. Người bị khóa (`is_active = false`) không có quyền nào.
+2. **Chỉ Owner** được thay đổi quyền, vai trò, mời và khóa người dùng. Các quyền đánh dấu "chỉ Owner" trong bảng dưới (`grantable = false`) không cấp được cho vai trò khác **và** không cấp riêng được cho từng người; ràng buộc này kiểm ở database.
 3. **Thực thi ở cơ sở dữ liệu**, không chỉ ở giao diện. Mọi bảng có RLS. Giao diện ẩn nút chỉ để dễ dùng; dữ liệu không có quyền thì server không được gửi xuống trình duyệt.
 4. Bật tắt quyền có hiệu lực ở **lần tải trang hoặc lần gọi tiếp theo**, không cần triển khai lại.
 5. Mọi thay đổi quyền ghi vào `audit_logs` kèm trạng thái trước và sau.
@@ -146,8 +196,9 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | | `lead.export` | Xuất danh sách khách ra file |
 | | `lead.delete` | Xóa mềm lead |
 | | `lead.mark_lost` | Đánh dấu thất bại |
+| | `lead.receive` | Được phân lead tự động khi đang trực (thay cho kiểm tra theo tên vai trò) |
 | Khách | `contact.phone_reveal` | Xem đầy đủ số điện thoại của mọi khách |
-| | `contact.phone_reveal_assigned` | Xem số đầy đủ của khách thuộc lead đang được giao cho mình, để gọi khi chưa có tổng đài |
+| | `contact.phone_reveal_assigned` | Xem số đầy đủ của người đặt và người nhận thuộc lead đang được giao cho mình, để gọi khi chưa có tổng đài; số người nhận bị chặn khi lead bật "Giữ bất ngờ" |
 | | `contact.merge` | Gộp hai hồ sơ trùng |
 | | `household.manage` | Tạo hộ, gắn thành viên vào hộ |
 | Cuộc gọi | `call.make` | Gọi từ CRM |
@@ -179,7 +230,7 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | | `payment.refund` | Ghi hoàn tiền |
 | Đội ngũ | `staff.view` | Xem danh sách và hồ sơ làm việc của nhân sự |
 | | `staff.manage` | Sửa hồ sơ nhân sự, xếp ca, duyệt nghỉ |
-| | `staff.offboard` | Chạy trình bàn giao khi nghỉ việc |
+| | `staff.offboard` | Chạy trình bàn giao khi nghỉ việc (chỉ Owner, không cấp được) |
 | | `target.manage` | Đặt chỉ tiêu |
 | | `kpi.own` | Xem chỉ số của mình |
 | | `kpi.team` | Xem chỉ số của từng người trong đội |
@@ -209,6 +260,7 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | lead.export | ✓ | | |
 | lead.delete | ✓ | | |
 | lead.mark_lost | ✓ | ✓ | ✓ |
+| lead.receive | | | ✓ |
 | contact.phone_reveal | ✓ | ✓ | |
 | contact.phone_reveal_assigned | ✓ | ✓ | ✓ khi chưa có tổng đài |
 | contact.merge | ✓ | ✓ | |
@@ -263,6 +315,8 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | settings.permissions | ✓ | | |
 | audit.view | ✓ | | |
 
+`lead.receive` là ngoại lệ của nguyên tắc 6: quyền này mô tả việc được giao chứ không phải việc được phép, nên Owner không có mặc định. Owner hoặc sale admin muốn nhận lead thì Owner tự bật riêng.
+
 ### Bảo vệ dữ liệu khách khỏi bị mang đi
 
 - Người không có `contact.phone_reveal` chỉ thấy số dạng che (`+82 10••••4471`, `090•••215`). Số đầy đủ **không được gửi xuống trình duyệt** cho đến khi người dùng bấm hành động được phép.
@@ -276,6 +330,8 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 - Giá vốn không được gửi xuống trình duyệt cho người không có `product.view_cost`, kể cả trong dữ liệu ẩn của combo hay báo cáo.
 - Sale admin có `kpi.team` và `coaching.manage` chỉ xem được người do mình quản lý trực tiếp (`staff_profiles.manager_id`) cộng các telesale; không xem được chỉ số, ghi chú của Owner hay sale admin khác.
 - Người ghi nhận một khoản thanh toán không được tự xác nhận chính khoản đó, kể cả khi có `payment.confirm` (trừ Owner).
+- Khóa một người dùng (kể cả không qua trình bàn giao) thì ngay trong cùng giao dịch: thu hồi phiên, chuyển mọi lead đang mở của họ về hàng "Chưa phân", chuyển việc đang mở về hàng chung, báo sale admin.
+- Gọi, nhắn, gửi dữ liệu ra ngoài đều kiểm tra `consents` theo mục đích và kênh ở server. Chăm sóc đơn đang có (`care`) không cần đồng ý marketing; làm nóng lead, tin khuyến mãi, gửi chuyển đổi về nền tảng quảng cáo thì cần.
 
 ---
 
@@ -283,14 +339,20 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 
 ### Trường bắt buộc với mọi lead
 
-- Ít nhất một định danh liên lạc: `phone_e164` hoặc `zalo_user_id` hoặc `fb_psid`.
+- Ít nhất một định danh liên lạc trong `contact_identities` (số điện thoại, Zalo, Facebook…).
 - `source` và `source_detail`.
-- `country_of_residence` của người đặt (VN, KR hoặc khác). Nếu nguồn không cho biết, suy từ đầu số; vẫn không rõ thì để `unknown` và telesale bắt buộc chọn ở cuộc gọi đầu.
-- `consent_marketing` và nguồn của sự đồng ý.
+- `country_of_residence` của người đặt (mã thị trường trong `markets` hoặc `unknown`). Nếu nguồn không cho biết, suy từ đầu số; vẫn không rõ thì để `unknown` và telesale bắt buộc chọn ở cuộc gọi đầu. Nhân viên sửa được khi khách cho biết khác (ví dụ số VN nhưng đang sống ở Hàn).
+- Dòng `consents` tương ứng với nguồn (ví dụ form quảng cáo có ô đồng ý), kèm nguồn của sự đồng ý.
 
 ### Bốn thông tin telesale phải hỏi ở cuộc gọi đầu
 
-Người nhận là ai và quan hệ gì; người nhận ở tỉnh nào; dịp tặng (và ngày nếu có); ngân sách. Thêm sản phẩm quan tâm. Màn hình hồ sơ hiển thị ô thiếu thông tin rõ ràng; không cho chuyển lead sang `demo` khi chưa đủ bốn thông tin này.
+Mua cho ai (chính mình, hoặc người nhận là ai, quan hệ gì); người nhận ở tỉnh nào; dịp mua (dịp tặng và ngày nếu có, hoặc "dùng cho gia đình"); ngân sách. Thêm sản phẩm quan tâm. Màn hình hồ sơ hiển thị ô thiếu thông tin rõ ràng; không cho chuyển lead sang `demo` và **không cho tạo báo giá** khi chưa đủ bốn thông tin này. Ngày quan trọng nghe được trong cuộc gọi (sinh nhật bố, mừng thọ mẹ) ghi vào `important_dates`.
+
+### Giai đoạn lead
+
+- `new` → `contacted` → `demo`: người chuyển tay (có điều kiện ở trên). `contacted` cũng tự đặt khi có liên hệ đi đầu tiên.
+- Từ `quoted` trở đi giai đoạn **chỉ sinh từ báo giá và đơn**, người không kéo tay được: gửi báo giá đầu tiên thì `quoted`; đơn `deposit_paid`, hoặc đơn được duyệt thu khi giao chuyển `ready_to_ship`, thì `deposit`; đơn `completed` thì `won`.
+- `lost` cần lý do; đánh thất bại không xóa các việc đã lên lịch mà hủy chúng kèm lý do.
 
 ### Theo từng nguồn
 
@@ -316,14 +378,14 @@ Showroom chưa có danh mục chuẩn. Seed bộ sau, đội dùng thử 2 tuầ
 
 ### Chuẩn hóa số điện thoại
 
-- Lưu cả `phone_raw` và `phone_e164`.
-- Mặc định vùng phân tích theo `country_of_residence`: VN thì `0912…` thành `+84912…`; KR thì `010-1234-5678` thành `+821012345678`.
+- Lưu cả `value_raw` và giá trị E.164 trong `contact_identities`.
+- Mặc định vùng phân tích theo `country_of_residence`: VN thì `0912…` thành `+84912…`; KR thì `010-1234-5678` thành `+821012345678`; thị trường khác theo `markets`.
 - Số không hợp lệ: vẫn tạo lead, gắn cờ `phone_invalid`, đưa vào hàng chờ sale admin kiểm tra.
 - Viết unit test cho các dạng số thật hay gặp: có dấu cách, dấu chấm, gạch ngang, có hoặc không có `+`, đầu `84`, đầu `82`, số Hàn bỏ số 0 đầu.
 
 ### Chống trùng
 
-1. Tìm `contacts` theo `phone_e164`, rồi `zalo_user_id`, rồi `fb_psid`.
+1. Tìm khách qua `contact_identities` theo số điện thoại, rồi Zalo, rồi Facebook. Định danh mới của cùng một khách (ví dụ khách cho thêm số VN) được thêm vào khách đó, không tạo khách mới. Số đang được người khác dùng chung (`contact_via_contact_id`) không bao giờ làm gộp hai người.
 2. Có contact và có lead đang mở (stage khác `won`, `lost`): **không tạo lead mới**. Thêm activity `lead_created` với nguồn mới vào lead cũ, báo cho người đang giữ lead.
 3. Có contact, lead cũ đã `lost` hơn 30 ngày hoặc đã `won`: tạo lead mới, gắn cùng contact.
 4. Mọi quyết định gộp ghi activity `merge` kèm lý do.
@@ -332,14 +394,15 @@ Showroom chưa có danh mục chuẩn. Seed bộ sau, đội dùng thử 2 tuầ
 
 ## 7. Phân lead và SLA
 
-- Chỉ phân cho telesale `is_active` và `is_on_duty`.
+- Chỉ phân cho người có quyền `lead.receive`, đang hoạt động, đang trực (có `duty_sessions` đang mở) và không có ngày nghỉ trong `absences`. Không kiểm tra theo tên vai trò.
 - **Ca làm việc chưa được sắp xếp**, nên lịch ca là bảng cấu hình (`shifts`: tên ca, ngày trong tuần, giờ bắt đầu, giờ kết thúc theo giờ VN; `shift_members`). Seed gợi ý để đội thử:
   - Ca ngày: 08:30–17:30 giờ VN, thứ Hai đến thứ Bảy, cho khách trong nước và lead mới.
-  - Ca tối: 16:30–21:00 giờ VN, phủ khung 19:00–22:30 giờ Hàn (tương đương 17:00–20:30 giờ VN), khung chốt chính với khách ở Hàn.
-  - Ca Chủ nhật: 09:00–17:00 giờ VN, vì Chủ nhật là ngày nghỉ phổ biến của người lao động Việt tại Hàn.
+  - Ca tối: 16:30–21:00 giờ VN, phủ khung gọi tốt của khách ở Hàn (19:00–22:30 giờ Hàn, tương đương 17:00–20:30 giờ VN).
+  - Ca Chủ nhật: 09:00–17:00 giờ VN, vì Chủ nhật là ngày nghỉ phổ biến của khách đi làm, trong nước lẫn ở nước ngoài.
 - Ngoài mọi ca: lead vẫn được nhận và chống trùng, nhưng SLA tính từ đầu ca kế tiếp; sale admin thấy danh sách lead đến ngoài giờ.
-- Chế độ tháng 1: vòng tròn, bỏ qua người đang có quá N lead chưa liên hệ (N cấu hình được).
-- Lead có người đặt ở Hàn: vẫn giao ngay, nhưng `sla_due_at` tính theo khung gọi Hàn. Nếu đang ngoài khung, đặt `next_callback_at` vào đầu khung gần nhất và hiển thị rõ "Gọi lúc 19:00 giờ Hàn".
+- Chế độ tháng 1: vòng tròn, bỏ qua người đang có quá N lead chưa liên hệ (N cấu hình được). Lead đang chờ khung gọi không tính vào N.
+- **Khung gọi theo thị trường:** mỗi thị trường trong `markets` có khung gọi tốt theo giờ địa phương của khách (seed: VN theo giờ làm việc; KR 19:00–22:30 giờ Hàn ngày thường, cả ngày cuối tuần). Lead đến ngoài khung của thị trường khách thì **chưa giao**: đặt `window_wait_until` là đầu khung gần nhất, hiển thị "Gọi lúc 19:00 giờ Hàn" (giờ theo thị trường của khách). Đến đầu khung, job giao lead cho người đang trực lúc đó, rồi SLA bắt đầu tính. Nhờ vậy lead không nằm ở người đã hết ca.
+- Hẹn gọi lại là việc trong `tasks` (một lead có thể có nhiều hẹn); gợi ý giờ hẹn luôn nằm trong khung gọi của thị trường khách.
 - SLA mặc định 5 phút trong giờ làm việc, tính đến `first_contact_at` (cuộc gọi đi đầu tiên, có kết nối hay không đều tính, hoặc tin Zalo đi đầu tiên).
 - Quá SLA: thông báo trong ứng dụng cho sale admin, lead hiện ở mục "Quá hạn" trên trang chủ của sale admin.
 - Không có telesale trực: lead vào hàng "Chưa phân", báo sale admin.
@@ -358,7 +421,7 @@ Showroom không có API từ Đại Việt, nên CRM là nơi duy nhất quản 
 3. **Đơn lưu ảnh chụp tại thời điểm chốt.** Giá, chính sách đã áp, tên sản phẩm được sao vào đơn. Sửa bảng giá hay chính sách sau đó không làm đổi đơn cũ.
 4. **Tách người bán và người xác nhận tiền.** Telesale ghi nhận thanh toán; chỉ người có `payment.confirm` xác nhận tiền đã về.
 5. Tiền lưu `bigint` đơn vị đồng. Số lượng là số nguyên.
-6. Đơn quà tặng luôn có hai người: **người đặt** (thường ở Hàn) và **người nhận** (địa chỉ giao ở Việt Nam), dùng lại `contacts` và `households`.
+6. Đơn quà tặng có hai người: **người đặt** (trả tiền, có thể ở tỉnh khác hoặc nước khác) và **người nhận** (địa chỉ giao), dùng lại `contacts` và `households`. Mua cho chính mình thì người nhận là người đặt.
 
 ### 8.2 Sản phẩm và giá
 
@@ -436,7 +499,7 @@ priceQuote(input: {
 
 ### 8.7 Đơn hàng
 
-- `orders` — mã đơn theo showroom (`Q4-2610-0001`: mã showroom, năm tháng, số thứ tự), lead_id (giữ nguồn quảng cáo để gửi chuyển đổi sau này), quote_id, `buyer_contact_id`, `recipient_contact_id`, địa chỉ giao (tỉnh, huyện, xã, chi tiết), `is_gift`, `gift_message`, `keep_surprise` (không liên hệ người nhận khi người đặt chưa cho phép), channel, seller_id, ảnh chụp định giá, totals, `paid_amount`, `balance_due`, yêu cầu xuất hóa đơn (cá nhân hoặc công ty, mã số thuế), status.
+- `orders` — mã đơn theo showroom (`Q4-2610-0001`: mã showroom, năm tháng, số thứ tự), lead_id (giữ nguồn quảng cáo để gửi chuyển đổi sau này), quote_id, `buyer_contact_id`, `recipient_contact_id`, địa chỉ giao (tỉnh, huyện, xã, chi tiết), `is_gift`, `gift_message`, `keep_surprise` (kế thừa từ lead; không liên hệ người nhận khi người đặt chưa cho phép), channel, seller_id, ảnh chụp định giá, totals, `paid_amount`, `balance_due`, yêu cầu xuất hóa đơn (cá nhân hoặc công ty, mã số thuế), status.
 - `order_items` — variant_id, combo_id, qty, giá, giảm, thành tiền, `is_gift`, serial_unit_id (khi xuất kho).
 - `order_policy_applications` — ảnh chụp chính sách đã áp (id, version, lợi ích).
 - `payments` — order_id, type (`deposit` | `balance` | `refund`), method, amount, reference (mã giao dịch, nội dung chuyển khoản), ảnh chứng từ (Storage riêng tư), status (`recorded` | `confirmed` | `rejected`), recorded_by, confirmed_by. Tháng sau, `bank_webhook` tự tạo dòng `confirmed` khi khớp.
@@ -450,14 +513,15 @@ Nhánh: cancelled (nhả giữ hàng, ghi hoàn tiền nếu có) · return_requ
 ```
 
 - Mỗi lần chuyển trạng thái kiểm tra điều kiện: `confirmed` cần đủ người nhận và địa chỉ; `ready_to_ship` cần đủ tiền theo chính sách thanh toán hoặc được duyệt thu khi giao; `delivering` cần phiếu xuất kho đã ghi sổ và serial đã gán; `completed` sinh bảo hành và lịch thay vật tư.
-- Đồng bộ với lead: đơn `deposit_paid` đưa lead sang `deposit`; `completed` đưa lead sang `won`; `cancelled` không tự đổi lead, hỏi người bán.
+- Đồng bộ với lead theo mục 6, Giai đoạn lead: đơn `deposit_paid` (hoặc được duyệt thu khi giao) đưa lead sang `deposit`; `completed` đưa lead sang `won`; `cancelled` không tự đổi lead, hỏi người bán.
+- Hậu bán: `completed` phát sự kiện để `task_rules` sinh việc chăm sóc (gọi hỏi thăm sau giao, nhắc thay lõi theo `consumable_links`, nhắc hết hạn bảo hành, mời giới thiệu) và đưa khách sang giai đoạn vòng đời "Đang sử dụng".
 - Các bước giao lắp chi tiết (xác nhận người nhận, xuất kho, giao và lắp, video bàn giao, đánh giá) lưu ở `deliveries`; giai đoạn này cập nhật tay trên đơn, app cho kỹ thuật viên làm sau.
 - `warranties` — tạo khi đơn hoàn tất: serial, ngày bắt đầu, ngày hết hạn theo chính sách, chủ sở hữu (người nhận, người dùng trong hộ), link phiếu bảo hành điện tử.
 - Đơn trên sàn (TikTok Shop) về sau đi vào cùng bảng `orders` với `channel` tương ứng qua đấu nối.
 
 ### 8.8 Báo cáo bán hàng (cơ bản)
 
-Doanh thu theo ngày, tuần, tháng và tiến độ mục tiêu; doanh thu theo SKU, combo, kênh, người bán, thị trường người đặt (VN, Hàn); đơn theo trạng thái; tiền cọc đang giữ; công nợ còn phải thu; tồn kho và giá trị tồn (giá vốn chỉ cho người có `product.view_cost`); hàng sắp hết; giữ hàng sắp hết hạn.
+Doanh thu theo ngày, tuần, tháng và tiến độ mục tiêu; doanh thu theo SKU, combo, kênh, người bán, thị trường người đặt (theo `markets`); đơn theo trạng thái; tiền cọc đang giữ; công nợ còn phải thu; tồn kho và giá trị tồn (giá vốn chỉ cho người có `product.view_cost`); hàng sắp hết; giữ hàng sắp hết hạn.
 
 ---
 
@@ -541,7 +605,7 @@ Vai trò mới thêm sau (tiếp khách showroom, marketing, editor) được g�
 
 Trình bàn giao gồm 4 bước, chỉ Owner thực hiện:
 
-1. Khóa tài khoản và thu hồi mọi phiên đăng nhập ngay.
+1. Khóa tài khoản và thu hồi mọi phiên đăng nhập ngay. Theo mục 5, lead và việc đang mở của người này lập tức về hàng "Chưa phân" và hàng chung (đánh dấu nguồn "Bàn giao"), nên bỏ dở trình bàn giao cũng không để việc kẹt ở người đã nghỉ.
 2. Liệt kê toàn bộ lead đang mở, hẹn gọi lại, báo giá, đơn chưa hoàn tất, hội thoại đang giữ.
 3. Chọn người nhận (một người hoặc chia vòng tròn cho nhóm), chuyển hàng loạt, ghi activity `assignment` với lý do "Bàn giao do nghỉ việc".
 4. Xuất biên bản bàn giao. Lịch sử và chỉ số của người đã nghỉ vẫn giữ để báo cáo.
@@ -693,6 +757,16 @@ Không viết code, không cài thư viện, không dùng dịch vụ bên thứ
 
 Nếu sau này nhà cung cấp mở đường chính thức, cập nhật mục này và sổ đăng ký trước khi làm.
 
+### 10.7 Khung AI (thiết kế từ giai đoạn 1, làm từ tháng 2)
+
+Đã chốt: tháng 2 dựng **MCP server bản chỉ đọc** (`mcp_server` trong sổ đăng ký, nhóm `ai`) làm nền cho trợ lý AI trong CRM; tháng 3 bật trợ lý AI (`ai_llm`) và các tool ghi. Giai đoạn 1 chỉ khai báo "Sắp có", không cài thư viện MCP, nhưng mọi nghiệp vụ phải đi qua lớp dùng chung (`lib/leads`, `lib/sales`, `lib/tasks`, `lib/cdp`) để MCP gọi lại đúng các hàm đó.
+
+1. **Danh tính.** Trợ lý trong CRM chạy **dưới quyền của người đang dùng** (RLS và `has_perm` áp như người đó). Agent chạy nền (làm nóng lead, nhắc dịp tặng, gộp hộ) là một tài khoản máy có vai trò riêng trong `roles`, không có `contact.phone_reveal*`, `product.view_cost`, `*.export`.
+2. **Bốn mức hành động:** đọc; soạn nháp; đề xuất cần duyệt (vào `approvals` với type `ai_proposal`); tự làm (chỉ loại việc Owner bật riêng, mặc định không có). Tháng 2–3 chỉ dùng ba mức đầu.
+3. **Truy vết.** Mọi hành động và đề xuất của AI ghi `actor_type = 'ai'` kèm agent, mô hình, dữ liệu đầu vào đã dùng (không kèm số điện thoại đầy đủ), chi phí.
+4. **Luật nằm ở lớp nghiệp vụ, không chỉ trong prompt:** đồng ý theo mục đích và kênh, giữ bất ngờ, khung gọi theo thị trường, giới hạn giảm giá, câu hỏi sức khỏe và bệnh lý chuyển cho người. AI gọi cùng hàm nghiệp vụ nên không lách được.
+5. **Việc AI làm tốt nhất ở sản phẩm này:** đề xuất việc tiếp theo cho từng khách (bổ sung `task_rules`), đề xuất offer phù hợp từ hồ sơ CDP và chính sách đang chạy (luôn qua hàm định giá), tóm tắt hồ sơ khách và cuộc gọi, soạn tin, đề xuất gộp hộ khi có từ 2 bằng chứng, chỉ ra nhân viên cần kèm cặp và việc quan trọng đang bị bỏ.
+
 ---
 
 ## 11. Màn hình tháng 1
@@ -707,7 +781,9 @@ Chi tiết bố cục ở `DESIGN.md`.
 | Trang chủ telesale: hàng chờ gọi của tôi, SLA, hẹn gọi lại hôm nay, chỉ số của tôi | `lead.view_own` |
 | Trang chủ sale admin: lead chưa phân, quá hạn SLA, tải việc từng telesale, chỉ số đội | `lead.view_all` |
 | Danh sách lead, bộ lọc, giao hàng loạt | `lead.view_own` (giao: `lead.assign`) |
-| Hồ sơ lead và khách | Theo quyền xem lead |
+| Hồ sơ lead | Theo quyền xem lead |
+| Khách: danh sách theo vòng đời, hồ sơ khách 360 (`DESIGN.md` 6.15) | Khách thuộc lead hoặc đơn mình được xem (`lead.view_*`, `order.view_*`) |
+| Việc của tôi, hàng chờ duyệt | Việc giao cho mình; hàng chờ duyệt theo quyền duyệt tương ứng |
 | Hộp thư Zalo | `message.zalo_send` hoặc `message.view_all` |
 | Sản phẩm, SKU, bảng giá | `product.view` (sửa: `product.manage`, `price.manage`) |
 | Tồn kho: tổng quan, sổ kho, phiếu kho, serial, kiểm kê | `inventory.view` |
@@ -735,8 +811,10 @@ Cột menu trái, mỗi mục chỉ hiện khi có quyền:
 |---|---|---|
 | Người dùng | Mời, khóa, đổi vai trò, quyền riêng từng người, "Xem như" | `settings.users` |
 | Phân quyền | Ma trận vai trò × quyền, tạo vai trò mới | `settings.permissions` |
-| Ca trực | Lịch ca tuần, người trong ca, khung giờ Hàn tương ứng | `settings.assignment` |
-| Phân lead | Vòng tròn, giới hạn lead chưa gọi mỗi người, SLA phút, khung gọi giờ Hàn | `settings.assignment` |
+| Ca trực | Lịch ca tuần, người trong ca, khung gọi của từng thị trường tương ứng | `settings.assignment` |
+| Phân lead | Vòng tròn, giới hạn lead chưa gọi mỗi người, SLA phút | `settings.assignment` |
+| Thị trường | Danh sách thị trường, múi giờ, khung gọi tốt, kênh liên lạc được phép | `settings.assignment` |
+| Luật sinh việc | Bật tắt, sửa hạn và người nhận của từng luật trong `task_rules` | `settings.assignment` |
 | Chế độ gọi | Gọi ngoài hệ thống hoặc Qua tổng đài; nhắc rà quyền xem số khi đổi | `settings.integrations` |
 | Danh mục | Nguồn, dịp tặng, kết quả cuộc gọi, lý do thất bại, ngân sách | `catalog.manage` |
 | Kho | Danh sách kho, ngưỡng tồn thấp từng SKU | `product.manage` |
@@ -786,7 +864,9 @@ components/        # theo DESIGN.md: shell, record, timeline, list-view, permiss
 lib/
   auth/            # getSessionUser, can(), danh sách quyền
   phone/           # chuẩn hóa, che số
-  leads/           # ingest, dedupe, assign, sla
+  leads/           # ingest, dedupe, assign, sla, market windows
+  cdp/             # identities, consents, events, lifecycle, important dates
+  tasks/           # tasks, task_rules, approvals, notifications
   sales/           # pricing.ts (hàm định giá), inventory.ts, orders.ts, quotes.ts, warranty.ts
   kpi/             # definitions.ts (định nghĩa chỉ số), compute.ts, rollup.ts
   integrations/registry.ts, meta_lead_ads/, zalo_oa/, call_provider/{provider.ts, external.ts, mock.ts}, email_smtp/
@@ -834,19 +914,22 @@ pnpm db:types       # sinh type
 
 ### Tuần 1: nền tảng và phân quyền
 - Schema, RLS, seed vai trò và quyền, đăng nhập, mời người dùng.
+- Nền CDP và việc: `markets`, `contact_identities`, `consents`, `events`, `tasks`, `approvals`, `notifications` (bảng và RLS; luật sinh việc làm ở tuần 3 và 6).
+- Khóa người dùng chuyển ngay lead đang mở về hàng "Chưa phân".
 - Màn hình phân quyền bật tắt và "Xem như người dùng".
 - **Nghiệm thu:** telesale đăng nhập không đọc được lead của người khác kể cả khi gọi API trực tiếp (có test RLS); Owner tắt `lead.create` của một telesale thì nút tạo lead biến mất và API từ chối ở lần tải tiếp theo; mọi thay đổi quyền có trong audit log.
 
 ### Tuần 2: thu lead, chống trùng, phân lead
-- Webhook Meta Lead Ads, nhập tay nhanh, nhập CSV, chuẩn hóa số, chống trùng, phân vòng tròn, SLA, khung giờ Hàn.
-- **Nghiệm thu:** lead thử từ công cụ test lead của Meta vào CRM và được giao trong dưới 30 giây; gửi cùng một số hai lần không sinh hai lead mở; lead số +82 lúc 10:00 sáng giờ VN hiển thị hẹn gọi theo khung giờ Hàn; quá 5 phút chưa liên hệ thì sale admin thấy cảnh báo.
+- Webhook Meta Lead Ads, nhập tay nhanh, nhập CSV, chuẩn hóa số, chống trùng, phân vòng tròn, SLA, khung gọi theo thị trường.
+- **Nghiệm thu:** lead thử từ công cụ test lead của Meta vào CRM và được giao trong dưới 30 giây; gửi cùng một số hai lần không sinh hai lead mở; lead của khách ở Hàn đến lúc 10:00 sáng giờ VN chờ tới đầu khung gọi rồi mới được giao cho người đang trực lúc đó; cùng một người có số Hàn và số VN chỉ là một khách; quá 5 phút chưa liên hệ thì sale admin thấy cảnh báo.
 
 ### Tuần 3: hồ sơ lead, cuộc gọi, Zalo
-- Hồ sơ lead đầy đủ, dòng hoạt động, ghi kết quả, hẹn gọi lại, bốn thông tin bắt buộc.
+- Hồ sơ lead đầy đủ, dòng hoạt động đọc từ `events`, ghi kết quả, hẹn gọi lại (nhiều hẹn mỗi lead, trong `tasks`), bốn thông tin bắt buộc, cờ giữ bất ngờ, ngày quan trọng.
+- Hồ sơ khách 360 (bản đầu): định danh, đồng ý, hộ, các lead, dòng sự kiện, việc đang mở.
 - Chế độ gọi `external`: nút Gọi mở số cho đúng lead được giao, ghi audit log, tự mở bảng ghi kết quả. Adapter tổng đài và `mock` dựng sẵn.
 - Nhập CSV dữ liệu thủ công cũ, lịch ca trực.
 - Webhook Zalo OA, hộp thư, trả lời từ hồ sơ, làm mới token.
-- **Nghiệm thu:** telesale chỉ xem được số của lead đang giao cho mình, lead chuyển đi thì mất quyền ngay, mọi lượt xem số có trong audit log; ghi kết quả một cuộc gọi dưới 30 giây; tin Zalo đến xuất hiện trên hồ sơ dưới 10 giây; không chuyển được sang `demo` khi thiếu thông tin bắt buộc; nhập thử một file dữ liệu cũ có dòng trùng và dòng lỗi được báo đúng.
+- **Nghiệm thu:** telesale chỉ xem được số của lead đang giao cho mình, lead chuyển đi thì mất quyền ngay, mọi lượt xem số có trong audit log; ghi kết quả một cuộc gọi dưới 30 giây; tin Zalo đến xuất hiện trên hồ sơ dưới 10 giây; không chuyển được sang `demo` và không tạo được báo giá khi thiếu thông tin bắt buộc; lead bật giữ bất ngờ thì API không trả số người nhận; nhập thử một file dữ liệu cũ có dòng trùng và dòng lỗi được báo đúng.
 
 ### Tuần 4: danh mục, báo cáo, hoàn thiện
 - Sản phẩm, danh mục, báo cáo cơ bản, trang chủ theo vai trò, nhật ký kiểm toán.
@@ -862,8 +945,8 @@ pnpm db:types       # sinh type
 - **Nghiệm thu:** không có cách nào đổi số tồn ngoài phiếu kho đã ghi sổ (có test); tồn combo tính đúng từ thành phần; hàm định giá qua toàn bộ unit test ở mục 8.5; người không có quyền giá vốn không nhận được giá vốn qua bất kỳ API nào; sửa chính sách đang chạy tạo phiên bản mới.
 
 ### Tuần 6: báo giá, đơn hàng, thanh toán, bảo hành
-- Báo giá từ hồ sơ lead, link công khai cho khách; đơn quà tặng hai người; luồng trạng thái đơn; ghi nhận và xác nhận thanh toán; duyệt giảm vượt mức; phiếu bảo hành, lịch thay vật tư; báo cáo bán hàng cơ bản.
-- **Nghiệm thu:** một đơn đi trọn từ báo giá đến hoàn tất trên dữ liệu thử: cọc thì giữ hàng, hết hạn giữ thì nhả hàng, xuất kho bắt buộc gán serial, hoàn tất sinh bảo hành và cập nhật lead sang `won`; telesale áp giảm 7% thì đơn vào hàng chờ Owner duyệt; người ghi nhận thanh toán không tự xác nhận được; hủy đơn nhả giữ hàng đúng số lượng.
+- Báo giá từ hồ sơ lead, link công khai cho khách; đơn quà tặng hai người; luồng trạng thái đơn; ghi nhận và xác nhận thanh toán; duyệt giảm vượt mức; phiếu bảo hành, lịch thay vật tư; luật sinh việc hậu bán và giai đoạn vòng đời khách; báo cáo bán hàng cơ bản.
+- **Nghiệm thu:** một đơn đi trọn từ báo giá đến hoàn tất trên dữ liệu thử: cọc thì giữ hàng, hết hạn giữ thì nhả hàng, xuất kho bắt buộc gán serial, hoàn tất sinh bảo hành, sinh việc gọi hỏi thăm sau giao và nhắc thay lõi, đưa khách sang "Đang sử dụng" và cập nhật lead sang `won`; không kéo tay được lead sang `quoted`, `deposit`, `won`; telesale áp giảm 7% thì đơn vào hàng chờ Owner duyệt; người ghi nhận thanh toán không tự xác nhận được; hủy đơn nhả giữ hàng đúng số lượng.
 
 ---
 
@@ -889,6 +972,17 @@ pnpm db:types       # sinh type
 | Danh mục đấu nối | Gom vào sổ đăng ký, quản lý ở Cài đặt, Tích hợp | Mục 10.2, 10.3, 11.2 |
 | Bán hàng | Sản phẩm, tồn kho, combo, chính sách, đơn hàng quản lý ngay trong CRM | Mục 8 |
 | Nhân sự | Quản lý đội bán hàng và chỉ số hiệu suất ở menu Đội ngũ riêng; không làm lương, không lưu giấy tờ cá nhân | Mục 9; giai đoạn 1 kéo dài thành 7 tuần |
+| Phạm vi khách | CRM phục vụ mọi khách, không riêng thị trường Hàn; thị trường là thuộc tính của khách do nhân viên xác nhận | Bảng `markets`, khung gọi theo thị trường (mục 1, 7) |
+| Mục đích CDP và CRM | Hiểu vòng đời khách và việc tiếp theo cần làm để chuyển đổi, chăm sóc hậu bán, tái bán; quản lý hiệu suất | Mục 1.1, 1.2 |
+| Khách thuộc ai | Khách là khách của showroom; chừa `organization_id` cho liên kết nhiều showroom sau này | Mục 1, 4 |
+| Định danh khách | Nhiều định danh cho một khách, cho phép dùng chung số trong hộ | `contact_identities`, `contact_via_contact_id` |
+| Đồng ý | Theo mục đích và kênh, ghi người cung cấp thông tin | `consents` |
+| Giữ bất ngờ | Đặt ở lead, đơn kế thừa, chặn ở server | `leads.keep_surprise` |
+| Giai đoạn lead | Từ `quoted` trở đi chỉ sinh từ báo giá và đơn | Mục 6 |
+| Việc và duyệt | Một mô hình việc và một hàng chờ duyệt dùng chung | `tasks`, `task_rules`, `approvals`, `notifications` |
+| Lead chờ khung gọi | Chưa giao cho tới đầu khung gọi của thị trường khách, không tính vào giới hạn N | Mục 7 |
+| Nhận lead | Theo quyền `lead.receive`, không theo tên vai trò | Mục 5, 7 |
+| MCP và AI | Tháng 2 MCP server bản chỉ đọc; tháng 3 trợ lý AI và tool ghi | Mục 10.7 |
 
 ### Còn mở
 
@@ -902,3 +996,4 @@ pnpm db:types       # sinh type
 8. Hàng nhập về showroom theo quy trình nào (Đại Việt giao kèm phiếu gì, ai ký nhận), và showroom có tự giữ kho hay chỉ trưng bày, giao thẳng từ kho Đại Việt.
 9. Có công bố bảng xếp hạng có tên cho cả đội telesale không (mặc định tắt, chỉ quản lý thấy).
 10. Chỉ tiêu tháng đầu của từng telesale, để nhập làm dữ liệu khởi tạo tuần 7.
+11. Các đề xuất rà soát chưa duyệt (quyền, bán hàng, chi tiết nhỏ) ghi ở `docs/open-questions.md`.
