@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Đại Việt Showroom Quận 4 — CRM và CDP có AI</title>
+<style>
+:root{
+  --page:#EEF1F6;--band:#C9D8EE;--card:#FFFFFF;--card-2:#F6F8FB;--line:#DDDBDA;--line-2:#E5E5E5;
+  --text:#181818;--weak:#5C5C5C;--brand:#0176D3;--brand-d:#014486;--brand-soft:#E5F1FC;
+  --ok:#2E844A;--ok-soft:#E6F4EA;--warn:#A96404;--warn-soft:#FEF1DE;--err:#BA0517;--err-soft:#FDE7E9;
+  --ai:#7526E3;--ai-soft:#F2EAFE;--obj:#6E4FD6;--hdr:#FFFFFF;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0E141C;--band:#16243A;--card:#18212D;--card-2:#1E2936;--line:#2E3A48;--line-2:#27323F;
+  --text:#E8EDF3;--weak:#A2AEBD;--brand:#4AA3F0;--brand-d:#8CC4F5;--brand-soft:#15304A;
+  --ok:#5CC27C;--ok-soft:#163223;--warn:#F0A23B;--warn-soft:#3A2A12;--err:#F07A86;--err-soft:#3D1A20;
+  --ai:#B38BF7;--ai-soft:#2A1E45;--obj:#9C86EC;--hdr:#141C27;}}
+:root[data-theme="dark"]{
+  --page:#0E141C;--band:#16243A;--card:#18212D;--card-2:#1E2936;--line:#2E3A48;--line-2:#27323F;
+  --text:#E8EDF3;--weak:#A2AEBD;--brand:#4AA3F0;--brand-d:#8CC4F5;--brand-soft:#15304A;
+  --ok:#5CC27C;--ok-soft:#163223;--warn:#F0A23B;--warn-soft:#3A2A12;--err:#F07A86;--err-soft:#3D1A20;
+  --ai:#B38BF7;--ai-soft:#2A1E45;--obj:#9C86EC;--hdr:#141C27;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:13.5px;line-height:1.45;padding-bottom:calc(44px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto 0;height:220px;background:linear-gradient(var(--band),var(--page));z-index:-1}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:1px;border-radius:4px}
+a{color:var(--brand);text-decoration:none;cursor:pointer}
+a:hover{text-decoration:underline}
+svg.i{width:16px;height:16px;fill:currentColor;flex:none}
+
+/* global header */
+.gh{background:var(--hdr);display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line-2)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.search{flex:1;max-width:520px;margin:0 auto;position:relative}
+.search input{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 10px 7px 32px;background:var(--card)}
+.search svg{position:absolute;left:10px;top:9px;color:var(--weak)}
+.gicons{display:flex;gap:4px;align-items:center}
+.ib{width:32px;height:32px;border-radius:6px;border:0;background:none;display:grid;place-items:center;color:var(--weak);position:relative}
+.ib:hover{background:var(--card-2)}
+.ib.on{background:var(--ai-soft);color:var(--ai)}
+.ava{width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px}
+.badge-n{position:absolute;top:2px;right:2px;min-width:15px;height:15px;border-radius:8px;background:var(--err);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 3px}
+
+/* app nav */
+.nav{background:var(--hdr);display:flex;align-items:stretch;border-bottom:3px solid var(--brand);box-shadow:0 2px 3px rgba(0,0,0,.06);overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.appname{display:flex;align-items:center;gap:10px;padding:0 16px 0 14px;font-size:16px;font-weight:400;white-space:nowrap;border-right:1px solid var(--line-2)}
+.waffle{display:grid;grid-template-columns:repeat(3,4px);gap:2.5px}
+.waffle i{width:4px;height:4px;border-radius:50%;background:var(--weak)}
+.nav button.tab{border:0;background:none;padding:11px 14px 9px;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-3px;font-size:13.5px}
+.nav button.tab:hover{background:var(--card-2)}
+.nav button.tab[aria-selected="true"]{border-bottom-color:var(--brand-d);font-weight:600;background:var(--card-2)}
+[data-theme="dark"] .nav button.tab[aria-selected="true"]{border-bottom-color:var(--brand)}
+
+/* shell */
+.shell{display:flex;gap:12px;padding:12px;align-items:flex-start}
+#main{flex:1;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.card+.card{margin-top:12px}
+.ch{display:flex;align-items:center;gap:8px;padding:12px 14px 8px}
+.ch h2{font-size:14px;margin:0;font-weight:700}
+.ch .r{margin-left:auto;display:flex;gap:6px}
+.cb{padding:4px 14px 14px}
+.oi{width:28px;height:28px;border-radius:4px;display:grid;place-items:center;color:#fff;flex:none}
+.oi.lg{width:40px;height:40px}
+.oi svg{width:60%;height:60%;fill:#fff}
+
+.btn{border:1px solid var(--line);background:var(--card);color:var(--brand);border-radius:4px;padding:5px 12px;font-weight:500;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--card-2)}
+.btn.brand{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.brand:hover{background:var(--brand-d)}
+.btn.ai{background:var(--ai);border-color:var(--ai);color:#fff}
+[data-theme="dark"] .btn.brand,[data-theme="dark"] .btn.ai{color:#0E141C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.brand,:root:not([data-theme="light"]) .btn.ai{color:#0E141C}}
+.btn:disabled{opacity:.55;cursor:default}
+.bgroup{display:inline-flex}
+.bgroup .btn{border-radius:0;margin-left:-1px}
+.bgroup .btn:first-child{border-radius:4px 0 0 4px;margin-left:0}
+.bgroup .btn:last-child{border-radius:0 4px 4px 0}
+
+.pill{display:inline-block;padding:1px 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)}.p-warn{background:var(--warn-soft);color:var(--warn)}.p-err{background:var(--err-soft);color:var(--err)}.p-ai{background:var(--ai-soft);color:var(--ai)}.p-n{background:var(--card-2);color:var(--weak)}
+.weak{color:var(--weak)}
+.lbl{font-size:12px;color:var(--weak)}
+
+/* page header */
+.phd{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.phd .t small{display:block;font-size:12px;color:var(--weak)}
+.phd .t b{font-size:18px;font-weight:700}
+.phd .r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hl{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--line-2);padding:10px 16px 12px}
+.hl div{padding-right:28px;min-width:120px}
+.hl b{display:block;font-weight:400;font-size:13.5px;margin-top:1px}
+
+/* grid */
+.g{display:grid;gap:12px;align-items:start}
+.g-8-4{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line-2)}
+.kpis div{padding:12px 14px;border-left:1px solid var(--line-2)}
+.kpis div:first-child{border-left:0}
+.kpis strong{display:block;font-size:22px;font-weight:300;font-variant-numeric:tabular-nums}
+
+/* path */
+.path{display:flex;padding:12px 16px 4px;gap:4px;overflow-x:auto}
+.path span{flex:1;min-width:110px;text-align:center;padding:7px 18px;font-size:13px;background:var(--card-2);color:var(--weak);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%,10px 50%);white-space:nowrap}
+.path span:first-child{clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%);border-radius:14px 0 0 14px}
+.path span:last-child{clip-path:polygon(0 0,100% 0,100% 100%,0 100%,10px 50%);border-radius:0 14px 14px 0}
+.path .done{background:var(--ok-soft);color:var(--ok)}
+.path .cur{background:var(--brand-d);color:#fff;font-weight:600}
+.path .risk{background:var(--err);color:#fff;font-weight:600}
+.pathnote{padding:6px 16px 14px;font-size:13px}
+
+/* tabs inside card */
+.tabs{display:flex;border-bottom:1px solid var(--line-2);padding:0 14px}
+.tabs button{border:0;background:none;padding:10px 12px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--brand);font-weight:600}
+
+/* composer */
+.comp{margin:12px 14px;border:1px solid var(--line);border-radius:6px}
+.comp .ct{display:flex;border-bottom:1px solid var(--line-2);overflow-x:auto}
+.comp .ct button{border:0;background:none;padding:8px 12px;font-size:13px;white-space:nowrap;border-bottom:2px solid transparent}
+.comp .ct button[aria-selected="true"]{border-bottom-color:var(--brand);color:var(--brand);font-weight:600}
+.comp textarea{display:block;width:100%;border:0;background:transparent;resize:vertical;min-height:58px;padding:10px 12px}
+.comp .cf{display:flex;gap:6px;justify-content:flex-end;padding:8px;border-top:1px solid var(--line-2)}
+
+/* timeline */
+.tlh{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card-2);font-weight:600;font-size:13px;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2)}
+.tl{list-style:none;margin:0;padding:8px 14px}
+.tl li{display:grid;grid-template-columns:24px 1fr auto;gap:10px;padding:8px 0;position:relative}
+.tl li:not(:last-child)::before{content:"";position:absolute;left:11px;top:32px;bottom:-4px;width:2px;background:var(--line-2)}
+.tl .oi{width:24px;height:24px;border-radius:50%}
+.tl .tt{font-weight:600;color:var(--brand)}
+.tl .sd{font-size:13px;color:var(--weak)}
+.tl .dt{font-size:12px;color:var(--weak);white-space:nowrap}
+.aisum{margin-top:6px;border-left:3px solid var(--ai);background:var(--ai-soft);padding:6px 10px;border-radius:0 4px 4px 0;font-size:13px}
+.aisum b{color:var(--ai);font-weight:600}
+.tl li.new{animation:hl 1.2s ease}
+@keyframes hl{from{background:var(--brand-soft)}to{background:transparent}}
+
+/* details */
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;padding:6px 14px 14px}
+.fields div{padding:8px 0;border-bottom:1px solid var(--line-2)}
+.fields b{display:block;font-weight:400}
+
+/* ai cards */
+.einc{border-top:3px solid var(--ai)}
+.gauge{display:flex;align-items:center;gap:14px}
+.gauge svg{flex:none}
+.factors{list-style:none;padding:0;margin:10px 0 0}
+.factors li{display:flex;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--line-2)}
+.factors .w{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.nba{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-top:8px}
+.nba h3{font-size:13.5px;margin:0 0 4px}
+.nba p{margin:0 0 8px;font-size:13px;color:var(--weak)}
+.nba .row{display:flex;gap:6px}
+
+/* related list */
+.rl{width:100%;border-collapse:collapse;font-size:13px}
+.rl td{padding:6px 0;border-top:1px solid var(--line-2)}
+.rl td:last-child{text-align:right}
+
+/* list view */
+.lvh{padding:14px 16px 10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.lvh .t small{display:block;font-size:12px;color:var(--weak)}
+.lvh .t b{font-size:18px}
+.lvh .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.lvsub{padding:0 16px 10px;font-size:12px;color:var(--weak)}
+.tw{overflow-x:auto}
+table.lv{width:100%;border-collapse:collapse;min-width:820px}
+table.lv th{text-align:left;font-weight:600;font-size:12px;color:var(--weak);background:var(--card-2);padding:7px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap}
+table.lv td{padding:8px 10px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+table.lv tr:hover td{background:var(--card-2)}
+.score{display:inline-flex;align-items:center;gap:6px}
+.score i{display:inline-block;width:48px;height:6px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.score i u{display:block;height:100%}
+
+/* feed + approvals */
+.feed{list-style:none;margin:0;padding:0 14px 8px;max-height:420px;overflow-y:auto}
+.feed li{display:grid;grid-template-columns:24px 1fr auto;gap:10px;padding:8px 0;border-top:1px solid var(--line-2)}
+.feed li:first-child{border-top:0}
+.feed .oi{width:24px;height:24px;border-radius:50%}
+.feed .an{font-size:12px;color:var(--weak)}
+.feed .dt{font-size:12px;color:var(--weak)}
+.feed li.new{animation:hl 1.2s ease}
+.appr{padding:10px 14px;border-top:1px solid var(--line-2)}
+.appr:first-child{border-top:0}
+.appr .row{display:flex;gap:6px;margin-top:8px}
+.empty{padding:18px 14px;color:var(--weak);text-align:center}
+.chart{padding:0 14px 12px}
+.chart svg{width:100%;height:auto;display:block}
+
+/* ai panel */
+#ai{width:360px;flex:none;position:sticky;top:12px;height:calc(100vh - 150px);display:flex;flex-direction:column;border-top:3px solid var(--ai)}
+#ai[hidden]{display:none}
+.aih{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-2)}
+.aih b{font-size:14px}
+.aih .ib{margin-left:auto}
+.ctx{padding:6px 12px;font-size:12px;color:var(--weak);background:var(--card-2);border-bottom:1px solid var(--line-2)}
+.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.m-u{align-self:flex-end;background:var(--brand);color:#fff;padding:8px 11px;border-radius:12px 12px 2px 12px;max-width:85%}
+[data-theme="dark"] .m-u{color:#0E141C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .m-u{color:#0E141C}}
+.m-a{align-self:flex-start;background:var(--card-2);border:1px solid var(--line-2);padding:10px 12px;border-radius:2px 12px 12px 12px;max-width:100%}
+.m-a p{margin:0 0 6px}.m-a p:last-child{margin:0}
+.m-a .draft{background:var(--card);border:1px dashed var(--ai);border-radius:6px;padding:8px 10px;margin:6px 0 8px;white-space:pre-line}
+.m-a .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.m-a .hb{display:grid;grid-template-columns:1fr 70px 34px;gap:6px;align-items:center;font-size:12.5px;margin:4px 0}
+.m-a .hb i{display:block;height:7px;border-radius:4px;background:var(--line-2);overflow:hidden}
+.m-a .hb i u{display:block;height:100%;background:var(--ai)}
+.sug{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-top:1px solid var(--line-2)}
+.sug button{text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:5px 11px;font-size:12.5px;color:var(--ai)}
+.sug button:hover{background:var(--ai-soft)}
+.aiin{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--line-2)}
+.aiin input{flex:1;min-width:0;border:1px solid var(--line);border-radius:4px;padding:6px 9px;background:var(--card)}
+.typing{color:var(--weak);font-style:italic}
+
+/* utility bar */
+.util{position:fixed;left:0;right:0;bottom:0;background:var(--hdr);border-top:1px solid var(--line);display:flex;gap:2px;padding:0 8px env(safe-area-inset-bottom,0px);z-index:20}
+.util button{border:0;background:none;padding:10px 12px;display:flex;align-items:center;gap:6px;font-size:12.5px;border-right:1px solid var(--line-2)}
+.util button:hover{background:var(--card-2)}
+.util .cnt{background:var(--err);color:#fff;border-radius:8px;padding:0 6px;font-size:11px}
+.pop{position:fixed;left:8px;bottom:calc(44px + env(safe-area-inset-bottom,0px));width:380px;max-width:calc(100vw - 16px);max-height:60vh;overflow-y:auto;z-index:21;box-shadow:0 -2px 12px rgba(0,0,0,.15)}
+.pop[hidden]{display:none}
+
+.toast{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translate(-50%,-20px);background:var(--ok);color:#fff;padding:10px 16px;border-radius:4px;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:92vw;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* chips / filters */
+.fchips{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px}
+.fchips button{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:3px 11px;font-size:12.5px}
+.fchips button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:start}
+.steps{display:flex;gap:4px;margin:6px 0 12px}
+.steps span{flex:1;text-align:center;font-size:12px;padding:5px 2px;border-radius:4px;background:var(--card-2);color:var(--weak)}
+.steps .d{background:var(--ok-soft);color:var(--ok);font-weight:600}
+.steps .c{background:var(--brand);color:#fff;font-weight:600}
+.box-ai{border-left:3px solid var(--ai);background:var(--ai-soft);padding:8px 10px;border-radius:0 4px 4px 0;font-size:13px;margin-top:8px}
+.box-ai b{color:var(--ai)}
+tr.sel td{background:var(--brand-soft)!important}
+table.lv tbody tr{cursor:pointer}
+/* inbox */
+.inbox{display:grid;grid-template-columns:270px minmax(0,1fr) 300px;height:calc(100vh - 170px);min-height:540px}
+.ibl{border-right:1px solid var(--line-2);overflow-y:auto}
+.ibl button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line-2);background:none;padding:10px 12px}
+.ibl button:hover{background:var(--card-2)}
+.ibl button[aria-current="true"]{background:var(--brand-soft);box-shadow:inset 3px 0 var(--brand)}
+.ibl .l1{display:flex;gap:6px;align-items:center}
+.ibl .l1 b{flex:1;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibl .pv{font-size:12.5px;color:var(--weak);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 4px}
+.conv{display:flex;flex-direction:column;min-width:0}
+.convh{padding:10px 14px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.convh .r{margin-left:auto;display:flex;gap:6px}
+.trs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--card-2)}
+.bb{max-width:78%;padding:8px 11px;border-radius:12px;font-size:13.5px}
+.bb small{display:block;font-size:11px;opacity:.75;margin-bottom:2px}
+.bb.cu{align-self:flex-start;background:var(--card);border:1px solid var(--line-2);border-radius:2px 12px 12px 12px}
+.bb.ag{align-self:flex-end;background:var(--ai-soft);border-radius:12px 2px 12px 12px}
+.bb.hu{align-self:flex-end;background:var(--brand);color:#fff;border-radius:12px 2px 12px 12px}
+[data-theme="dark"] .bb.hu{color:#0E141C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bb.hu{color:#0E141C}}
+.sys{align-self:center;font-size:12px;color:var(--weak);background:var(--card);border:1px solid var(--line-2);border-radius:10px;padding:3px 10px;text-align:center;max-width:90%}
+.reply{border-top:1px solid var(--line-2);padding:10px;display:flex;gap:6px}
+.reply textarea{flex:1;min-width:0;border:1px solid var(--line);border-radius:4px;padding:7px 9px;resize:none;height:40px;background:var(--card)}
+.cop{border-left:1px solid var(--line-2);overflow-y:auto;padding:12px}
+.cop h3{font-size:13px;margin:12px 0 6px}
+.cop h3:first-child{margin-top:0}
+.sr{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:6px;padding:7px 9px;font-size:12.5px;margin-bottom:6px}
+.sr:hover{border-color:var(--ai);background:var(--ai-soft)}
+.meter{display:flex;gap:3px;margin-top:4px}
+.meter i{flex:1;height:6px;border-radius:3px;background:var(--line-2)}
+/* reports */
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.rgrid .card+.card{margin-top:0}
+.hbar{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:12.5px;margin:5px 0}
+.hbar i{display:block;height:12px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.hbar i u{display:block;height:100%}
+.funnel div{margin:6px 0}
+.funnel .fb{height:26px;border-radius:4px;background:var(--brand);color:#fff;display:flex;align-items:center;padding:0 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+[data-theme="dark"] .funnel .fb{color:#0E141C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .funnel .fb{color:#0E141C}}
+.stack{display:flex;height:22px;border-radius:4px;overflow:hidden;margin:8px 0}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;background:var(--c);vertical-align:-1px}
+/* trace */
+.trace{list-style:none;margin:0;padding:0}
+.trace li{position:relative;padding:0 0 12px 22px;font-size:13px}
+.trace li::before{content:"";position:absolute;left:4px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--ai)}
+.trace li:not(:last-child)::after{content:"";position:absolute;left:8px;top:16px;bottom:0;width:2px;background:var(--line-2)}
+.trace b{display:block}
+.ok-t{color:var(--ok)}
+@media (max-width:1250px){.inbox{grid-template-columns:240px minmax(0,1fr)}.cop{grid-column:1/-1;border-left:0;border-top:1px solid var(--line-2)}.inbox{height:auto}.trs{min-height:360px;max-height:460px}}
+@media (max-width:900px){.split,.rgrid{grid-template-columns:1fr}.inbox{grid-template-columns:1fr}.ibl{max-height:240px;border-right:0;border-bottom:1px solid var(--line-2)}}
+
+@media (max-width:1100px){#ai{position:fixed;right:0;top:0;bottom:calc(44px + env(safe-area-inset-bottom,0px));height:auto;width:min(380px,100vw);z-index:30;border-radius:0;padding-top:env(safe-area-inset-top,0px)}}
+@media (max-width:900px){.g-8-4{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.kpis div:nth-child(3){border-left:0}.kpis div:nth-child(n+3){border-top:1px solid var(--line-2)}.search{display:none}.fields{grid-template-columns:1fr}}
+@media (max-width:560px){.shell{padding:8px}.phd{flex-wrap:wrap}.phd .r{justify-content:flex-start;margin-left:0}.util .lbltxt{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.tz{font-size:12px;color:var(--weak);margin-right:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tz b{color:var(--text);font-weight:600}
+.utilnote{margin-left:auto;align-self:center;font-size:12px;color:var(--weak);padding-right:8px}
+.loc{display:inline-block;font-size:11px;font-weight:600;padding:0 6px;border-radius:4px;vertical-align:1px;white-space:nowrap}
+.loc.kr{background:#E8EEFF;color:#1F3FA8}.loc.vn{background:#FDECEA;color:#B42318}
+[data-theme="dark"] .loc.kr{background:#1C2A4D;color:#9DB4FF}[data-theme="dark"] .loc.vn{background:#3D1D1A;color:#F4A097}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .loc.kr{background:#1C2A4D;color:#9DB4FF}:root:not([data-theme="light"]) .loc.vn{background:#3D1D1A;color:#F4A097}}
+.goalrow{display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+.gnum{font-size:26px;font-weight:300;font-variant-numeric:tabular-nums}
+.gside b{display:block;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.gbar{position:relative;height:12px;border-radius:6px;background:var(--line-2);margin-bottom:6px}
+.gbar i{display:block;height:100%;border-radius:6px;background:var(--brand);transition:width .6s}
+.gmark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
+.team{padding:0 14px 8px}
+.tm{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line-2)}
+.tm:first-child{border-top:0}
+.tm .ava{flex:none}
+.tt2{font-size:13px;margin-top:2px}
+.tm .pill{margin-left:auto}
+.cq{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
+.cq:first-child{border-top:0}
+.kb{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+.col{background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:120px}
+.colh{display:flex;flex-direction:column;padding:2px 4px 4px;border-bottom:2px solid var(--brand)}
+.kc{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,.04)}
+.kc:hover{border-color:var(--brand)}
+.kc.sel{outline:2px solid var(--brand);outline-offset:-1px}
+.kt{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.kt b{font-size:13px}
+.kf{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px;font-weight:600}
+.c360x{display:grid;grid-template-columns:260px minmax(0,1fr);gap:12px;align-items:start}
+.hlist{list-style:none;margin:0;padding:6px}
+.hlist button{width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:6px;display:flex;gap:10px;align-items:flex-start}
+.hlist button:hover{background:var(--card-2)}
+.hlist button[aria-current="true"]{background:var(--brand-soft);box-shadow:inset 3px 0 var(--brand)}
+.fam{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.mem{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--card)}
+.mem.payer{border-color:var(--ai);box-shadow:inset 3px 0 var(--ai)}
+.ins2{margin:0;padding-left:18px}.ins2 li{margin-bottom:6px}
+.gift{display:flex;align-items:center;gap:10px;background:var(--card-2);border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.gift>div{flex:1}.gift b{display:block}
+.garr{font-size:18px;color:var(--weak)}
+@media (max-width:900px){.c360x{grid-template-columns:1fr}.hlist{display:flex;overflow-x:auto}.hlist li{flex:none}.tz{display:none}}
+
+</style>
+</head>
+<body>
+<header class="gh">
+  <div class="logo"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--brand)"/><path d="M9 23V9h6.5a7 7 0 010 14zM9 9l7 7M23 9l-5 14" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Đại Việt</span></div>
+  <div class="search"><svg class="i" viewBox="0 0 24 24"><path d="M10 3a7 7 0 015.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1110 3zm0 2a5 5 0 100 10 5 5 0 000-10z"/></svg><input id="gsearch" placeholder="Tìm khách, hộ gia đình, số điện thoại VN hoặc +82…" aria-label="Tìm kiếm"></div>
+  <div class="gicons">
+    <span class="tz" title="Giờ Việt Nam và giờ Hàn Quốc"><b id="clkVN">09:12</b> VN <span class="weak">·</span> <b id="clkKR">11:12</b> Hàn</span>
+    <button class="ib on" id="aiToggle" title="Trợ lý AI" aria-label="Mở trợ lý AI"><svg class="i" viewBox="0 0 24 24"><path d="M11 2l2 5.5L18.5 9.5 13 11.5 11 17l-2-5.5L3.5 9.5 9 7.5zM19 14l1 2.6 2.6 1-2.6 1L19 21.2l-1-2.6-2.6-1 2.6-1z"/></svg></button>
+    <button class="ib" id="bell" title="Chờ duyệt" aria-label="Việc chờ duyệt"><svg class="i" viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 002.4-2h-4.8a2.5 2.5 0 002.4 2zm7-6V11a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1z"/></svg><span class="badge-n" id="bellN">0</span></button>
+    <span class="ava" title="Quản lý showroom Q4">QL</span>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Ứng dụng">
+  <div class="appname"><span class="waffle" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>Showroom Quận 4</div>
+  <button class="tab" data-go="home">Trang chủ</button>
+  <button class="tab" data-go="opps">Cơ hội</button>
+  <button class="tab" data-go="house">Hộ gia đình</button>
+  <button class="tab" data-go="orders">Đơn &amp; giao lắp</button>
+  <button class="tab" data-go="convos">Hội thoại</button>
+  <button class="tab" data-go="channels">Kênh &amp; nội dung</button>
+  <button class="tab" data-go="reports">Báo cáo</button>
+  <button class="tab" data-go="agents">Agent</button>
+</nav>
+
+<div class="shell">
+  <main id="main"></main>
+  <aside class="card" id="ai" aria-label="Trợ lý AI">
+    <div class="aih"><span class="oi" style="background:var(--ai);width:24px;height:24px;border-radius:50%"><svg viewBox="0 0 24 24"><path d="M11 2l2 5.5L18.5 9.5 13 11.5 11 17l-2-5.5L3.5 9.5 9 7.5z"/></svg></span><b>Trợ lý AI</b><button class="ib" id="aiClose" aria-label="Đóng trợ lý"><svg class="i" viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button></div>
+    <div class="ctx" id="ctx">Đang xem: Trang chủ</div>
+    <div class="msgs" id="msgs"></div>
+    <div class="sug" id="sug"></div>
+    <div class="aiin"><input id="aiIn" placeholder="Hỏi hoặc giao việc cho trợ lý…" aria-label="Câu hỏi cho trợ lý"><button class="btn ai" id="aiSend">Gửi</button></div>
+  </aside>
+</div>
+
+<div class="util" role="toolbar" aria-label="Tiện ích">
+  <button id="uQueue"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4z"/></svg><span class="lbltxt">Chờ duyệt</span><span class="cnt" id="uQN">0</span></button>
+  <button id="uLog"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5.4l4 2.4-1 1.7-5-3V7z"/></svg><span class="lbltxt">Nhật ký agent</span></button>
+  <button id="uPause"><svg class="i" viewBox="0 0 24 24"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg><span class="lbltxt" id="uPauseT">Tạm dừng agent</span></button>
+  <span class="utilnote">Dữ liệu mô phỏng</span>
+</div>
+<div class="card pop" id="popQueue" hidden></div>
+<div class="card pop" id="popLog" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tr=v=>(Math.round(v*10)/10).toLocaleString('vi-VN')+'tr';
+const ty=v=>(v/1000).toLocaleString('vi-VN',{maximumFractionDigits:2})+' tỷ';
+
+const IC={
+ person:'<svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5z"/></svg>',
+ house:'<svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>',
+ cart:'<svg viewBox="0 0 24 24"><path d="M7 18a2 2 0 100 4 2 2 0 000-4zm10 0a2 2 0 100 4 2 2 0 000-4zM5.2 4H2V2h4.8l1 3H22l-3 8H8.6l-.9 2H20v2H4.5l2.2-4.6z"/></svg>',
+ chat:'<svg viewBox="0 0 24 24"><path d="M4 3h16a2 2 0 012 2v10a2 2 0 01-2 2H8l-5 4V5a2 2 0 011-2z"/></svg>',
+ spark:'<svg viewBox="0 0 24 24"><path d="M11 2l2 5.5L18.5 9.5 13 11.5 11 17l-2-5.5L3.5 9.5 9 7.5z"/></svg>',
+ flag:'<svg viewBox="0 0 24 24"><path d="M5 3h2v18H5zm3 1h11l-2 4 2 4H8z"/></svg>',
+ chart:'<svg viewBox="0 0 24 24"><path d="M4 20h16v2H2V2h2zm3-3V9h3v8zm5 0V5h3v12zm5 0v-5h3v5z"/></svg>',
+ truck:'<svg viewBox="0 0 24 24"><path d="M2 5h12v10h1.5V8H19l3 4v5h-2a2.5 2.5 0 01-5 0H9a2.5 2.5 0 01-5 0H2z"/></svg>',
+ phone:'<svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 006.6 6.6l2.2-2.2a1 1 0 011-.3 11 11 0 003.6.6 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11 11 0 00.6 3.6 1 1 0 01-.3 1z"/></svg>',
+ video:'<svg viewBox="0 0 24 24"><path d="M3 6h12a1 1 0 011 1v3.5l5-3.5v10l-5-3.5V17a1 1 0 01-1 1H3z"/></svg>'
+};
+const kr='<span class="loc kr">Hàn Quốc</span>',vn='<span class="loc vn">Việt Nam</span>';
+
+/* ---------- team ---------- */
+const TEAM=[
+ {id:'tele',n:'Thảo',r:'Telesale',task:'Gọi 9 lead mới, ưu tiên khung 19:00–22:30 giờ Hàn',q:9},
+ {id:'mkt',n:'Quân',r:'Marketing',task:'Duyệt ngân sách chiến dịch quà 20/10 cho mẹ',q:3},
+ {id:'edit',n:'Vy',r:'Editor video, hình ảnh',task:'Dựng 3 video bàn giao gửi người tặng ở Hàn',q:3},
+ {id:'host',n:'My',r:'Tiếp khách showroom, livestream',task:'Live 20:00 demo DV-X9; 2 video call với khách Hàn',q:4},
+ {id:'koc',n:'Đạt',r:'Booking KOC/KOL, vận hành sàn',task:'2 KOC tại Hàn đăng bài thứ Bảy; 4 đơn TikTok Shop',q:6},
+ {id:'admin',n:'Hằng',r:'Admin các kênh',task:'Kiểm tin agent chuyển người, cập nhật bảng giá kênh',q:2}
+];
+
+/* ---------- agents ---------- */
+const AG=[
+ {id:'lead',name:'Agent Phân lead',c:'#0176D3',on:true,n:0,desc:'Chấm điểm lead, nhận diện khách ở Hàn, giao telesale theo giờ Hàn.',rules:['Giao trong 5 phút','Khách Hàn: gọi 19:00–22:30 giờ Hàn hoặc cuối tuần']},
+ {id:'tele',name:'Agent Trợ lý tele',c:'#0B827C',on:true,n:0,desc:'Gợi ý kịch bản, tóm tắt cuộc gọi, ghi người nhận và dịp tặng.',rules:['Không hứa giá ngoài bảng','Giảm trên 5% cần QLSR duyệt']},
+ {id:'nurture',name:'Agent Nuôi lead',c:'#A96404',on:true,n:0,desc:'Làm nóng lead cũ bằng video khách thật cùng tỉnh, cùng hoàn cảnh.',rules:['Tối đa 2 tin mỗi tuần','Chỉ nhắn khách đã đồng ý']},
+ {id:'occasion',name:'Agent Dịp tặng quà',c:'#C23934',on:true,n:0,desc:'Đọc ngày sinh, mừng thọ, 20/10, Tết trong hồ sơ hộ để nhắc người tặng.',rules:['Nhắc trước 14–21 ngày','Không liên hệ người nhận khi chưa được phép']},
+ {id:'trust',name:'Agent Giao lắp & niềm tin',c:'#2E844A',on:true,n:0,desc:'Cập nhật người tặng từng bước, gửi video bàn giao, xin đánh giá.',rules:['Video bàn giao trong 24 giờ','Xin đánh giá sau 3 ngày sử dụng']},
+ {id:'house',name:'Agent Hộ gia đình',c:'#7526E3',on:true,n:0,desc:'Gộp thành viên vào cùng hộ, tìm cơ hội bán chéo trong hệ sinh thái.',rules:['Gộp khi có từ 2 bằng chứng','Chỉ đề xuất, không tự nhắn']}
+];
+const ag=id=>AG.find(a=>a.id===id);
+const KRN=['Nguyễn Văn Hùng','Phạm Thị Thủy','Đặng Minh Khoa','Huỳnh Thị Mai','Lương Văn Tài','Trương Thị Ngọc','Bùi Đức Anh','Mai Thị Hồng'];
+const KRC=['Ansan','Daegu','Incheon','Gimhae','Suwon','Seoul','Busan','Hwaseong'];
+const PROV=['Nghệ An','Thanh Hóa','Hà Tĩnh','Hải Dương','Thái Bình','Bắc Giang','Long An','Đồng Tháp','Cần Thơ','Bình Định'];
+const PROD=[['Ghế massage DV-X9',79.9],['Ghế massage DV-S7',45.9],['Ghế massage DV-M5',29.9]];
+
+const EV={
+ lead:[()=>({t:`Lead mới từ Facebook Ads Hàn: ${rand(KRN)} ở ${rand(KRC)}, muốn tặng bố mẹ ở ${rand(PROV)}. Đã giao Thảo`,r:'Đã phân',newLead:1}),
+  ()=>({t:`Lead từ live TikTok: tài khoản hỏi giá DV-X9, ship ${rand(PROV)}. Đã tạo hồ sơ và giao Thảo`,r:'Đã phân',newLead:1})],
+ tele:[()=>({t:`Tóm tắt cuộc gọi Thảo với ${rand(KRN)}: tặng bố dịp Tết, ngân sách khoảng 50tr, cần lắp tận nhà`,r:'Đã ghi'}),
+  ()=>({t:`Gợi ý kịch bản cho Thảo: khách ${rand(KRN)} lo mua online bị lừa, đề xuất mời video call xem ghế thật`,r:'Đã gợi ý'})],
+ nurture:[()=>({t:`Gửi video bàn giao của một hộ ở ${rand(PROV)} cho lead cũ ${rand(KRN)}, 38 ngày chưa phản hồi`,r:'Đã gửi'}),
+  ()=>{const p=rand(PROD),k=rand(KRN);return{t:`${k} chuyển cọc 10tr từ Hàn cho ${p[0]}`,r:`+${tr(p[1])}`,rev:p[1]}}],
+ occasion:[()=>({t:`Nhắc ${rand(KRN)}: còn 16 ngày tới 20/10, gợi ý quà cho mẹ`,r:'Đã gửi'}),
+  ()=>({t:`Nhắc ${rand(KRN)}: bố tròn 70 tuổi tháng 11, gợi ý gói quà mừng thọ`,r:'Đã gửi'})],
+ trust:[()=>({t:`Gửi video bàn giao tại nhà bố mẹ ở ${rand(PROV)} cho ${rand(KRN)}`,r:'Đã gửi'}),
+  ()=>({t:`${rand(KRN)} đánh giá 5 sao sau 3 ngày bố mẹ dùng ghế`,r:'Đánh giá'})],
+ house:[()=>({t:`Gộp người nhận ở ${rand(PROV)} vào hộ của ${rand(KRN)}: trùng địa chỉ giao và số người nhận`,r:'Đã gộp'})],
+ appr:[()=>{const k=rand(KRN);return{a:'tele',t:`Đề xuất giảm 7% DV-X9 cho ${k}, khách đang so giá với đối thủ`,why:'Giảm giá trên 5% cần QLSR duyệt',ok:`Đã duyệt giảm 7% cho ${k}`}},
+  ()=>{const k=rand(KRN),p=rand(PROV);return{a:'occasion',t:`Đề xuất gọi người nhận ở ${p} để hẹn giao trước Tết cho đơn của ${k}`,why:'Liên hệ người nhận cần người tặng đồng ý',ok:`Đã xin phép ${k}, chờ khách đồng ý`}},
+  ()=>{const k=rand(KRN);return{a:'tele',t:`Đề xuất tặng kèm máy massage chân cho đơn 2 ghế của ${k}`,why:'Quà tặng trên 3 triệu',ok:`Đã duyệt quà tặng cho ${k}`}}]
+};
+
+/* ---------- households ---------- */
+const HOUSES=[
+ {id:'h1',name:'Hộ Trần',place:'Cần Giuộc, Long An',val:45.9,eng:86,
+  mem:[{n:'Trần Văn Nam',rel:'Con trai',role:'Người đặt',loc:'KR',city:'Ansan',ph:'+82 10•••4471',ch:'Zalo, Facebook'},{n:'Trần Văn Bảy',rel:'Bố, 69 tuổi',role:'Người dùng',loc:'VN',city:'Cần Giuộc, Long An',ph:'090•••215'},{n:'Lê Thị Sáu',rel:'Mẹ, 64 tuổi',role:'Người dùng',loc:'VN',city:'Cần Giuộc, Long An',ph:'Dùng chung số bố'},{n:'Trần Thị Hoa',rel:'Chị gái',role:'Tiềm năng',loc:'VN',city:'Quận 8, TP.HCM',ph:'093•••808'}],
+  why:['Anh Nam khai người nhận là bố mẹ khi đặt hàng','Trùng địa chỉ giao Cần Giuộc','Chị Hoa đi cùng bố mẹ nhận ghế, để lại số'],
+  owned:[['Ghế massage DV-S7','Giao 15/09/2026','Bảo hành đến 09/2031']],
+  cross:[{t:'Máy lọc nước ion kiềm cho bố mẹ',d:'Nhà dùng nước giếng khoan. Mẹ hỏi về nước uống trong buổi bàn giao ghế. Anh Nam là người quyết định chi.',v:16.9,to:'Trần Văn Nam'},{t:'Quà mừng thọ 70 tuổi của bố, 12/11',d:'Ngày sinh lấy từ phiếu bảo hành. Gợi ý gói mừng thọ kèm thiệp video quay tại showroom.',v:16.9,to:'Trần Văn Nam'},{t:'Ghế DV-M5 cho nhà chị Hoa',d:'Chị Hoa ngồi thử ghế của bố mẹ 20 phút và hỏi giá dòng nhỏ hơn.',v:29.9,to:'Trần Thị Hoa'}],
+  trust:['Video bàn giao gửi anh Nam 15/09, anh xem 4 lần','Mẹ đánh giá 5 sao ngay tại nhà','Anh Nam giới thiệu 1 người bạn ở Ansan'],
+  dates:[['20/10','Ngày Phụ nữ Việt Nam, quà cho mẹ'],['12/11','Bố tròn 70 tuổi'],['Tết 2027','Dịp tặng quà lớn nhất năm']],
+  tl:[{d:'28/09',w:'Trần Thị Hoa',ty:'call',t:'Gọi hỏi giá ghế DV-M5',ai:'Tiềm năng mua cho gia đình riêng ở Quận 8'},{d:'18/09',w:'Trần Văn Nam',ty:'zalo',t:'Đánh giá 5 sao, gửi ảnh bố ngồi ghế',ai:null},{d:'15/09',w:'Lê Thị Sáu',ty:'truck',t:'Nhận và lắp ghế DV-S7 tại nhà',ai:'Mẹ hỏi máy lọc nước, nhà dùng nước giếng'},{d:'02/09',w:'Trần Văn Nam',ty:'cart',t:'Đặt ghế DV-S7, thanh toán đủ từ Hàn',ai:null}]},
+ {id:'h2',name:'Hộ Nguyễn',place:'Diễn Châu, Nghệ An',val:0,eng:58,
+  mem:[{n:'Nguyễn Thị Thu',rel:'Con gái',role:'Người đặt',loc:'KR',city:'Daegu',ph:'+82 10•••2290',ch:'Zalo'},{n:'Nguyễn Văn Lực',rel:'Bố, 61 tuổi',role:'Người nhận',loc:'VN',city:'Diễn Châu, Nghệ An',ph:'Chưa có'},{n:'Hồ Thị Lài',rel:'Mẹ, 58 tuổi',role:'Người nhận',loc:'VN',city:'Diễn Châu, Nghệ An',ph:'Chưa có'}],
+  why:['Chị Thu khai người nhận khi hỏi giá giao Nghệ An'],
+  owned:[],
+  cross:[{t:'Ghế DV-X9 làm quà Tết cho bố mẹ',d:'Đang ở bước báo giá. Rào cản lớn nhất là niềm tin mua từ xa. Nên mời video call xem ghế thật tại showroom.',v:79.9,to:'Nguyễn Thị Thu'}],
+  trust:['Chưa có giao dịch. Đã xem 3 video bàn giao của khách ở Nghệ An'],
+  dates:[['Tết 2027','Muốn ghế về trước 23 tháng Chạp']],
+  tl:[{d:'03/10',w:'Nguyễn Thị Thu',ty:'zalo',t:'Hỏi có lắp tận Nghệ An không, sợ mua online bị lừa',ai:'Lo ngại niềm tin. Cần người thật, nên video call'},{d:'30/09',w:'Nguyễn Thị Thu',ty:'flag',t:'Để lại số từ quảng cáo Facebook nhắm người Việt tại Hàn',ai:null}]},
+ {id:'h3',name:'Hộ Phạm',place:'Quận 4, TP.HCM',val:16.9,eng:72,
+  mem:[{n:'Phạm Ngọc Lan',rel:'Chủ hộ',role:'Người mua',loc:'VN',city:'Quận 4, TP.HCM',ph:'091•••630'},{n:'Phạm Minh Đức',rel:'Em trai',role:'Tiềm năng',loc:'KR',city:'Seoul',ph:'+82 10•••8812',ch:'TikTok, Zalo'},{n:'Phạm Văn Tư',rel:'Bố, 72 tuổi',role:'Người dùng',loc:'VN',city:'Quận 4, TP.HCM',ph:'Dùng chung số chị Lan'}],
+  why:['Anh Đức bình luận live TikTok "mua cho bố ở Q4"','Chị Lan nhắc em trai ở Seoul khi gọi hotline'],
+  owned:[['Máy lọc nước ion kiềm','Mua tại showroom 04/2026','Thay lõi tiếp theo 10/2026']],
+  cross:[{t:'Ghế DV-S7 cho bố, anh Đức tặng từ Seoul',d:'Bố 72 tuổi đau lưng, chị Lan đã đưa bố ra showroom ngồi thử 2 lần. Anh Đức là người trả tiền.',v:45.9,to:'Phạm Minh Đức'},{t:'Thay lõi lọc định kỳ',d:'Lõi lọc đến hạn thay trong tháng 10.',v:1.2,to:'Phạm Ngọc Lan'}],
+  trust:['Khách quen showroom, ghé 3 lần','Đã thay lõi đúng hạn lần trước'],
+  dates:[['10/2026','Đến hạn thay lõi lọc'],['Tết 2027','Anh Đức về Việt Nam ăn Tết']],
+  tl:[{d:'01/10',w:'Phạm Minh Đức',ty:'chat',t:'Bình luận live TikTok: hỏi ghế cho bố ở Q4',ai:'Agent Hộ gia đình gộp vào hộ Phạm'},{d:'26/09',w:'Phạm Ngọc Lan',ty:'call',t:'Gọi hotline hỏi lịch thay lõi',ai:'Nhắc em trai ở Seoul muốn mua ghế cho bố'},{d:'14/09',w:'Phạm Văn Tư',ty:'house',t:'Ghé showroom ngồi thử DV-S7 cùng chị Lan',ai:null}]},
+ {id:'h4',name:'Hộ Lê',place:'Cao Lãnh, Đồng Tháp',val:0,eng:31,
+  mem:[{n:'Lê Hoàng Phúc',rel:'Con trai',role:'Người đặt',loc:'KR',city:'Incheon',ph:'+82 10•••5103',ch:'Facebook'},{n:'Ngô Thị Út',rel:'Mẹ, 60 tuổi',role:'Người nhận',loc:'VN',city:'Cao Lãnh, Đồng Tháp',ph:'Chưa có'}],
+  why:['Anh Phúc khai người nhận là mẹ'],
+  owned:[],
+  cross:[{t:'Ghế DV-M5 làm quà 20/10 cho mẹ',d:'Lead cũ 45 ngày im lặng. Vừa mở tin nhắc 20/10 và hỏi còn ưu đãi không.',v:29.9,to:'Lê Hoàng Phúc'}],
+  trust:['Chưa có giao dịch'],
+  dates:[['20/10','Quà cho mẹ']],
+  tl:[{d:'04/10',w:'Lê Hoàng Phúc',ty:'zalo',t:'Hỏi còn ưu đãi 20/10 cho mẹ không',ai:'Lead nguội vừa nóng lại nhờ tin nhắc dịp lễ'},{d:'20/08',w:'Lê Hoàng Phúc',ty:'flag',t:'Để lại số từ quảng cáo, sau đó không nghe máy',ai:null}]},
+ {id:'h5',name:'Hộ Võ',place:'Dĩ An, Bình Dương',val:79.9,eng:77,
+  mem:[{n:'Võ Thanh Tùng',rel:'Con trai',role:'Người đặt',loc:'KR',city:'Gimhae',ph:'+82 10•••7716',ch:'Facebook, Zalo'},{n:'Võ Văn Hai',rel:'Bố, 66 tuổi',role:'Người nhận',loc:'VN',city:'Dĩ An, Bình Dương',ph:'097•••441'}],
+  why:['Anh Tùng khai người nhận là bố','Số người nhận đã xác nhận qua cuộc gọi'],
+  owned:[['Ghế massage DV-X9','Đang giao, hẹn 10/10','Bảo hành 5 năm sau lắp']],
+  cross:[{t:'Máy lọc không khí cho phòng bố',d:'Bố ở gần khu công nghiệp, anh Tùng hỏi về bụi mịn khi tư vấn ghế.',v:8.9,to:'Võ Thanh Tùng'}],
+  trust:['Đã cọc 20tr, xem video showroom trước khi cọc'],
+  dates:[['10/10','Hẹn giao và lắp ghế']],
+  tl:[{d:'02/10',w:'Võ Thanh Tùng',ty:'cart',t:'Thanh toán đủ DV-X9 từ Hàn',ai:null},{d:'25/09',w:'Võ Thanh Tùng',ty:'video',t:'Video call xem ghế với My tại showroom 25 phút',ai:'Sau video call, khách cọc ngay trong ngày'}]}
+];
+const hh=id=>HOUSES.find(h=>h.id===id);
+
+/* ---------- opportunities ---------- */
+const STG=['Lead mới','Đã liên hệ','Demo, video call','Báo giá','Đặt cọc','Giao & lắp'];
+let OPPS=[
+ {id:'o1',n:'Nguyễn Thị Thu',city:'Daegu',to:'Nghệ An',p:'Ghế massage DV-X9',v:79.9,s:3,src:'Facebook Ads Hàn',own:'Thảo',sc:64,occ:'Tết 2027',hid:'h2',next:'Mời video call xem ghế thật với My lúc 21:00 giờ Hàn. Khách lo niềm tin, chưa lo giá.'},
+ {id:'o2',n:'Phạm Minh Đức',city:'Seoul',to:'Quận 4',p:'Ghế massage DV-S7',v:45.9,s:2,src:'Live TikTok',own:'My',sc:82,occ:'Tặng bố',hid:'h3',next:'Bố đã ngồi thử 2 lần. Gửi anh Đức video bố ngồi ghế tại showroom, chốt lịch giao trước khi anh về Tết.'},
+ {id:'o3',n:'Lê Hoàng Phúc',city:'Incheon',to:'Đồng Tháp',p:'Ghế massage DV-M5',v:29.9,s:1,src:'Lead cũ làm nóng',own:'Thảo',sc:57,occ:'20/10',hid:'h4',next:'Gọi lại tối nay. Nhấn hạn giao trước 20/10 phải chốt trước 13/10.'},
+ {id:'o4',n:'Trần Văn Nam',city:'Ansan',to:'Long An',p:'Máy lọc nước ion kiềm',v:16.9,s:0,src:'Bán chéo hộ gia đình',own:'Thảo',sc:71,occ:'Mừng thọ bố',hid:'h1',next:'Khách cũ hài lòng. Mở lời bằng mừng thọ 70 tuổi của bố, không cần ưu đãi.'},
+ {id:'o5',n:'Huỳnh Thị Mai',city:'Suwon',to:'Thanh Hóa',p:'Ghế massage DV-S7',v:45.9,s:0,src:'KOC tại Hàn',own:'Thảo',sc:49,occ:'Tết 2027',next:'Lead mới 12 phút trước. Gọi ngay, đang 20:41 giờ Hàn.'},
+ {id:'o6',n:'Đặng Minh Khoa',city:'Busan',to:'Hải Dương',p:'Ghế massage DV-X9',v:79.9,s:1,src:'Facebook Ads Hàn',own:'Thảo',sc:44,occ:'Sinh nhật mẹ',next:'Khách hỏi trả góp. Gửi phương án thanh toán 2 lần từ Hàn.'},
+ {id:'o7',n:'Lương Văn Tài',city:'Hwaseong',to:'Bắc Giang',p:'Ghế massage DV-S7',v:45.9,s:3,src:'Giới thiệu',own:'Thảo',sc:76,occ:'Tết 2027',next:'Bạn của anh Nam giới thiệu. Gửi video bàn giao hộ Trần làm bằng chứng.'},
+ {id:'o8',n:'Chị Hương (walk-in)',city:'',to:'Quận 7',p:'Ghế massage DV-M5',v:29.9,s:2,src:'Khách đến showroom',own:'My',sc:61,occ:'',next:'Khách ngồi thử 15 phút. Hẹn quay lại cùng chồng cuối tuần.'},
+ {id:'o9',n:'Mai Thị Hồng',city:'Gimhae',to:'Hà Tĩnh',p:'Ghế massage DV-X9',v:79.9,s:4,src:'Live TikTok',own:'Thảo',sc:91,occ:'Tết 2027',next:'Đã cọc 20tr. Xác nhận người nhận và hẹn giao.'},
+ {id:'o10',n:'Võ Thanh Tùng',city:'Gimhae',to:'Bình Dương',p:'Ghế massage DV-X9',v:79.9,s:5,src:'Facebook Ads Hàn',own:'My',sc:96,occ:'Tặng bố',hid:'h5',next:'Giao 10/10. Agent sẽ gửi video bàn giao cho anh Tùng trong 24 giờ.'}
+];
+let oppSel='o1';
+
+/* ---------- orders ---------- */
+const OSTEP=['Xác nhận người nhận','Xuất kho','Giao & lắp đặt','Video bàn giao','Đánh giá'];
+const ORD=[
+ {id:'DV-1027',buyer:'Võ Thanh Tùng',bc:'Gimhae',recv:'Võ Văn Hai (bố)',addr:'Dĩ An, Bình Dương',p:'Ghế massage DV-X9',v:79.9,pay:'Đã thanh toán đủ',s:1,eta:'10/10',hid:'h5',note:'Người nhận đã xác nhận qua điện thoại. Thang máy chung cư cần đăng ký trước.',flag:null},
+ {id:'DV-1026',buyer:'Mai Thị Hồng',bc:'Gimhae',recv:'Chưa xác nhận',addr:'Hà Tĩnh',p:'Ghế massage DV-X9',v:79.9,pay:'Đã cọc 20tr',s:0,eta:'Trước 23 tháng Chạp',note:'Khách muốn giữ bất ngờ, chưa cho phép gọi người nhận.',flag:'Chờ phép liên hệ người nhận'},
+ {id:'DV-1025',buyer:'Trương Thị Ngọc',bc:'Suwon',recv:'Trương Văn Định (bố)',addr:'Thái Bình',p:'Ghế massage DV-S7',v:45.9,pay:'Đã thanh toán đủ',s:2,eta:'Hôm nay',note:'Đội lắp đặt đang trên đường, dự kiến 15:30.',flag:'Có thể trễ 1 giờ'},
+ {id:'DV-1024',buyer:'Bùi Đức Anh',bc:'Ansan',recv:'Bùi Thị Thanh (mẹ)',addr:'Nam Định',p:'Ghế massage DV-M5',v:29.9,pay:'Đã thanh toán đủ',s:3,eta:'Đã lắp 03/10',note:'Video bàn giao đã quay, Vy đang dựng.',flag:null},
+ {id:'DV-1023',buyer:'Trần Văn Nam',bc:'Ansan',recv:'Trần Văn Bảy (bố)',addr:'Cần Giuộc, Long An',p:'Ghế massage DV-S7',v:45.9,pay:'Đã thanh toán đủ',s:5,eta:'Đã lắp 15/09',hid:'h1',note:'Hoàn tất, đánh giá 5 sao.',flag:null},
+ {id:'DV-1022',buyer:'Phạm Ngọc Lan',bc:'',recv:'Phạm Ngọc Lan',addr:'Quận 4, TP.HCM',p:'Lõi lọc thay thế',v:1.2,pay:'Thanh toán tại nhà',s:2,eta:'Hôm nay',hid:'h3',note:'Thay lõi định kỳ, kỹ thuật viên ghé 16:00.',flag:null}
+];
+let ordSel='DV-1027';
+
+/* ---------- conversations ---------- */
+const CHI={Zalo:'#0068FF',Facebook:'#1877F2','TikTok Live':'#111111',Hotline:'#3BA755'};
+const CONV=[
+ {id:'v1',cn:'Nguyễn Thị Thu',hid:'h2',ch:'Zalo',loc:'Daegu',st:'need',sent:1,t:'10:04',intent:'Mua ghế làm quà Tết cho bố mẹ, cần chắc chắn không bị lừa',
+  sum:'Chị Thu ở Daegu muốn tặng bố mẹ ở Nghệ An ghế DV-X9 dịp Tết. Agent đã trả lời về giao và lắp tận nhà, nhưng chị muốn nhìn ghế thật và nói chuyện với người.',
+  msgs:[['cu','Bên mình có giao lắp tận Diễn Châu, Nghệ An không em?','09:58'],['ag','Dạ có ạ. Đại Việt giao và lắp tận nhà tại Nghệ An, kỹ thuật viên hướng dẫn bố mẹ chị dùng, sau đó gửi chị video bàn giao.','09:58'],['cu','Chị ở bên Hàn, mua online sợ lắm. Có cách nào xem ghế thật không?','10:03'],['sys','Agent chuyển cho người: khách cần xác minh niềm tin, đề xuất video call','10:04']],
+  sug:['Dạ em là My ở showroom Đại Việt Quận 4. Tối nay 21:00 giờ Hàn em gọi video cho chị, em ngồi thử ghế DV-X9 cho chị xem trực tiếp, chị hỏi gì em trả lời hết nhé.','Dạ em gửi chị 3 video bàn giao của các cô chú ở Nghệ An trước, tối em gọi video cho chị xem ghế thật ạ.'],
+  follow:'Ok em, 21h tối nay chị gọi nha. Cho chị xem kỹ phần massage chân.',moveOpp:'o1'},
+ {id:'v2',cn:'phuong.kr92',ch:'TikTok Live',loc:'Không rõ',st:'agent',sent:0,t:'10:01',intent:'Hỏi giá DV-X9, giao Bình Định',
+  sum:'Bình luận trong live 20:00 tối qua. Agent đã trả lời giá, mời để lại số Zalo để tư vấn riêng.',
+  msgs:[['cu','Ghế X9 giá nhiu, ship Bình Định đc ko shop','20:41'],['ag','Dạ DV-X9 hiện 79,9 triệu, giao và lắp tận nhà tại Bình Định ạ. Chị để lại Zalo, em gửi video và báo giá chi tiết nhé.','20:41'],['cu','0388•••241 nha','20:43'],['sys','Agent Phân lead: tạo lead mới, giao Thảo','20:43']],sug:[]},
+ {id:'v3',cn:'Võ Thanh Tùng',hid:'h5',ch:'Facebook',loc:'Gimhae',st:'agent',sent:0,t:'09:40',intent:'Hỏi lịch giao',
+  sum:'Anh Tùng hỏi lịch giao ghế cho bố. Agent báo hẹn 10/10, gửi tên kỹ thuật viên và hứa gửi video bàn giao.',
+  msgs:[['cu','Ghế của bố anh bao giờ giao em?','09:38'],['ag','Dạ đơn DV-1027 hẹn giao và lắp ngày 10/10 tại Dĩ An. Kỹ thuật viên sẽ gọi bác Hai trước 1 tiếng. Lắp xong em gửi anh video bàn giao ngay ạ.','09:39'],['cu','Ok em, cảm ơn.','09:40']],sug:['Dạ không có gì anh. Có gì bác cần, anh cứ nhắn em nhé.']},
+ {id:'v4',cn:'Phạm Ngọc Lan',hid:'h3',ch:'Hotline',loc:'Quận 4',st:'done',sent:0,t:'09:15',intent:'Hẹn thay lõi lọc',
+  sum:'Chị Lan hẹn thay lõi lọc hôm nay 16:00. Trong cuộc gọi, chị nhắc em trai ở Seoul muốn mua ghế cho bố. Agent Hộ gia đình đã gộp anh Đức vào hộ Phạm.',
+  msgs:[['sys','Bản ghi cuộc gọi, đã che số điện thoại','09:12'],['cu','Máy lọc nhà chị tới hạn thay lõi chưa em?','09:12'],['hu','Dạ tới hạn tháng này ạ. Em hẹn kỹ thuật viên ghé chị 16:00 chiều nay nhé.','09:13'],['cu','Ừ. Mà thằng em chị bên Seoul nó cũng đang tính mua ghế cho ông già đó.','09:14'],['sys','Agent Hộ gia đình: đã nối Phạm Minh Đức (Seoul) vào hộ Phạm','09:15']],sug:[]},
+ {id:'v5',cn:'Lê Hoàng Phúc',hid:'h4',ch:'Zalo',loc:'Incheon',st:'agent',sent:0,t:'08:52',intent:'Hỏi ưu đãi 20/10 cho mẹ',
+  sum:'Lead cũ 45 ngày im lặng, vừa phản hồi tin nhắc 20/10. Agent gửi ưu đãi và mốc chốt đơn để kịp giao.',
+  msgs:[['ag','Anh Phúc ơi, còn 16 ngày nữa là 20/10. Nếu anh muốn tặng mẹ ghế massage, đặt trước 13/10 là kịp giao về Cao Lãnh ạ.','08:30'],['cu','Còn ưu đãi 20/10 cho mẹ không em?','08:50'],['ag','Dạ còn ạ, đặt trước 13/10 anh được tặng gối massage cổ và miễn phí lắp đặt. Tối nay chị Thảo gọi anh tư vấn kỹ hơn nhé.','08:52']],sug:['Dạ em là Thảo, tối nay 20:00 giờ Hàn em gọi anh được không ạ?']}
+];
+const CST={need:['Cần người','p-err'],agent:['Agent đang xử lý','p-ai'],human:['Người đang xử lý','p-warn'],done:['Đã xong','p-ok']};
+let vSel='v1';
+
+/* ---------- state ---------- */
+let route={v:'home',id:null};let houseSel='h1';let rp='q';
+let mins=9*60+12;
+const fmt=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const G={rev:186,leads:23,save:0,auto:0};
+const GOAL=3000,DAYS=89;
+const FEED=[],QUEUE=[];
+let paused=false,timer;
+const scPill=s=>s>=75?`<span class="pill p-ok">${s}</span>`:s>=50?`<span class="pill p-warn">${s}</span>`:`<span class="pill p-n">${s}</span>`;
+
+function step(){
+  const act=AG.filter(a=>a.on);if(!act.length)return;
+  mins+=ri(1,3);
+  if(Math.random()<.22){const e=rand(EV.appr)(),a=ag(e.a);if(a.on){QUEUE.unshift({a,e,time:fmt(mins),id:Math.random().toString(36).slice(2)});a.n++}}
+  else{const a=rand(act),e=rand(EV[a.id])();a.n++;G.auto++;if(e.rev)G.rev+=e.rev;if(e.newLead)G.leads++;FEED.unshift({a,t:e.t,r:e.r,money:!!e.rev,time:fmt(mins),fresh:true});FEED.length=Math.min(FEED.length,40)}
+  clocks();refreshLive();
+}
+function clocks(){$('#clkVN').textContent=fmt(mins);$('#clkKR').textContent=fmt(mins+120)}
+function start(){timer=setInterval(step,3200)}
+function refreshLive(){
+  $('#uQN').textContent=QUEUE.length;$('#bellN').textContent=QUEUE.length;
+  if(route.v==='home'){renderFeed();renderQueue('#homeQueue');renderGoal()}
+  if(!$('#popQueue').hidden)renderQueue('#popQueue',true);
+  if(!$('#popLog').hidden)renderLog();
+  if(route.v==='agents'){AG.forEach(a=>{const el=document.querySelector(`[data-an="${a.id}"]`);if(el)el.textContent=a.n});const tb=$('#decTb');if(tb){tb.innerHTML=decisionList();bindTrace()}}
+}
+function decide(id,ok){
+  const i=QUEUE.findIndex(q=>q.id===id);if(i<0)return;const q=QUEUE.splice(i,1)[0];mins++;
+  if(ok){G.auto++;FEED.unshift({a:q.a,t:q.e.ok,r:'QLSR đã duyệt',time:fmt(mins),fresh:true});toast(q.e.ok)}
+  else{FEED.unshift({a:q.a,t:'Từ chối: '+q.e.t,r:'Từ chối',time:fmt(mins),fresh:true});toast('Đã từ chối. Agent ghi nhận để điều chỉnh')}
+  refreshLive();
+}
+function renderFeed(){const el=$('#feed');if(!el)return;
+  el.innerHTML=FEED.slice(0,20).map(f=>{const c=`<li class="${f.fresh&&!reduce?'new':''}"><span class="oi" style="background:${f.a.c}">${IC.spark}</span><div><div class="an">${f.a.name}</div><div>${esc(f.t)}</div></div><div style="text-align:right"><div class="dt">${f.time}</div><span class="pill ${f.money?'p-ok':'p-n'}">${esc(f.r)}</span></div></li>`;f.fresh=false;return c}).join('')||'<div class="empty">Chưa có hoạt động.</div>'}
+function renderQueue(sel,head){const el=$(sel);if(!el)return;
+  el.innerHTML=(head?`<div class="ch"><h2>Chờ QLSR duyệt (${QUEUE.length})</h2></div>`:'')+(QUEUE.length?QUEUE.map(q=>`<div class="appr"><div class="an lbl">${q.a.name}, ${q.time}</div><div>${esc(q.e.t)}</div><span class="pill p-warn" style="margin-top:6px">Cần duyệt: ${esc(q.e.why)}</span><div class="row"><button class="btn brand" data-ok="${q.id}">Duyệt</button><button class="btn" data-no="${q.id}">Từ chối</button></div></div>`).join(''):'<div class="empty">Không có việc chờ duyệt.</div>');
+  el.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>decide(b.dataset.ok,true));
+  el.querySelectorAll('[data-no]').forEach(b=>b.onclick=()=>decide(b.dataset.no,false));
+}
+function renderLog(){$('#popLog').innerHTML=`<div class="ch"><h2>Nhật ký agent</h2></div><ul class="feed">`+FEED.slice(0,30).map(f=>`<li><span class="oi" style="background:${f.a.c}">${IC.spark}</span><div><div class="an">${f.a.name}</div><div>${esc(f.t)}</div></div><div class="dt">${f.time}</div></li>`).join('')+'</ul>'}
+function renderGoal(){const el=$('#goal');if(!el)return;
+  const pct=G.rev/GOAL*100,need=(GOAL-G.rev)/DAYS,pace=G.rev/4;
+  el.innerHTML=`<div class="goalrow"><div><span class="lbl">Mục tiêu 10–12/2026</span><div class="gnum">${ty(G.rev)} <span class="weak">/ 3 tỷ</span></div></div><div class="gside"><span class="lbl">Cần mỗi ngày</span><b>${tr(need)}</b></div><div class="gside"><span class="lbl">Đang chạy mỗi ngày</span><b style="color:${pace>=need?'var(--ok)':'var(--warn)'}">${tr(pace)}</b></div><div class="gside"><span class="lbl">Còn lại</span><b>${DAYS} ngày</b></div></div>
+  <div class="gbar"><i style="width:${Math.min(100,pct)}%"></i><span class="gmark" style="left:${4/92*100}%"></span></div>
+  <div class="lbl">${pct.toFixed(1).replace('.',',')}% mục tiêu. Vạch dọc là tiến độ theo thời gian. Cao điểm dự kiến rơi vào 15/12 đến Tết.</div>`;
+  const k=$('#kpis');if(k)k.innerHTML=`<div><span class="lbl">Lead hôm nay</span><strong>${G.leads}</strong></div><div><span class="lbl">Gọi trong 5 phút</span><strong>87%</strong></div><div><span class="lbl">Cơ hội đang mở</span><strong>${tr(OPPS.filter(o=>o.s<5).reduce((a,o)=>a+o.v,0))}</strong></div><div><span class="lbl">Doanh thu từ khách ở Hàn</span><strong>78%</strong></div>`;
+}
+
+/* ---------- views ---------- */
+function vHome(){
+  const callq=OPPS.filter(o=>o.s<=1&&o.city).slice(0,4);
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:var(--brand)">${IC.house}</span><div class="t"><small>Trang chủ</small><b>Showroom Đại Việt Quận 4</b></div><div class="r"><span class="pill p-ai">Trọng tâm: ghế massage, quà tặng từ Hàn Quốc</span></div></div>
+  <div class="cb" id="goal"></div><div class="kpis" id="kpis"></div></div>
+  <div class="g g-8-4" style="margin-top:12px">
+   <div>
+    <div class="card"><div class="ch"><h2>Việc của đội hôm nay</h2><span class="r lbl">6 vị trí</span></div><div class="team">${TEAM.map(m=>`<div class="tm"><span class="ava" style="background:var(--obj)">${m.n[0]}</span><div><b>${m.n}</b> <span class="lbl">${m.r}</span><div class="tt2">${m.task}</div></div><span class="pill p-n">${m.q}</span></div>`).join('')}</div></div>
+    <div class="card"><div class="ch"><h2>Agent đang làm gì</h2><span class="r"><span class="pill p-ai">Thời gian thực</span></span></div><ul class="feed" id="feed"></ul></div>
+   </div>
+   <div>
+    <div class="card"><div class="ch"><h2>Hàng chờ gọi</h2><span class="r lbl">Theo giờ Hàn</span></div><div class="cb">${callq.map(o=>`<div class="cq"><div style="flex:1"><a data-opp="${o.id}">${o.n}</a> ${kr}<div class="lbl">${o.city}, tặng về ${o.to}. ${o.p.replace('Ghế massage ','')}</div></div><div style="text-align:right"><div class="lbl">${o.city} ${fmt(mins+120)}</div><button class="btn" data-call="${o.id}">Gọi</button></div></div>`).join('')}</div></div>
+    <div class="card"><div class="ch"><h2>Chờ QLSR duyệt</h2></div><div id="homeQueue"></div></div>
+    <div class="card"><div class="ch"><h2>Dịp tặng quà sắp tới</h2></div><div class="cb">
+     ${[['20/10','Ngày Phụ nữ Việt Nam','16 ngày','37 hộ có mẹ hoặc vợ ở Việt Nam'],['12/11','Mừng thọ trong hồ sơ hộ','39 ngày','5 hộ có bố mẹ tròn 60, 70, 80'],['Tết 2027','Dịp tặng lớn nhất năm','khoảng 4 tháng','214 hộ, phải chốt trước 15/1 để kịp giao']].map(d=>`<div class="cq"><div style="flex:1"><b>${d[0]}</b> <span class="lbl">${d[1]}, còn ${d[2]}</span><div class="lbl">${d[3]}</div></div><button class="btn" data-occ="${d[0]}">Giao agent</button></div>`).join('')}
+    </div></div>
+   </div></div>`}
+
+function vOpps(){
+  const o=OPPS.find(x=>x.id===oppSel)||OPPS[0];
+  const tot=OPPS.filter(x=>x.s<5).reduce((a,x)=>a+x.v,0),w=OPPS.filter(x=>x.s<5).reduce((a,x)=>a+x.v*(0.1+x.s*0.17),0);
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:#E07A2E">${IC.flag}</span><div class="t"><small>Cơ hội</small><b>Pipeline quà tặng và bán lẻ ▾</b></div><div class="r"><span class="pill p-n">Đang mở ${tr(tot)}</span><span class="pill p-ai">Dự báo theo xác suất ${tr(w)}</span><button class="btn" data-soon>Cơ hội mới</button></div></div></div>
+  <div class="kb" style="margin-top:12px">${STG.map((s,i)=>{const cs=OPPS.filter(x=>x.s===i);return `<div class="col"><div class="colh"><b>${s}</b><span class="lbl">${cs.length} · ${tr(cs.reduce((a,x)=>a+x.v,0))}</span></div>${cs.map(c=>`<div class="kc ${c.id===o.id?'sel':''}" data-ko="${c.id}" tabindex="0"><div class="kt"><b>${c.n}</b>${c.city?kr:''}</div><div class="lbl">${c.p.replace('Ghế massage ','Ghế ')}${c.to?', về '+c.to:''}</div><div class="kf"><span>${tr(c.v)}</span>${c.occ?`<span class="pill p-n">${c.occ}</span>`:''}<span style="margin-left:auto">${scPill(c.sc)}</span></div></div>`).join('')}</div>`}).join('')}</div>
+  <div class="card einc" style="margin-top:12px"><div class="ch"><span class="oi" style="background:var(--ai);width:22px;height:22px;border-radius:50%">${IC.spark}</span><h2>${o.n}</h2><span class="r">${o.city?kr+' <span class="lbl">'+o.city+'</span>':vn}</span></div><div class="cb">
+   <div class="hl" style="border:0;padding:0 0 10px"><div><span class="lbl">Sản phẩm</span><b>${o.p}</b></div><div><span class="lbl">Giá trị</span><b>${tr(o.v)}</b></div><div><span class="lbl">Giao về</span><b>${o.to}</b></div><div><span class="lbl">Dịp tặng</span><b>${o.occ||'Không có'}</b></div><div><span class="lbl">Nguồn</span><b>${o.src}</b></div><div><span class="lbl">Phụ trách</span><b>${o.own}</b></div><div><span class="lbl">Điểm chốt AI</span><b>${scPill(o.sc)}</b></div></div>
+   <div class="steps">${STG.map((s,i)=>`<span class="${i<o.s?'d':i===o.s?'c':''}">${s}</span>`).join('')}</div>
+   <div class="box-ai" style="margin-top:0"><b>Bước tiếp AI đề xuất:</b> ${o.next}</div>
+   <div class="row" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${o.s<5?`<button class="btn brand" id="oppNext">Chuyển sang: ${STG[o.s+1]}</button>`:''}${o.hid?`<button class="btn" data-house="${o.hid}">Mở hộ gia đình</button>`:''}<button class="btn" id="oppLost">Đánh dấu thất bại</button></div>
+  </div></div>`}
+
+function vHouse(){
+  const h=hh(houseSel);
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:var(--obj)">${IC.house}</span><div class="t"><small>Khách hàng 360</small><b>Hộ gia đình ▾</b></div><div class="r"><span class="pill p-n">${HOUSES.length} hộ trong demo</span><span class="pill p-ai">Định danh theo hộ, nối Việt Nam và Hàn Quốc</span></div></div></div>
+  <div class="c360x" style="margin-top:12px"><div class="card"><ul class="hlist">${HOUSES.map(x=>`<li><button data-h="${x.id}" aria-current="${x.id===h.id}"><span class="oi" style="background:var(--obj)">${IC.house}</span><span style="flex:1"><b>${x.name}</b><br><span class="lbl">${x.place}</span><br>${x.mem.some(m=>m.loc==='KR')?kr:''} <span class="lbl">${x.mem.length} người</span></span></button></li>`).join('')}</ul></div>
+  <div>
+   <div class="card"><div class="phd"><span class="oi lg" style="background:var(--obj)">${IC.house}</span><div class="t"><small>Hộ gia đình</small><b>${h.name}, ${h.place}</b></div><div class="r"><button class="btn ai" id="hSum">Tóm tắt bằng AI</button></div></div>
+    <div class="hl"><div><span class="lbl">Thành viên</span><b>${h.mem.length} người, ${new Set(h.mem.map(m=>m.loc)).size} quốc gia</b></div><div><span class="lbl">Đã mua</span><b>${h.val?tr(h.val):'Chưa có'}</b></div><div><span class="lbl">Cơ hội bán chéo</span><b>${tr(h.cross.reduce((a,c)=>a+c.v,0))}</b></div><div><span class="lbl">Điểm gắn bó</span><b>${h.eng}/100</b></div></div></div>
+   <div class="card"><div class="ch"><h2>Thành viên</h2><span class="r lbl">Người đặt, người nhận và người dùng là những người khác nhau</span></div><div class="cb fam">${h.mem.map(m=>`<div class="mem ${m.role==='Người đặt'?'payer':''}"><div style="display:flex;gap:6px;align-items:center"><b>${m.n}</b><span style="margin-left:auto">${m.loc==='KR'?kr:vn}</span></div><div class="lbl">${m.rel}, ${m.city}</div><div style="margin-top:6px"><span class="pill ${m.role==='Người đặt'?'p-ai':m.role==='Tiềm năng'?'p-warn':'p-n'}">${m.role}</span></div><div class="lbl" style="margin-top:6px">${m.ph}${m.ch?', '+m.ch:''}</div></div>`).join('')}</div>
+    <div class="cb" style="padding-top:0"><span class="lbl">Vì sao AI gộp thành một hộ:</span> ${h.why.join('; ')}.</div></div>
+   <div class="g g-8-4" style="margin-top:12px">
+    <div>
+     <div class="card einc"><div class="ch"><span class="oi" style="background:var(--ai);width:22px;height:22px;border-radius:50%">${IC.spark}</span><h2>Cơ hội trong hộ</h2></div><div class="cb">${h.cross.map((c,i)=>`<div class="nba"><h3>${c.t} <span class="weak" style="font-weight:400">${tr(c.v)}</span></h3><p>${c.d}</p><div class="row"><button class="btn brand" data-cx="${i}">Tạo cơ hội, giao ${c.to.split(' ').pop()}</button></div></div>`).join('')}</div></div>
+     <div class="card"><div class="ch"><h2>Dòng tương tác của cả hộ</h2></div><ul class="tl">${h.tl.map(t=>`<li><span class="oi" style="background:${t.ty==='cart'?'#2E844A':t.ty==='truck'?'#E07A2E':t.ty==='video'?'#C23934':'#0176D3'};border-radius:50%">${IC[t.ty]||IC.chat}</span><div><div class="tt">${t.t}</div><div class="sd">${t.w}</div>${t.ai?`<div class="aisum"><b>AI:</b> ${t.ai}</div>`:''}</div><span class="dt">${t.d}</span></li>`).join('')}</ul></div>
+    </div>
+    <div>
+     <div class="card"><div class="ch"><h2>Sản phẩm trong hộ</h2></div><div class="cb">${h.owned.length?`<table class="rl">${h.owned.map(o=>`<tr><td><b>${o[0]}</b><div class="lbl">${o[1]}</div></td><td class="lbl">${o[2]}</td></tr>`).join('')}</table>`:'<span class="weak">Chưa mua sản phẩm nào.</span>'}</div></div>
+     <div class="card"><div class="ch"><h2>Dịp tặng quà của hộ</h2></div><div class="cb">${h.dates.map(d=>`<div class="cq"><b style="min-width:70px">${d[0]}</b><span>${d[1]}</span></div>`).join('')}</div></div>
+     <div class="card"><div class="ch"><h2>Tín hiệu niềm tin</h2></div><div class="cb"><ul class="ins2">${h.trust.map(t=>`<li>${t}</li>`).join('')}</ul></div></div>
+    </div></div>
+  </div></div>`}
+
+function oStat(s){return s>=5?'<span class="pill p-ok">Hoàn tất</span>':`<span class="pill ${s>=3?'p-ai':'p-n'}">${OSTEP[s]}</span>`}
+function vOrders(){
+  const o=ORD.find(x=>x.id===ordSel);
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:#2E844A">${IC.truck}</span><div class="t"><small>Đơn &amp; giao lắp</small><b>Đơn quà tặng và bán lẻ ▾</b></div><div class="r"><span class="pill p-warn">${ORD.filter(x=>x.flag).length} đơn AI gắn cờ</span></div></div></div>
+  <div class="split" style="margin-top:12px"><div class="card"><div class="tw"><table class="lv" style="min-width:720px"><thead><tr><th>Mã đơn</th><th>Người đặt</th><th>Người nhận</th><th>Sản phẩm</th><th>Thanh toán</th><th>Trạng thái</th></tr></thead><tbody>
+  ${ORD.map(x=>`<tr data-or="${x.id}" class="${x.id===o.id?'sel':''}"><td><a>${x.id}</a> ${x.flag?`<span class="pill p-warn">${x.flag}</span>`:''}</td><td>${x.buyer} ${x.bc?kr:''}</td><td>${x.recv}<div class="lbl">${x.addr}</div></td><td>${x.p.replace('Ghế massage ','Ghế ')}</td><td>${x.pay}</td><td>${oStat(x.s)}</td></tr>`).join('')}
+  </tbody></table></div></div>
+  <div class="card"><div class="ch"><span class="oi" style="background:#2E844A">${IC.truck}</span><h2>${o.id}</h2><span class="r">${oStat(o.s)}</span></div><div class="cb">
+   <div class="gift"><div><span class="lbl">Người đặt</span><b>${o.buyer}</b><div class="lbl">${o.bc?o.bc+', Hàn Quốc':'Việt Nam'}</div></div><span class="garr">→</span><div><span class="lbl">Người nhận</span><b>${o.recv}</b><div class="lbl">${o.addr}</div></div></div>
+   <div class="steps">${OSTEP.map((s,i)=>`<span class="${i<o.s?'d':i===o.s?'c':''}">${s}</span>`).join('')}</div>
+   <table class="rl"><tr><td>${o.p}</td><td>${tr(o.v)}</td></tr><tr><td>Thanh toán</td><td>${o.pay}</td></tr><tr><td>Hẹn giao</td><td>${o.eta}</td></tr></table>
+   <div class="box-ai"><b>Ghi chú và AI:</b> ${o.note}${o.bc?' Mọi bước được cập nhật cho người đặt ở Hàn qua Zalo.':''}</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${o.s<5?`<button class="btn ${o.s===3?'ai':'brand'}" id="ordNext">${o.s===3?'Gửi video bàn giao cho người tặng':o.s===4?'Xin đánh giá':'Hoàn tất: '+OSTEP[o.s]}</button>`:''}${o.hid?`<button class="btn" data-house="${o.hid}">Mở hộ gia đình</button>`:''}</div>
+  </div></div></div>`}
+
+function vConvos(){
+  const c=CONV.find(x=>x.id===vSel),cnt=k=>CONV.filter(x=>x.st===k).length;
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:var(--brand)">${IC.chat}</span><div class="t"><small>Hội thoại</small><b>Hộp thư đa kênh</b></div><div class="r"><span class="pill p-err">Cần người ${cnt('need')}</span><span class="pill p-ai">Agent xử lý ${cnt('agent')}</span><span class="pill p-ok">Đã xong ${cnt('done')}</span></div></div></div>
+  <div class="card inbox" style="margin-top:12px">
+   <div class="ibl">${CONV.map(x=>`<button data-cv="${x.id}" aria-current="${x.id===vSel}"><div class="l1"><span class="oi" style="background:${CHI[x.ch]};width:18px;height:18px;border-radius:50%">${IC.chat}</span><b>${x.cn}</b><span class="lbl">${x.t}</span></div><div class="pv">${esc(x.msgs[x.msgs.length-1][1])}</div><span class="pill ${CST[x.st][1]}">${CST[x.st][0]}</span> <span class="lbl">${x.ch}, ${x.loc}</span></button>`).join('')}</div>
+   <div class="conv"><div class="convh"><b>${c.cn}</b><span class="lbl">qua ${c.ch}, ${c.loc}</span><span class="pill ${CST[c.st][1]}">${CST[c.st][0]}</span><div class="r">${c.st==='agent'?'<button class="btn" id="cvTake">Tiếp quản từ agent</button>':''}${c.st==='human'||c.st==='need'?'<button class="btn" id="cvDone">Đánh dấu đã xong</button>':''}</div></div>
+    <div class="trs" id="trs">${c.msgs.map(m=>m[0]==='sys'?`<div class="sys">${esc(m[1])}, ${m[2]}</div>`:`<div class="bb ${m[0]}"><small>${m[0]==='cu'?c.cn:m[0]==='ag'?'Agent':'Nhân viên'}, ${m[2]}</small>${esc(m[1])}</div>`).join('')}</div>
+    <div class="reply"><textarea id="rpTx" placeholder="${c.st==='agent'?'Agent đang xử lý. Tiếp quản để trả lời':'Nhập tin trả lời…'}" ${c.st==='agent'?'disabled':''} aria-label="Trả lời"></textarea><button class="btn brand" id="rpSend" ${c.st==='agent'?'disabled':''}>Gửi</button></div></div>
+   <div class="cop"><h3 style="display:flex;gap:6px;align-items:center"><span class="oi" style="background:var(--ai);width:20px;height:20px;border-radius:50%">${IC.spark}</span>AI hỗ trợ</h3>
+    <div class="box-ai" style="margin-top:0"><b>Tóm tắt:</b> ${c.sum}</div>
+    <h3>Ý định</h3><div>${c.intent}</div>
+    <h3>Cảm xúc</h3><div>${c.sent?'<span class="pill p-warn">Lo lắng, cần được trấn an</span>':'<span class="pill p-ok">Bình thường</span>'}</div>
+    ${c.hid?`<h3>Hộ gia đình</h3><div><a data-house="${c.hid}">${hh(c.hid).name}, ${hh(c.hid).place}</a><div class="lbl">${hh(c.hid).mem.length} thành viên</div></div>`:''}
+    ${c.sug.length&&c.st!=='done'?`<h3>Gợi ý trả lời</h3>${c.sug.map((s,i)=>`<button class="sr" data-sr="${i}">${esc(s)}</button>`).join('')}`:''}
+   </div></div>`}
+
+const CH=[['Facebook Ads nhắm người Việt tại Hàn',412,58.4,31,612],['Live TikTok tại showroom',186,9.6,17,380],['KOC người Việt tại Hàn',94,22,11,268],['TikTok Shop',61,4.8,9,214],['Zalo OA, lead cũ làm nóng',138,1.9,12,342],['Khách đến showroom',47,0,14,388],['Giới thiệu từ khách cũ',22,0,8,231]];
+function vChannels(){
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:#C23934">${IC.chart}</span><div class="t"><small>Kênh &amp; nội dung</small><b>Hiệu quả kênh, tháng 9</b></div><div class="r"><span class="pill p-ai">Chi phí trên mỗi đơn tính theo đơn thật, không theo lead</span></div></div></div>
+  <div class="card" style="margin-top:12px"><div class="tw"><table class="lv" style="min-width:780px"><thead><tr><th>Kênh</th><th>Lead</th><th>Chi phí</th><th>Chi phí mỗi lead</th><th>Đơn</th><th>Tỷ lệ chốt</th><th>Doanh thu</th><th>Chi phí mỗi đơn</th></tr></thead><tbody>
+  ${CH.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td>${c[2]?tr(c[2]):'<span class="weak">0</span>'}</td><td>${c[2]?(Math.round(c[2]/c[1]*1000)).toLocaleString('vi-VN')+'k':'<span class="weak">—</span>'}</td><td>${c[3]}</td><td>${(c[3]/c[1]*100).toFixed(1).replace('.',',')}%</td><td>${tr(c[4])}</td><td>${c[2]?tr(c[2]/c[3]):'<span class="weak">—</span>'}</td></tr>`).join('')}
+  </tbody></table></div><div class="cb"><div class="box-ai"><b>AI nhận định:</b> Facebook Ads mang nhiều lead nhất nhưng chi phí mỗi đơn gần 1,9tr. Khách đến showroom và khách giới thiệu chốt trên 30%, gấp 4 lần lead quảng cáo. Gợi ý: mọi lead từ Hàn đều được mời video call với showroom trước khi báo giá.</div></div></div>
+  <div class="rgrid">
+   <div class="card"><div class="ch"><h2>Lịch livestream</h2><span class="r lbl">My phụ trách</span></div><div class="cb">${[['Hôm nay 20:00','Demo DV-X9, so sánh với ghế giá rẻ','22:00 giờ Hàn'],['Thứ Bảy 19:30','Quà 20/10 cho mẹ, kèm khách thật gọi về','21:30 giờ Hàn'],['Chủ nhật 15:00','Giải đáp giao lắp tỉnh xa, có kỹ thuật viên','17:00 giờ Hàn']].map(l=>`<div class="cq"><div style="flex:1"><b>${l[0]}</b><div class="lbl">${l[1]}</div></div><span class="pill p-n">${l[2]}</span></div>`).join('')}</div></div>
+   <div class="card"><div class="ch"><h2>Booking KOC, KOL</h2><span class="r lbl">Đạt phụ trách</span></div><div class="cb">${[['KOC "Vợ chồng Ansan"','48k theo dõi','Đăng thứ Bảy','Đã duyệt kịch bản'],['KOC "Chị Hạnh Daegu"','31k theo dõi','Đăng Chủ nhật','Chờ video'],['KOL ẩm thực Việt ở Seoul','210k theo dõi','Đang báo giá','Chờ duyệt ngân sách']].map(k=>`<div class="cq"><div style="flex:1"><b>${k[0]}</b><div class="lbl">${k[1]}, ${k[2]}</div></div><span class="pill p-n">${k[3]}</span></div>`).join('')}</div></div>
+   <div class="card"><div class="ch"><h2>Hàng đợi nội dung</h2><span class="r lbl">Vy phụ trách</span></div><div class="cb">${[['Video bàn giao hộ Bùi, Nam Định','Gửi người tặng, sau đó làm ads','Đang dựng'],['Video bàn giao hộ Trần, Long An','Đã được khách đồng ý dùng làm ads','Đã đăng'],['Clip 30 giây: một ngày bố mẹ dùng ghế','Dùng cho chiến dịch 20/10','Chờ quay']].map(k=>`<div class="cq"><div style="flex:1"><b>${k[0]}</b><div class="lbl">${k[1]}</div></div><span class="pill ${k[2]==='Đã đăng'?'p-ok':'p-n'}">${k[2]}</span></div>`).join('')}</div></div>
+   <div class="card"><div class="ch"><h2>Vòng lặp niềm tin</h2></div><div class="cb"><p style="margin:0 0 8px">Mỗi đơn giao xong tạo ra một video bàn giao. Video đó vừa trấn an người tặng ở Hàn, vừa trở thành nội dung quảng cáo cho người Việt khác ở Hàn có bố mẹ cùng tỉnh.</p><div class="lbl">Tháng 9: 21 video bàn giao, 9 video được khách đồng ý dùng làm quảng cáo. Quảng cáo dùng video khách thật có tỷ lệ để lại số cao hơn 1,8 lần.</div></div></div>
+  </div>`}
+
+function vReports(){
+  const wk=[['T1/10',186],['T2/10',0],['T3/10',0],['T4/10',0]];
+  const months=[['Tháng 10',650,186],['Tháng 11',900,0],['Tháng 12',1450,0]];
+  return `<div class="card"><div class="phd"><span class="oi lg" style="background:#A96404">${IC.chart}</span><div class="t"><small>Báo cáo</small><b>Tiến độ mục tiêu 3 tỷ và phễu bán</b></div><div class="r"><button class="btn ai" id="rpAsk">Hỏi AI về báo cáo này</button></div></div>
+  <div class="kpis"><div><span class="lbl">Doanh thu quý IV đến nay</span><strong>${ty(G.rev)}</strong></div><div><span class="lbl">Giá trị đơn trung bình</span><strong>58,6tr</strong></div><div><span class="lbl">Tỷ lệ lead thành đơn</span><strong>10,3%</strong></div><div><span class="lbl">Hộ mua từ 2 sản phẩm</span><strong>14%</strong></div></div></div>
+  <div class="rgrid">
+   <div class="card"><div class="ch"><h2>Kế hoạch theo tháng</h2><span class="r lbl">Tết dồn vào tháng 12</span></div><div class="cb">${months.map(m=>`<div class="hbar" style="grid-template-columns:80px 1fr 90px"><span>${m[0]}</span><i><u style="width:${m[2]/m[1]*100}%;background:var(--brand)"></u></i><b>${m[2]?tr(m[2]):0} / ${tr(m[1])}</b></div>`).join('')}<div class="box-ai"><b>AI nhận định:</b> tháng 12 gánh gần một nửa mục tiêu. Lead Tết phải được nuôi từ tháng 10, vì khách ở Hàn thường cân nhắc 3–6 tuần trước khi chuyển tiền.</div></div></div>
+   <div class="card"><div class="ch"><h2>Phễu bán, 30 ngày</h2></div><div class="cb funnel">${[['Lead',960],['Đã liên hệ',812],['Demo, video call',286],['Báo giá',204],['Đặt cọc',99]].map((f,i,a)=>`<div><div class="lbl">${f[0]}${i?`, ${Math.round(f[1]/a[i-1][1]*100)}% bước trước`:''}</div><div class="fb" style="width:${Math.max(26,f[1]/a[0][1]*100)}%">${f[1]}</div></div>`).join('')}<div class="box-ai"><b>AI gợi ý:</b> từ Đã liên hệ sang Demo rơi mạnh nhất (35%). Khách đã video call chốt 48%, khách chỉ nhận báo giá qua tin chốt 12%.</div></div></div>
+   <div class="card"><div class="ch"><h2>Doanh thu theo thị trường</h2></div><div class="cb"><div class="stack"><i style="width:78%;background:var(--brand)"></i><i style="width:22%;background:var(--line)"></i></div><div class="legend"><span style="--c:var(--brand)">Người đặt ở Hàn Quốc 78%</span><span style="--c:var(--line)">Khách trong nước 22%</span></div><p class="lbl" style="margin:10px 0 0">Tỉnh nhận nhiều nhất: Nghệ An, Hà Tĩnh, Thanh Hóa, Hải Dương. Đội lắp đặt cần lịch tuyến miền Trung từ tháng 12.</p></div></div>
+   <div class="card"><div class="ch"><h2>Cơ cấu sản phẩm</h2></div><div class="cb">${[['Ghế DV-X9',46,'var(--brand)'],['Ghế DV-S7',31,'var(--brand)'],['Ghế DV-M5',14,'var(--brand)'],['Máy lọc nước, lõi lọc',9,'var(--ok)']].map(p=>`<div class="hbar" style="grid-template-columns:140px 1fr 40px"><span>${p[0]}</span><i><u style="width:${p[1]*2}%;background:${p[2]}"></u></i><b>${p[1]}%</b></div>`).join('')}<div class="box-ai"><b>AI nhận định:</b> 86% hộ mới chỉ mua một sản phẩm. Bán chéo máy lọc nước cho hộ đã có ghế là nguồn doanh thu rẻ nhất.</div></div></div>
+  </div>`}
+
+function traceFor(f){const t=f.time;const m={
+ lead:[['Đọc dữ liệu','Nguồn quảng cáo, số +82, tỉnh nhận quà khách khai, giờ hiện tại ở Hàn.'],['Kiểm luật','<span class="ok-t">Đạt</span> trong 5 phút. <span class="ok-t">Đạt</span> Thảo đang rảnh.'],['Quyết định','Điểm chốt 52, xếp vào hàng gọi khung 19:00 giờ Hàn.'],['Hành động',`Giao Thảo lúc ${t}, chi phí AI 30đ.`]],
+ tele:[['Đọc dữ liệu','Bản ghi cuộc gọi, đã che số điện thoại.'],['Kiểm luật','<span class="ok-t">Đạt</span> không có cam kết giá ngoài bảng.'],['Quyết định','Bóc người nhận, dịp tặng, ngân sách, lo ngại chính.'],['Hành động',`Ghi vào hồ sơ hộ lúc ${t}, chi phí 120đ.`]],
+ nurture:[['Đọc dữ liệu','Lead im lặng 38 ngày, tỉnh nhận quà, sản phẩm đã hỏi.'],['Kiểm luật','<span class="ok-t">Đạt</span> đã đồng ý nhận tin. <span class="ok-t">Đạt</span> 1/2 tin tuần này.'],['Quyết định','Chọn video bàn giao cùng tỉnh, độ tin cậy 0,81.'],['Hành động',`Gửi Zalo lúc ${t}, chi phí 45đ.`]],
+ occasion:[['Đọc dữ liệu','Ngày sinh bố mẹ trong phiếu bảo hành, lịch 20/10 và Tết.'],['Kiểm luật','<span class="ok-t">Đạt</span> nhắc trước 16 ngày. <span class="ok-t">Đạt</span> chỉ nhắn người đặt, không liên hệ người nhận.'],['Quyết định','Gợi ý quà phù hợp với sản phẩm hộ đã có.'],['Hành động',`Gửi lúc ${t}, chi phí 60đ.`]],
+ trust:[['Đọc dữ liệu','Trạng thái giao lắp, video bàn giao đã duyệt.'],['Kiểm luật','<span class="ok-t">Đạt</span> trong 24 giờ sau lắp.'],['Quyết định','Gửi video kèm lời cảm ơn, hẹn xin đánh giá sau 3 ngày.'],['Hành động',`Gửi người đặt ở Hàn lúc ${t}, chi phí 40đ.`]],
+ house:[['Đọc dữ liệu','Địa chỉ giao, số người nhận, lời khai quan hệ.'],['Kiểm luật','<span class="ok-t">Đạt</span> có 2 bằng chứng trùng khớp.'],['Quyết định','Gộp vào hộ, cập nhật vai trò người nhận.'],['Hành động',`Cập nhật hồ sơ hộ lúc ${t}, chi phí 15đ.`]]};return m[f.a.id]}
+let trObj=null;
+function traceCard(){const f=trObj||FEED[0];if(!f)return '<div class="empty">Chưa có quyết định nào.</div>';
+  return `<div class="ch"><h2>Truy vết quyết định</h2></div><div class="cb"><div style="margin-bottom:10px"><span class="pill p-ai">${f.a.name}</span> <span class="lbl">${f.time}</span><div style="margin-top:4px">${esc(f.t)}</div></div><ul class="trace">${traceFor(f).map(s=>`<li><b>${s[0]}</b>${s[1]}</li>`).join('')}</ul></div>`}
+function decisionList(){return FEED.slice(0,12).map((f,i)=>`<tr data-tr="${i}" class="${f===(trObj||FEED[0])?'sel':''}"><td>${f.time}</td><td>${f.a.name}</td><td style="white-space:normal">${esc(f.t)}</td><td><span class="pill p-n">${esc(f.r)}</span></td></tr>`).join('')}
+function bindTrace(){document.querySelectorAll('[data-tr]').forEach(r=>r.onclick=()=>{trObj=FEED[+r.dataset.tr];$('#decTb').innerHTML=decisionList();$('#trCard').innerHTML=traceCard();bindTrace()})}
+function vAgents(){return `<div class="card"><div class="phd"><span class="oi lg" style="background:var(--ai)">${IC.spark}</span><div class="t"><small>Agent</small><b>Agent và luật chơi</b></div></div></div>
+ <div class="g g-8-4" style="margin-top:12px"><div class="card"><div class="tw"><table class="lv" style="min-width:600px"><thead><tr><th>Agent</th><th>Luật riêng</th><th>Việc hôm nay</th><th>Trạng thái</th></tr></thead><tbody>
+ ${AG.map(a=>`<tr><td style="white-space:normal"><div style="display:flex;gap:8px;align-items:flex-start"><span class="oi" style="background:${a.c};width:24px;height:24px;border-radius:50%">${IC.spark}</span><div><b>${a.name}</b><div class="lbl">${a.desc}</div></div></div></td><td style="white-space:normal">${a.rules.map(r=>`<span class="pill p-n" style="margin:2px 2px 2px 0">${r}</span>`).join('')}</td><td data-an="${a.id}">${a.n}</td><td><button class="btn ${a.on?'brand':''}" data-tog="${a.id}">${a.on?'Đang chạy':'Đã tắt'}</button></td></tr>`).join('')}
+ </tbody></table></div></div>
+ <div class="card"><div class="ch"><h2>Luật chung</h2></div><div class="cb"><ol style="margin:0;padding-left:18px"><li>Chỉ liên hệ người đã đồng ý nhận tin, lưu căn cứ theo Luật Bảo vệ dữ liệu cá nhân.</li><li>Không liên hệ người nhận quà khi người tặng chưa cho phép, để giữ bất ngờ.</li><li>Gọi khách ở Hàn trong khung 19:00–22:30 giờ Hàn hoặc cuối tuần.</li><li>Giảm giá trên 5%, quà tặng trên 3 triệu cần QLSR duyệt.</li><li>Khách hỏi về sức khỏe, bệnh lý khi dùng ghế: chuyển người, khuyên hỏi bác sĩ.</li><li>Mọi hành động truy vết được.</li></ol></div></div></div>
+ <div class="split" style="margin-top:12px"><div class="card"><div class="ch"><h2>Nhật ký quyết định</h2><span class="r lbl">Bấm một dòng để xem truy vết</span></div><div class="tw"><table class="lv" style="min-width:560px"><thead><tr><th>Giờ</th><th>Agent</th><th>Hành động</th><th>Kết quả</th></tr></thead><tbody id="decTb">${decisionList()}</tbody></table></div></div><div class="card einc" id="trCard">${traceCard()}</div></div>`}
+
+/* ---------- router & binding ---------- */
+function go(v){route={v};render();window.scrollTo(0,0)}
+function openHouse(id){houseSel=id;go('house')}
+function render(){
+  document.querySelectorAll('.nav .tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.go===route.v));
+  const m=$('#main');const V={home:[vHome,'Trang chủ'],opps:[vOpps,'Cơ hội'],house:[vHouse,'Hộ gia đình'],orders:[vOrders,'Đơn & giao lắp'],convos:[vConvos,'Hội thoại'],channels:[vChannels,'Kênh & nội dung'],reports:[vReports,'Báo cáo'],agents:[vAgents,'Agent']}[route.v];
+  m.innerHTML=V[0]();
+  let ctx=V[1];if(route.v==='house')ctx='Hộ gia đình: '+hh(houseSel).name;if(route.v==='opps')ctx='Cơ hội: '+(OPPS.find(o=>o.id===oppSel)||OPPS[0]).n;if(route.v==='orders')ctx='Đơn '+ordSel;
+  setCtx(ctx);
+  if(route.v==='home'){renderGoal();renderFeed();renderQueue('#homeQueue')}
+  bind();
+}
+function bind(){
+  document.querySelectorAll('[data-house]').forEach(a=>a.onclick=()=>openHouse(a.dataset.house));
+  document.querySelectorAll('[data-opp]').forEach(a=>a.onclick=()=>{oppSel=a.dataset.opp;go('opps')});
+  document.querySelectorAll('[data-soon]').forEach(b=>b.onclick=()=>toast('Nút này chỉ để minh họa bố cục'));
+  document.querySelectorAll('[data-call]').forEach(b=>b.onclick=()=>{const o=OPPS.find(x=>x.id===b.dataset.call);if(o.s<1)o.s=1;mins++;FEED.unshift({a:ag('tele'),t:`Thảo gọi ${o.n} lúc ${fmt(mins+120)} giờ Hàn. Đang ghi và tóm tắt cuộc gọi`,r:'Đang gọi',time:fmt(mins),fresh:true});refreshLive();toast(`Đang gọi ${o.n}. Trợ lý tele đã mở kịch bản`);render()});
+  document.querySelectorAll('[data-occ]').forEach(b=>b.onclick=()=>{const a=ag('occasion');mins++;a.n++;G.auto++;FEED.unshift({a,t:`Nhận chiến dịch ${b.dataset.occ}: lên lịch nhắc người tặng trong các hộ phù hợp`,r:'Đã lên lịch',time:fmt(mins),fresh:true});b.disabled=true;b.textContent='Đã giao';refreshLive();toast('Đã giao cho Agent Dịp tặng quà')});
+  if(route.v==='opps'){
+    document.querySelectorAll('[data-ko]').forEach(c=>{c.onclick=()=>{oppSel=c.dataset.ko;render()};c.onkeydown=e=>{if(e.key==='Enter')c.click()}});
+    const o=OPPS.find(x=>x.id===oppSel)||OPPS[0];
+    const n=$('#oppNext');if(n)n.onclick=()=>{o.s++;if(o.s===4){G.rev+=o.v;FEED.unshift({a:ag('tele'),t:`${o.n} đặt cọc ${o.p}`,r:'+'+tr(o.v),money:true,time:fmt(++mins),fresh:true})}toast(`${o.n}: chuyển sang ${STG[o.s]}`);render()};
+    $('#oppLost').onclick=()=>{OPPS=OPPS.filter(x=>x!==o);oppSel=OPPS[0].id;toast('Đã đánh dấu thất bại. Agent Nuôi lead sẽ làm nóng lại sau 30 ngày');render()};
+  }
+  if(route.v==='house'){
+    document.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{houseSel=b.dataset.h;render()});
+    const h=hh(houseSel);
+    document.querySelectorAll('[data-cx]').forEach(b=>b.onclick=()=>{const c=h.cross[b.dataset.cx];const m=h.mem.find(x=>x.n===c.to)||h.mem[0];
+      const id='o'+Date.now();OPPS.unshift({id,n:c.to,city:m.loc==='KR'?m.city:'',to:h.place.split(',')[0],p:c.t,v:c.v,s:0,src:'Bán chéo hộ gia đình',own:'Thảo',sc:70,occ:'',hid:h.id,next:c.d});
+      const a=ag('house');a.n++;mins++;FEED.unshift({a,t:`Tạo cơ hội "${c.t}" cho ${c.to}`,r:'Đã tạo',time:fmt(mins),fresh:true});
+      b.disabled=true;b.textContent='Đã tạo cơ hội';toast('Đã tạo cơ hội trong pipeline, giao Thảo')});
+    $('#hSum').onclick=()=>{openAi();aiAsk('Tóm tắt hộ gia đình này')};
+  }
+  if(route.v==='orders'){
+    document.querySelectorAll('[data-or]').forEach(r=>r.onclick=()=>{ordSel=r.dataset.or;render()});
+    const o=ORD.find(x=>x.id===ordSel);const n=$('#ordNext');
+    if(n)n.onclick=()=>{const a=o.s===3?ag('trust'):o.s===4?ag('trust'):null;
+      if(a){mins++;a.n++;FEED.unshift({a,t:o.s===3?`Gửi video bàn giao đơn ${o.id} cho ${o.buyer}`:`Xin đánh giá từ ${o.buyer} cho đơn ${o.id}`,r:'Đã gửi',time:fmt(mins),fresh:true})}
+      if(o.s===0)o.flag=null;if(o.s===2)o.flag=null;
+      o.s++;toast(o.s===4?`Đã gửi video bàn giao cho ${o.buyer}`:o.s===5?'Đã gửi lời mời đánh giá':`${o.id}: ${OSTEP[o.s-1]} xong`);render()};
+  }
+  if(route.v==='convos')bindConvos();
+  if(route.v==='reports')$('#rpAsk').onclick=()=>{openAi();aiAsk('Tóm tắt báo cáo này')};
+  if(route.v==='agents'){document.querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{const a=ag(b.dataset.tog);a.on=!a.on;b.textContent=a.on?'Đang chạy':'Đã tắt';b.classList.toggle('brand',a.on);toast(a.on?`Đã bật ${a.name}`:`Đã tắt ${a.name}`)});bindTrace()}
+}
+function bindConvos(){
+  const c=CONV.find(x=>x.id===vSel);
+  document.querySelectorAll('[data-cv]').forEach(b=>b.onclick=()=>{vSel=b.dataset.cv;render()});
+  const t=$('#trs');t.scrollTop=t.scrollHeight;
+  document.querySelectorAll('[data-sr]').forEach(b=>b.onclick=()=>{if(c.st==='agent')c.st='human';const s=c.sug[b.dataset.sr];render();$('#rpTx').value=s;$('#rpTx').focus()});
+  const tk=$('#cvTake');if(tk)tk.onclick=()=>{c.st='human';c.msgs.push(['sys','Nhân viên đã tiếp quản từ agent',fmt(mins)]);render();toast('Anh đã tiếp quản hội thoại')};
+  const dn=$('#cvDone');if(dn)dn.onclick=()=>{c.st='done';render();toast('Đã đóng. AI lưu tóm tắt vào hồ sơ hộ')};
+  $('#rpSend').onclick=()=>{const v=$('#rpTx').value.trim();if(!v)return;mins++;c.msgs.push(['hu',v,fmt(mins)]);if(c.st==='need')c.st='human';c.t=fmt(mins);render();
+    if(c.follow){const f=c.follow,mo=c.moveOpp;delete c.follow;setTimeout(()=>{mins++;c.msgs.push(['cu',f,fmt(mins)]);c.msgs.push(['sys','AI: khách đồng ý video call. Đã tạo lịch 21:00 giờ Hàn cho My, chuyển cơ hội sang bước Demo',fmt(mins)]);c.sent=0;c.st='done';
+      const o=OPPS.find(x=>x.id===mo);if(o){o.s=2;o.sc=78;o.next='Video call 21:00 giờ Hàn tối nay. My chuẩn bị demo phần massage chân như khách yêu cầu.'}
+      FEED.unshift({a:ag('tele'),t:'Nguyễn Thị Thu đồng ý video call 21:00 giờ Hàn, cơ hội lên bước Demo',r:'Đã hẹn',time:fmt(mins),fresh:true});refreshLive();if(route.v==='convos')render();toast('Khách đã đồng ý video call')},reduce?200:2200)}};
+  $('#rpTx').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#rpSend').click()}};
+}
+
+/* ---------- AI panel ---------- */
+const SUG={home:['Còn bao xa tới mục tiêu 3 tỷ?','Hôm nay đội nên ưu tiên gì?','Kênh nào mang khách Hàn tốt nhất?'],
+ opps:['Cơ hội nào sắp chốt?','Vì sao lead kẹt trước bước demo?','Gợi ý bước tiếp cho cơ hội đang chọn'],
+ house:['Tóm tắt hộ gia đình này','Nên bán chéo gì cho hộ này?','Soạn tin cho người đặt ở Hàn'],
+ orders:['Đơn nào có rủi ro trước dịp lễ?','Soạn tin cập nhật cho người tặng'],
+ convos:['Tóm tắt hội thoại cần người','Khách ở Hàn lo ngại điều gì nhiều nhất?'],
+ channels:['Nên dồn ngân sách vào kênh nào?','Ý tưởng nội dung tuần này'],
+ reports:['Tóm tắt báo cáo này','Có đạt 3 tỷ cuối năm không?'],
+ agents:['Agent nào cần chỉnh luật?','Chi phí AI hôm nay bao nhiêu?']};
+function setCtx(t){$('#ctx').textContent='Đang xem: '+t;$('#sug').innerHTML=(SUG[route.v]||SUG.home).map(x=>`<button>${x}</button>`).join('');$('#sug').querySelectorAll('button').forEach(b=>b.onclick=()=>aiAsk(b.textContent))}
+function aiAnswer(q){
+  const t=q.toLowerCase(),h=hh(houseSel),o=OPPS.find(x=>x.id===oppSel)||OPPS[0],od=ORD.find(x=>x.id===ordSel);
+  if(t.includes('3 tỷ')&&t.includes('bao xa'))return `<p>Đã đạt <b>${ty(G.rev)}</b>, còn ${ty(GOAL-G.rev)} trong ${DAYS} ngày, tức khoảng <b>${tr((GOAL-G.rev)/DAYS)}/ngày</b>, tương đương 1 ghế DV-S7 mỗi 1,5 ngày.</p><p>Pipeline đang mở ${tr(OPPS.filter(x=>x.s<5).reduce((a,x)=>a+x.v,0))}. Điểm nghẽn không phải lead mà là bước từ Đã liên hệ sang Demo.</p>`;
+  if(t.includes('ưu tiên'))return `<p>Ba việc đáng làm nhất hôm nay:</p><p>1. Tối nay 21:00 giờ Hàn, My video call với chị Thu (DV-X9, 79,9tr). Khách lo niềm tin, không lo giá.</p><p>2. Thảo gọi anh Phúc trước 13/10 để kịp quà 20/10.</p><p>3. Vy hoàn tất video bàn giao hộ Bùi. Mỗi video vừa giữ khách cũ vừa thành quảng cáo.</p>`;
+  if(t.includes('kênh')&&(t.includes('khách hàn')||t.includes('ngân sách')))return `<p>Facebook Ads nhắm người Việt tại Hàn vẫn là nguồn lead chính, nhưng chi phí mỗi đơn khoảng 1,9tr. KOC tại Hàn khoảng 2tr mỗi đơn, đổi lại tạo niềm tin tốt hơn.</p><p><b>Đề xuất:</b> giữ ngân sách Facebook, chuyển phần tăng thêm sang quảng cáo dùng video bàn giao khách thật cùng tỉnh, và bắt buộc mời video call trước khi báo giá.</p>`;
+  if(t.includes('sắp chốt'))return `<p>${OPPS.filter(x=>x.s>=3&&x.s<5).map(x=>`<b>${x.n}</b> (${x.p.replace('Ghế massage ','')}, ${tr(x.v)}, điểm ${x.sc}): ${x.next}`).join('</p><p>')}</p>`;
+  if(t.includes('kẹt'))return `<p>Lead từ Hàn kẹt trước bước demo vì khách chưa tin mua từ xa. Khách đã video call chốt 48%, khách chỉ nhận báo giá qua tin chốt 12%.</p><p>Nên đổi kịch bản tele: không gửi giá trước, mà hẹn video call với showroom trong 48 giờ đầu.</p>`;
+  if(t.includes('bước tiếp'))return `<p><b>${o.n}</b>: ${o.next}</p>`;
+  if(t.includes('tóm tắt hộ'))return `<p><b>${h.name}, ${h.place}</b>: ${h.mem.length} thành viên. ${h.mem.filter(m=>m.loc==='KR').map(m=>`${m.n} ở ${m.city} là người trả tiền`).join('; ')||'Không có thành viên ở Hàn'}.</p><p>${h.owned.length?'Đã có: '+h.owned.map(x=>x[0]).join(', ')+'.':'Chưa mua sản phẩm nào.'} ${h.trust[0]}.</p><p><b>Cơ hội lớn nhất:</b> ${h.cross[0].t.toLowerCase()}.</p>`;
+  if(t.includes('bán chéo'))return h.cross.map(c=>`<p><b>${c.t}</b> (${tr(c.v)}): ${c.d}</p>`).join('');
+  if(t.includes('soạn tin')&&route.v==='house'){const m=h.mem.find(x=>x.role==='Người đặt')||h.mem[0];const f=m.n.split(' ').pop();return `<p>Bản nháp gửi ${m.n}:</p><div class="draft">${h.owned.length?`Chào ${m.rel==='Con gái'?'chị':'anh'} ${f}, Đại Việt Quận 4 đây ạ. Ghế của hai bác ở nhà vẫn dùng tốt chứ ạ? Tháng 11 là sinh nhật 70 tuổi của bác trai, nếu ${m.rel==='Con gái'?'chị':'anh'} muốn chuẩn bị quà mừng thọ, bên em có máy lọc nước ion kiềm rất hợp với nhà dùng nước giếng. Em gửi ${m.rel==='Con gái'?'chị':'anh'} thông tin nhé.`:`Chào ${m.rel==='Con gái'?'chị':'anh'} ${f}, em là My ở showroom Đại Việt Quận 4. Em gửi ${m.rel==='Con gái'?'chị':'anh'} video bàn giao của các cô chú ở cùng tỉnh. Nếu tiện, tối nay em gọi video cho ${m.rel==='Con gái'?'chị':'anh'} xem ghế thật nhé.`}</div><div class="row"><button class="btn ai" data-sendz>Gửi qua Zalo</button></div>`}
+  if(t.includes('rủi ro'))return `<p>${ORD.filter(x=>x.flag).map(x=>`<b>${x.id}</b> (${x.buyer}): ${x.flag}. ${x.note}`).join('</p><p>')}</p><p>Với đơn Tết, đội lắp đặt tuyến miền Trung cần chốt lịch trước 15/12.</p>`;
+  if(t.includes('cập nhật cho người tặng'))return `<p>Bản nháp cho ${od.buyer}:</p><div class="draft">Chào anh chị, Đại Việt cập nhật đơn ${od.id}: hiện đang ở bước "${OSTEP[Math.min(od.s,4)]}", hẹn giao ${od.eta}. Lắp xong em gửi video bàn giao tại nhà ${od.recv.split('(')[1]?.replace(')','')||'người nhận'} ngay ạ.</div><div class="row"><button class="btn ai" data-sendz>Gửi qua Zalo</button></div>`;
+  if(t.includes('cần người'))return CONV.filter(c=>c.st==='need').map(c=>`<p><b>${c.cn}</b> (${c.ch}, ${c.loc}): ${c.sum}</p>`).join('')||'<p>Không còn hội thoại cần người.</p>';
+  if(t.includes('lo ngại'))return `<p>Từ hội thoại 30 ngày với khách ở Hàn, ba lo ngại lớn nhất:</p><div class="hb"><span>Sợ mua từ xa bị lừa</span><i><u style="width:44%"></u></i><b>44%</b></div><div class="hb"><span>Giao lắp tỉnh xa</span><i><u style="width:31%"></u></i><b>31%</b></div><div class="hb"><span>Bảo hành khi mình ở Hàn</span><i><u style="width:25%"></u></i><b>25%</b></div><p style="margin-top:6px">Cả ba đều là bài toán niềm tin. Video call, video bàn giao và bảo hành điện tử gửi về Zalo người tặng giải được cả ba.</p>`;
+  if(t.includes('nội dung'))return `<p>Ba ý tưởng cho tuần này:</p><p>1. "Gọi về cho mẹ": quay khách ở Hàn video call với bố mẹ đang ngồi ghế.</p><p>2. Live Thứ Bảy: kỹ thuật viên lắp ghế thật, trả lời giao lắp tỉnh xa.</p><p>3. Clip 30 giây cho 20/10: món quà con gửi từ Hàn về.</p>`;
+  if(t.includes('báo cáo'))return `<p>Ba điểm chính:</p><p>1. 78% doanh thu đến từ người đặt ở Hàn, đúng trọng tâm.</p><p>2. Nút thắt là bước Đã liên hệ sang Demo; video call là đòn bẩy lớn nhất.</p><p>3. 86% hộ mới mua một sản phẩm. Bán chéo máy lọc nước cho hộ đã có ghế là doanh thu rẻ nhất.</p>`;
+  if(t.includes('đạt 3 tỷ'))return `<p>Có thể, nếu tháng 12 đạt khoảng 1,45 tỷ. Điều kiện:</p><p>1. Từ giữa tháng 10 nuôi lead Tết, vì khách ở Hàn cân nhắc 3–6 tuần.</p><p>2. Tỷ lệ chốt sau video call giữ trên 40%.</p><p>3. Đội lắp đặt đủ năng lực cho khoảng 25 ghế trong 2 tuần cao điểm trước Tết.</p><p>Rủi ro lớn nhất không phải lead mà là năng lực giao lắp tỉnh xa sát Tết.</p>`;
+  if(t.includes('chỉnh luật'))return `<p><b>Agent Trợ lý tele</b> đẩy nhiều việc duyệt nhất vì ngưỡng giảm giá 5% thấp với dòng DV-X9. Đề xuất: cho phép tới 7% với DV-X9 khi khách có dịp tặng rõ ràng, giữ 5% cho dòng khác.</p>`;
+  if(t.includes('chi phí ai'))return `<p>Hôm nay đến ${fmt(mins)}, khoảng ${Math.round(G.auto*70+12000).toLocaleString('vi-VN')}đ cho ${G.auto} việc. Rất nhỏ so với một đơn ghế; chi phí đáng theo dõi là quảng cáo và phí tin nhắn.</p>`;
+  return `<p>Bản demo trả lời được các câu hỏi gợi ý bên dưới. Trong hệ thật, câu hỏi được dịch thành truy vấn trên dữ liệu hộ gia đình, lead, đơn và hội thoại.</p>`;
+}
+function aiAsk(q){
+  if(!q.trim())return;const box=$('#msgs');box.insertAdjacentHTML('beforeend',`<div class="m-u">${esc(q)}</div>`);
+  const a=document.createElement('div');a.className='m-a';a.innerHTML='<span class="typing">Đang đọc dữ liệu…</span>';box.append(a);box.scrollTop=box.scrollHeight;
+  setTimeout(()=>{a.innerHTML=aiAnswer(q);box.scrollTop=box.scrollHeight;a.querySelectorAll('[data-sendz]').forEach(x=>x.onclick=()=>{x.disabled=true;x.textContent='Đã gửi';toast('Đã gửi tin Zalo')})},reduce?80:800);
+}
+function openAi(){$('#ai').hidden=false;$('#aiToggle').classList.add('on')}
+$('#aiToggle').onclick=()=>{const h=!$('#ai').hidden;$('#ai').hidden=h;$('#aiToggle').classList.toggle('on',!h)};
+$('#aiClose').onclick=()=>{$('#ai').hidden=true;$('#aiToggle').classList.remove('on')};
+$('#aiSend').onclick=()=>{aiAsk($('#aiIn').value);$('#aiIn').value=''};
+$('#aiIn').onkeydown=e=>{if(e.key==='Enter')$('#aiSend').click()};
+$('#uQueue').onclick=()=>{$('#popLog').hidden=true;const p=$('#popQueue');p.hidden=!p.hidden;if(!p.hidden)renderQueue('#popQueue',true)};
+$('#bell').onclick=$('#uQueue').onclick;
+$('#uLog').onclick=()=>{$('#popQueue').hidden=true;const p=$('#popLog');p.hidden=!p.hidden;if(!p.hidden)renderLog()};
+$('#uPause').onclick=()=>{paused=!paused;if(paused){clearInterval(timer);$('#uPauseT').textContent='Chạy tiếp agent';toast('Đã tạm dừng toàn bộ agent')}else{start();$('#uPauseT').textContent='Tạm dừng agent';toast('Agent chạy tiếp')}};
+$('#gsearch').onkeydown=e=>{if(e.key!=='Enter')return;const v=e.target.value.trim().toLowerCase();if(!v)return;const h=HOUSES.find(x=>x.mem.some(m=>m.n.toLowerCase().includes(v)||m.ph.includes(v))||x.name.toLowerCase().includes(v));if(h)openHouse(h.id);else toast('Không tìm thấy trong dữ liệu demo')};
+document.querySelectorAll('.nav .tab').forEach(t=>t.onclick=()=>go(t.dataset.go));
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600)}
+
+if(matchMedia('(max-width:1100px)').matches){$('#ai').hidden=true;$('#aiToggle').classList.remove('on')}
+$('#msgs').innerHTML='<div class="m-a"><p>Chào anh. Em đọc được dữ liệu lead, hộ gia đình, đơn giao lắp và hội thoại của showroom Quận 4, cả khách ở Việt Nam lẫn Hàn Quốc.</p></div>';
+for(let i=0;i<10;i++)step();FEED.forEach(f=>f.fresh=false);
+clocks();render();start();
+})();
+</script>
+
+</body>
+</html>
