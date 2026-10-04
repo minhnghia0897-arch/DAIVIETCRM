@@ -57,7 +57,7 @@ export function PageHead({
 }) {
   return (
     <div className="c-phd">
-      <span className="c-oi is-lg" style={{ background: color }} aria-hidden>
+      <span className="c-oi is-lg" style={{ "--c": color } as React.CSSProperties} aria-hidden>
         <Icon />
       </span>
       <div className="c-t">

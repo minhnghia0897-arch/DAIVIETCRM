@@ -56,7 +56,11 @@ export function CrmHouseholds() {
       <div className="c-stack">
         <section className="c-card">
           <div className="c-phd">
-            <span className="c-oi is-lg" style={{ background: "var(--obj-contact)" }} aria-hidden>
+            <span
+              className="c-oi is-lg"
+              style={{ "--c": "var(--obj-contact)" } as React.CSSProperties}
+              aria-hidden
+            >
               <Home />
             </span>
             <div className="c-t">

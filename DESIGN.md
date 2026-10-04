@@ -93,6 +93,7 @@ Giản lược để dễ nhìn:
 - **Thanh tiến độ** (giai đoạn lead, bước đơn): vạch dưới 3px thay ô tô màu; bước đã qua có dấu tích xanh lá, bước hiện tại chữ xanh đậm, bước sau chữ xám.
 - **Hàng nút:** tối đa 3–4 nút chính bên trái; hành động ít dùng (mở hồ sơ hộ, hỏi AI, đánh dấu thất bại) là nút phụ trầm (không viền, chữ xám) dồn sang phải để hàng nút không rớt dòng.
 - **Tab trong trang:** chữ thường, tab đang chọn chữ đậm có vạch dưới 2px màu `--brand`.
+- **Chút màu để dễ nhìn:** biểu tượng sidebar mỗi mục một tông sáng (mục đang chọn biểu tượng trắng); biểu tượng đầu trang trong ô bo 8px nền nhạt 14% cùng tông với màu loại màn hình; biểu tượng trong nút mang màu theo nghĩa (gọi xanh lá, AI tím, hộ gia đình tím xanh); nút **Gọi** nền xanh lá `--ok` như nút chính của Slack; hành động hủy, thất bại chữ đỏ.
 
 Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monospace cho nhãn dữ liệu.
 

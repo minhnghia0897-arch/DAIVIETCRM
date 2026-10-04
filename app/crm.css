@@ -112,6 +112,24 @@
     border-bottom-color: var(--brand);
   }
 
+  /* Biểu tượng trong nút mang màu theo nghĩa: gọi xanh lá, AI tím, hộ gia đình tím xanh, cảnh báo đỏ. */
+  .c-btn .is-call {
+    color: var(--ok);
+  }
+  .c-btn.is-brand .is-call {
+    color: inherit;
+  }
+  .c-btn .is-ai,
+  .c-btn.is-ai-text {
+    color: var(--ai);
+  }
+  .c-btn .is-house {
+    color: var(--obj-contact);
+  }
+  .c-btn.is-danger {
+    color: var(--err);
+  }
+
   /* Nút phụ trầm: hành động ít dùng, không giành chú ý với nút chính. */
   .c-btn.is-ghost {
     border-color: transparent;
@@ -123,6 +141,18 @@
     background: var(--surface-2);
     color: var(--text);
     box-shadow: none;
+  }
+  .c-btn.is-ghost.is-danger {
+    color: var(--err);
+  }
+  /* Nút gọi: xanh lá như nút chính của Slack, để hành động gọi nổi bật và dễ nhận ra. */
+  .c-btn.is-go {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #fff;
+  }
+  .c-btn.is-go:hover {
+    background: #006149;
   }
   .c-btn:disabled {
     opacity: 0.55;
@@ -202,12 +232,13 @@
     gap: 10px;
     padding: 14px 16px;
   }
+  /* Biểu tượng đầu trang: nền nhạt cùng tông, biểu tượng đậm theo màu của loại màn hình (--c). */
   .c-phd .c-oi.is-lg {
-    width: 28px;
-    height: 28px;
-    background: var(--surface-2) !important;
-    color: var(--text);
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    background: color-mix(in srgb, var(--c, var(--text-weak)) 14%, #fff);
+    color: var(--c, var(--text));
+    border-radius: 8px;
   }
   .c-phd .c-t small {
     display: block;
@@ -1223,7 +1254,6 @@
   .c-tab svg,
   .c-navfold svg {
     flex: none;
-    opacity: 0.85;
   }
   .c-tab:hover,
   .c-navfold:hover {

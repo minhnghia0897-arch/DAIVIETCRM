@@ -128,7 +128,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
           {can("call.make") ? (
             <button
               type="button"
-              className="c-btn is-brand"
+              className="c-btn is-go"
               disabled={!provider && !canReveal}
               title={!provider && !canReveal ? "Chỉ người đang giữ lead mới xem được số để gọi" : undefined}
               onClick={() => call("buyer")}
@@ -180,7 +180,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
                 router.push("/households");
               }}
             >
-              <House size={13} className="mr-1 inline" aria-hidden />
+              <House size={13} className="is-house mr-1 inline" aria-hidden />
               {houseById(opp.houseId)?.name}
             </button>
           ) : null}
@@ -189,11 +189,11 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
             className="c-btn is-ghost"
             onClick={() => ask("Gợi ý bước tiếp cho cơ hội đang chọn")}
           >
-            <Sparkles size={13} className="mr-1 inline" aria-hidden />
+            <Sparkles size={13} className="is-ai mr-1 inline" aria-hidden />
             Hỏi AI
           </button>
           {opp.stage < 4 && can("lead.mark_lost") && canEdit ? (
-            <button type="button" className="c-btn is-ghost" onClick={() => setLosing((v) => !v)}>
+            <button type="button" className="c-btn is-ghost is-danger" onClick={() => setLosing((v) => !v)}>
               Đánh dấu thất bại
             </button>
           ) : null}

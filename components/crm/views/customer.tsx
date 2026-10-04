@@ -124,7 +124,7 @@ export function CrmCustomer({ id }: { id: string }) {
             {can("call.make") ? (
               <button
                 type="button"
-                className="c-btn is-brand"
+                className="c-btn is-go"
                 disabled={!canReveal || !call.allowed}
                 title={
                   !call.allowed

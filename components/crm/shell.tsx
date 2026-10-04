@@ -108,6 +108,22 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/customers": Contact,
 };
 
+/** Màu biểu tượng sidebar: tông sáng dễ phân biệt trên nền navy; mục đang chọn biểu tượng trắng. */
+const NAV_COLOR: Record<string, string> = {
+  "/home": "#7ab8ff",
+  "/tasks": "#f2c94c",
+  "/inbox": "#4fd1c5",
+  "/opportunities": "#ff9f6b",
+  "/households": "#c39bff",
+  "/orders": "#6fcf97",
+  "/products": "#ffd166",
+  "/customers": "#f78fb3",
+  "/channels": "#ff8fa3",
+  "/reports": "#56ccf2",
+  "/team": "#a3e635",
+  "/agents": "#bb9af7",
+};
+
 const NAV_KEY = "dv_nav_collapsed";
 const navListeners = new Set<() => void>();
 const subscribeNav = (cb: () => void) => {
@@ -415,7 +431,12 @@ function ShellInner({
                         title={collapsed ? t.label : undefined}
                         aria-description={count ? `${count} cần xử lý` : undefined}
                       >
-                        <Icon size={16} strokeWidth={2.25} aria-hidden />
+                        <Icon
+                          size={16}
+                          strokeWidth={2.25}
+                          aria-hidden
+                          style={active ? undefined : { color: NAV_COLOR[t.href] }}
+                        />
                         <span className="c-navtxt flex-1 truncate">{t.label}</span>
                         {count ? (
                           <span className="c-navcnt" aria-hidden>
