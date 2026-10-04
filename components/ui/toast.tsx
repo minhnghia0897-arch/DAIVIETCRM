@@ -26,8 +26,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <p
             role="status"
             className={cn(
-              "rounded-card px-4 py-2 font-semibold shadow-pop",
-              toast.tone === "ok" ? "bg-text text-white" : "bg-err text-white",
+              "rounded-control px-4 py-2.5 shadow-pop",
+              toast.tone === "ok" ? "bg-ok text-white" : "bg-err text-white",
             )}
           >
             {toast.message}
