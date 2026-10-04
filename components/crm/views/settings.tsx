@@ -387,14 +387,14 @@ export function CatalogSettings() {
 
   return (
     <Card title="Danh mục tra cứu" note="Ẩn mục cũ thay vì xóa để giữ lịch sử">
-      <div className="mb-3 flex flex-wrap gap-1" role="tablist">
+      <div className="c-ftabs mb-3" role="tablist">
         {Object.entries(catalogs).map(([k, c]) => (
           <button
             key={k}
             type="button"
             role="tab"
             aria-selected={tab === k}
-            className={`c-btn ${tab === k ? "is-brand" : ""}`}
+            className="c-ftab"
             onClick={() => setTab(k)}
           >
             {c.title}

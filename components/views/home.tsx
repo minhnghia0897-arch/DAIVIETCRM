@@ -41,7 +41,7 @@ export function HomeView({
   const fresh = rows.filter((l) => l.stage === "new").length;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-3 px-4 py-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>{teamView ? "Đội hôm nay" : "Việc của tôi hôm nay"}</CardTitle>
@@ -84,7 +84,7 @@ export function HomeView({
           </ul>
         )}
       </Card>
-    </main>
+    </div>
   );
 }
 
@@ -93,7 +93,7 @@ function Metric({ label, value, tone }: { label: string; value: number; tone?: "
     <div>
       <p className="text-label text-text-weak">{label}</p>
       <p
-        className={`tabular text-metric font-light ${tone === "err" ? "text-err" : tone === "warn" ? "text-warn" : ""}`}
+        className={`tabular text-metric font-extrabold ${tone === "err" ? "text-err" : tone === "warn" ? "text-warn" : ""}`}
       >
         {value}
       </p>

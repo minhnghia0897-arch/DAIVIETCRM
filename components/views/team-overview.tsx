@@ -40,7 +40,7 @@ export function TeamOverviewView({ user }: { user: SessionUser }) {
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse">
-            <thead className="bg-surface-2 text-left">
+            <thead className="border-b border-line bg-surface text-left text-label text-text-weak">
               <tr>
                 <th className="px-[14px] py-2 font-semibold">Người</th>
                 <th className="px-3 py-2 font-semibold">Trực</th>
@@ -57,7 +57,7 @@ export function TeamOverviewView({ user }: { user: SessionUser }) {
               {rows.map((k, i) => (
                 <tr key={k.staffId} className="h-11 border-t border-line-2 hover:bg-surface-2">
                   <td className="px-[14px] py-1">
-                    <Link href={`/team/people/${k.staffId}`} className="font-semibold text-brand">
+                    <Link href={`/team/people/${k.staffId}`} className="font-bold text-text hover:underline">
                       {showNames ? k.staff.fullName : `Nhân viên ${i + 1}`}
                     </Link>
                   </td>
@@ -95,7 +95,7 @@ function Metric({ label, value, sub }: { label: string; value: string; sub?: str
   return (
     <div>
       <p className="text-label text-text-weak">{label}</p>
-      <p className="tabular text-metric font-light">{value}</p>
+      <p className="tabular text-metric font-extrabold">{value}</p>
       {sub ? <p className="tabular text-label text-text-weak">{sub} chỉ tiêu</p> : null}
     </div>
   );

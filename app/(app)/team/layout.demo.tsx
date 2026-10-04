@@ -7,7 +7,7 @@ export default function TeamLayout({ children }: { children: React.ReactNode }) 
   return (
     <DemoPage anyOf={["kpi.own", "kpi.team"]}>
       {(user) => (
-        <div className="mx-auto max-w-7xl space-y-3 px-4 py-4">
+        <div className="mx-auto max-w-7xl space-y-4">
           <TeamNav user={user} />
           {children}
         </div>

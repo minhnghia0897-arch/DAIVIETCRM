@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { FilterTabs } from "@/components/filter-tabs";
 import { DemoBadge } from "@/components/record";
 import type { SessionUser } from "@/lib/auth/types";
 
@@ -20,19 +19,8 @@ export function TeamNav({ user }: { user: SessionUser }) {
     ...(user.permissions.has("staff.offboard") ? [{ href: "/team/offboarding", label: "Bàn giao" }] : []),
   ];
   return (
-    <nav aria-label="Đội ngũ" className="flex flex-wrap items-center gap-1.5">
-      {tabs.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          className="rounded-pill border border-line bg-surface px-3 py-1 text-pill font-semibold"
-        >
-          {t.label}
-        </Link>
-      ))}
-      <span className="ml-auto">
-        <DemoBadge />
-      </span>
-    </nav>
+    <FilterTabs label="Đội ngũ" tabs={tabs}>
+      <DemoBadge />
+    </FilterTabs>
   );
 }

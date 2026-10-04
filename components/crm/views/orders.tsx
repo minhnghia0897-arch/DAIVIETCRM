@@ -70,14 +70,8 @@ export function CrmOrders() {
         >
           <span className="c-lbl">{rows.length} đơn, mới nhất trước</span>
         </PageHead>
-        <div className="flex flex-wrap gap-1 px-4 pb-3" role="tablist" aria-label="Lọc đơn">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!f}
-            className={`c-btn ${!f ? "is-brand" : ""}`}
-            onClick={() => setF(null)}
-          >
+        <div className="c-ftabs mx-4" role="tablist" aria-label="Lọc đơn">
+          <button type="button" role="tab" aria-selected={!f} className="c-ftab" onClick={() => setF(null)}>
             Tất cả
           </button>
           {FILTERS.map((x) => (
@@ -86,7 +80,7 @@ export function CrmOrders() {
               type="button"
               role="tab"
               aria-selected={f === x.key}
-              className={`c-btn ${f === x.key ? "is-brand" : ""}`}
+              className="c-ftab"
               onClick={() => setF(x.key)}
             >
               {x.label} ({all.filter((o) => x.statuses.includes(o.status)).length})

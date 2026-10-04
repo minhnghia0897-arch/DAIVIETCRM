@@ -24,7 +24,7 @@ export function StaffView({ user }: { user: SessionUser }) {
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] border-collapse">
-            <thead className="bg-surface-2 text-left">
+            <thead className="border-b border-line bg-surface text-left text-label text-text-weak">
               <tr>
                 <th className="px-[14px] py-2 font-semibold">Mã</th>
                 <th className="px-3 py-2 font-semibold">Tên</th>

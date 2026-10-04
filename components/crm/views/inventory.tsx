@@ -81,7 +81,7 @@ export function CrmInventory() {
               ))
             : null}
         </PageHead>
-        <div className="flex flex-wrap gap-1 px-4 pb-3" role="tablist" aria-label="Mục kho">
+        <div className="c-ftabs mx-4" role="tablist" aria-label="Mục kho">
           {(
             [
               ["stock", "Tồn kho"],
@@ -95,7 +95,7 @@ export function CrmInventory() {
               type="button"
               role="tab"
               aria-selected={tab === k}
-              className={`c-btn ${tab === k ? "is-brand" : ""}`}
+              className="c-ftab"
               onClick={() => setTab(k)}
             >
               {l}

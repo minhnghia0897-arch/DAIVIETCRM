@@ -254,14 +254,14 @@ function Drawer({ def, st, initialTab }: { def: Def; st: IntegrationState; initi
   ];
   return (
     <div className="mt-2 rounded-control bg-surface-2 p-3">
-      <div className="mb-2 flex flex-wrap gap-1" role="tablist" aria-label={`Chi tiết ${def.name}`}>
+      <div className="c-ftabs mb-2" role="tablist" aria-label={`Chi tiết ${def.name}`}>
         {tabs.map(([k, l]) => (
           <button
             key={k}
             type="button"
             role="tab"
             aria-selected={tab === k}
-            className={`c-btn ${tab === k ? "is-brand" : ""}`}
+            className="c-ftab"
             onClick={() => setTab(k)}
           >
             {l}

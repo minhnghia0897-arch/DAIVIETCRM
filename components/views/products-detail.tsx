@@ -15,7 +15,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
   const showCost = user.permissions.has("product.view_cost");
 
   return (
-    <main className="mx-auto max-w-7xl space-y-3 px-4 py-4">
+    <div className="mx-auto max-w-7xl space-y-4">
       <PageHeader
         kind="product"
         label="Sản phẩm"
@@ -39,7 +39,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse">
-            <thead className="bg-surface-2 text-left">
+            <thead className="border-b border-line bg-surface text-left text-label text-text-weak">
               <tr>
                 <th className="px-[14px] py-2 font-semibold">SKU</th>
                 <th className="px-3 py-2 font-semibold">Phiên bản</th>
@@ -96,7 +96,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
               <ul className="space-y-1">
                 {reservedBy.map((o) => (
                   <li key={o.id} className="flex justify-between gap-2">
-                    <Link href={`/orders/${o.id}`} className="font-semibold text-brand">
+                    <Link href={`/orders/${o.id}`} className="font-bold text-text hover:underline">
                       {o.code}
                     </Link>
                     <span className="text-text-weak">Giữ đến {formatDate(o.holdUntil!)}</span>
@@ -107,6 +107,6 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
           </CardBody>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }

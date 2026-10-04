@@ -61,7 +61,7 @@ export function PersonView({ user, id }: { user: SessionUser; id: string }) {
           </CardHeader>
           <CardBody>
             <p className="text-label text-text-weak">Doanh thu đã cọc</p>
-            <p className="tabular text-metric font-light">
+            <p className="tabular text-metric font-extrabold">
               {formatMoneyShort(k.revenueDeposit)} / {formatMoneyShort(k.revenueTarget)}
             </p>
             <Progress ratio={k.revenueDeposit / k.revenueTarget} label="Doanh thu so với chỉ tiêu" />

@@ -473,7 +473,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-1 border-b border-line-2" role="tablist">
+        <div className="c-ftabs mt-4" role="tablist">
           {(
             [
               ["activity", `Hoạt động (${acts.length})`],
@@ -485,7 +485,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
               type="button"
               role="tab"
               aria-selected={tab === k}
-              className="c-ptab"
+              className="c-ftab"
               onClick={() => setTab(k)}
             >
               {label}

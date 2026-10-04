@@ -4,28 +4,25 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
-  contact: { icon: User, className: "bg-obj-contact" },
-  lead: { icon: User, className: "bg-obj-lead" },
-  order: { icon: ShoppingCart, className: "bg-brand" },
-  product: { icon: Box, className: "bg-obj-call" },
-  inventory: { icon: Warehouse, className: "bg-warn" },
-  team: { icon: Users, className: "bg-obj-zalo" },
-  household: { icon: Building2, className: "bg-obj-contact" },
+  contact: { icon: User, color: "var(--obj-contact)" },
+  lead: { icon: User, color: "var(--obj-lead)" },
+  order: { icon: ShoppingCart, color: "var(--obj-lead)" },
+  product: { icon: Box, color: "var(--obj-call)" },
+  inventory: { icon: Warehouse, color: "var(--warn)" },
+  team: { icon: Users, color: "var(--obj-zalo)" },
+  household: { icon: Building2, color: "var(--obj-contact)" },
 } as const;
 
 export type ObjectKind = keyof typeof ICONS;
 
-/** Icon đối tượng: ô vuông bo 4px, glyph trắng (DESIGN.md 5.1). */
+/** Icon đối tượng: ô bo 8px nền nhạt cùng tông, glyph màu theo loại đối tượng (DESIGN.md 5.1). */
 export function ObjectIcon({ kind, className }: { kind: ObjectKind; className?: string }) {
-  const { icon: Icon, className: bg } = ICONS[kind];
+  const { icon: Icon, color } = ICONS[kind];
   return (
     <span
       aria-hidden
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-control text-white",
-        bg,
-        className,
-      )}
+      style={{ color, background: `color-mix(in srgb, ${color} 14%, #fff)` }}
+      className={cn("flex size-8 shrink-0 items-center justify-center rounded-card", className)}
     >
       <Icon className="size-4" />
     </span>
@@ -60,26 +57,26 @@ export function PageHeader({
   demo?: boolean;
 }) {
   return (
-    <section className="rounded-card border border-line bg-surface shadow-card">
-      <div className="flex flex-wrap items-start gap-3 px-[14px] py-3">
+    <section className="border-b border-line">
+      <div className="flex flex-wrap items-start gap-3 px-0.5 py-3">
         <ObjectIcon kind={kind} />
         <div className="min-w-0 flex-1">
           <p className="text-label text-text-weak">
             {label} {demo ? <DemoBadge /> : null}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-page-title font-bold">{title}</h1>
+            <h1 className="text-page-title font-extrabold">{title}</h1>
             {tags}
           </div>
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
       {highlights?.length ? (
-        <dl className="grid grid-cols-2 gap-3 border-t border-line-2 px-[14px] py-3 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="grid grid-cols-2 gap-3 px-0.5 pt-1 pb-3 sm:grid-cols-3 lg:grid-cols-6">
           {highlights.slice(0, 6).map((h) => (
             <div key={h.label} className="min-w-0">
               <dt className="text-label text-text-weak">{h.label}</dt>
-              <dd className="tabular truncate">{h.value}</dd>
+              <dd className="tabular truncate font-semibold">{h.value}</dd>
             </div>
           ))}
         </dl>
@@ -105,33 +102,23 @@ export function ListHeader({
   demo?: boolean;
 }) {
   return (
-    <div className="space-y-2 px-[14px] py-3">
+    <div className="space-y-1 pt-1">
       <div className="flex flex-wrap items-center gap-3">
         <ObjectIcon kind={kind} />
-        <h1 className="text-page-title font-bold">{title}</h1>
+        <h1 className="text-page-title font-extrabold">{title}</h1>
         {demo ? <DemoBadge /> : null}
         <div className="flex-1" />
         {actions}
       </div>
       <p className="text-label text-text-weak">{summary}</p>
       {filters?.length ? (
-        <div className="flex flex-wrap gap-1.5">
+        <nav aria-label={`Lọc ${title.toLowerCase()}`} className="c-ftabs mt-2">
           {filters.map((f) => (
-            <Link
-              key={f.href}
-              href={f.href}
-              aria-current={f.active ? "true" : undefined}
-              className={cn(
-                "rounded-pill border px-3 py-1 text-pill font-semibold",
-                f.active
-                  ? "border-brand bg-brand-soft text-brand-strong"
-                  : "border-line bg-surface text-text-weak",
-              )}
-            >
+            <Link key={f.href} href={f.href} aria-current={f.active ? "true" : undefined} className="c-ftab">
               {f.label}
             </Link>
           ))}
-        </div>
+        </nav>
       ) : null}
     </div>
   );

@@ -61,7 +61,7 @@ export function CrmTasks() {
     <div className="c-stack">
       <section className="c-card">
         <PageHead icon={ListChecks} color="var(--obj-call)" kicker="Việc và duyệt" title="Việc cần làm">
-          <div className="flex gap-1" role="tablist" aria-label="Phạm vi">
+          <div className="c-ftabs" role="tablist" aria-label="Phạm vi">
             {(
               [
                 ["mine", "Của tôi"],
@@ -78,7 +78,7 @@ export function CrmTasks() {
                 type="button"
                 role="tab"
                 aria-selected={scope === k}
-                className={`c-btn ${scope === k ? "is-brand" : ""}`}
+                className="c-ftab"
                 onClick={() => setScope(k)}
               >
                 {l}

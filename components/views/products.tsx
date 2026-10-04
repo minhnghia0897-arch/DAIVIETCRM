@@ -2,7 +2,6 @@ import { ProductAvailable } from "@/components/crm/live-stock";
 import Link from "next/link";
 
 import { ListHeader } from "@/components/record";
-import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import type { SessionUser } from "@/lib/auth/types";
 
@@ -19,8 +18,8 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
   const showCost = user.permissions.has("product.view_cost");
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-4">
-      <Card>
+    <div className="mx-auto max-w-7xl">
+      <section>
         <ListHeader
           kind="product"
           title="Sản phẩm"
@@ -37,7 +36,7 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
         />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse">
-            <thead className="sticky top-0 bg-surface-2 text-left">
+            <thead className="sticky top-0 border-b border-line bg-surface text-left text-label text-text-weak">
               <tr>
                 <th className="px-[14px] py-2 font-semibold">Tên</th>
                 <th className="px-3 py-2 font-semibold">Danh mục</th>
@@ -55,9 +54,9 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
                     ? 1 - variants[0].cost / variants[0].price
                     : null;
                 return (
-                  <tr key={p.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
+                  <tr key={p.id} className="h-11 border-t border-line-2 hover:bg-surface-2">
                     <td className="px-[14px] py-1">
-                      <Link href={`/products/${p.id}`} className="font-semibold text-brand">
+                      <Link href={`/products/${p.id}`} className="font-bold text-text hover:underline">
                         {p.name}
                       </Link>
                     </td>
@@ -85,7 +84,7 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
             </tbody>
           </table>
         </div>
-      </Card>
-    </main>
+      </section>
+    </div>
   );
 }

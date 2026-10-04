@@ -91,25 +91,64 @@
     border-color: var(--ai);
     color: #fff;
   }
-  /* Tab trong trang: chữ thường, tab đang chọn chữ đậm có vạch dưới màu thương hiệu. */
-  .c-ptab {
+  /* Tab lọc và tab trong trang kiểu thanh tab kênh Slack: chữ xám, tab đang chọn chữ đậm có gạch chân xanh;
+     cuộn ngang khi nhiều tab, không rớt dòng. */
+  .c-ftabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .c-ftab {
+    flex: none;
     border: 0;
-    background: none;
-    padding: 8px 10px 7px;
-    margin-bottom: -1px;
     border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    background: none;
+    padding: 8px 12px 7px;
     color: var(--text-weak);
     font: inherit;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
+    border-radius: 6px 6px 0 0;
   }
-  .c-ptab:hover {
+  .c-ftab:hover {
     color: var(--text);
+    background: var(--surface-2);
+    text-decoration: none;
   }
-  .c-ptab[aria-selected="true"] {
+  .c-ftab[aria-selected="true"],
+  .c-ftab[aria-current="page"],
+  .c-ftab[aria-current="true"] {
     color: var(--text);
     font-weight: 800;
     border-bottom-color: var(--brand);
+  }
+
+  /* Đầu trang chỉ có tiêu đề (không kèm chỉ số) là thanh phẳng như đầu kênh Slack: bỏ khung, chỉ kẻ dưới. */
+  .c-card:has(> .c-phd):not(:has(.c-kpis, .c-hl, .c-goalrow)) {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+  }
+  .c-card:has(> .c-phd):not(:has(.c-kpis, .c-hl, .c-goalrow)) > .c-phd {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  /* Khung chỉ chứa bảng (không tiêu đề riêng) cũng phẳng: danh sách nằm thẳng trên nền như danh bạ Slack. */
+  .c-card:has(> .c-tw):not(:has(> .c-ch, > .c-phd)) {
+    border-width: 0;
+    border-radius: 0;
+  }
+
+  /* Tên ở cột đầu bảng: chữ đậm màu chữ chính như danh bạ Slack; rê chuột mới gạch chân. */
+  .c-table td:first-child :is(a, .c-link) {
+    color: var(--text);
+    font-weight: 700;
   }
 
   /* Biểu tượng trong nút mang màu theo nghĩa: gọi xanh lá, AI tím, hộ gia đình tím xanh, cảnh báo đỏ. */

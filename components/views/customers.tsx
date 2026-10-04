@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { MarketTag } from "@/components/market-tag";
 import { ListHeader } from "@/components/record";
-import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import type { SessionUser } from "@/lib/auth/types";
 
@@ -32,8 +31,8 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
   );
 
   return (
-    <main className="mx-auto max-w-7xl space-y-3 px-4 py-4">
-      <Card>
+    <div className="mx-auto max-w-7xl space-y-4">
+      <section>
         <ListHeader
           kind="contact"
           title={user.permissions.has("lead.view_all") ? "Khách của showroom" : "Khách của tôi"}
@@ -50,7 +49,7 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
         />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse">
-            <thead className="sticky top-0 bg-surface-2 text-left">
+            <thead className="sticky top-0 border-b border-line bg-surface text-left text-label text-text-weak">
               <tr>
                 <th className="px-[14px] py-2 font-semibold">Tên</th>
                 <th className="px-3 py-2 font-semibold">Ở</th>
@@ -68,7 +67,7 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
                   return (
                     <tr key={c.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
                       <td className="px-[14px] py-1">
-                        <Link href={`/customers/${c.id}`} className="font-semibold text-brand">
+                        <Link href={`/customers/${c.id}`} className="font-bold text-text hover:underline">
                           {c.fullName}
                         </Link>
                         {c.relation ? (
@@ -93,7 +92,7 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
             <p className="px-[14px] py-3 text-text-weak">Chưa có khách nào ở nhóm này.</p>
           ) : null}
         </div>
-      </Card>
-    </main>
+      </section>
+    </div>
   );
 }
