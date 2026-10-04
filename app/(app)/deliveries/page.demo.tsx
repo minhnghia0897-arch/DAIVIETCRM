@@ -1,8 +1,11 @@
 "use client";
 
-import { CrmDeliveries } from "@/components/crm/views/deliveries";
-import { DemoPage } from "@/components/demo/demo-user";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+// "Đơn & giao lắp" đã gộp vào Đơn hàng. Bản demo tĩnh không chuyển hướng ở máy chủ được nên chuyển ở trình duyệt.
 export default function Page() {
-  return <DemoPage anyOf={["order.view_own", "order.view_all"]}>{() => <CrmDeliveries />}</DemoPage>;
+  const router = useRouter();
+  useEffect(() => router.replace("/orders"), [router]);
+  return <p className="c-lbl p-4">Đang mở Đơn hàng…</p>;
 }

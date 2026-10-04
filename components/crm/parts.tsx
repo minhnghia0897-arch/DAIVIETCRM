@@ -135,7 +135,6 @@ export function FeedList({
 const KIND_LABEL: Record<QueueItem["kind"], string> = {
   agent: "Đề xuất agent",
   discount: "Duyệt giảm giá",
-  payment: "Xác nhận tiền",
   stock_count: "Duyệt kiểm kê",
   order_payment: "Xác nhận tiền",
 };

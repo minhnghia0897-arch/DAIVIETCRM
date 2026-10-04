@@ -14,7 +14,7 @@ export const NAV_TABS: NavTab[] = [
   { href: "/tasks", label: "Việc cần làm", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/opportunities", label: "Cơ hội", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/households", label: "Hộ gia đình", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/deliveries", label: "Đơn & giao lắp", anyOf: ["order.view_own", "order.view_all"], ready: true },
+  { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
   { href: "/inbox", label: "Hội thoại", anyOf: ["message.zalo_send", "message.view_all"], ready: true },
   { href: "/channels", label: "Kênh & nội dung", anyOf: ["report.team"], ready: true },
   { href: "/reports", label: "Báo cáo", anyOf: ["report.own", "report.team"], ready: true },
@@ -32,7 +32,6 @@ export const NAV_TABS: NavTab[] = [
   },
   { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: true },
   { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
-  { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
 ];
 
 export interface SettingsItem {

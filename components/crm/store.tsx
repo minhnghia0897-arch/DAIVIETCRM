@@ -35,7 +35,17 @@ import {
 } from "@/lib/integrations/connection";
 import { getIntegration, integrations, type IntegrationKey } from "@/lib/integrations/registry";
 import type { Policy, QuoteInput, QuoteResult } from "@/lib/sales/pricing";
-import { CUSTOMERS, KPIS, ORDERS, PRODUCTS, STAFF, STOCK, VARIANTS, type Order } from "@/lib/demo/data";
+import {
+  CUSTOMERS,
+  KPIS,
+  NEW_ORDER_IDS,
+  ORDERS,
+  PRODUCTS,
+  STAFF,
+  STOCK,
+  VARIANTS,
+  type Order,
+} from "@/lib/demo/data";
 import { fromChannelList, type Consent } from "@/lib/cdp/consent";
 import {
   applyMovements,
@@ -46,13 +56,18 @@ import {
   type Movement,
   type StockLevel,
 } from "@/lib/sales/inventory";
-import { NEXT_STATUS, transitionBlockers, type OrderFacts, type OrderStatus } from "@/lib/sales/orders";
+import { ORDER_STATUS } from "@/lib/demo/labels";
+import {
+  NEXT_STATUS,
+  leadStageFromOrder,
+  transitionBlockers,
+  type OrderFacts,
+  type OrderStatus,
+} from "@/lib/sales/orders";
 import {
   AGENTS,
   CHAIRS,
   CONVERSATIONS,
-  DELIVERIES,
-  DELIVERY_STEPS,
   HOUSES,
   KR_CITIES,
   KR_NAMES,
@@ -63,7 +78,6 @@ import {
   tr,
   type AgentId,
   type Conversation,
-  type Delivery,
   type Opportunity,
 } from "@/lib/demo/crm-data";
 
@@ -82,8 +96,8 @@ export interface FeedItem {
 
 export interface QueueItem {
   id: string;
-  /** agent: đề xuất của agent AI; discount: báo giá giảm vượt mức; payment: xác nhận tiền đã về. */
-  kind: "agent" | "discount" | "payment" | "stock_count" | "order_payment";
+  /** agent: đề xuất của agent AI; discount: báo giá giảm vượt mức; order_payment: xác nhận tiền đã về. */
+  kind: "agent" | "discount" | "stock_count" | "order_payment";
   agent: AgentId;
   text: string;
   why: string;
@@ -116,19 +130,6 @@ export interface QuoteRec {
   createdBy: string;
   time: string;
   validUntil: string;
-}
-
-export interface PaymentRec {
-  id: string;
-  deliveryId: string;
-  type: "deposit" | "balance";
-  method: string;
-  amount: number;
-  reference: string;
-  status: "recorded" | "confirmed" | "rejected";
-  recordedBy: string;
-  confirmedBy?: string;
-  time: string;
 }
 
 export interface AuditEntry {
@@ -193,6 +194,17 @@ export interface LedgerRow extends Movement {
 }
 
 export interface OrderRec extends Order {
+  /** Đơn sinh từ báo giá trên hồ sơ lead: giữ lead (nguồn quảng cáo) và báo giá gốc (CLAUDE.md 8.7). */
+  oppId?: string;
+  quoteId?: string;
+  /** Khách chưa có hồ sơ 360 trong dữ liệu mô phỏng thì đơn giữ tên hiển thị. */
+  buyerName?: string;
+  buyerMarket?: string;
+  recipientName?: string;
+  /** Cọc tối thiểu theo chính sách đã áp ở báo giá; không có thì theo chính sách mặc định. */
+  depositMin?: number;
+  /** Bước giao lắp cập nhật tay (CLAUDE.md 8.7, `deliveries`): đã gửi video bàn giao cho người đặt. */
+  handoverSent?: boolean;
   warehouseId: string;
   /** Cho đặt trước khi chưa đủ hàng (cần `order.allow_backorder`), kèm ngày dự kiến có hàng. */
   backorder?: { expected: string };
@@ -266,8 +278,6 @@ interface State {
   paused: boolean;
   opps: Opportunity[];
   oppSel: string;
-  deliveries: Delivery[];
-  delSel: string;
   convs: Conversation[];
   convSel: string;
   houseSel: string;
@@ -279,7 +289,6 @@ interface State {
   activities: Activity[];
   tasks: Task[];
   quotes: QuoteRec[];
-  payments: PaymentRec[];
   audit: AuditEntry[];
   settings: Settings;
   receivers: ReceiverState[];
@@ -468,8 +477,6 @@ function initialState(): State {
     paused: false,
     opps: OPPORTUNITIES,
     oppSel: "o1",
-    deliveries: DELIVERIES,
-    delSel: "DV-1027",
     convs: CONVERSATIONS,
     convSel: "v1",
     houseSel: "h1",
@@ -605,7 +612,6 @@ function initialState(): State {
     ],
     tasks: TASKS_SEED,
     quotes: [],
-    payments: [],
     audit: [
       {
         id: "au1",
@@ -661,8 +667,6 @@ type Action =
   | { type: "assignOccasion"; label: string }
   | { type: "selectHouse"; id: string }
   | { type: "createCross"; houseId: string; index: number }
-  | { type: "selectDelivery"; id: string }
-  | { type: "advanceDelivery" }
   | { type: "selectConv"; id: string }
   | { type: "takeOver" }
   | { type: "closeConv" }
@@ -694,15 +698,7 @@ type Action =
       actor: string;
     }
   | { type: "markQuote"; id: string; status: "viewed" | "accepted" | "rejected"; actor: string }
-  | {
-      type: "recordPayment";
-      deliveryId: string;
-      payType: "deposit" | "balance";
-      method: string;
-      amount: number;
-      reference: string;
-      actor: string;
-    }
+  | { type: "orderHandover"; orderId: string; actor: string }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
   | { type: "setSettings"; patch: Partial<Settings>; actor: string; label: string; detail?: string }
   | { type: "audit"; actor: string; action: string; entity: string; detail: string }
@@ -910,21 +906,6 @@ function reducer(s: State, a: Action): State {
         crossDone: [...s.crossDone, `${h.id}:${a.index}`],
         agentCount: { ...s.agentCount, house: s.agentCount.house + 1 },
       };
-    }
-    case "selectDelivery":
-      return { ...s, delSel: a.id };
-    case "advanceDelivery": {
-      const d = s.deliveries.find((x) => x.id === s.delSel);
-      if (!d || d.step >= 5) return s;
-      // Xuất kho cần thu đủ tiền theo chính sách thanh toán (đơn sinh trong phiên mô phỏng).
-      if (d.step === 1 && d.totalVnd !== undefined && (d.paidVnd ?? 0) < d.totalVnd) return s;
-      let ns = s;
-      if (d.step === 1 && d.oppId) ns = setStage(ns, d.oppId, 5);
-      if (d.step === 4) ns = completeDelivery(ns, d);
-      if (d.step === 3) ns = pushFeed(ns, "trust", `Gửi video bàn giao đơn ${d.id} cho ${d.buyer}`, "Đã gửi");
-      if (d.step === 4) ns = pushFeed(ns, "trust", `Xin đánh giá từ ${d.buyer} cho đơn ${d.id}`, "Đã gửi");
-      const next = { ...d, step: d.step + 1, flag: d.step === 0 || d.step === 2 ? null : d.flag };
-      return { ...ns, deliveries: ns.deliveries.map((x) => (x.id === d.id ? next : x)) };
     }
     case "selectConv":
       return { ...s, convSel: a.id };
@@ -1147,51 +1128,6 @@ function reducer(s: State, a: Action): State {
       if (a.status === "accepted") ns = createOrder(ns, q, a.actor);
       return ns;
     }
-    case "recordPayment": {
-      const seq = s.seq + 1;
-      const d = s.deliveries.find((x) => x.id === a.deliveryId);
-      if (!d) return s;
-      const p: PaymentRec = {
-        id: `P${700 + seq}`,
-        deliveryId: a.deliveryId,
-        type: a.payType,
-        method: a.method,
-        amount: a.amount,
-        reference: a.reference,
-        status: "recorded",
-        recordedBy: a.actor,
-        time: fmtMinutes(s.minutes),
-      };
-      let ns: State = {
-        ...s,
-        seq,
-        payments: [p, ...s.payments],
-        queue: [
-          {
-            id: `qp${seq}`,
-            kind: "payment",
-            agent: "trust",
-            text: `Khoản ${a.payType === "deposit" ? "cọc" : "thanh toán"} ${vnd(a.amount)} của đơn ${d.id} (${d.buyer}), ${a.method}${a.reference ? `, nội dung "${a.reference}"` : ""}`,
-            why: "Xác nhận tiền đã về tài khoản",
-            okText: `Đã xác nhận ${vnd(a.amount)} cho đơn ${d.id}`,
-            time: fmtMinutes(s.minutes),
-            perm: "payment.confirm",
-            requestedBy: a.actor,
-            ref: p.id,
-          },
-          ...s.queue,
-        ],
-      };
-      if (d.oppId)
-        ns = addActivity(
-          ns,
-          d.oppId,
-          "payment",
-          `Ghi nhận ${vnd(a.amount)} (${a.method}), chờ xác nhận`,
-          a.actor,
-        );
-      return ns;
-    }
     case "approve": {
       const q = s.queue.find((x) => x.id === a.id);
       if (!q) return s;
@@ -1208,9 +1144,7 @@ function reducer(s: State, a: Action): State {
             ? `Thanh toán đơn ${q.ref?.split("#")[0]}`
             : q.kind === "discount"
               ? `Báo giá ${q.ref}`
-              : q.kind === "payment"
-                ? `Thanh toán ${q.ref}`
-                : "Đề xuất agent",
+              : "Đề xuất agent",
         q.text,
       );
       if (q.kind === "stock_count") {
@@ -1225,6 +1159,18 @@ function reducer(s: State, a: Action): State {
       }
       if (q.kind === "order_payment") {
         const [orderId, idx] = (q.ref ?? "").split("#");
+        const order = ns.orders.find((o) => o.id === orderId);
+        const amount = order?.payments[Number(idx)]?.amount ?? 0;
+        if (order?.oppId)
+          ns = addActivity(
+            ns,
+            order.oppId,
+            "payment",
+            a.ok
+              ? `Xác nhận tiền về ${vnd(amount)} cho đơn ${order.code}`
+              : `Từ chối khoản ${vnd(amount)} của đơn ${order.code}`,
+            a.actor,
+          );
         return {
           ...ns,
           orders: ns.orders.map((o) =>
@@ -1252,52 +1198,6 @@ function reducer(s: State, a: Action): State {
           return addActivity(ns, quote.oppId, "quote", `Báo giá ${quote.id} bị từ chối giảm giá`, a.actor);
         }
         return markSent(ns, quote.id, a.actor);
-      }
-      if (q.kind === "payment") {
-        const p = ns.payments.find((x) => x.id === q.ref);
-        if (!p) return ns;
-        ns = {
-          ...ns,
-          payments: ns.payments.map((x) =>
-            x.id === p.id ? { ...x, status: a.ok ? "confirmed" : "rejected", confirmedBy: a.actor } : x,
-          ),
-        };
-        if (!a.ok) return ns;
-        const d = ns.deliveries.find((x) => x.id === p.deliveryId)!;
-        const paid = (d.paidVnd ?? 0) + p.amount;
-        const full = d.totalVnd !== undefined && paid >= d.totalVnd;
-        ns = {
-          ...ns,
-          deliveries: ns.deliveries.map((x) =>
-            x.id === d.id
-              ? { ...x, paidVnd: paid, payment: full ? "Đã thanh toán đủ" : `Đã thu ${vnd(paid)}` }
-              : x,
-          ),
-        };
-        if (d.oppId) {
-          ns = addActivity(ns, d.oppId, "payment", `Xác nhận tiền về ${vnd(p.amount)}`, a.actor);
-          const o = ns.opps.find((x) => x.id === d.oppId);
-          // Đơn đã cọc đủ mức tối thiểu thì lead sang Đặt cọc (CLAUDE.md mục 6) và tính doanh thu đã cọc.
-          if (o && o.stage < 4 && paid >= (d.depositMin ?? 0)) {
-            ns = setStage(ns, o.id, 4);
-            ns = {
-              ...pushFeed(ns, "tele", `${o.name} đặt cọc ${o.product}`, `+${tr(o.value)}`, true),
-              revenue: ns.revenue + o.value,
-            };
-            ns = addTask(ns, {
-              type: "delivery_step",
-              title: `Xác nhận người nhận và lịch giao đơn ${d.id}`,
-              deliveryId: d.id,
-              oppId: o.id,
-              owner: o.owner,
-              due: ns.minutes + 24 * 60,
-              priority: "high",
-              source: "rule",
-              ruleKey: "confirm_recipient",
-            });
-          }
-        }
-        return ns;
       }
       return a.ok
         ? { ...pushFeed(ns, q.agent, q.okText, "Quản lý đã duyệt"), autoCount: ns.autoCount + 1 }
@@ -1534,8 +1434,17 @@ function reducer(s: State, a: Action): State {
         recordedBy: a.actorId,
         at: simDate(s.minutes).toISOString(),
       };
+      const withPay: State = o.oppId
+        ? addActivity(
+            s,
+            o.oppId,
+            "payment",
+            `Ghi nhận ${vnd(a.amount)} (${a.method}) cho đơn ${o.code}, chờ xác nhận`,
+            a.actor,
+          )
+        : s;
       return {
-        ...s,
+        ...withPay,
         seq,
         orders: s.orders.map((x) => (x.id === o.id ? { ...x, payments: [...x.payments, pay] } : x)),
         queue: [
@@ -1574,6 +1483,7 @@ function reducer(s: State, a: Action): State {
         ns = { ...ns, stock, orders: ns.orders.map((x) => (x.id === o.id ? { ...x, holdUntil: hold } : x)) };
       }
       if (to === "completed") ns = completeOrder(ns, { ...o, status: to });
+      ns = syncLeadFromOrder(ns, { ...o, status: to }, a.actor);
       return addAudit(ns, a.actor, "Chuyển trạng thái đơn", o.code, `Sang ${to}`);
     }
     case "orderIssueStock": {
@@ -1980,6 +1890,17 @@ function reducer(s: State, a: Action): State {
         "",
       );
     }
+    case "orderHandover": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || o.status !== "installed" || o.handoverSent) return s;
+      let ns: State = {
+        ...s,
+        orders: s.orders.map((x) => (x.id === o.id ? { ...x, handoverSent: true } : x)),
+      };
+      ns = pushFeed(ns, "trust", `Gửi video bàn giao đơn ${o.code} cho người đặt`, "Đã gửi");
+      if (o.oppId) ns = addActivity(ns, o.oppId, "delivery", `Gửi video bàn giao đơn ${o.code}`, a.actor);
+      return addAudit(ns, a.actor, "Gửi video bàn giao", o.code, "");
+    }
     case "orderCod":
       return addAudit(
         { ...s, orders: s.orders.map((x) => (x.id === a.orderId ? { ...x, codApproved: true } : x)) },
@@ -2125,16 +2046,53 @@ export function orderMoney(o: Order) {
   };
 }
 
+/** Đơn trong phạm vi quyền: mọi đơn với `order.view_all`, đơn mình bán với `order.view_own`. */
+export function visibleOrders(orders: OrderRec[], perms: ReadonlySet<string>, userId: string): OrderRec[] {
+  if (perms.has("order.view_all")) return orders;
+  if (perms.has("order.view_own")) return orders.filter((o) => o.sellerId === userId);
+  return [];
+}
+
+/** Người đặt, người nhận của đơn: lấy từ hồ sơ khách 360 nếu có, không thì tên giữ trên đơn. */
+export function orderPeople(o: OrderRec) {
+  const b = CUSTOMERS.find((c) => c.id === o.buyerId);
+  const r = CUSTOMERS.find((c) => c.id === o.recipientId);
+  const self = o.buyerId ? o.recipientId === o.buyerId : o.recipientName === o.buyerName;
+  return {
+    buyer: b?.fullName ?? o.buyerName ?? "Chưa rõ",
+    // Thẻ thị trường chỉ có VN và KR; thị trường khác hoặc chưa rõ hiện như trong nước.
+    buyerMarket: ((b?.market ?? o.buyerMarket) === "KR" ? "KR" : "VN") as "KR" | "VN",
+    buyerPhoneMasked: b?.phoneMasked,
+    buyerHref: b ? `/customers/${b.id}` : undefined,
+    self,
+    /** Rỗng là chưa xác nhận người nhận. */
+    recipient: self ? "" : (r?.fullName ?? o.recipientName ?? ""),
+  };
+}
+
+/** Điều cần chú ý của đơn, dùng cho trợ lý AI và danh sách đơn. */
+export function orderRisks(o: OrderRec): string[] {
+  if (o.status === "completed" || o.status === "cancelled") return [];
+  const p = orderPeople(o);
+  const out: string[] = [];
+  if (o.status === "pending_approval") out.push("chờ Owner duyệt giảm giá");
+  if (!p.self && !p.recipient) out.push("chưa xác nhận người nhận");
+  if (o.keepSurprise) out.push("giữ bất ngờ, chưa được liên hệ người nhận");
+  if (o.holdUntil) out.push(`giữ hàng đến ${o.holdUntil.split("-").reverse().join("/")}`);
+  if (o.backorder) out.push("đặt trước, chờ hàng về");
+  return out;
+}
+
 export function orderFacts(o: OrderRec): OrderFacts {
   const m = orderMoney(o);
   return {
     status: o.status as OrderStatus,
-    hasRecipient: Boolean(o.recipientId),
+    hasRecipient: Boolean(o.recipientId || o.recipientName),
     hasAddress: Boolean(o.address.trim()),
     total: m.total,
     confirmedPaid: m.confirmed,
     // Chính sách cọc đang áp: tối thiểu 10 triệu hoặc 10%, không quá tổng.
-    depositMinimum: Math.min(m.total, Math.max(10_000_000, Math.round(m.total / 10))),
+    depositMinimum: o.depositMin ?? Math.min(m.total, Math.max(10_000_000, Math.round(m.total / 10))),
     codApproved: o.codApproved,
     stockIssued: o.stockIssued,
     serialsAssigned: o.lines.every((l) => !needsSerial(l.variantId) || Boolean(l.serial)),
@@ -2245,7 +2203,9 @@ function completeOrder(s: State, o: OrderRec): State {
     ns = addTask(ns, {
       type: "post_delivery_call",
       title: `Gọi hỏi thăm sau giao đơn ${o.code}`,
-      owner: "",
+      orderId: o.id,
+      oppId: o.oppId,
+      owner: s.opps.find((x) => x.id === o.oppId)?.owner ?? "",
       due: s.minutes + 3 * 1440,
       priority: "normal",
       source: "rule",
@@ -2255,6 +2215,8 @@ function completeOrder(s: State, o: OrderRec): State {
     ns = addTask(ns, {
       type: "consumable_reminder",
       title: `Nhắc thay lõi lọc cho đơn ${o.code}`,
+      orderId: o.id,
+      oppId: o.oppId,
       owner: "",
       due: s.minutes + 180 * 1440,
       priority: "normal",
@@ -2443,78 +2405,92 @@ function markSent(s: State, quoteId: string, actor: string): State {
   );
 }
 
-function createOrder(s: State, q: QuoteRec, actor: string): State {
-  const o = s.opps.find((x) => x.id === q.oppId)!;
-  const info = s.leadInfo[o.id] ?? newLeadInfo("VN");
-  const n = 1028 + s.deliveries.filter((d) => d.quoteId).length;
-  const first = q.result.lines.find((l) => !l.isGift);
-  const d: Delivery = {
-    id: `DV-${n}`,
-    buyer: o.name,
-    buyerCity: info.market === "KR" ? o.city : "",
-    recipient:
-      info.buyFor === "self"
-        ? o.name
-        : info.recipientName
-          ? `${info.recipientName} (${info.recipientRelation.toLowerCase()})`
-          : "Chưa xác nhận",
-    address: q.province,
-    product: first?.name ?? o.product,
-    value: Math.round(q.result.totals.total / 100_000) / 10,
-    payment: "Chưa thanh toán",
-    step: 0,
-    eta: "Chờ cọc",
-    houseId: o.houseId,
-    note: `Sinh từ báo giá ${q.id}. Cọc tối thiểu ${vnd(q.result.deposit.minimum)}, giữ hàng ${q.result.deposit.holdDays} ngày.`,
-    flag: info.keepSurprise ? "Giữ bất ngờ: chưa liên hệ người nhận" : null,
-    oppId: o.id,
-    quoteId: q.id,
-    totalVnd: q.result.totals.total,
-    depositMin: q.result.deposit.minimum,
-    paidVnd: 0,
-    hasFilter: q.result.lines.some((l) => l.name.includes("Máy lọc")),
-  };
-  const ns = { ...s, deliveries: [d, ...s.deliveries], delSel: d.id };
-  return addActivity(ns, o.id, "delivery", `Tạo đơn ${d.id} từ báo giá ${q.id}`, actor);
+/** Mã nhân sự theo tên ngắn (cột người phụ trách của dữ liệu mô phỏng). */
+function staffIdByShort(short: string): string | undefined {
+  return STAFF.find((st) => staffShort(st.id) === short)?.id;
 }
 
-function completeDelivery(s: State, d: Delivery): State {
-  // Hoàn tất sinh việc chăm sóc theo luật đang bật (CLAUDE.md 8.7, task_rules).
-  let ns = s;
-  const owner = s.opps.find((o) => o.id === d.oppId)?.owner ?? "Thảo";
-  const rules = new Set(s.settings.taskRules.filter((r) => r.active).map((r) => r.key));
-  if (rules.has("post_delivery_3d"))
+function createOrder(s: State, q: QuoteRec, actor: string): State {
+  // Khách đồng ý báo giá thì sinh đơn hàng chuẩn (CLAUDE.md 8.6, 8.7): sao giá, chính sách, người đặt, người nhận.
+  const o = s.opps.find((x) => x.id === q.oppId)!;
+  const info = s.leadInfo[o.id] ?? newLeadInfo("VN");
+  const n = s.orders.filter((x) => x.quoteId).length + 1;
+  const id = NEW_ORDER_IDS[n - 1] ?? `o-q${n}`;
+  const code = `Q4-2610-${String(14 + n).padStart(4, "0")}`;
+  const self = info.buyFor === "self";
+  const recipientName = self
+    ? o.name
+    : info.recipientName
+      ? `${info.recipientName} (${info.recipientRelation.toLowerCase()})`
+      : "";
+  const order: OrderRec = {
+    id,
+    code,
+    buyerId: "",
+    recipientId: "",
+    buyerName: o.name,
+    buyerMarket: info.market,
+    recipientName,
+    address: q.province,
+    isGift: !self,
+    giftMessage: "",
+    keepSurprise: info.keepSurprise,
+    channel: o.source,
+    sellerId: staffIdByShort(o.owner) ?? staffIdByShort(actor) ?? STAFF[0].id,
+    status: recipientName && q.province ? "confirmed" : "draft",
+    createdAt: simDate(s.minutes).toISOString(),
+    deliveryDate: null,
+    lines: q.result.lines.map((l) => ({
+      variantId: l.variantId,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      discount: l.discount,
+      isGift: l.isGift,
+    })),
+    fees: q.result.fees,
+    policies: q.result.appliedPolicies.map((p) => p.name),
+    payments: [],
+    holdUntil: null,
+    oppId: o.id,
+    quoteId: q.id,
+    depositMin: q.result.deposit.minimum,
+    warehouseId: "wh-q4",
+    stockIssued: false,
+    codApproved: false,
+  };
+  const ns = { ...s, orders: [order, ...s.orders] };
+  return addActivity(ns, o.id, "delivery", `Tạo đơn ${code} từ báo giá ${q.id}`, actor);
+}
+
+/**
+ * Giai đoạn lead sinh từ trạng thái đơn (CLAUDE.md mục 6): đã cọc hoặc được duyệt thu khi giao → Đặt cọc
+ * (tính doanh thu đã cọc, sinh việc xác nhận người nhận); hoàn tất → Giao & lắp xong.
+ */
+function syncLeadFromOrder(s: State, o: OrderRec, actor: string): State {
+  if (!o.oppId) return s;
+  const lead = s.opps.find((x) => x.id === o.oppId);
+  if (!lead) return s;
+  let ns = addActivity(s, lead.id, "delivery", `Đơn ${o.code} sang "${ORDER_STATUS[o.status].label}"`, actor);
+  const stage = leadStageFromOrder(o.status, o.codApproved);
+  if (stage === "deposit" && lead.stage < 4) {
+    ns = setStage(ns, lead.id, 4);
+    ns = {
+      ...pushFeed(ns, "tele", `${lead.name} đặt cọc ${lead.product}`, `+${tr(lead.value)}`, true),
+      revenue: ns.revenue + lead.value,
+    };
     ns = addTask(ns, {
-      type: "post_delivery_call",
-      title: `Gọi hỏi thăm ${d.buyer} sau 3 ngày dùng ${d.product}`,
-      deliveryId: d.id,
-      oppId: d.oppId,
-      owner,
-      due: s.minutes + 3 * 24 * 60,
-      priority: "normal",
+      type: "delivery_step",
+      title: `Xác nhận người nhận và lịch giao đơn ${o.code}`,
+      orderId: o.id,
+      oppId: lead.id,
+      owner: lead.owner,
+      due: ns.minutes + 24 * 60,
+      priority: "high",
       source: "rule",
-      ruleKey: "post_delivery_3d",
+      ruleKey: "confirm_recipient",
     });
-  if (d.hasFilter && rules.has("consumable_cycle"))
-    ns = addTask(ns, {
-      type: "consumable_reminder",
-      title: `Nhắc thay lõi lọc cho ${d.recipient}`,
-      deliveryId: d.id,
-      oppId: d.oppId,
-      owner: "",
-      due: s.minutes + 180 * 24 * 60,
-      priority: "normal",
-      source: "rule",
-      ruleKey: "consumable_cycle",
-    });
-  if (d.oppId)
-    ns = addActivity(
-      ns,
-      d.oppId,
-      "delivery",
-      `Đơn ${d.id} hoàn tất, sinh phiếu bảo hành; khách sang "Đang sử dụng"`,
-      "Hệ thống",
-    );
+  }
+  if (stage === "won" && lead.stage < 5) ns = setStage(ns, lead.id, 5);
   return ns;
 }
 
@@ -2578,5 +2554,5 @@ export function useCrm() {
   return ctx;
 }
 
-export { DELIVERY_STEPS, STAGES, agentById };
+export { STAGES, agentById };
 export type { State as CrmState };

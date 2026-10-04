@@ -1,9 +1,10 @@
 import { OrderDemo } from "@/components/demo/pages/order";
-import { ORDERS } from "@/lib/demo/data";
+import { NEW_ORDER_IDS, ORDERS } from "@/lib/demo/data";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
-  return ORDERS.map((o) => ({ id: o.id }));
+  // Kèm mã dự phòng cho đơn sinh từ báo giá trong phiên mô phỏng.
+  return [...ORDERS.map((o) => o.id), ...NEW_ORDER_IDS].map((id) => ({ id }));
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {

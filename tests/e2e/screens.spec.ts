@@ -8,7 +8,6 @@ const OWNER_SCREENS: [string, string][] = [
   ["/tasks", "Việc cần làm"],
   ["/opportunities", "Cơ hội"],
   ["/households", "Hộ gia đình"],
-  ["/deliveries", "Đơn & giao lắp"],
   ["/inbox", "Hội thoại"],
   ["/channels", "Kênh & nội dung"],
   ["/reports", "Báo cáo"],

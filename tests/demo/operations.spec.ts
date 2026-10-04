@@ -97,47 +97,50 @@ test("Owner: báo giá → khách đồng ý → đơn → cọc → xác nhận
   await expect(p.getByLabel("Trang báo giá cho khách")).not.toContainText("+82 10 5521");
   await p.getByRole("button", { name: "Khách đã đồng ý" }).click();
 
-  await tab(page, "Đơn & giao lắp").click();
-  const order = page.getByRole("region", { name: "Đơn DV-1028" });
-  await expect(order).toContainText("Chưa thanh toán");
-  await order.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-  await order.getByRole("button", { name: "Ghi nhận", exact: true }).click();
-  await expect(order.getByText("Chờ xác nhận", { exact: true })).toBeVisible();
+  // Báo giá được đồng ý sinh đơn hàng chuẩn, không còn màn giao lắp riêng.
+  await tab(page, "Đơn hàng").click();
+  await page.getByRole("link", { name: "Q4-2610-0015" }).click();
+  const steps = page.getByRole("region", { name: "Thao tác đơn" });
+  await expect(page.getByRole("heading", { name: "Đơn Q4-2610-0015" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /mở hồ sơ lead/ })).toBeVisible();
+  const confirm = steps.getByRole("button", { name: "Xác nhận đơn" });
+  if (await confirm.isVisible()) await confirm.click();
 
-  // Owner được tự xác nhận khoản mình ghi, có ghi nhận riêng.
-  await page.getByRole("button", { name: /Chờ duyệt:/ }).click();
-  const queue = page.getByRole("dialog", { name: "Chờ duyệt" });
-  const item = queue.locator(".c-appr").filter({ hasText: "DV-1028" });
-  await expect(item).toContainText("lần duyệt này được ghi riêng");
-  await item.getByRole("button", { name: "Duyệt" }).click();
-  await queue.getByRole("button", { name: "Đóng" }).click();
-  await expect(order.getByText("Đã xác nhận", { exact: true })).toBeVisible();
+  const approve = async () => {
+    await page.getByRole("button", { name: /Chờ duyệt:/ }).click();
+    const queue = page.getByRole("dialog", { name: "Chờ duyệt" });
+    const item = queue.locator(".c-appr").filter({ hasText: "Q4-2610-0015" });
+    // Owner được tự xác nhận khoản mình ghi, có ghi nhận riêng.
+    await expect(item).toContainText("lần duyệt này được ghi riêng");
+    await item.getByRole("button", { name: "Duyệt" }).click();
+    await queue.getByRole("button", { name: "Đóng" }).click();
+  };
+  await page.getByRole("button", { name: "Ghi thanh toán" }).click();
+  await page.getByRole("button", { name: "Ghi nhận", exact: true }).click();
+  await expect(page.getByText("Chờ xác nhận", { exact: true }).first()).toBeVisible();
+  await approve();
+  await steps.getByRole("button", { name: "Chuyển sang Đã cọc, giữ hàng" }).click();
 
-  await order.getByRole("button", { name: /xác nhận người nhận|Xác nhận người nhận/ }).click();
-  const ship = order.getByRole("button", { name: "Ghi sổ xuất kho, gán serial" });
-  await expect(ship).toBeDisabled();
-  await order.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-  await order.getByRole("button", { name: "Ghi nhận", exact: true }).click();
-  await page.getByRole("button", { name: /Chờ duyệt:/ }).click();
-  await queue
-    .locator(".c-appr")
-    .filter({ hasText: "DV-1028" })
-    .getByRole("button", { name: "Duyệt" })
-    .click();
-  await queue.getByRole("button", { name: "Đóng" }).click();
-  await expect(ship).toBeEnabled();
-  await ship.click();
-  await order.getByRole("button", { name: "Xác nhận đã giao và lắp" }).click();
-  await order.getByRole("button", { name: "Gửi video bàn giao" }).click();
-  await order.getByRole("button", { name: "Ghi nhận đánh giá, hoàn tất" }).click();
-  await expect(order.getByText("Hoàn tất, đã sinh bảo hành")).toBeVisible();
+  const ready = steps.getByRole("button", { name: "Chuyển sang Sẵn sàng giao" });
+  await expect(ready).toBeDisabled();
+  await page.getByRole("button", { name: "Ghi thanh toán" }).click();
+  await page.getByRole("button", { name: "Ghi nhận", exact: true }).click();
+  await approve();
+  await ready.click();
+  await steps.getByRole("button", { name: "Ghi sổ xuất kho, gán serial" }).click();
+  await steps.getByRole("button", { name: "Bắt đầu giao" }).click();
+  await steps.getByRole("button", { name: "Xác nhận đã lắp" }).click();
+  const delivery = page.getByRole("region", { name: "Giao lắp" });
+  await delivery.getByRole("button", { name: "Gửi video bàn giao" }).click();
+  await steps.getByRole("button", { name: "Hoàn tất đơn" }).click();
+  await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toBeVisible();
 
   await tab(page, "Cơ hội").click();
   await expect(
     page.getByRole("region", { name: "Giao & lắp" }).getByRole("button", { name: /Nguyễn Thị Thu/ }),
   ).toBeVisible();
   await tab(page, "Việc cần làm").click();
-  await expect(page.getByText("Gọi hỏi thăm Nguyễn Thị Thu sau 3 ngày")).toBeVisible();
+  await expect(page.getByText("Gọi hỏi thăm sau giao đơn Q4-2610-0015")).toBeVisible();
 
   // Nhật ký kiểm toán có lần tự duyệt của Owner.
   await page.getByRole("button", { name: "Tài khoản" }).click();
@@ -152,15 +155,19 @@ test("sale admin không tự xác nhận khoản mình ghi nhận", async ({ pag
   await p.getByRole("button", { name: "Tạo báo giá" }).click();
   await p.getByRole("button", { name: "Gửi báo giá", exact: true }).click();
   await p.getByRole("button", { name: "Khách đã đồng ý" }).click();
-  await tab(page, "Đơn & giao lắp").click();
-  const order = page.getByRole("region", { name: "Đơn DV-1028" });
-  await order.getByRole("button", { name: "Ghi nhận thanh toán" }).click();
-  await order.getByRole("button", { name: "Ghi nhận", exact: true }).click();
+  await tab(page, "Đơn hàng").click();
+  await page.getByRole("link", { name: "Q4-2610-0015" }).click();
+  const confirm = page
+    .getByRole("region", { name: "Thao tác đơn" })
+    .getByRole("button", { name: "Xác nhận đơn" });
+  if (await confirm.isVisible()) await confirm.click();
+  await page.getByRole("button", { name: "Ghi thanh toán" }).click();
+  await page.getByRole("button", { name: "Ghi nhận", exact: true }).click();
   await page.getByRole("button", { name: /Chờ duyệt:/ }).click();
   const item = page
     .getByRole("dialog", { name: "Chờ duyệt" })
     .locator(".c-appr")
-    .filter({ hasText: "DV-1028" });
+    .filter({ hasText: "Q4-2610-0015" });
   await expect(item).toContainText("Bạn là người đề xuất, cần người khác duyệt");
   await expect(item.getByRole("button", { name: "Duyệt" })).toHaveCount(0);
 });

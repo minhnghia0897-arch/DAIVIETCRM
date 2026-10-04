@@ -32,12 +32,11 @@ export function CrmTasks() {
   const mineWaiting = state.queue.filter((q) => q.requestedBy === me);
 
   function openTask(t: Task) {
-    if (t.oppId) {
+    // Việc gắn đơn mở hồ sơ đơn; việc gắn lead mở hồ sơ lead.
+    if (t.orderId) router.push(`/orders/${t.orderId}`);
+    else if (t.oppId) {
       act({ type: "selectOpp", id: t.oppId });
       router.push("/opportunities");
-    } else if (t.deliveryId) {
-      act({ type: "selectDelivery", id: t.deliveryId });
-      router.push("/deliveries");
     }
   }
 
@@ -189,7 +188,7 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
             type="button"
             className="c-link font-semibold"
             onClick={onOpen}
-            disabled={!t.oppId && !t.deliveryId}
+            disabled={!t.oppId && !t.orderId}
           >
             {t.title}
           </button>

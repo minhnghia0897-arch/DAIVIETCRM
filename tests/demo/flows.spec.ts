@@ -78,7 +78,7 @@ for (const path of [
   "tasks/",
   "opportunities/",
   "households/",
-  "deliveries/",
+  "orders/",
   "inbox/",
   "reports/",
   "policies/",
@@ -114,6 +114,17 @@ test("Sản phẩm, Kho, Chính sách gom trong một tab, chuyển bằng tab c
   await expect(nav.getByRole("link", { name: "Sản phẩm" })).toHaveAttribute("aria-current", "page");
   await sub.getByRole("link", { name: "Chính sách" }).click();
   await expect(page).toHaveURL(/policies/);
+});
+
+test("đơn giao lắp đã gộp vào Đơn hàng: một tab, đường dẫn cũ chuyển sang Đơn hàng", async ({ page }) => {
+  await as(page, "owner", "deliveries/");
+  await expect(page).toHaveURL(/\/orders\/?$/);
+  const nav = page.getByRole("navigation", { name: "Ứng dụng" });
+  await expect(nav.getByRole("link", { name: "Đơn hàng", exact: true })).toHaveCount(1);
+  await expect(nav.getByRole("link", { name: /giao lắp/ })).toHaveCount(0);
+  // Bước giao lắp nằm trên hồ sơ đơn.
+  await page.getByRole("link", { name: "Q4-2610-0013" }).click();
+  await expect(page.getByRole("region", { name: "Giao lắp" })).toContainText("Ghi sổ xuất kho, gán serial");
 });
 
 test("trang không có hoặc ngoài quyền báo bằng tiếng Việt, không lộ dữ liệu", async ({ page }) => {

@@ -2,22 +2,32 @@
 
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { CUSTOMERS, PRODUCTS, STAFF, VARIANTS, type OrderStatus } from "@/lib/demo/data";
+import { PRODUCTS, STAFF, VARIANTS, type OrderStatus } from "@/lib/demo/data";
 import { ORDER_PATH, ORDER_STATUS } from "@/lib/demo/labels";
 import { NEXT_STATUS, transitionBlockers } from "@/lib/sales/orders";
 import { LocTag, PageHead } from "../parts";
 import { useShell } from "../shell-context";
-import { issueBlockers, orderFacts, orderMoney, stockBlockers, useCrm, vnd, type OrderRec } from "../store";
+import {
+  issueBlockers,
+  orderFacts,
+  orderMoney,
+  orderPeople,
+  orderRisks,
+  stockBlockers,
+  useCrm,
+  visibleOrders,
+  vnd,
+  type OrderRec,
+} from "../store";
 import { WAREHOUSES } from "@/lib/demo/data";
 
 // Đơn hàng (CLAUDE.md 8.7): luồng trạng thái kiểm điều kiện ở hàm thuần lib/sales/orders.ts;
 // tiền ghi nhận và xác nhận do hai người khác nhau; đã cọc thì giữ hàng; xuất kho gán serial; hoàn tất sinh bảo hành.
 
 const TONE = { ok: "is-ok", warn: "is-warn", err: "is-err", neutral: "is-n" } as const;
-const person = (id: string) => CUSTOMERS.find((c) => c.id === id);
 const staff = (id: string) => STAFF.find((s) => s.id === id)?.fullName ?? "Chưa rõ";
 const vLabel = (id: string) => {
   const v = VARIANTS.find((x) => x.id === id);
@@ -28,10 +38,8 @@ const money = (v: number) => vnd(v);
 
 function useVisibleOrders() {
   const { state } = useCrm();
-  const { can, userId } = useShell();
-  if (can("order.view_all")) return state.orders;
-  if (can("order.view_own")) return state.orders.filter((o) => o.sellerId === userId);
-  return [];
+  const { perms, userId } = useShell();
+  return visibleOrders(state.orders, perms, userId);
 }
 
 const FILTERS: { key: string; label: string; statuses: OrderStatus[] }[] = [
@@ -104,8 +112,8 @@ export function CrmOrders() {
             <tbody>
               {rows.map((o) => {
                 const m = orderMoney(o);
-                const b = person(o.buyerId);
-                const r = person(o.recipientId);
+                const p = orderPeople(o);
+                const risks = orderRisks(o);
                 return (
                   <tr key={o.id}>
                     <td>
@@ -114,10 +122,17 @@ export function CrmOrders() {
                       </Link>
                     </td>
                     <td>
-                      {b?.fullName} {b ? <LocTag loc={b.market} /> : null}
+                      {p.buyer} <LocTag loc={p.buyerMarket} />
+                      {risks.length ? (
+                        <span className="c-lbl block text-warn">{risks.join(", ")}</span>
+                      ) : null}
                     </td>
                     <td>
-                      {o.recipientId === o.buyerId ? <span className="c-lbl">Chính khách</span> : r?.fullName}
+                      {p.self ? (
+                        <span className="c-lbl">Chính khách</span>
+                      ) : (
+                        p.recipient || <span className="text-warn">Chưa xác nhận</span>
+                      )}
                     </td>
                     <td className="text-right tabular">{money(m.total)}</td>
                     <td className="text-right tabular">{money(m.confirmed)}</td>
@@ -152,6 +167,7 @@ const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
 export function CrmOrder({ id }: { id: string }) {
   const { state, act } = useCrm();
   const { can, me, userId } = useShell();
+  const router = useRouter();
   const o = useVisibleOrders().find((x) => x.id === id);
   if (!o) notFound();
   const m = orderMoney(o);
@@ -160,8 +176,7 @@ export function CrmOrder({ id }: { id: string }) {
   const blockers = next
     ? [...transitionBlockers(facts, next), ...(next === "deposit_paid" ? stockBlockers(state, o) : [])]
     : [];
-  const buyer = person(o.buyerId);
-  const recipient = person(o.recipientId);
+  const people = orderPeople(o);
   const mine = o.sellerId === userId;
   const canEdit = can("order.edit_all") || (can("order.edit_own") && mine);
   const deliveryStep = next === "delivering" || next === "installed" || next === "completed";
@@ -169,6 +184,11 @@ export function CrmOrder({ id }: { id: string }) {
   const cur = ORDER_PATH.findIndex((p) => p.status === o.status);
   const warranties = state.warranties.filter((w) => w.orderId === o.id);
   const ended = o.status === "completed" || o.status === "cancelled";
+  function openLead() {
+    if (!o?.oppId) return;
+    act({ type: "selectOpp", id: o.oppId });
+    router.push("/opportunities");
+  }
 
   return (
     <div className="c-stack">
@@ -199,6 +219,16 @@ export function CrmOrder({ id }: { id: string }) {
             <span className="c-lbl">Giữ hàng đến</span>
             <b>{o.holdUntil ? o.holdUntil.split("-").reverse().join("/") : "—"}</b>
           </div>
+          {o.oppId ? (
+            <div>
+              <span className="c-lbl">Từ báo giá</span>
+              <b>
+                <button type="button" className="c-link" onClick={openLead}>
+                  {o.quoteId} · mở hồ sơ lead
+                </button>
+              </b>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -353,16 +383,26 @@ export function CrmOrder({ id }: { id: string }) {
                 <div>
                   <span className="c-lbl">Người đặt</span>
                   <b>
-                    <Link href={`/customers/${o.buyerId}`} className="c-link">
-                      {buyer?.fullName}
-                    </Link>{" "}
-                    {buyer ? <LocTag loc={buyer.market} /> : null}
+                    {people.buyerHref ? (
+                      <Link href={people.buyerHref} className="c-link">
+                        {people.buyer}
+                      </Link>
+                    ) : (
+                      people.buyer
+                    )}{" "}
+                    <LocTag loc={people.buyerMarket} />
                   </b>
-                  <span className="c-lbl tabular">{buyer?.phoneMasked}</span>
+                  {people.buyerPhoneMasked ? (
+                    <span className="c-lbl tabular">{people.buyerPhoneMasked}</span>
+                  ) : null}
                 </div>
                 <div>
                   <span className="c-lbl">Người nhận</span>
-                  <b>{o.recipientId === o.buyerId ? "Chính người đặt" : recipient?.fullName}</b>
+                  <b>
+                    {people.self
+                      ? "Chính người đặt"
+                      : people.recipient || <span className="text-warn">Chưa xác nhận</span>}
+                  </b>
                   <span className="c-lbl">{o.address}</span>
                 </div>
               </div>
@@ -398,6 +438,8 @@ export function CrmOrder({ id }: { id: string }) {
               ))}
             </ul>
           </section>
+
+          {o.status !== "cancelled" ? <DeliverySteps order={o} /> : null}
 
           {warranties.length ? (
             <section className="c-card" aria-label="Phiếu bảo hành">
@@ -646,5 +688,67 @@ function CancelOrder({ order }: { order: OrderRec }) {
         Đơn đã có tiền thì ghi hoàn tiền riêng; giai đoạn lead không tự đổi, người bán quyết định.
       </span>
     </form>
+  );
+}
+
+/**
+ * Bước giao lắp của đơn (CLAUDE.md 8.7, `deliveries`): giai đoạn 1 cập nhật tay trên hồ sơ đơn, app cho kỹ thuật
+ * viên làm sau. Các bước đọc từ trạng thái đơn; riêng video bàn giao ghi nhận bằng nút.
+ */
+function DeliverySteps({ order: o }: { order: OrderRec }) {
+  const { act } = useCrm();
+  const { can, me } = useShell();
+  const reached = (s: OrderStatus) => {
+    const order: OrderStatus[] = [
+      "draft",
+      "pending_approval",
+      "confirmed",
+      "deposit_paid",
+      "ready_to_ship",
+      "delivering",
+      "installed",
+      "completed",
+    ];
+    return order.indexOf(o.status) >= order.indexOf(s);
+  };
+  const steps: [string, boolean][] = [
+    ["Xác nhận người nhận và địa chỉ", reached("confirmed")],
+    ["Ghi sổ xuất kho, gán serial", o.stockIssued],
+    ["Giao và lắp đặt", reached("installed")],
+    ["Gửi video bàn giao cho người đặt", Boolean(o.handoverSent) || reached("completed")],
+    ["Hoàn tất, sinh phiếu bảo hành", reached("completed")],
+  ];
+  return (
+    <section className="c-card" aria-label="Giao lắp">
+      <div className="c-ch">
+        <h2>Giao lắp</h2>
+        <span className="c-r c-lbl">
+          {o.deliveryDate
+            ? `Hẹn giao ${o.deliveryDate.split("-").reverse().join("/")}`
+            : "Chưa hẹn ngày giao"}
+        </span>
+      </div>
+      <ol className="m-0 list-none space-y-1 px-4 pb-3">
+        {steps.map(([label, done]) => (
+          <li key={label} className="flex items-center gap-2">
+            <span className={`c-pill ${done ? "is-ok" : "is-n"}`}>{done ? "Xong" : "Chưa"}</span>
+            {label}
+          </li>
+        ))}
+      </ol>
+      {o.status === "installed" && !o.handoverSent && can("delivery.update") ? (
+        <div className="px-4 pb-3">
+          <button
+            type="button"
+            className="c-btn"
+            onClick={() =>
+              act({ type: "orderHandover", orderId: o.id, actor: me }, "Đã gửi video bàn giao cho người đặt")
+            }
+          >
+            Gửi video bàn giao
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }

@@ -266,7 +266,8 @@ export interface Task {
   type: TaskType;
   title: string;
   oppId?: string;
-  deliveryId?: string;
+  /** Đơn hàng liên quan (mã trong `orders`). */
+  orderId?: string;
   /** Tên ngắn người nhận việc; rỗng là hàng chung. */
   owner: string;
   /** Phút trong ngày mô phỏng (giờ VN); lớn hơn 1440 là ngày sau. */
@@ -330,8 +331,8 @@ export const TASKS_SEED: Task[] = [
   {
     id: "t5",
     type: "post_delivery_call",
-    title: "Gọi hỏi thăm hộ Bùi sau 3 ngày dùng ghế DV-M5",
-    deliveryId: "DV-1024",
+    title: "Gọi hỏi thăm anh Khoa sau 3 ngày dùng ghế DV-X9",
+    orderId: "o-0009",
     owner: "Thảo",
     due: h(10),
     priority: "normal",
@@ -343,7 +344,7 @@ export const TASKS_SEED: Task[] = [
     id: "t6",
     type: "consumable_reminder",
     title: "Xác nhận lịch thay lõi 16:00 cho chị Lan",
-    deliveryId: "DV-1022",
+    orderId: "o-0008",
     owner: "My",
     due: h(15),
     priority: "normal",
@@ -377,7 +378,7 @@ export const TASKS_SEED: Task[] = [
     id: "t9",
     type: "delivery_step",
     title: "Xin phép chị Hồng liên hệ người nhận ở Hà Tĩnh",
-    deliveryId: "DV-1026",
+    oppId: "o9",
     owner: "Thảo",
     due: h(20),
     priority: "high",

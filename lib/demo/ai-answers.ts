@@ -1,13 +1,11 @@
 import {
   CONVERSATIONS,
   DAYS_LEFT,
-  DELIVERY_STEPS,
   GOAL,
   houseById,
   tr,
   ty,
   type Conversation,
-  type Delivery,
   type Opportunity,
 } from "./crm-data";
 
@@ -35,6 +33,15 @@ export interface AiAnswer {
   bars?: [string, number][];
 }
 
+export interface AiOrder {
+  id: string;
+  code: string;
+  buyer: string;
+  recipient: string;
+  status: string;
+  risks: string[];
+}
+
 export interface AiContext {
   view: AiView;
   revenue: number;
@@ -43,8 +50,10 @@ export interface AiContext {
   opps: Opportunity[];
   oppSel: string;
   houseSel: string;
-  deliveries: Delivery[];
-  delSel: string;
+  /** Đơn hàng trong phạm vi quyền của người hỏi. */
+  orders: AiOrder[];
+  /** Đơn đang mở (trang hồ sơ đơn), nếu có. */
+  orderSel?: string;
   convs: Conversation[];
 }
 
@@ -54,7 +63,7 @@ export function aiAnswer(question: string, c: AiContext): AiAnswer {
   const pipeline = open.reduce((s, o) => s + o.value, 0);
   const opp = c.opps.find((o) => o.id === c.oppSel) ?? c.opps[0];
   const h = houseById(c.houseSel)!;
-  const d = c.deliveries.find((x) => x.id === c.delSel)!;
+  const d = c.orders.find((x) => x.id === c.orderSel) ?? c.orders.find((x) => x.risks.length) ?? c.orders[0];
 
   if (t.includes("3 tỷ") && t.includes("bao xa"))
     return {
@@ -124,15 +133,17 @@ export function aiAnswer(question: string, c: AiContext): AiAnswer {
   if (t.includes("rủi ro"))
     return {
       paragraphs: [
-        ...c.deliveries.filter((x) => x.flag).map((x) => `${x.id} (${x.buyer}): ${x.flag}. ${x.note}`),
+        ...c.orders
+          .filter((x) => x.risks.length)
+          .map((x) => `${x.code} (${x.buyer}): ${x.status}, ${x.risks.join(", ")}.`),
         "Với đơn Tết, đội lắp đặt tuyến miền Trung cần chốt lịch trước 15/12.",
       ],
     };
   if (t.includes("cập nhật cho người tặng") && d) {
-    const who = d.recipient.match(/\(([^)]+)\)/)?.[1] ?? "người nhận";
+    const who = d.recipient.match(/\(([^)]+)\)/)?.[1] ?? (d.recipient || "người nhận");
     return {
       paragraphs: [`Bản nháp cho ${d.buyer}:`],
-      draft: `Chào anh chị, Đại Việt cập nhật đơn ${d.id}: hiện đang ở bước "${DELIVERY_STEPS[Math.min(d.step, 4)]}", hẹn giao ${d.eta}. Lắp xong em gửi video bàn giao tại nhà ${who} ngay ạ.`,
+      draft: `Chào anh chị, Đại Việt cập nhật đơn ${d.code}: hiện đơn đang ở bước "${d.status}". Lắp xong em gửi video bàn giao tại nhà ${who} ngay ạ.`,
     };
   }
   if (t.includes("cần người")) {

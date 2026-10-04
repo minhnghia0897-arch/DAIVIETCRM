@@ -14,7 +14,8 @@ import { visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
-import { CrmProvider, fmtMinutes, useCrm } from "./store";
+import { ORDER_STATUS } from "@/lib/demo/labels";
+import { CrmProvider, fmtMinutes, orderPeople, orderRisks, useCrm, visibleOrders } from "./store";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
 // thanh tab, vùng nội dung kèm khung trợ lý AI bên phải, thanh tiện ích dưới cùng.
@@ -56,7 +57,7 @@ const VIEW_BY_PATH: [string, AiView][] = [
   ["/home", "home"],
   ["/opportunities", "opps"],
   ["/households", "house"],
-  ["/deliveries", "orders"],
+  ["/orders", "orders"],
   ["/inbox", "convos"],
   ["/channels", "channels"],
   ["/reports", "reports"],
@@ -121,14 +122,24 @@ function ShellInner({
         opps: s.opps,
         oppSel: s.oppSel,
         houseSel: s.houseSel,
-        deliveries: s.deliveries,
-        delSel: s.delSel,
+        orders: visibleOrders(s.orders, perms, user.id).map((o) => {
+          const p = orderPeople(o);
+          return {
+            id: o.id,
+            code: o.code,
+            buyer: p.buyer,
+            recipient: p.self ? p.buyer : p.recipient,
+            status: ORDER_STATUS[o.status].label,
+            risks: orderRisks(o),
+          };
+        }),
+        orderSel: pathname.match(/^\/orders\/([^/]+)/)?.[1],
         convs: s.convs,
       });
       setAiPref(true);
       setMessages((m) => [...m, { id: (m.at(-1)?.id ?? 0) + 1, question, answer }]);
     },
-    [view],
+    [view, perms, pathname, user.id],
   );
 
   const me = user.shortName;
@@ -157,10 +168,12 @@ function ShellInner({
       router.push("/households");
       return;
     }
-    const d = state.deliveries.find((x) => fold(x.id).includes(t) || fold(x.buyer).includes(t));
+    const d = visibleOrders(state.orders, perms, user.id).find(
+      (x) => fold(x.code).includes(t) || fold(orderPeople(x).buyer).includes(t),
+    );
     if (d) {
-      act({ type: "selectDelivery", id: d.id }, `Mở đơn ${d.id}`);
-      router.push("/deliveries");
+      toast(`Mở đơn ${d.code}`);
+      router.push(`/orders/${d.id}`);
       return;
     }
     toast(`Không tìm thấy "${text}"`, "err");
@@ -170,7 +183,11 @@ function ShellInner({
     if (view === "house") return `Đang xem: ${houseById(state.houseSel)?.name}`;
     if (view === "opps")
       return `Đang xem: cơ hội ${state.opps.find((o) => o.id === state.oppSel)?.name ?? ""}`;
-    if (view === "orders") return `Đang xem: đơn ${state.delSel}`;
+    if (view === "orders") {
+      const id = pathname.match(/^\/orders\/([^/]+)/)?.[1];
+      const o = id ? state.orders.find((x) => x.id === id) : undefined;
+      return o ? `Đang xem: đơn ${o.code}` : "Đang xem: danh sách đơn hàng";
+    }
     if (view === "convos")
       return `Đang xem: hội thoại ${state.convs.find((c) => c.id === state.convSel)?.name}`;
     return "Đọc dữ liệu showroom Quận 4 theo quyền của bạn";

@@ -718,6 +718,9 @@ export interface Order {
   holdUntil: string | null;
 }
 
+/** Mã đơn dự phòng cho đơn sinh từ báo giá trong phiên mô phỏng; bản demo tĩnh dựng sẵn trang cho các mã này. */
+export const NEW_ORDER_IDS = Array.from({ length: 30 }, (_, i) => `o-q${i + 1}`);
+
 export const ORDERS: Order[] = [
   {
     id: "o-0012",
