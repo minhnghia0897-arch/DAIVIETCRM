@@ -5,6 +5,8 @@ export interface NavTab {
   label: string;
   anyOf: string[];
   ready: boolean;
+  /** Tab gom nhiều màn hình: hiện thành tab con, mỗi tab con theo quyền riêng. */
+  children?: { href: string; label: string; perm: string }[];
 }
 
 export const NAV_TABS: NavTab[] = [
@@ -17,9 +19,17 @@ export const NAV_TABS: NavTab[] = [
   { href: "/channels", label: "Kênh & nội dung", anyOf: ["report.team"], ready: true },
   { href: "/reports", label: "Báo cáo", anyOf: ["report.own", "report.team"], ready: true },
   { href: "/agents", label: "Agent", anyOf: ["settings.integrations"], ready: true },
-  { href: "/products", label: "Sản phẩm", anyOf: ["product.view"], ready: true },
-  { href: "/inventory", label: "Kho", anyOf: ["inventory.view"], ready: true },
-  { href: "/policies", label: "Chính sách", anyOf: ["policy.view"], ready: true },
+  {
+    href: "/products",
+    label: "Sản phẩm",
+    anyOf: ["product.view", "inventory.view", "policy.view"],
+    ready: true,
+    children: [
+      { href: "/products", label: "Sản phẩm", perm: "product.view" },
+      { href: "/inventory", label: "Kho", perm: "inventory.view" },
+      { href: "/policies", label: "Chính sách", perm: "policy.view" },
+    ],
+  },
   { href: "/team", label: "Đội ngũ", anyOf: ["kpi.own", "kpi.team"], ready: true },
   { href: "/customers", label: "Khách", anyOf: ["lead.view_own", "lead.view_all"], ready: true },
   { href: "/orders", label: "Đơn hàng", anyOf: ["order.view_own", "order.view_all"], ready: true },
@@ -46,10 +56,17 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 ];
 
 export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
-  return NAV_TABS.filter((t) => t.ready && t.anyOf.some((p) => perms.has(p))).map((t) =>
-    // Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi" (DESIGN.md 4).
-    t.href === "/team" && !perms.has("kpi.team") ? { ...t, label: "Hiệu suất của tôi" } : t,
-  );
+  return NAV_TABS.filter((t) => t.ready && t.anyOf.some((p) => perms.has(p)))
+    .map((t) => {
+      if (!t.children) return t;
+      // Tab gom: chỉ giữ tab con có quyền, tab chính trỏ tới tab con đầu tiên được xem.
+      const children = t.children.filter((c) => perms.has(c.perm));
+      return { ...t, href: children[0].href, children };
+    })
+    .map((t) =>
+      // Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi" (DESIGN.md 4).
+      t.href === "/team" && !perms.has("kpi.team") ? { ...t, label: "Hiệu suất của tôi" } : t,
+    );
 }
 
 export function visibleSettings(perms: ReadonlySet<string>): SettingsItem[] {

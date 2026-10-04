@@ -138,6 +138,9 @@ function ShellInner({
   );
 
   const tabs = visibleTabs(perms);
+  const group = tabs.find((t) =>
+    t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
+  );
 
   function search(text: string) {
     const t = fold(text);
@@ -236,7 +239,9 @@ function ShellInner({
             {user.showroomName}
           </span>
           {tabs.map((t) => {
-            const active = pathname === t.href || pathname.startsWith(t.href + "/");
+            const active = (t.children?.map((c) => c.href) ?? [t.href]).some(
+              (h) => pathname === h || pathname.startsWith(h + "/"),
+            );
             return (
               <Link key={t.href} href={t.href} className="c-tab" aria-current={active ? "page" : undefined}>
                 {t.label}
@@ -247,7 +252,26 @@ function ShellInner({
         {banner}
         <div className="flex-1 bg-linear-to-b from-band to-page to-[220px]">
           <div className="c-shell">
-            <div className="c-main">{children}</div>
+            <div className="c-main">
+              {group && group.children!.length > 1 ? (
+                <nav aria-label={group.label} className="mb-3 flex flex-wrap gap-1.5">
+                  {group.children!.map((c) => {
+                    const on = pathname === c.href || pathname.startsWith(c.href + "/");
+                    return (
+                      <Link
+                        key={c.href}
+                        href={c.href}
+                        aria-current={on ? "page" : undefined}
+                        className={`c-btn ${on ? "is-brand" : ""}`}
+                      >
+                        {c.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              ) : null}
+              {children}
+            </div>
             {aiOpen ? (
               <aside className="c-card c-ai" aria-label="Trợ lý AI">
                 <div className="c-aih">
