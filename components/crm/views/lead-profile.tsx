@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Phone, Sparkles } from "lucide-react";
+import { Copy, House, Phone, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -169,24 +169,31 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
               Tạo báo giá
             </button>
           ) : null}
+          {/* Hành động phụ dồn sang phải, kiểu nút trầm, để hàng nút không rớt dòng. */}
+          <span className="ml-auto" aria-hidden />
           {opp.houseId ? (
             <button
               type="button"
-              className="c-btn"
+              className="c-btn is-ghost"
               onClick={() => {
                 act({ type: "selectHouse", id: opp.houseId! });
                 router.push("/households");
               }}
             >
-              Mở hồ sơ {houseById(opp.houseId)?.name}
+              <House size={13} className="mr-1 inline" aria-hidden />
+              {houseById(opp.houseId)?.name}
             </button>
           ) : null}
-          <button type="button" className="c-btn" onClick={() => ask("Gợi ý bước tiếp cho cơ hội đang chọn")}>
+          <button
+            type="button"
+            className="c-btn is-ghost"
+            onClick={() => ask("Gợi ý bước tiếp cho cơ hội đang chọn")}
+          >
             <Sparkles size={13} className="mr-1 inline" aria-hidden />
             Hỏi AI
           </button>
           {opp.stage < 4 && can("lead.mark_lost") && canEdit ? (
-            <button type="button" className="c-btn" onClick={() => setLosing((v) => !v)}>
+            <button type="button" className="c-btn is-ghost" onClick={() => setLosing((v) => !v)}>
               Đánh dấu thất bại
             </button>
           ) : null}
@@ -478,8 +485,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
               type="button"
               role="tab"
               aria-selected={tab === k}
-              className="c-tab"
-              aria-current={tab === k ? "page" : undefined}
+              className="c-ptab"
               onClick={() => setTab(k)}
             >
               {label}

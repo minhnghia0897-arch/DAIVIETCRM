@@ -88,6 +88,12 @@ Tháng 1 chỉ làm giao diện sáng. Đặt token theo cách thêm giao diện
 | Nút | 13.5 / 20 | 700 | Nút: viền xám, chữ màu chữ chính; nút chính nền `--brand` chữ trắng |
 | Pill | 12 / 16 | 700 | Trạng thái, bo góc 4px |
 
+Giản lược để dễ nhìn:
+
+- **Thanh tiến độ** (giai đoạn lead, bước đơn): vạch dưới 3px thay ô tô màu; bước đã qua có dấu tích xanh lá, bước hiện tại chữ xanh đậm, bước sau chữ xám.
+- **Hàng nút:** tối đa 3–4 nút chính bên trái; hành động ít dùng (mở hồ sơ hộ, hỏi AI, đánh dấu thất bại) là nút phụ trầm (không viền, chữ xám) dồn sang phải để hàng nút không rớt dòng.
+- **Tab trong trang:** chữ thường, tab đang chọn chữ đậm có vạch dưới 2px màu `--brand`.
+
 Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monospace cho nhãn dữ liệu.
 
 ### Khoảng cách, bo góc, đổ bóng
@@ -110,7 +116,7 @@ Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monos
 │ ⋮⋮⋮ Q4       │                                                             │
 │ ▌Trang chủ   │                                                             │
 │  Việc cần làm│   (nội dung màn hình)                    │ Trợ lý AI        │
-│  Cơ hội      │                                          │ (từ 1250px)      │
+│  Cơ hội      │                                          │ (từ 1600px)      │
 │  …           │                                                             │
 │  [« Thu gọn] │                                                             │
 ├──────────────┴─────────────────────────────────────────────────────────────┤
@@ -119,7 +125,7 @@ Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monos
 ```
 
 - **Header toàn cục:** logo chữ Đại Việt kèm biểu tượng đơn giản tự thiết kế; ô tìm kiếm theo tên và mọi định danh (số VN, số quốc tế, Zalo); **đồng hồ đôi** giờ VN và giờ của thị trường nước ngoài được chọn trong Cài đặt (mặc định Hàn Quốc; luôn hiện, trừ màn hình dưới 900px thì chỉ hiện trong menu avatar); công tắc **Trực** cho người nhận lead; chuông thông báo; avatar.
-- **Sidebar ứng dụng (cột dọc bên trái, kiểu Slack):** nền navy `#12233f`, header cùng tông `#0b1a33` với ô tìm kiếm nền trong mờ; chữ trắng 86%, tiêu đề nhóm trắng 64%. Đầu cột là ô logo Q4, tên showroom và trạng thái trực (chấm xanh khi đang trực). Mục chia nhóm có tiêu đề: Làm việc, Bán hàng, Theo dõi, Quản trị; mỗi mục có biểu tượng nét 2,25 và tên cỡ 15px, chỉ hiện nếu người dùng có quyền xem. Mục đang chọn nền xanh sáng `#1d6fd8` bo góc 6px, chữ trắng đậm; số đếm cần xử lý (việc của tôi, hội thoại cần người) là pill đỏ hồng `#e01e5a`. Màn hình rộng có nút "Thu gọn" còn biểu tượng (nhớ trong trình duyệt); màn hình hẹp (từ 900px trở xuống) sidebar ẩn, mở bằng nút menu ở đầu trang dạng ngăn kéo, đổi trang thì tự đóng. Thứ tự theo bản mẫu: Trang chủ, Việc cần làm (việc của tôi, của đội, hàng chung và hàng chờ duyệt), Cơ hội (bảng giai đoạn kèm hồ sơ lead: 4 thông tin bắt buộc, gọi và ghi kết quả, hẹn gọi lại trong khung gọi của khách, báo giá), Hộ gia đình, Đơn hàng (danh sách đơn; hồ sơ đơn gồm thanh toán và các bước giao lắp, không tách màn giao lắp riêng), Hội thoại, Kênh & nội dung, Báo cáo, Agent; sau đó Sản phẩm (một tab, tab con: Sản phẩm, Kho, Chính sách kèm Thử chính sách; tab con chỉ hiện khi có quyền), Đội ngũ, Khách (hồ sơ khách 360 và lọc theo vòng đời, mục 6.15). Bên phải vùng nội dung là khung **Trợ lý AI** (mở sẵn trên màn hình từ 1250px, lớp phủ trên màn hình hẹp): dòng ngữ cảnh "Đang xem…", câu hỏi gợi ý theo màn hình, bản nháp tin có nút gửi cần người bấm. Thanh tiện ích dưới cùng có Chờ duyệt (kèm số), Nhật ký agent, Tạm dừng agent (chỉ người có `settings.integrations`). Telesale thấy mục Đội ngũ với tên "Hiệu suất của tôi"; Cài đặt nằm trong menu avatar.
+- **Sidebar ứng dụng (cột dọc bên trái, kiểu Slack):** nền navy `#12233f`, header cùng tông `#0b1a33` với ô tìm kiếm nền trong mờ; chữ trắng 86%, tiêu đề nhóm trắng 64%. Đầu cột là ô logo Q4, tên showroom và trạng thái trực (chấm xanh khi đang trực). Mục chia nhóm có tiêu đề: Làm việc, Bán hàng, Theo dõi, Quản trị; mỗi mục có biểu tượng nét 2,25 và tên cỡ 15px, chỉ hiện nếu người dùng có quyền xem. Mục đang chọn nền xanh sáng `#1d6fd8` bo góc 6px, chữ trắng đậm; số đếm cần xử lý (việc của tôi, hội thoại cần người) là pill đỏ hồng `#e01e5a`. Màn hình rộng có nút "Thu gọn" còn biểu tượng (nhớ trong trình duyệt); màn hình hẹp (từ 900px trở xuống) sidebar ẩn, mở bằng nút menu ở đầu trang dạng ngăn kéo, đổi trang thì tự đóng. Thứ tự theo bản mẫu: Trang chủ, Việc cần làm (việc của tôi, của đội, hàng chung và hàng chờ duyệt), Cơ hội (bảng giai đoạn kèm hồ sơ lead: 4 thông tin bắt buộc, gọi và ghi kết quả, hẹn gọi lại trong khung gọi của khách, báo giá), Hộ gia đình, Đơn hàng (danh sách đơn; hồ sơ đơn gồm thanh toán và các bước giao lắp, không tách màn giao lắp riêng), Hội thoại, Kênh & nội dung, Báo cáo, Agent; sau đó Sản phẩm (một tab, tab con: Sản phẩm, Kho, Chính sách kèm Thử chính sách; tab con chỉ hiện khi có quyền), Đội ngũ, Khách (hồ sơ khách 360 và lọc theo vòng đời, mục 6.15). Bên phải vùng nội dung là khung **Trợ lý AI** (mở sẵn chỉ trên màn hình từ 1600px; laptop để toàn bộ chiều ngang cho nội dung, bấm nút AI trên header để mở; lớp phủ trên màn hình hẹp): dòng ngữ cảnh "Đang xem…", câu hỏi gợi ý theo màn hình, bản nháp tin có nút gửi cần người bấm. Thanh tiện ích dưới cùng có Chờ duyệt (kèm số), Nhật ký agent, Tạm dừng agent (chỉ người có `settings.integrations`). Telesale thấy mục Đội ngũ với tên "Hiệu suất của tôi"; Cài đặt nằm trong menu avatar.
 - **Utility bar dưới đáy:** cố định, cao 44px, chứa lối tắt theo vai trò. Telesale: việc hôm nay, hẹn gọi lại hôm nay, lead quá hạn của tôi. Sale admin: lead chưa phân, quá hạn toàn đội, việc hậu bán quá hạn, hàng chờ duyệt.
 - **Chỗ cho panel trợ lý AI:** dành sẵn cột phải 360px, tháng 1 không hiển thị.
 - **Banner "Xem như":** khi Owner bật chế độ xem như người dùng khác, một dải màu `--warn` nền nhạt chạy ngang dưới header, trên sidebar và nội dung: "Đang xem như Thảo (Telesale). Chỉ đọc. [Thoát]".

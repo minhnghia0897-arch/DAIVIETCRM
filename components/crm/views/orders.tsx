@@ -246,7 +246,7 @@ export function CrmOrder({ id }: { id: string }) {
             <li
               key={p.status}
               aria-current={i === cur ? "step" : undefined}
-              className={`flex-1 rounded-control px-1 py-1.5 text-center text-[12px] ${i < cur ? "bg-ok-soft font-semibold text-ok" : i === cur ? "bg-brand font-semibold text-white" : "bg-surface-2 text-text-weak"}`}
+              className={i < cur ? "is-done" : i === cur ? "is-cur" : undefined}
             >
               {p.label}
             </li>

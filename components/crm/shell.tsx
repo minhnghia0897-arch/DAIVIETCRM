@@ -136,7 +136,8 @@ function writeNavCollapsed(v: boolean) {
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
 
-const WIDE = "(min-width: 1250px)";
+// Trợ lý AI mở sẵn chỉ trên màn hình thật rộng; laptop để toàn bộ chiều ngang cho nội dung, bấm nút AI để mở.
+const WIDE = "(min-width: 1600px)";
 const subscribeWide = (cb: () => void) => {
   const m = window.matchMedia(WIDE);
   m.addEventListener("change", cb);
