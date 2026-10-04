@@ -15,6 +15,7 @@
   }
   .c-ch {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 12px 14px 8px;
@@ -27,6 +28,7 @@
   .c-ch .c-r {
     margin-left: auto;
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
   }

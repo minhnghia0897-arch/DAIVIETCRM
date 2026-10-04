@@ -1,3 +1,4 @@
+import { ProductAvailable } from "@/components/crm/live-stock";
 import Link from "next/link";
 
 import { ListHeader } from "@/components/record";
@@ -48,7 +49,7 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ product: p, variants, priceFrom, available }) => {
+              {rows.map(({ product: p, variants, priceFrom }) => {
                 const margin =
                   showCost && variants[0].cost !== undefined
                     ? 1 - variants[0].cost / variants[0].price
@@ -68,7 +69,9 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
                         {margin === null ? "—" : `${Math.round(margin * 100)}%`}
                       </td>
                     ) : null}
-                    <td className="tabular px-3 py-1 text-right font-bold">{available}</td>
+                    <td className="tabular px-3 py-1 text-right font-bold">
+                      <ProductAvailable productId={p.id} />
+                    </td>
                     <td className="px-3 py-1">
                       {p.deliveryClass === "bulky" ? (
                         <Pill>{`Cồng kềnh, ${p.crewSize} người lắp`}</Pill>

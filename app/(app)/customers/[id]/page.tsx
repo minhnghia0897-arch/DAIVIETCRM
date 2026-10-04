@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
-import { CustomerView } from "@/components/views/customers-detail";
-import { requireUser } from "@/lib/auth/session";
+import { CrmCustomer } from "@/components/crm/views/customer";
+import { requireAnyPermission } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Hồ sơ khách · Đại Việt CRM" };
 
 export default async function Page({ params }: PageProps<"/customers/[id]">) {
-  const user = await requireUser();
+  await requireAnyPermission(["lead.view_own", "lead.view_all"]);
   const { id } = await params;
-  return <CustomerView user={user} id={id} />;
+  return <CrmCustomer id={id} />;
 }

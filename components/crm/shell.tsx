@@ -21,6 +21,7 @@ import { CrmProvider, fmtMinutes, useCrm } from "./store";
 // Dùng chung cho bản thật (app/(app)/layout.tsx) và bản demo tĩnh (layout.demo.tsx).
 
 export interface ShellUser {
+  id: string;
   fullName: string;
   /** Tên gọi ngắn, khớp cột "người phụ trách" của dữ liệu mô phỏng. */
   shortName: string;
@@ -135,8 +136,8 @@ function ShellInner({
   const isOwner = perms.has("settings.permissions");
   const roleKey = user.roleKey;
   const shell = useMemo(
-    () => ({ perms, can, ask, me, isOwner, roleKey }),
-    [perms, can, ask, me, isOwner, roleKey],
+    () => ({ perms, can, ask, me, isOwner, roleKey, userId: user.id }),
+    [perms, can, ask, me, isOwner, roleKey, user.id],
   );
 
   const tabs = visibleTabs(perms);

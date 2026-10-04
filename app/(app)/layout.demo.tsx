@@ -15,6 +15,7 @@ export default function DemoAppLayout({ children }: { children: React.ReactNode 
       {(user) => (
         <CrmShell
           user={{
+            id: user.id,
             fullName: user.fullName,
             shortName: Object.values(DEMO_ROLES).find((r) => r.id === user.id)?.shortName ?? user.fullName,
             roleName: user.roleName,

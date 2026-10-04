@@ -13,6 +13,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <CrmShell
       user={{
+        id: user.id,
         fullName: user.fullName,
         shortName: user.fullName.split(" ").pop() ?? user.fullName,
         roleName: user.roleName,

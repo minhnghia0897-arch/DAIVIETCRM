@@ -136,6 +136,8 @@ const KIND_LABEL: Record<QueueItem["kind"], string> = {
   agent: "Đề xuất agent",
   discount: "Duyệt giảm giá",
   payment: "Xác nhận tiền",
+  stock_count: "Duyệt kiểm kê",
+  order_payment: "Xác nhận tiền",
 };
 
 /** Hàng chờ duyệt dùng chung: mỗi mục kiểm quyền riêng; người đề xuất không tự duyệt (trừ Owner, có ghi nhật ký). */

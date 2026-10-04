@@ -2,7 +2,7 @@
 
 import { BarChart3 } from "lucide-react";
 
-import { FUNNEL, GOAL, MONTH_PLAN, PRODUCT_MIX, tr, ty } from "@/lib/demo/crm-data";
+import { FUNNEL, GOAL, MONTH_PLAN, PRODUCT_MIX, STAGES, tr, ty } from "@/lib/demo/crm-data";
 import { PageHead } from "../parts";
 import { useShell } from "../shell";
 import { useCrm } from "../store";
@@ -135,6 +135,140 @@ export function CrmReports() {
           </div>
         </section>
       </div>
+      <LeadReport />
     </div>
+  );
+}
+
+/** Báo cáo lead tháng 1 (CLAUDE.md mục 2, 9): theo nguồn, gọi trong SLA, liên hệ được, phễu, từng telesale. */
+function LeadReport() {
+  const { state } = useCrm();
+  const { can, me } = useShell();
+  const team = can("report.team");
+  const opps = team ? state.opps : state.opps.filter((o) => o.owner === me);
+  const ids = new Set(opps.map((o) => o.id));
+  const calls = state.activities.filter(
+    (a) => ids.has(a.oppId) && (a.kind === "call" || a.kind === "zalo") && a.text.includes(" · "),
+  );
+  const reached = calls.filter((a) => /Nghe máy|quan tâm/.test(a.text) && !/không trả lời/.test(a.text));
+  const timed = opps.filter(
+    (o) =>
+      state.leadMeta[o.id]?.slaDue !== undefined &&
+      state.leadMeta[o.id].assignedAt !== undefined &&
+      state.leadMeta[o.id].assignedAt! >= 0,
+  );
+  const inSla = timed.filter((o) => {
+    const m = state.leadMeta[o.id];
+    return m.firstContactAt !== undefined && m.firstContactAt <= m.slaDue!;
+  });
+  const overdue = timed.filter((o) => {
+    const m = state.leadMeta[o.id];
+    return m.firstContactAt === undefined ? m.slaDue! < state.minutes : m.firstContactAt > m.slaDue!;
+  });
+  const bySource = Object.entries(
+    opps.reduce<Record<string, number>>((acc, o) => ({ ...acc, [o.source]: (acc[o.source] ?? 0) + 1 }), {}),
+  ).sort((a, b) => b[1] - a[1]);
+  const maxSource = Math.max(1, ...bySource.map(([, n]) => n));
+  const people = [...new Set(opps.map((o) => o.owner || "Chưa phân"))];
+  const pctText = (a: number, b: number) => (b ? pct(a, b) : "—");
+
+  return (
+    <section className="c-card" aria-label="Báo cáo lead">
+      <div className="c-ch">
+        <h2>Lead trong hệ thống</h2>
+        <span className="c-r c-lbl">Tính trực tiếp từ lead và cuộc gọi đã ghi</span>
+      </div>
+      <div className="c-kpis">
+        <div>
+          <span className="c-lbl">Lead đang mở</span>
+          <strong>{opps.filter((o) => o.stage < 5).length}</strong>
+        </div>
+        <div>
+          <span className="c-lbl">Gọi trong SLA ({state.settings.slaMinutes} phút)</span>
+          <strong>{pctText(inSla.length, timed.length)}</strong>
+          <span className="c-lbl">
+            {inSla.length}/{timed.length} lead mới
+          </span>
+        </div>
+        <div>
+          <span className="c-lbl">Quá hạn SLA</span>
+          <strong className={overdue.length ? "text-err" : undefined}>{overdue.length}</strong>
+        </div>
+        <div>
+          <span className="c-lbl">Tỷ lệ liên hệ được</span>
+          <strong>{pctText(reached.length, calls.length)}</strong>
+          <span className="c-lbl">
+            {reached.length}/{calls.length} cuộc gọi đã ghi
+          </span>
+        </div>
+      </div>
+      <div className="c-rgrid c-cb" style={{ paddingTop: 12 }}>
+        <div>
+          <b>Lead theo nguồn</b>
+          {bySource.map(([src, n]) => (
+            <div key={src} className="c-hbar" style={{ gridTemplateColumns: "1fr 120px 28px" }}>
+              <span>{src}</span>
+              <i>
+                <u style={{ width: `${(n / maxSource) * 100}%`, background: "var(--obj-lead)" }} />
+              </i>
+              <span className="text-right tabular">{n}</span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <b>Phễu giai đoạn hiện tại</b>
+          {STAGES.map((st, i) => {
+            const n = opps.filter((o) => o.stage === i).length;
+            return (
+              <div key={st} className="c-hbar" style={{ gridTemplateColumns: "1fr 120px 28px" }}>
+                <span>{st}</span>
+                <i>
+                  <u
+                    style={{ width: `${(n / Math.max(1, opps.length)) * 100}%`, background: "var(--brand)" }}
+                  />
+                </i>
+                <span className="text-right tabular">{n}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {team ? (
+        <div className="c-tw">
+          <table className="c-table">
+            <thead>
+              <tr>
+                <th>Người giữ</th>
+                <th className="text-right">Lead đang giữ</th>
+                <th className="text-right">Đã liên hệ</th>
+                <th className="text-right">Quá SLA</th>
+                <th className="text-right">Cuộc gọi đã ghi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {people.map((p) => {
+                const mine = opps.filter((o) => (o.owner || "Chưa phân") === p);
+                const mineIds = new Set(mine.map((o) => o.id));
+                return (
+                  <tr key={p}>
+                    <td>
+                      <b>{p}</b>
+                    </td>
+                    <td className="text-right tabular">{mine.length}</td>
+                    <td className="text-right tabular">{mine.filter((o) => o.stage >= 1).length}</td>
+                    <td className="text-right tabular">{overdue.filter((o) => mineIds.has(o.id)).length}</td>
+                    <td className="text-right tabular">{calls.filter((a) => mineIds.has(a.oppId)).length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      <p className="c-lbl px-4 py-2">
+        Cuộc gọi ghi tay ở chế độ gọi ngoài hệ thống được tính riêng với cuộc gọi tổng đài xác nhận khi có
+        tổng đài.
+      </p>
+    </section>
   );
 }

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/record";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SessionUser } from "@/lib/auth/types";
+import { ProductAvailable, StockCell } from "@/components/crm/live-stock";
 import { getProduct } from "@/lib/demo/repo";
 import { formatDate, formatMoney } from "@/lib/format";
 
@@ -12,7 +13,6 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
   if (!data) notFound();
   const { product: p, variants, reservedBy } = data;
   const showCost = user.permissions.has("product.view_cost");
-  const totalAvailable = variants.reduce((s, v) => s + v.stock.reduce((a, w) => a + w.available, 0), 0);
 
   return (
     <main className="mx-auto max-w-7xl space-y-3 px-4 py-4">
@@ -30,7 +30,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
           },
           { label: "Cân nặng", value: `${p.weightKg} kg` },
           { label: "Theo dõi serial", value: p.trackSerial ? "Có" : "Không" },
-          { label: "Tồn khả dụng", value: totalAvailable },
+          { label: "Tồn khả dụng", value: <ProductAvailable productId={p.id} /> },
         ]}
       />
       <Card>
@@ -65,8 +65,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
                   ) : null}
                   {v.stock.map((s) => (
                     <td key={s.warehouse.id} className="tabular px-3 py-1 text-right">
-                      <b>{s.available}</b>
-                      <span className="text-label text-text-weak"> / {s.onHand}</span>
+                      <StockCell variantId={v.id} warehouseId={s.warehouse.id} />
                     </td>
                   ))}
                 </tr>

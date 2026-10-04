@@ -1,4 +1,4 @@
-import { DemoDetail } from "@/components/demo/pages/detail";
+import { CustomerDemo } from "@/components/demo/pages/customer";
 import { CUSTOMERS } from "@/lib/demo/data";
 
 export const dynamicParams = false;
@@ -7,5 +7,5 @@ export function generateStaticParams() {
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  return <DemoDetail kind="customer" id={(await params).id} />;
+  return <CustomerDemo id={(await params).id} />;
 }

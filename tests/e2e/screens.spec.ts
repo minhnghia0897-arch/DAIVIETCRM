@@ -22,6 +22,14 @@ const OWNER_SCREENS: [string, string][] = [
   ["/settings/catalog", "Danh mục tra cứu"],
   ["/settings/assignment", "Phân lead"],
   ["/settings/audit", "Nhật ký kiểm toán"],
+  ["/inventory", "Tồn kho"],
+  ["/orders", "Đơn hàng"],
+  ["/orders/o-0014", "Đơn Q4-2610-0014"],
+  ["/customers/c-nam", "Trần Văn Nam"],
+  ["/team/targets", "Đội ngũ: chỉ tiêu"],
+  ["/team/absences", "Đội ngũ: nghỉ và trực"],
+  ["/team/coaching", "Đội ngũ: kèm cặp"],
+  ["/team/offboarding", "Đội ngũ: bàn giao"],
 ];
 
 test("Owner mở được mọi màn hình", async ({ page }) => {

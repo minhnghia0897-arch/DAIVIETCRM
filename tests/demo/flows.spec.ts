@@ -94,7 +94,7 @@ for (const path of [
   });
 }
 
-test("không tràn ngang khi mở trình tạo báo giá", async ({ page }) => {
+test("không tràn ngang khi mở trình tạo báo giá (Owner thấy ô Giao cho)", async ({ page }) => {
   await as(page, "owner", "opportunities/");
   await page.getByRole("button", { name: /Nguyễn Thị Thu/ }).click();
   await page.getByRole("button", { name: "Tạo báo giá" }).click();
@@ -122,3 +122,20 @@ test("trang không có hoặc ngoài quyền báo bằng tiếng Việt, không 
   await expect(page.getByText("This page could not be found")).toHaveCount(0);
   await expect(page.getByText("Phạm Ngọc Lan")).toHaveCount(0);
 });
+
+for (const path of [
+  "inventory/",
+  "orders/o-0014/",
+  "customers/c-nam/",
+  "team/targets/",
+  "team/offboarding/",
+  "team/coaching/",
+  "tasks/",
+]) {
+  test(`không tràn ngang (thêm): ${path}`, async ({ page }) => {
+    await as(page, "owner", path);
+    await expect(page.locator("h1").first()).toBeAttached();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+}

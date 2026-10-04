@@ -1,4 +1,4 @@
-import { DemoDetail } from "@/components/demo/pages/detail";
+import { OrderDemo } from "@/components/demo/pages/order";
 import { ORDERS } from "@/lib/demo/data";
 
 export const dynamicParams = false;
@@ -7,5 +7,5 @@ export function generateStaticParams() {
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  return <DemoDetail kind="order" id={(await params).id} />;
+  return <OrderDemo id={(await params).id} />;
 }

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 
-import { InventoryView } from "@/components/views/inventory";
+import { CrmInventory } from "@/components/crm/views/inventory";
 import { requirePermission } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Kho · Đại Việt CRM" };
 
-export default async function Page({ searchParams }: PageProps<"/inventory">) {
-  const user = await requirePermission("inventory.view");
-  return <InventoryView user={user} searchParams={await searchParams} />;
+// Đang chạy bằng dữ liệu mô phỏng trong trình duyệt (components/crm/store.tsx).
+export default async function Page() {
+  await requirePermission("inventory.view");
+  return <CrmInventory />;
 }

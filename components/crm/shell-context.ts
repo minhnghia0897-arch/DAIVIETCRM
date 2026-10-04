@@ -9,6 +9,8 @@ export interface ShellCtx {
   ask: (question: string) => void;
   /** Tên gọi ngắn của người dùng, khớp cột "người phụ trách" trong dữ liệu mô phỏng. */
   me: string;
+  /** Mã người dùng, để lọc dữ liệu "của mình" (ví dụ đơn có người bán là mình). */
+  userId: string;
   isOwner: boolean;
   /** Khóa vai trò, đầu vào của giới hạn giảm giá trong hàm định giá. */
   roleKey: string;

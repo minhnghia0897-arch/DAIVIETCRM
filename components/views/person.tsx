@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { SharedCoaching } from "@/components/crm/views/team";
 import { Progress } from "@/components/progress";
 import { PageHeader } from "@/components/record";
 import { TasksBlock } from "@/components/tasks-block";
@@ -108,6 +109,7 @@ export function PersonView({ user, id }: { user: SessionUser; id: string }) {
           </CardBody>
         </Card>
       ) : null}
+      <SharedCoaching staffId={id} />
     </>
   );
 }

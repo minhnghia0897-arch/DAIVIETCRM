@@ -9,7 +9,15 @@ export function TeamNav({ user }: { user: SessionUser }) {
     user.permissions.has("kpi.team")
       ? { href: "/team", label: "Tổng quan đội" }
       : { href: `/team/people/${user.id}`, label: "Hiệu suất của tôi" },
+    ...(user.permissions.has("target.manage") || user.permissions.has("kpi.team")
+      ? [{ href: "/team/targets", label: "Chỉ tiêu" }]
+      : []),
+    ...(user.permissions.has("staff.manage") || user.permissions.has("attendance.view_team")
+      ? [{ href: "/team/absences", label: "Nghỉ và trực" }]
+      : []),
     ...(user.permissions.has("staff.view") ? [{ href: "/team/staff", label: "Hồ sơ nhân sự" }] : []),
+    ...(user.permissions.has("coaching.manage") ? [{ href: "/team/coaching", label: "Kèm cặp" }] : []),
+    ...(user.permissions.has("staff.offboard") ? [{ href: "/team/offboarding", label: "Bàn giao" }] : []),
   ];
   return (
     <nav aria-label="Đội ngũ" className="flex flex-wrap items-center gap-1.5">

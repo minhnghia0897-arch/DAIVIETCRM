@@ -64,10 +64,6 @@ export function visibleOrders(u: SessionUser) {
   return [];
 }
 
-export function getOrder(u: SessionUser, id: string) {
-  return visibleOrders(u).find((o) => o.id === id) ?? null;
-}
-
 // ---------------------------------------------------------------- khách
 
 export function visibleCustomers(u: SessionUser) {
@@ -153,20 +149,6 @@ export function getProduct(u: SessionUser, id: string) {
   );
   return { product: p, variants, reservedBy };
 }
-
-export function inventory(u: SessionUser, warehouseId: string) {
-  if (!has(u, "inventory.view")) return [];
-  return VARIANTS.filter((v) => STOCK.some(([vid, wid]) => vid === v.id && wid === warehouseId)).map((v) => {
-    const { label } = variantInfo(v.id);
-    const s = stockOf(v.id, warehouseId);
-    const status = s.available <= 0 ? "out" : s.available < v.lowStock ? "low" : "ok";
-    return { id: v.id, sku: v.sku, label, threshold: v.lowStock, ...s, status } as const;
-  });
-}
-
-export { WAREHOUSES };
-
-// ---------------------------------------------------------------- đội ngũ
 
 export function visibleStaff(u: SessionUser) {
   if (!has(u, "staff.view")) return STAFF.filter((s) => s.id === u.id);

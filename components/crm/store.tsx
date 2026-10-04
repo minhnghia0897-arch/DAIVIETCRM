@@ -26,6 +26,18 @@ import type { ImportRow } from "@/lib/leads/import";
 import { weeklyWindows, type MarketWindows } from "@/lib/leads/windows";
 import { maskPhone, normalizePhone } from "@/lib/phone";
 import type { Policy, QuoteInput, QuoteResult } from "@/lib/sales/pricing";
+import { CUSTOMERS, KPIS, ORDERS, PRODUCTS, STAFF, STOCK, VARIANTS, type Order } from "@/lib/demo/data";
+import { fromChannelList, type Consent } from "@/lib/cdp/consent";
+import {
+  applyMovements,
+  levelOf,
+  planDocument,
+  reserve,
+  type DocumentKind,
+  type Movement,
+  type StockLevel,
+} from "@/lib/sales/inventory";
+import { NEXT_STATUS, transitionBlockers, type OrderFacts, type OrderStatus } from "@/lib/sales/orders";
 import {
   AGENTS,
   CHAIRS,
@@ -62,7 +74,7 @@ export interface FeedItem {
 export interface QueueItem {
   id: string;
   /** agent: đề xuất của agent AI; discount: báo giá giảm vượt mức; payment: xác nhận tiền đã về. */
-  kind: "agent" | "discount" | "payment";
+  kind: "agent" | "discount" | "payment" | "stock_count" | "order_payment";
   agent: AgentId;
   text: string;
   why: string;
@@ -150,6 +162,73 @@ export interface ClosedLead {
   owner: string;
 }
 
+export interface StockDoc {
+  id: string;
+  kind: DocumentKind;
+  warehouseId: string;
+  toWarehouseId?: string;
+  reason: string;
+  lines: { variantId: string; qty?: number; counted?: number }[];
+  status: "draft" | "pending_approval" | "posted" | "rejected";
+  createdBy: string;
+  time: string;
+  errors: string[];
+  /** Chênh lệch kiểm kê chờ duyệt (sinh lúc gửi duyệt). */
+  planned?: Movement[];
+}
+
+export interface LedgerRow extends Movement {
+  id: string;
+  time: string;
+  actor: string;
+}
+
+export interface OrderRec extends Order {
+  warehouseId: string;
+  /** Cho đặt trước khi chưa đủ hàng (cần `order.allow_backorder`), kèm ngày dự kiến có hàng. */
+  backorder?: { expected: string };
+  stockIssued: boolean;
+  codApproved: boolean;
+  cancelReason?: string;
+}
+
+/** Thay đổi trên hồ sơ khách trong phiên mô phỏng: đồng ý, ẩn danh hóa, sự kiện mới. */
+export interface CustomerCare {
+  consents: Consent[];
+  anonymized?: boolean;
+  events: { at: string; kind: string; title: string; detail: string }[];
+}
+
+export interface Absence {
+  id: string;
+  staffId: string;
+  date: string;
+  kind: "Nghỉ phép" | "Nghỉ ốm" | "Công tác";
+  approvedBy: string;
+}
+
+export interface CoachingNote {
+  id: string;
+  staffId: string;
+  authorId: string;
+  author: string;
+  date: string;
+  text: string;
+  goal: string;
+  shared: boolean;
+}
+
+export interface Warranty {
+  id: string;
+  orderId: string;
+  orderCode: string;
+  product: string;
+  serial: string;
+  owner: string;
+  start: string;
+  end: string;
+}
+
 export interface Settings {
   callMode: "external" | "provider";
   slaMinutes: number;
@@ -196,6 +275,17 @@ interface State {
   lastAssigned: string | null;
   leadMeta: Record<string, LeadMeta>;
   closedLeads: ClosedLead[];
+  stock: StockLevel[];
+  ledger: LedgerRow[];
+  stockDocs: StockDoc[];
+  orders: OrderRec[];
+  warranties: Warranty[];
+  customerCare: Record<string, CustomerCare>;
+  /** Chỉ tiêu tháng theo người: doanh thu cọc (đồng), số cuộc gọi mỗi ngày. */
+  targets: Record<string, { revenue: number; calls: number }>;
+  absences: Absence[];
+  coaching: CoachingNote[];
+  offboarded: string[];
 }
 
 /** Ngày giờ thật tương ứng với phút mô phỏng (ngày 04/10/2026, giờ VN). */
@@ -380,6 +470,7 @@ function initialState(): State {
     receivers: [
       { name: "Thảo", canReceive: true, active: true, onDuty: true, absent: false },
       { name: "An", canReceive: true, active: true, onDuty: false, absent: false },
+      { name: "Phương", canReceive: true, active: true, onDuty: false, absent: false },
     ],
     lastAssigned: "Thảo",
     leadMeta: Object.fromEntries(
@@ -398,6 +489,39 @@ function initialState(): State {
         ];
       }),
     ),
+    stock: STOCK.map(([variantId, warehouseId, onHand, reserved]) => ({
+      variantId,
+      warehouseId,
+      onHand,
+      reserved,
+    })),
+    ledger: [],
+    stockDocs: [],
+    orders: ORDERS.map((o) => ({
+      ...o,
+      warehouseId: "wh-q4",
+      stockIssued: ["delivering", "installed", "completed"].includes(o.status),
+      codApproved: false,
+    })),
+    warranties: [],
+    customerCare: {},
+    targets: Object.fromEntries(
+      KPIS.map((k) => [k.staffId, { revenue: k.revenueTarget, calls: k.callsTarget }]),
+    ),
+    absences: [],
+    coaching: [
+      {
+        id: "cn1",
+        staffId: "11111111-1111-4111-8111-000000000005",
+        authorId: "11111111-1111-4111-8111-000000000002",
+        author: "Minh",
+        date: "2026-10-02",
+        text: "Phương đánh thất bại 3 lead khi mới gọi 1 lần. Cần gọi đủ các khung giờ trước khi đóng.",
+        goal: "Không đánh thất bại khi chưa đủ 3 lần liên hệ",
+        shared: false,
+      },
+    ],
+    offboarded: [],
     closedLeads: [
       {
         id: "x1",
@@ -582,7 +706,42 @@ type Action =
     }
   | { type: "assignLead"; oppId: string; to: string; actor: string }
   | { type: "toggleDuty"; name: string; actor: string }
-  | { type: "importLeads"; rows: ImportRow[]; duplicateMode: "skip" | "update" | "activity"; actor: string };
+  | { type: "importLeads"; rows: ImportRow[]; duplicateMode: "skip" | "update" | "activity"; actor: string }
+  | {
+      type: "createStockDoc";
+      kind: DocumentKind;
+      warehouseId: string;
+      toWarehouseId?: string;
+      reason: string;
+      lines: { variantId: string; qty?: number; counted?: number }[];
+      actor: string;
+    }
+  | { type: "postStockDoc"; id: string; actor: string }
+  | {
+      type: "orderPayment";
+      orderId: string;
+      payType: "deposit" | "balance";
+      method: string;
+      amount: number;
+      reference: string;
+      actorId: string;
+      actor: string;
+    }
+  | { type: "orderAdvance"; orderId: string; actor: string }
+  | { type: "orderIssueStock"; orderId: string; actor: string }
+  | { type: "orderCod"; orderId: string; actor: string }
+  | { type: "setTarget"; staffId: string; revenue: number; calls: number; actor: string }
+  | { type: "addAbsence"; staffId: string; date: string; kind: Absence["kind"]; actor: string }
+  | { type: "addCoaching"; note: Omit<CoachingNote, "id">; actor: string }
+  | { type: "shareCoaching"; id: string; shared: boolean; actor: string }
+  | { type: "offboardLock"; staffId: string; actor: string }
+  | { type: "offboardTransfer"; staffId: string; to: string[]; actor: string }
+  | { type: "consentChange"; customerId: string; consent: Consent; withdraw: boolean; actor: string }
+  | { type: "customerEvent"; customerId: string; kind: string; title: string; detail: string }
+  | { type: "customerAnonymize"; customerId: string; actor: string }
+  | { type: "orderWarehouse"; orderId: string; warehouseId: string; actor: string }
+  | { type: "orderBackorder"; orderId: string; expected: string; actor: string }
+  | { type: "orderCancel"; orderId: string; reason: string; actor: string };
 
 function pushFeed(s: State, agent: AgentId, text: string, result: string, money = false): State {
   const minutes = s.minutes + 1;
@@ -1015,13 +1174,45 @@ function reducer(s: State, a: Action): State {
         ns,
         a.actor,
         a.ok ? (self ? "Tự duyệt (Owner)" : "Duyệt") : "Từ chối",
-        q.kind === "discount"
-          ? `Báo giá ${q.ref}`
-          : q.kind === "payment"
-            ? `Thanh toán ${q.ref}`
-            : "Đề xuất agent",
+        q.kind === "stock_count"
+          ? `Phiếu kiểm kê ${q.ref}`
+          : q.kind === "order_payment"
+            ? `Thanh toán đơn ${q.ref?.split("#")[0]}`
+            : q.kind === "discount"
+              ? `Báo giá ${q.ref}`
+              : q.kind === "payment"
+                ? `Thanh toán ${q.ref}`
+                : "Đề xuất agent",
         q.text,
       );
+      if (q.kind === "stock_count") {
+        const doc = ns.stockDocs.find((d) => d.id === q.ref);
+        if (!doc) return ns;
+        if (!a.ok)
+          return {
+            ...ns,
+            stockDocs: ns.stockDocs.map((d) => (d.id === doc.id ? { ...d, status: "rejected" } : d)),
+          };
+        return postMovements(ns, doc, doc.planned ?? [], a.actor);
+      }
+      if (q.kind === "order_payment") {
+        const [orderId, idx] = (q.ref ?? "").split("#");
+        return {
+          ...ns,
+          orders: ns.orders.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  payments: o.payments.map((p, i) =>
+                    i === Number(idx)
+                      ? { ...p, status: a.ok ? ("confirmed" as const) : ("rejected" as const) }
+                      : p,
+                  ),
+                }
+              : o,
+          ),
+        };
+      }
       if (q.kind === "discount") {
         const quote = ns.quotes.find((x) => x.id === q.ref);
         if (!quote) return ns;
@@ -1246,6 +1437,384 @@ function reducer(s: State, a: Action): State {
         )
         .reduce((acc, o) => routeOpp(acc, o.id), ns);
     }
+    case "createStockDoc": {
+      const seq = s.seq + 1;
+      const prefix = { receipt: "PN", issue: "PX", transfer: "PC", count: "KK" }[a.kind];
+      const doc: StockDoc = {
+        id: `${prefix}-${String(seq).padStart(3, "0")}`,
+        kind: a.kind,
+        warehouseId: a.warehouseId,
+        toWarehouseId: a.toWarehouseId,
+        reason: a.reason,
+        lines: a.lines,
+        status: "draft",
+        createdBy: a.actor,
+        time: fmtMinutes(s.minutes),
+        errors: [],
+      };
+      return { ...s, seq, stockDocs: [doc, ...s.stockDocs] };
+    }
+    case "postStockDoc": {
+      const doc = s.stockDocs.find((d) => d.id === a.id);
+      if (!doc || doc.status !== "draft") return s;
+      const plan = planDocument(s.stock, doc);
+      if (plan.errors.length) {
+        // Thông báo lỗi dùng tên sản phẩm thay cho mã SKU nội bộ.
+        const errors = plan.errors.map((e) =>
+          VARIANTS.reduce((t, v) => t.replaceAll(v.id, variantLabel(v.id)), e),
+        );
+        return { ...s, stockDocs: s.stockDocs.map((d) => (d.id === doc.id ? { ...d, errors } : d)) };
+      }
+      if (plan.needsApproval) {
+        const seq = s.seq + 1;
+        return {
+          ...s,
+          seq,
+          stockDocs: s.stockDocs.map((d) =>
+            d.id === doc.id ? { ...d, status: "pending_approval", errors: [], planned: plan.movements } : d,
+          ),
+          queue: [
+            {
+              id: `qs${seq}`,
+              kind: "stock_count",
+              agent: "trust",
+              text: `Phiếu kiểm kê ${doc.id}: ${plan.movements.map((m) => `${m.type === "adjust_plus" ? "+" : "−"}${m.qty} ${variantLabel(m.variantId)}`).join(", ")}`,
+              why: "Chênh lệch kiểm kê cần người có quyền duyệt trước khi ghi sổ",
+              okText: `Đã duyệt và ghi sổ phiếu ${doc.id}`,
+              time: fmtMinutes(s.minutes),
+              perm: "inventory.count_approve",
+              requestedBy: a.actor,
+              ref: doc.id,
+            },
+            ...s.queue,
+          ],
+        };
+      }
+      return postMovements(s, doc, plan.movements, a.actor);
+    }
+    case "orderPayment": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o) return s;
+      const seq = s.seq + 1;
+      const idx = o.payments.length;
+      const pay = {
+        type: a.payType,
+        method: a.method,
+        amount: a.amount,
+        reference: a.reference,
+        status: "recorded" as const,
+        recordedBy: a.actorId,
+        at: simDate(s.minutes).toISOString(),
+      };
+      return {
+        ...s,
+        seq,
+        orders: s.orders.map((x) => (x.id === o.id ? { ...x, payments: [...x.payments, pay] } : x)),
+        queue: [
+          {
+            id: `qo${seq}`,
+            kind: "order_payment",
+            agent: "trust",
+            text: `Khoản ${a.payType === "deposit" ? "cọc" : "thanh toán"} ${vnd(a.amount)} của đơn ${o.code}, ${a.method}${a.reference ? `, nội dung "${a.reference}"` : ""}`,
+            why: "Xác nhận tiền đã về tài khoản",
+            okText: `Đã xác nhận ${vnd(a.amount)} cho đơn ${o.code}`,
+            time: fmtMinutes(s.minutes),
+            perm: "payment.confirm",
+            requestedBy: a.actor,
+            ref: `${o.id}#${idx}`,
+          },
+          ...s.queue,
+        ],
+      };
+    }
+    case "orderAdvance": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      const to = o && NEXT_STATUS[o.status];
+      if (!o || !to || transitionBlockers(orderFacts(o), to).length) return s;
+      if (to === "deposit_paid" && stockBlockers(s, o).length) return s;
+      let ns: State = { ...s, orders: s.orders.map((x) => (x.id === o.id ? { ...x, status: to } : x)) };
+      if (to === "deposit_paid") {
+        // Đã cọc thì giữ hàng cho từng dòng; quá hạn giữ mà chưa thanh toán đủ thì nhả (CLAUDE.md 8.3).
+        let stock = ns.stock;
+        // Đặt trước: chỉ giữ phần đang có, phần thiếu chờ hàng về.
+        for (const l of o.lines) {
+          const avail = levelOf(stock, l.variantId, o.warehouseId);
+          const qty = Math.min(l.qty, Math.max(0, avail.onHand - avail.reserved));
+          if (qty > 0) stock = reserve(stock, l.variantId, o.warehouseId, qty);
+        }
+        const hold = new Date(simDate(s.minutes).getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
+        ns = { ...ns, stock, orders: ns.orders.map((x) => (x.id === o.id ? { ...x, holdUntil: hold } : x)) };
+      }
+      if (to === "completed") ns = completeOrder(ns, { ...o, status: to });
+      return addAudit(ns, a.actor, "Chuyển trạng thái đơn", o.code, `Sang ${to}`);
+    }
+    case "orderIssueStock": {
+      // Phiếu xuất kho giao hàng: chuyển hàng đang giữ thành xuất bán và gán serial cho hàng có serial.
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || o.stockIssued || o.status !== "ready_to_ship") return s;
+      let stock = s.stock;
+      for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+      const doc: StockDoc = {
+        id: `PX-${o.code}`,
+        kind: "issue",
+        warehouseId: o.warehouseId,
+        reason: `Xuất giao đơn ${o.code}`,
+        lines: o.lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+        status: "draft",
+        createdBy: a.actor,
+        time: fmtMinutes(s.minutes),
+        errors: [],
+      };
+      const plan = planDocument(stock, doc);
+      if (plan.errors.length) return s;
+      let ns = postMovements({ ...s, stock, stockDocs: [doc, ...s.stockDocs] }, doc, plan.movements, a.actor);
+      const lines = o.lines.map((l, i) =>
+        needsSerial(l.variantId) && !l.serial
+          ? {
+              ...l,
+              serial: `${variantSku(l.variantId).split("-")[0].replace("DV", "")}-2610-${String(ns.seq + i).padStart(4, "0")}`,
+            }
+          : l,
+      );
+      ns = {
+        ...ns,
+        orders: ns.orders.map((x) =>
+          x.id === o.id ? { ...x, lines, stockIssued: true, holdUntil: null } : x,
+        ),
+      };
+      return ns;
+    }
+    case "orderWarehouse": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || !["draft", "confirmed", "pending_approval"].includes(o.status)) return s;
+      return addAudit(
+        { ...s, orders: s.orders.map((x) => (x.id === o.id ? { ...x, warehouseId: a.warehouseId } : x)) },
+        a.actor,
+        "Đổi kho xuất",
+        o.code,
+        a.warehouseId,
+      );
+    }
+    case "orderBackorder":
+      return addAudit(
+        {
+          ...s,
+          orders: s.orders.map((x) =>
+            x.id === a.orderId ? { ...x, backorder: { expected: a.expected } } : x,
+          ),
+        },
+        a.actor,
+        "Cho đặt trước, chờ hàng về",
+        s.orders.find((x) => x.id === a.orderId)?.code ?? a.orderId,
+        `Dự kiến có hàng ${a.expected}`,
+      );
+    case "consentChange": {
+      const care = careOf(s, a.customerId);
+      const now = simDate(s.minutes).toISOString();
+      const same = (c: Consent) => c.purpose === a.consent.purpose && c.channel === a.consent.channel;
+      const consents = care.consents.some(same)
+        ? care.consents.map((c) =>
+            same(c)
+              ? {
+                  ...c,
+                  granted: !a.withdraw,
+                  withdrawnAt: a.withdraw ? now : null,
+                  grantedAt: a.withdraw ? c.grantedAt : now,
+                }
+              : c,
+          )
+        : [
+            ...care.consents,
+            { ...a.consent, granted: !a.withdraw, withdrawnAt: a.withdraw ? now : null, grantedAt: now },
+          ];
+      const name = CUSTOMERS.find((c) => c.id === a.customerId)?.fullName ?? a.customerId;
+      const label = `${a.withdraw ? "Rút" : "Ghi nhận"} đồng ý ${a.consent.purpose}/${a.consent.channel}`;
+      return addAudit(
+        {
+          ...s,
+          customerCare: {
+            ...s.customerCare,
+            [a.customerId]: {
+              ...care,
+              consents,
+              events: [
+                { at: now, kind: "note", title: label, detail: `Nguồn: ${a.consent.source}` },
+                ...care.events,
+              ],
+            },
+          },
+        },
+        a.actor,
+        "Đổi đồng ý",
+        `Khách ${name}`,
+        label,
+      );
+    }
+    case "customerEvent": {
+      const care = careOf(s, a.customerId);
+      return {
+        ...s,
+        customerCare: {
+          ...s.customerCare,
+          [a.customerId]: {
+            ...care,
+            events: [
+              { at: simDate(s.minutes).toISOString(), kind: a.kind, title: a.title, detail: a.detail },
+              ...care.events,
+            ],
+          },
+        },
+      };
+    }
+    case "customerAnonymize": {
+      // Yêu cầu xóa: ẩn danh hóa thông tin cá nhân, giữ chứng từ đơn, sổ kho theo luật kế toán, rút mọi đồng ý.
+      const care = careOf(s, a.customerId);
+      const now = simDate(s.minutes).toISOString();
+      return addAudit(
+        {
+          ...s,
+          customerCare: {
+            ...s.customerCare,
+            [a.customerId]: {
+              ...care,
+              anonymized: true,
+              consents: [
+                ...care.consents.map((c) => ({ ...c, granted: false, withdrawnAt: now })),
+                { purpose: "care", channel: "all", granted: false, source: "Yêu cầu xóa", withdrawnAt: now },
+              ],
+            },
+          },
+        },
+        a.actor,
+        "Ẩn danh hóa khách theo yêu cầu xóa",
+        `Khách ${a.customerId}`,
+        "Giữ chứng từ đơn hàng, thanh toán theo luật kế toán",
+      );
+    }
+    case "setTarget":
+      return addAudit(
+        { ...s, targets: { ...s.targets, [a.staffId]: { revenue: a.revenue, calls: a.calls } } },
+        a.actor,
+        "Đặt chỉ tiêu",
+        staffShort(a.staffId),
+        `Doanh thu cọc ${vnd(a.revenue)}, ${a.calls} cuộc gọi mỗi ngày`,
+      );
+    case "addAbsence": {
+      const seq = s.seq + 1;
+      const name = staffShort(a.staffId);
+      // Ngày nghỉ hôm nay thì không phân lead cho người đó (CLAUDE.md mục 7).
+      const today = a.date === "2026-10-04";
+      return addAudit(
+        {
+          ...s,
+          seq,
+          absences: [
+            { id: `ab${seq}`, staffId: a.staffId, date: a.date, kind: a.kind, approvedBy: a.actor },
+            ...s.absences,
+          ],
+          receivers: today
+            ? s.receivers.map((r) => (r.name === name ? { ...r, absent: true } : r))
+            : s.receivers,
+        },
+        a.actor,
+        "Duyệt nghỉ",
+        name,
+        `${a.kind} ${a.date.split("-").reverse().join("/")}`,
+      );
+    }
+    case "addCoaching": {
+      const seq = s.seq + 1;
+      return { ...s, seq, coaching: [{ ...a.note, id: `cn${seq}` }, ...s.coaching] };
+    }
+    case "shareCoaching":
+      return { ...s, coaching: s.coaching.map((n) => (n.id === a.id ? { ...n, shared: a.shared } : n)) };
+    case "offboardLock": {
+      // Bước 1 bàn giao: khóa và thu hồi phiên, lead và việc đang mở về hàng chung ngay (CLAUDE.md 9.7, mục 5).
+      const name = staffShort(a.staffId);
+      if (s.offboarded.includes(a.staffId)) return s;
+      let ns: State = {
+        ...s,
+        offboarded: [...s.offboarded, a.staffId],
+        receivers: s.receivers.map((r) => (r.name === name ? { ...r, active: false, onDuty: false } : r)),
+        opps: s.opps.map((o) => (o.owner === name && o.stage < 5 ? { ...o, owner: "" } : o)),
+        tasks: s.tasks.map((t) =>
+          t.owner === name && t.status === "open" ? { ...t, owner: "", outcome: "Bàn giao" } : t,
+        ),
+      };
+      for (const o of s.opps.filter((x) => x.owner === name && x.stage < 5))
+        ns = addActivity(ns, o.id, "info", `Bàn giao: ${name} nghỉ việc, lead về hàng Chưa phân`, a.actor);
+      return addAudit(
+        ns,
+        a.actor,
+        "Khóa tài khoản nghỉ việc",
+        name,
+        "Thu hồi phiên, chuyển lead và việc về hàng chung",
+      );
+    }
+    case "offboardTransfer": {
+      const name = staffShort(a.staffId);
+      if (!a.to.length) return s;
+      let i = 0;
+      let ns = s;
+      // Chia vòng tròn cho những người nhận được chọn; lead đã về hàng chung ở bước khóa.
+      const pending = s.opps.filter(
+        (o) => !o.owner && s.activities.some((x) => x.oppId === o.id && x.text.includes(`Bàn giao: ${name}`)),
+      );
+      for (const o of pending) {
+        const to = a.to[i++ % a.to.length];
+        ns = {
+          ...ns,
+          opps: ns.opps.map((x) => (x.id === o.id ? { ...x, owner: to } : x)),
+          tasks: ns.tasks.map((t) => (t.oppId === o.id && t.status === "open" ? { ...t, owner: to } : t)),
+        };
+        ns = addActivity(ns, o.id, "info", `Bàn giao do nghỉ việc: ${name} → ${to}`, a.actor);
+      }
+      const orphan = ns.tasks.filter(
+        (t) => t.owner === "" && t.outcome === "Bàn giao" && t.status === "open",
+      );
+      ns = {
+        ...ns,
+        tasks: ns.tasks.map((t) =>
+          orphan.includes(t) ? { ...t, owner: a.to[i++ % a.to.length], outcome: undefined } : t,
+        ),
+      };
+      return addAudit(
+        ns,
+        a.actor,
+        "Bàn giao do nghỉ việc",
+        name,
+        `${pending.length} lead, ${orphan.length} việc chia cho ${a.to.join(", ")}`,
+      );
+    }
+    case "orderCod":
+      return addAudit(
+        { ...s, orders: s.orders.map((x) => (x.id === a.orderId ? { ...x, codApproved: true } : x)) },
+        a.actor,
+        "Duyệt thu khi giao",
+        s.orders.find((x) => x.id === a.orderId)?.code ?? a.orderId,
+        "",
+      );
+    case "orderCancel": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || transitionBlockers(orderFacts(o), "cancelled").length) return s;
+      let stock = s.stock;
+      // Hủy đơn nhả đúng số hàng đang giữ (hàng đã xuất kho thì cần phiếu nhập trả, không tự cộng lại).
+      if ((o.status === "deposit_paid" || o.status === "ready_to_ship") && !o.stockIssued)
+        for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+      return addAudit(
+        {
+          ...s,
+          stock,
+          orders: s.orders.map((x) =>
+            x.id === o.id ? { ...x, status: "cancelled", cancelReason: a.reason, holdUntil: null } : x,
+          ),
+        },
+        a.actor,
+        "Hủy đơn",
+        o.code,
+        a.reason,
+      );
+    }
     case "importLeads": {
       let ns = s;
       let created = 0;
@@ -1332,6 +1901,164 @@ function reducer(s: State, a: Action): State {
       );
     }
   }
+}
+
+const variantLabel = (id: string) => {
+  const v = VARIANTS.find((x) => x.id === id);
+  const p = PRODUCTS.find((x) => x.id === v?.productId);
+  return p ? `${p.name}${v && v.name !== "Tiêu chuẩn" ? ` ${v.name.toLowerCase()}` : ""}` : id;
+};
+const variantSku = (id: string) => VARIANTS.find((x) => x.id === id)?.sku ?? id;
+const needsSerial = (id: string) =>
+  PRODUCTS.find((p) => p.id === VARIANTS.find((v) => v.id === id)?.productId)?.trackSerial ?? false;
+
+export function orderMoney(o: Order) {
+  const subtotal = o.lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
+  const discount = o.lines.reduce((s, l) => s + l.discount, 0);
+  const total = subtotal - discount + o.fees.delivery + o.fees.installation;
+  const confirmed = o.payments
+    .filter((p) => p.status === "confirmed" && p.type !== "refund")
+    .reduce((s, p) => s + p.amount, 0);
+  const pending = o.payments.filter((p) => p.status === "recorded").reduce((s, p) => s + p.amount, 0);
+  return {
+    subtotal,
+    discount,
+    fees: o.fees.delivery + o.fees.installation,
+    total,
+    confirmed,
+    pending,
+    balance: total - confirmed,
+  };
+}
+
+export function orderFacts(o: OrderRec): OrderFacts {
+  const m = orderMoney(o);
+  return {
+    status: o.status as OrderStatus,
+    hasRecipient: Boolean(o.recipientId),
+    hasAddress: Boolean(o.address.trim()),
+    total: m.total,
+    confirmedPaid: m.confirmed,
+    // Chính sách cọc đang áp: tối thiểu 10 triệu hoặc 10%, không quá tổng.
+    depositMinimum: Math.min(m.total, Math.max(10_000_000, Math.round(m.total / 10))),
+    codApproved: o.codApproved,
+    stockIssued: o.stockIssued,
+    serialsAssigned: o.lines.every((l) => !needsSerial(l.variantId) || Boolean(l.serial)),
+  };
+}
+
+/** Tên gọi ngắn của nhân sự, khớp cột "người phụ trách" của dữ liệu mô phỏng. */
+export function staffShort(id: string): string {
+  const st = STAFF.find((x) => x.id === id);
+  if (!st) return id;
+  return st.roleKey === "owner" || st.roleKey === "sale_admin"
+    ? st.fullName.split(" ")[0]
+    : st.fullName.split(" ").pop()!;
+}
+
+export function careOf(s: State, customerId: string): CustomerCare {
+  const existing = s.customerCare[customerId];
+  if (existing) return existing;
+  const c = CUSTOMERS.find((x) => x.id === customerId);
+  return { consents: c ? fromChannelList(c.consents, c.source) : [], events: [] };
+}
+
+/** Thiếu hàng khả dụng để giữ cho đơn (không bán âm, CLAUDE.md 8.3); đơn đặt trước thì không chặn. */
+export function stockBlockers(s: State, o: OrderRec): string[] {
+  if (o.backorder) return [];
+  const need = new Map<string, number>();
+  for (const l of o.lines) need.set(l.variantId, (need.get(l.variantId) ?? 0) + l.qty);
+  return [...need]
+    .filter(([v, q]) => {
+      const l = levelOf(s.stock, v, o.warehouseId);
+      return l.onHand - l.reserved < q;
+    })
+    .map(([v, q]) => {
+      const l = levelOf(s.stock, v, o.warehouseId);
+      return `Không đủ hàng khả dụng ${variantLabel(v)} ở kho đã chọn: cần ${q}, còn ${Math.max(0, l.onHand - l.reserved)}`;
+    });
+}
+
+/** Lý do chưa xuất kho được cho đơn (hàng đặt trước chưa về đủ). */
+export function issueBlockers(s: State, o: OrderRec): string[] {
+  let stock = s.stock;
+  for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+  const errors = planDocument(stock, {
+    id: "check",
+    kind: "issue",
+    warehouseId: o.warehouseId,
+    reason: "",
+    lines: o.lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+  }).errors;
+  return errors.map((e) => VARIANTS.reduce((t, v) => t.replaceAll(v.id, variantLabel(v.id)), e));
+}
+
+function postMovements(s: State, doc: StockDoc, movements: Movement[], actor: string): State {
+  const seq = s.seq + movements.length;
+  const rows: LedgerRow[] = movements.map((m, i) => ({
+    ...m,
+    id: `sm${s.seq + i + 1}`,
+    time: fmtMinutes(s.minutes),
+    actor,
+  }));
+  return addAudit(
+    {
+      ...s,
+      seq,
+      stock: applyMovements(s.stock, movements),
+      ledger: [...rows, ...s.ledger],
+      stockDocs: s.stockDocs.map((d) => (d.id === doc.id ? { ...d, status: "posted", errors: [] } : d)),
+    },
+    actor,
+    "Ghi sổ phiếu kho",
+    doc.id,
+    movements.map((m) => `${m.type} ${m.qty} ${variantSku(m.variantId)}`).join(", "),
+  );
+}
+
+function completeOrder(s: State, o: OrderRec): State {
+  // Hoàn tất sinh phiếu bảo hành cho từng serial và việc chăm sóc theo luật (CLAUDE.md 8.7).
+  const start = simDate(s.minutes);
+  const warranties: Warranty[] = o.lines
+    .filter((l) => l.serial)
+    .map((l, i) => {
+      const p = PRODUCTS.find((x) => x.id === VARIANTS.find((v) => v.id === l.variantId)?.productId)!;
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + p.warrantyMonths);
+      return {
+        id: `BH-${o.code}-${i + 1}`,
+        orderId: o.id,
+        orderCode: o.code,
+        product: p.name,
+        serial: l.serial!,
+        owner: o.recipientId,
+        start: start.toISOString().slice(0, 10),
+        end: end.toISOString().slice(0, 10),
+      };
+    });
+  let ns: State = { ...s, warranties: [...warranties, ...s.warranties] };
+  const rules = new Set(s.settings.taskRules.filter((r) => r.active).map((r) => r.key));
+  if (rules.has("post_delivery_3d"))
+    ns = addTask(ns, {
+      type: "post_delivery_call",
+      title: `Gọi hỏi thăm sau giao đơn ${o.code}`,
+      owner: "",
+      due: s.minutes + 3 * 1440,
+      priority: "normal",
+      source: "rule",
+      ruleKey: "post_delivery_3d",
+    });
+  if (rules.has("consumable_cycle") && o.lines.some((l) => ["v-ion", "v-ro"].includes(l.variantId)))
+    ns = addTask(ns, {
+      type: "consumable_reminder",
+      title: `Nhắc thay lõi lọc cho đơn ${o.code}`,
+      owner: "",
+      due: s.minutes + 180 * 1440,
+      priority: "normal",
+      source: "rule",
+      ruleKey: "consumable_cycle",
+    });
+  return ns;
 }
 
 const PRODUCT_VALUE: [string, number][] = [
