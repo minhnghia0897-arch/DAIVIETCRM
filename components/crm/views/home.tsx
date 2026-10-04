@@ -230,7 +230,9 @@ export function CrmHome() {
               </span>
             </div>
             <div className="c-team">
-              {calls.length === 0 ? <p className="c-empty">Không còn ai cần gọi.</p> : null}
+              {calls.length === 0 ? (
+                <p className="c-empty">Đã gọi hết hàng chờ. Lead mới sẽ vào đây khi được giao.</p>
+              ) : null}
               {calls.map((o) => (
                 <div key={o.id} className="c-cq">
                   <div className="min-w-0 flex-1">
@@ -265,7 +267,7 @@ export function CrmHome() {
               </div>
               <div className="c-team">
                 {[...sla.overdue, ...sla.unassigned, ...sla.waiting].length === 0 ? (
-                  <p className="c-empty">Không có lead quá hạn hay chưa phân.</p>
+                  <p className="c-empty">Đội đang theo kịp: không có lead quá hạn hay chưa phân.</p>
                 ) : null}
                 {[...sla.overdue, ...sla.unassigned, ...sla.waiting].map((o) => (
                   <div key={o.id} className="c-cq flex-wrap">

@@ -104,7 +104,11 @@ export function CrmOpportunities() {
         })}
       </div>
 
-      {sel ? <LeadProfile key={sel.id} opp={sel} /> : <p className="c-card c-empty">Chưa có cơ hội nào.</p>}
+      {sel ? (
+        <LeadProfile key={sel.id} opp={sel} />
+      ) : (
+        <p className="c-card c-empty">Chưa có cơ hội nào. Bấm Tạo lead để thêm khách mới.</p>
+      )}
     </div>
   );
 }

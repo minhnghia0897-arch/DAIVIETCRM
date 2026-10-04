@@ -789,7 +789,8 @@ function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
 }
 
 function Log({ st }: { st: IntegrationState }) {
-  if (!st.log.length) return <p className="c-lbl m-0">Chưa có sự kiện nào.</p>;
+  if (!st.log.length)
+    return <p className="c-lbl m-0">Chưa có sự kiện nào. Mỗi lần gọi, nhắn, mua hàng đều được ghi ở đây.</p>;
   return (
     <div className="c-tw">
       <table className="c-table" aria-label="Nhật ký đấu nối">

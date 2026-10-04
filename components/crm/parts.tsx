@@ -12,6 +12,7 @@ import {
   Video,
   type LucideIcon,
 } from "lucide-react";
+import { Fragment, useState } from "react";
 
 import { agentById, type AgentId, type Loc, type TimelineKind } from "@/lib/demo/crm-data";
 import { useShell } from "./shell-context";
@@ -100,10 +101,13 @@ export function FeedList({
   selected?: string | null;
 }) {
   const list = limit ? items.slice(0, limit) : items;
-  if (!list.length) return <p className="c-empty">Chưa có hoạt động.</p>;
+  // Vạch "Mới" kiểu Slack: các mục đến sau khi mở danh sách nằm trên vạch đỏ.
+  const [firstSeen] = useState(() => items[0]?.id);
+  const fresh = firstSeen ? list.findIndex((f) => f.id === firstSeen) : -1;
+  if (!list.length) return <p className="c-empty">Chưa có hoạt động nào. Agent làm việc gì sẽ hiện ở đây.</p>;
   return (
     <ul className="c-feed" aria-label="Nhật ký agent">
-      {list.map((f) => {
+      {list.map((f, i) => {
         const body = (
           <>
             <AgentIcon id={f.agent} size="sm" />
@@ -118,14 +122,20 @@ export function FeedList({
           </>
         );
         return (
-          <li
-            key={f.id}
-            className={selected === f.id ? "bg-brand-soft" : undefined}
-            style={onSelect ? { cursor: "pointer" } : undefined}
-            onClick={onSelect ? () => onSelect(f.id) : undefined}
-          >
-            {body}
-          </li>
+          <Fragment key={f.id}>
+            {i === fresh && fresh > 0 ? (
+              <li className="c-newline" aria-label="Mới từ lúc mở trang">
+                <span>Mới</span>
+              </li>
+            ) : null}
+            <li
+              className={selected === f.id ? "bg-brand-soft" : undefined}
+              style={onSelect ? { cursor: "pointer" } : undefined}
+              onClick={onSelect ? () => onSelect(f.id) : undefined}
+            >
+              {body}
+            </li>
+          </Fragment>
         );
       })}
     </ul>
@@ -143,7 +153,7 @@ const KIND_LABEL: Record<QueueItem["kind"], string> = {
 export function ApprovalList({ items }: { items: QueueItem[] }) {
   const { act } = useCrm();
   const { can, me, isOwner } = useShell();
-  if (!items.length) return <p className="c-empty">Không có việc chờ duyệt.</p>;
+  if (!items.length) return <p className="c-empty">Không có gì chờ duyệt.</p>;
   return (
     <div>
       {items.map((q) => {

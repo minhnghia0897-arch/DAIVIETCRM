@@ -1,3 +1,4 @@
+import { PersonChip } from "@/components/person-chip";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import type { SessionUser } from "@/lib/auth/types";
@@ -40,7 +41,9 @@ export function StaffView({ user }: { user: SessionUser }) {
               {rows.map((s) => (
                 <tr key={s.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
                   <td className="tabular px-[14px] py-1">{s.code}</td>
-                  <td className="px-3 py-1 font-semibold">{s.fullName}</td>
+                  <td className="px-3 py-1 font-semibold">
+                    <PersonChip name={s.fullName} />
+                  </td>
                   <td className="px-3 py-1">{s.title}</td>
                   <td className="px-3 py-1">{s.managerId ? staffName(s.managerId) : "—"}</td>
                   <td className="tabular px-3 py-1">{formatDate(s.joinedAt)}</td>

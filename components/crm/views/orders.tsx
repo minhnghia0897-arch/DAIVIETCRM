@@ -143,7 +143,9 @@ export function CrmOrders() {
             </tbody>
           </table>
         </div>
-        {rows.length === 0 ? <p className="c-empty">Chưa có đơn nào ở nhóm này.</p> : null}
+        {rows.length === 0 ? (
+          <p className="c-empty">Nhóm này chưa có đơn. Chọn Tất cả để xem mọi đơn.</p>
+        ) : null}
       </section>
     </div>
   );

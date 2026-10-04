@@ -467,7 +467,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
                   ))}
                 </ul>
               ) : (
-                <p className="c-lbl m-0">Không có việc đang mở.</p>
+                <p className="c-lbl m-0">Không có việc đang mở. Hẹn gọi lại sẽ hiện ở đây.</p>
               )}
             </div>
             <ImportantDates opp={opp} info={info} canEdit={canEdit} />
@@ -708,7 +708,7 @@ function ActivityList({ oppId, acts, canEdit }: { oppId: string; acts: Activity[
           ))}
         </ul>
       ) : (
-        <p className="c-lbl m-0">Chưa có hoạt động.</p>
+        <p className="c-lbl m-0">Chưa có hoạt động. Cuộc gọi, tin nhắn, ghi chú sẽ hiện ở đây.</p>
       )}
     </div>
   );

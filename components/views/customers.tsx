@@ -1,3 +1,4 @@
+import { PersonChip } from "@/components/person-chip";
 import Link from "next/link";
 
 import { MarketTag } from "@/components/market-tag";
@@ -82,14 +83,18 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
                       </td>
                       <td className="px-3 py-1">{owned.map((o) => o.name).join(", ") || "—"}</td>
                       <td className="tabular px-3 py-1">{formatDate(c.lastInteraction)}</td>
-                      <td className="px-3 py-1">{staffName(c.ownerId)}</td>
+                      <td className="px-3 py-1">
+                        <PersonChip name={staffName(c.ownerId)} />
+                      </td>
                     </tr>
                   );
                 })}
             </tbody>
           </table>
           {rows.length === 0 ? (
-            <p className="px-[14px] py-3 text-text-weak">Chưa có khách nào ở nhóm này.</p>
+            <p className="px-[14px] py-3 text-text-weak">
+              Nhóm này chưa có khách. Chọn Tất cả để xem mọi khách.
+            </p>
           ) : null}
         </div>
       </section>

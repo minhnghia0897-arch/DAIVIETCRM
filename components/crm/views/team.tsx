@@ -342,7 +342,7 @@ export function CrmCoaching() {
           </form>
         </Card>
         <Card title="Ghi chú đã viết">
-          {notes.length === 0 ? <p className="c-lbl m-0">Chưa có ghi chú nào bạn được xem.</p> : null}
+          {notes.length === 0 ? <p className="c-lbl m-0">Chưa có ghi chú nào anh chị được xem.</p> : null}
           <ul className="m-0 list-none p-0">
             {notes.map((n) => (
               <li key={n.id} className="border-t border-line-2 py-2 first:border-t-0">

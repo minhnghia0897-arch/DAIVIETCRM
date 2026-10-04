@@ -261,7 +261,7 @@ Pill luôn có chữ. Bảng ý nghĩa: `--ok` thành công, đúng hạn; `--wa
 
 ### 5.14 Toast, trạng thái rỗng, đang tải, lỗi
 
-- Toast trên cùng giữa màn hình, 2,6 giây, nói đúng việc vừa xảy ra bằng cùng động từ với nút: bấm "Giao cho Thảo" thì toast "Đã giao cho Thảo".
+- Toast giữa đáy màn hình (ngay trên thanh tiện ích) như Slack, nền chữ chính chữ trắng, 2,6 giây (có nút Hoàn tác thì 5 giây), nói đúng việc vừa xảy ra bằng cùng động từ với nút: bấm "Giao cho Thảo" thì toast "Đã giao cho Thảo".
 - Trạng thái rỗng là lời mời hành động: "Chưa có lead nào chờ gọi. Lead mới sẽ hiện ở đây ngay khi được giao cho anh chị." Không dùng hình minh họa lớn.
 - Đang tải: khung xương theo đúng bố cục cuối, không dùng vòng xoay giữa trang.
 - Lỗi: nói chuyện gì xảy ra và cần làm gì. Ví dụ: "Không gửi được tin Zalo vì đã quá thời gian được nhắn cho khách này. Hãy gọi điện hoặc chờ khách nhắn lại." Không xin lỗi chung chung, không hiện mã lỗi kỹ thuật cho người dùng (mã lỗi để trong chi tiết có thể mở ra).
@@ -565,6 +565,16 @@ Giao diện không bao giờ tự suy quyền từ tên vai trò; luôn dùng da
 Phím tắt không hoạt động khi con trỏ đang ở trong ô nhập.
 
 ---
+
+## 8b. Cảm giác dùng kiểu Slack
+
+- **Tìm nhanh Ctrl/⌘ K:** hộp giữa trên, gõ tên khách, mã đơn, tên hộ hoặc tên màn hình (không dấu cũng được), mũi tên chọn, Enter mở; chỉ liệt kê những gì người dùng được xem. Nút "Ctrl K" ở cuối ô tìm kiếm trên header.
+- **Phím tắt:** `/` vào ô tìm kiếm; `G` rồi `H` Trang chủ, `T` Việc cần làm, `C` Cơ hội, `D` Đơn hàng, `K` Khách, `I` Hội thoại; `?` mở bảng phím tắt; `Esc` đóng. Không bắt phím khi đang gõ trong ô nhập.
+- **Nút hiện khi rê chuột:** dòng việc có thanh nút nhỏ (Xong, Dời 1 giờ, Xong và ghi kết quả, Lỡ hẹn) hiện khi rê chuột hoặc khi dòng có tiêu điểm bàn phím; màn cảm ứng luôn hiện.
+- **Phản hồi tức thì:** bấm là đổi ngay, dòng vừa đổi nháy vàng nhạt 1,4 giây; thao tác xong việc, dời, lỡ hẹn, đánh dấu thất bại có thông báo kèm nút **Hoàn tác** trong 5 giây thay cho hộp hỏi lại. Thông báo nền chữ chính, chữ trắng. Chuyển động 120–150ms, tắt khi máy đặt giảm chuyển động.
+- **Chưa đọc:** mục sidebar có việc mới so với lần cuối rời trang đó in đậm trắng; số đếm đỏ hồng cho việc của tôi và hội thoại cần người. Danh sách hoạt động của agent có vạch đỏ "Mới" ngăn các mục đến sau khi mở trang.
+- **Màn trống:** câu ngắn nói tình trạng và bước tiếp theo ("Đã gọi hết hàng chờ. Lead mới sẽ vào đây khi được giao."), không chỉ "Không có dữ liệu".
+- **Tên người** kèm avatar tròn 20px chữ cái đầu, màu cố định theo tên (người phụ trách, nhân sự, người dùng, người nhận việc).
 
 ## 9. Giọng văn và từ ngữ
 

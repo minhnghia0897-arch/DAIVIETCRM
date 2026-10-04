@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-// DESIGN.md 5.14: toast trên cùng giữa màn hình, 2,6 giây, dùng cùng động từ với nút.
+// DESIGN.md 5.14: toast giữa đáy màn hình (trên thanh tiện ích) như Slack, 2,6 giây; có nút Hoàn tác thì 5 giây.
 type Tone = "ok" | "err";
 /** Nút trong toast (ví dụ "Hoàn tác"); toast có nút giữ 5 giây thay vì 2,6 giây. */
 export interface ToastAction {
@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-14 z-[60] flex justify-center px-4"
       >
         {toast ? (
           <p

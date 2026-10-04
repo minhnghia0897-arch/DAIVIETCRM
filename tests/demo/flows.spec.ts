@@ -200,6 +200,21 @@ test("rê chuột vào việc hiện nút; Xong và Dời 1 giờ có Hoàn tác
   await expect(today.getByText("Gọi hỏi thăm anh Khoa")).toBeVisible();
 });
 
+test("sidebar in đậm mục có việc chưa xem; nhật ký agent có vạch Mới", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Sidebar hiện sẵn trên máy tính");
+  await as(page, "telesale", "home/");
+  const nav = page.getByRole("navigation", { name: "Ứng dụng" });
+  const tasks = nav.getByRole("link", { name: "Việc cần làm" });
+  await expect(tasks).toHaveClass(/is-unread/);
+  await tasks.click();
+  await nav.getByRole("link", { name: "Trang chủ" }).click();
+  // Đã xem trang Việc cần làm: hết in đậm cho tới khi có việc mới.
+  await expect(tasks).not.toHaveClass(/is-unread/);
+
+  // Agent làm thêm việc trong lúc mở trang: việc mới nằm trên vạch "Mới".
+  await expect(page.getByLabel("Mới từ lúc mở trang")).toBeVisible({ timeout: 15000 });
+});
+
 test("telesale tìm nhanh chỉ thấy lead của mình", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "laptop", "Phím tắt dùng trên máy tính");
   await as(page, "telesale", "home/");

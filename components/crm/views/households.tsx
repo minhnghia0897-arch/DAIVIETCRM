@@ -18,7 +18,8 @@ export function CrmHouseholds() {
     : HOUSES.filter((h) => state.opps.some((o) => o.houseId === h.id && o.owner === me));
   const h = houses.find((x) => x.id === state.houseSel) ?? houses[0];
 
-  if (!h) return <p className="c-card c-empty">Chưa có hộ gia đình nào thuộc khách của bạn.</p>;
+  if (!h)
+    return <p className="c-card c-empty">Chưa có hộ gia đình nào thuộc khách anh chị đang phụ trách.</p>;
 
   return (
     <div className="c-c360">

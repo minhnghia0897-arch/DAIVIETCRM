@@ -301,7 +301,8 @@ export function QuoteList({ oppId }: { oppId: string }) {
   const [preview, setPreview] = useState<string | null>(null);
   const quotes = state.quotes.filter((q) => q.oppId === oppId);
   const opp = state.opps.find((o) => o.id === oppId);
-  if (!quotes.length || !opp) return <p className="c-lbl m-0">Chưa có báo giá nào trong phiên này.</p>;
+  if (!quotes.length || !opp)
+    return <p className="c-lbl m-0">Chưa có báo giá. Bấm Tạo báo giá khi đã đủ 4 thông tin bắt buộc.</p>;
   return (
     <div className="space-y-2">
       {quotes.map((q) => (

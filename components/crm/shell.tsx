@@ -245,6 +245,22 @@ function ShellInner({
     "/tasks": state.tasks.filter((t) => t.status === "open" && t.owner === me).length,
     "/inbox": state.convs.filter((c) => c.status === "need").length,
   };
+  // Mục "chưa đọc" kiểu Slack: in đậm khi có việc mới so với lần cuối rời trang đó (đang mở thì không đậm).
+  const activity: Record<string, number> = {
+    ...navCounts,
+    "/opportunities": state.opps.filter((o) => o.stage === 0 && (can("lead.view_all") || o.owner === me))
+      .length,
+  };
+  const hrefOf = (p: string) => tabs.find((t) => p === t.href || p.startsWith(t.href + "/"))?.href ?? p;
+  const [seenPath, setSeenPath] = useState(pathname);
+  const [seen, setSeen] = useState<Record<string, number>>({});
+  if (seenPath !== pathname) {
+    // Rời một trang thì coi như đã xem số việc của trang đó (cập nhật khi đổi trang, không dùng effect).
+    const left = hrefOf(seenPath);
+    setSeenPath(pathname);
+    setSeen((m) => ({ ...m, [left]: activity[left] ?? 0 }));
+  }
+  const unread = (href: string) => hrefOf(pathname) !== href && (activity[href] ?? 0) > (seen[href] ?? 0);
   const duty = state.receivers.some((r) => r.name === me)
     ? Boolean(state.receivers.find((r) => r.name === me)?.onDuty)
     : null;
@@ -377,7 +393,7 @@ function ShellInner({
     }
     if (view === "convos")
       return `Đang xem: hội thoại ${state.convs.find((c) => c.id === state.convSel)?.name}`;
-    return "Đọc dữ liệu showroom Quận 4 theo quyền của bạn";
+    return "Đọc dữ liệu showroom Quận 4 theo quyền của anh chị";
   })();
 
   return (
@@ -516,7 +532,7 @@ function ShellInner({
                       <Link
                         key={t.href}
                         href={t.href}
-                        className="c-tab"
+                        className={`c-tab ${!active && unread(t.href) ? "is-unread" : ""}`}
                         aria-current={active ? "page" : undefined}
                         title={collapsed ? t.label : undefined}
                         aria-description={count ? `${count} cần xử lý` : undefined}
@@ -588,8 +604,8 @@ function ShellInner({
                     {messages.length === 0 ? (
                       <div className="c-ma">
                         <p>
-                          Chào {user.shortName}, tôi đọc dữ liệu trong phạm vi quyền của bạn và chỉ đề xuất;
-                          mọi việc gửi đi đều cần người bấm xác nhận.
+                          Chào {user.shortName}, tôi đọc dữ liệu trong phạm vi quyền của anh chị và chỉ đề
+                          xuất; mọi việc gửi đi đều cần người bấm xác nhận.
                         </p>
                       </div>
                     ) : null}

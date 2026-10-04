@@ -1,5 +1,6 @@
 "use client";
 
+import { PersonChip } from "@/components/person-chip";
 import { Dialog } from "radix-ui";
 import { useState, useTransition } from "react";
 
@@ -102,7 +103,9 @@ export function UsersTable(props: {
                 const isOwnerRow = props.roles.find((r) => r.id === u.roleId)?.isOwner;
                 return (
                   <tr key={u.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
-                    <td className="px-[14px] py-1 font-semibold">{u.fullName}</td>
+                    <td className="px-[14px] py-1 font-semibold">
+                      <PersonChip name={u.fullName} />
+                    </td>
                     <td className="px-3 py-1">
                       {props.canEditPermissions && !isOwnerRow ? (
                         <select

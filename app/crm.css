@@ -1823,3 +1823,26 @@ kbd {
     color 0.12s,
     box-shadow 0.12s;
 }
+
+/* Mục chưa đọc trên sidebar: chữ trắng đậm như kênh chưa đọc của Slack. */
+.c-tab.is-unread {
+  color: #fff;
+  font-weight: 800;
+}
+/* Vạch "Mới" đỏ ngang danh sách, như vạch tin chưa đọc của Slack. */
+.c-newline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  color: var(--err);
+  font-size: 12px;
+  font-weight: 800;
+}
+.c-newline::before {
+  content: "";
+  height: 1px;
+  background: var(--err);
+  flex: 1;
+}

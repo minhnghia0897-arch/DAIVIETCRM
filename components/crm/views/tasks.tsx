@@ -1,5 +1,6 @@
 "use client";
 
+import { PersonChip } from "@/components/person-chip";
 import { CalendarX, Check, Clock, ListChecks, PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -111,7 +112,9 @@ export function CrmTasks() {
           {group("Quá hạn", overdue, "is-err")}
           {group("Hôm nay", today)}
           {group("Sắp tới", later)}
-          {!open.length ? <p className="c-card c-empty">Không còn việc nào đang mở.</p> : null}
+          {!open.length ? (
+            <p className="c-card c-empty">Hết việc đang mở. Việc mới và hẹn gọi lại sẽ hiện ở đây.</p>
+          ) : null}
           {closed.length ? (
             <section className="c-card">
               <div className="c-ch">
@@ -198,7 +201,7 @@ function TaskRow({ t, onOpen, overdue }: { t: Task; onOpen: () => void; overdue:
             {t.title}
           </button>
           <div className="c-lbl">
-            {TASK_TYPE_LABEL[t.type]} · {t.owner || "Hàng chung"} ·{" "}
+            {TASK_TYPE_LABEL[t.type]} · {t.owner ? <PersonChip name={t.owner} weak /> : "Hàng chung"} ·{" "}
             {t.source === "rule" ? "Luật tự sinh" : t.source === "ai" ? "AI đề xuất" : "Người tạo"}
           </div>
         </div>

@@ -47,7 +47,7 @@ export function PersonView({ user, id }: { user: SessionUser; id: string }) {
         </CardHeader>
         <TasksBlock
           readOnly={Boolean(user.viewAs) || id !== user.id}
-          empty="Không có việc nào đang chờ."
+          empty="Không có gì chờ duyệt."
           items={tasks.map((t) => {
             const d = dueLabel(t.due);
             return { ...t, dueLabel: d.label, overdue: d.overdue, sub: t.customer.fullName };
@@ -104,7 +104,7 @@ export function PersonView({ user, id }: { user: SessionUser; id: string }) {
                 ))}
               </ul>
             ) : (
-              <p className="text-text-weak">Không có cảnh báo.</p>
+              <p className="text-text-weak">Mọi thứ ổn, không có cảnh báo.</p>
             )}
           </CardBody>
         </Card>

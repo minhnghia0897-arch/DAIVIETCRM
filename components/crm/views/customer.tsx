@@ -271,7 +271,9 @@ export function CrmCustomer({ id }: { id: string }) {
             <div className="c-ch">
               <h2>Dòng sự kiện</h2>
             </div>
-            {events.length === 0 ? <p className="c-empty">Chưa có sự kiện nào.</p> : null}
+            {events.length === 0 ? (
+              <p className="c-empty">Chưa có sự kiện nào. Mỗi lần gọi, nhắn, mua hàng đều được ghi ở đây.</p>
+            ) : null}
             <ul className="m-0 list-none px-4 pb-3">
               {events.map((e, i) => (
                 <li key={i} className="flex gap-2 border-t border-line-2 py-1.5 first:border-t-0">
