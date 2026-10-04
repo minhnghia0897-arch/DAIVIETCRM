@@ -5,8 +5,10 @@ import {
   configErrors,
   connectBlockers,
   healthCheck,
+  fillFromLogin,
   initialState,
   isOauthToken,
+  quickFields,
   missingSummary,
   PREREQ_ERRORS,
   requiredSecrets,
@@ -43,11 +45,8 @@ describe("kết nối đấu nối", () => {
   });
 
   it("dòng tóm tắt chỉ ghi tên phần còn thiếu", () => {
-    expect(missingSummary(meta, initialState(meta))).toEqual([
-      "App Secret của ứng dụng Meta",
-      "ID Page Facebook",
-      "ID các form cần nhận",
-    ]);
+    // Page và form chọn sau khi đăng nhập nên chỉ còn thiếu khóa.
+    expect(missingSummary(meta, initialState(meta))).toEqual(["App Secret của ứng dụng Meta"]);
     const ai = getIntegration("ai_llm");
     // AI mặc định không bật chức năng nào; vẫn kết nối được khi đủ mô hình, giới hạn chi phí và khóa.
     expect(
@@ -59,7 +58,7 @@ describe("kết nối đấu nối", () => {
     ).toEqual([]);
     expect(
       missingSummary(getIntegration("call_provider"), initialState(getIntegration("call_provider"))),
-    ).toEqual(["API key tổng đài", "Nhà cung cấp"]);
+    ).toEqual(["API key tổng đài"]);
     const storage = getIntegration("file_storage");
     expect(requiredSecrets(storage)).toEqual([]);
   });
@@ -76,15 +75,25 @@ describe("kết nối đấu nối", () => {
     expect(isOauthToken(meta, "meta_page_access_token")).toBe(true);
   });
 
+  it("kết nối nhanh: điền sẵn giá trị mặc định, chỉ hỏi ô không đoán được, ô sau đăng nhập lấy từ danh sách", () => {
+    expect(initialState(smtp).config).toEqual({ port: "587" });
+    expect(quickFields(smtp).map((f) => f.key)).toEqual(["host", "username", "fromAddress"]);
+    expect(quickFields(meta)).toEqual([]);
+    expect(quickFields(getIntegration("file_storage"))).toEqual([]);
+    const filled = fillFromLogin(meta, initialState(meta).config);
+    expect(filled.pageId).toBe("104857300000001");
+    expect(filled.formIds).toEqual(["2200000000001", "2200000000002"]);
+    // Lựa chọn của Owner được giữ.
+    expect(fillFromLogin(meta, { formIds: ["2200000000002"] }).formIds).toEqual(["2200000000002"]);
+    expect(configErrors(meta, filled)).toEqual([]);
+  });
+
   it("kiểm cấu hình bằng schema, báo lỗi theo nhãn ô", () => {
     expect(configErrors(meta, { pageId: "abc", formIds: [] })).toEqual([
-      "ID Page Facebook: ID Page là dãy số",
-      "ID các form cần nhận: Chọn ít nhất một form",
+      "Page Facebook: ID Page là dãy số",
+      "Các form cần nhận: Chọn ít nhất một form",
     ]);
-    expect(configErrors(meta, {})).toEqual([
-      "ID Page Facebook: Chưa nhập",
-      "ID các form cần nhận: Chưa nhập",
-    ]);
+    expect(configErrors(meta, {})).toEqual(["Page Facebook: Chưa nhập", "Các form cần nhận: Chưa nhập"]);
     expect(configErrors(meta, { pageId: "104857300000001", formIds: ["2200000000001"] })).toEqual([]);
     expect(
       configErrors(smtp, { host: "smtp.example.com", port: "587", username: "u", fromAddress: "sai" }),
@@ -115,6 +124,8 @@ describe("kết nối đấu nối", () => {
   it("đếm ngày token còn lại", () => {
     const st = { ...initialState(meta), tokenExpiresAt: "2026-10-06T00:00:00Z" };
     expect(tokenDaysLeft(st, new Date("2026-10-04T00:00:00Z"))).toBe(2);
+    // Vài phút sau khi nhận token vẫn ghi đủ số ngày.
+    expect(tokenDaysLeft(st, new Date("2026-10-04T00:05:00Z"))).toBe(2);
     expect(tokenDaysLeft(initialState(meta), new Date())).toBeNull();
   });
 });

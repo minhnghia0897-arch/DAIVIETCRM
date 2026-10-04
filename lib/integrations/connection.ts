@@ -36,8 +36,48 @@ export const STATUS_LABEL: Record<IntegrationStatus, string> = {
   paused: "Tạm dừng",
 };
 
+/** Cấu hình ban đầu lấy từ giá trị điền sẵn của sổ đăng ký, để Owner chỉ phải dán khóa. */
+export function defaultConfig(def: IntegrationDefinition): Record<string, unknown> {
+  return Object.fromEntries(
+    (def.configFields ?? []).filter((f) => f.default !== undefined).map((f) => [f.key, f.default]),
+  );
+}
+
 export function initialState(def: IntegrationDefinition): IntegrationState {
-  return { status: def.connectMode ? "not_connected" : "not_available", config: {}, secrets: {}, log: [] };
+  return {
+    status: def.connectMode ? "not_connected" : "not_available",
+    config: defaultConfig(def),
+    secrets: {},
+    log: [],
+  };
+}
+
+/** Ô chọn từ danh sách nhà cung cấp trả về sau khi đăng nhập OAuth (Page, form, OA, shop…). */
+export function loginFields(def: IntegrationDefinition) {
+  return def.connectMode === "oauth" ? (def.configFields ?? []).filter((f) => f.fromLogin) : [];
+}
+
+/** Ô Owner phải tự điền khi kết nối nhanh: không có giá trị điền sẵn, không chọn được sau đăng nhập. */
+export function quickFields(def: IntegrationDefinition) {
+  const login = new Set(loginFields(def).map((f) => f.key));
+  return (def.configFields ?? []).filter(
+    (f) => f.default === undefined && !login.has(f.key) && f.kind !== "mapping",
+  );
+}
+
+/** Điền ô chọn sau đăng nhập: giữ lựa chọn của Owner, ô còn trống lấy mục đầu (chọn một) hoặc tất cả (chọn nhiều). */
+export function fillFromLogin(
+  def: IntegrationDefinition,
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const out = { ...config };
+  for (const f of loginFields(def)) {
+    const cur = out[f.key];
+    if (cur !== undefined && cur !== "" && !(Array.isArray(cur) && cur.length === 0)) continue;
+    const values = (f.options ?? []).map((o) => o.value);
+    out[f.key] = f.kind === "checks" ? values : values[0];
+  }
+  return out;
 }
 
 /**
@@ -66,13 +106,16 @@ export function configErrors(def: IntegrationDefinition, config: Record<string, 
   });
 }
 
-/** Lý do chưa bấm Kết nối được. Điều kiện tiên quyết chưa đánh dấu chỉ cảnh báo, không chặn (Owner tự xác nhận). */
+/**
+ * Lý do chưa bấm Kết nối được. Điều kiện tiên quyết chưa đánh dấu chỉ cảnh báo, không chặn (Owner tự xác nhận).
+ * Đấu nối OAuth: ô chọn sau đăng nhập không chặn, vì danh sách chỉ có sau khi đăng nhập.
+ */
 export function connectBlockers(def: IntegrationDefinition, st: IntegrationState): string[] {
   if (!def.connectMode) return ["Đấu nối này chưa có trong phiên bản hiện tại"];
   const out: string[] = [];
   for (const s of requiredSecrets(def))
     if (!st.secrets[s]) out.push(`Chưa nhập ${def.secretLabels?.[s] ?? s}`);
-  out.push(...configErrors(def, st.config));
+  out.push(...configErrors(def, fillFromLogin(def, st.config)));
   return out;
 }
 
@@ -82,7 +125,7 @@ export function missingSummary(def: IntegrationDefinition, st: IntegrationState)
   const out = requiredSecrets(def)
     .filter((s) => !st.secrets[s])
     .map((s) => (def.secretLabels?.[s] ?? s).replace(/\s*\(.*\)$/, ""));
-  for (const e of configErrors(def, st.config)) out.push(e.replace(/: Chưa nhập$/, ""));
+  for (const e of configErrors(def, fillFromLogin(def, st.config))) out.push(e.replace(/: Chưa nhập$/, ""));
   return out;
 }
 
@@ -160,8 +203,9 @@ export function actionsFor(
   }
 }
 
-/** Còn bao nhiêu ngày token hết hạn; cảnh báo khi dưới 3 ngày. */
+/** Còn bao nhiêu ngày token hết hạn (làm tròn lên); cảnh báo khi dưới 3 ngày. */
 export function tokenDaysLeft(st: IntegrationState, now: Date): number | null {
   if (!st.tokenExpiresAt) return null;
-  return Math.floor((Date.parse(st.tokenExpiresAt) - now.getTime()) / 86_400_000);
+  // Làm tròn lên: còn 59 ngày 23 giờ vẫn ghi "còn 60 ngày"; hết hạn trong hôm nay là 0.
+  return Math.ceil((Date.parse(st.tokenExpiresAt) - now.getTime()) / 86_400_000);
 }

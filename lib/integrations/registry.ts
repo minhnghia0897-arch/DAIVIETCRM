@@ -38,6 +38,13 @@ export interface ConfigField {
   kind: "text" | "list" | "mapping" | "select" | "checks";
   placeholder?: string;
   options?: { value: string; label: string }[];
+  /** Giá trị điền sẵn để Owner không phải nhập; sửa được ở tab Cấu hình. */
+  default?: string | readonly string[] | Readonly<Record<string, string>>;
+  /**
+   * Chọn từ danh sách nhà cung cấp trả về sau khi đăng nhập (Page, form, OA…), không phải gõ ID.
+   * `options` là danh sách mô phỏng; khi chạy thật, server lấy danh sách qua API bằng token vừa nhận.
+   */
+  fromLogin?: boolean;
 }
 
 export interface IntegrationDefinition {
@@ -63,6 +70,8 @@ export interface IntegrationDefinition {
   testLabel?: string;
   /** Lưu ý nghiệp vụ hiện trong chi tiết đấu nối. */
   note?: string;
+  /** Đường dẫn webhook Owner dán vào trang quản trị của nhà cung cấp (đấu nối có dữ liệu đẩy về). */
+  webhookPath?: string;
 }
 
 /** Trường lead mà câu hỏi của form quảng cáo được ánh xạ sang (CLAUDE.md 10.4). */
@@ -77,6 +86,16 @@ export const LEAD_FIELDS = [
 
 const digits = (message: string) => z.string().regex(/^\d{5,25}$/, message);
 
+/** Ánh xạ đoán sẵn theo câu hỏi form mẫu; Owner chỉnh ở tab Cấu hình nếu form khác. */
+const FORM_MAPPING_DEFAULT = {
+  "Họ và tên": "full_name",
+  "Số điện thoại": "phone",
+  "Bạn đang sống ở nước nào?": "country_of_residence",
+  "Tỉnh người nhận quà": "recipient_province",
+  "Bạn quan tâm sản phẩm nào?": "product_interest",
+  "Dịp tặng quà": "occasion",
+};
+
 const CONVERSION_EVENTS = [
   { value: "deposit", label: "Đặt cọc" },
   { value: "delivered", label: "Giao lắp xong" },
@@ -86,6 +105,7 @@ const CONVERSION_EVENTS = [
 export const integrations = [
   {
     key: "meta_lead_ads",
+    webhookPath: "/api/webhooks/meta",
     name: "Form quảng cáo Facebook",
     description: "Nhận lead từ form quảng cáo Facebook ngay khi khách gửi.",
     group: "channels",
@@ -107,9 +127,29 @@ export const integrations = [
     oauthScopes: "Facebook: pages_show_list, pages_manage_metadata, leads_retrieval, pages_read_engagement",
     testLabel: "Lead thử từ công cụ test lead của Meta",
     configFields: [
-      { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
-      { key: "formIds", label: "ID các form cần nhận", kind: "list", placeholder: "Mỗi dòng một ID form" },
-      { key: "fieldMapping", label: "Ánh xạ câu hỏi của form sang trường lead", kind: "mapping" },
+      {
+        key: "pageId",
+        label: "Page Facebook",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "104857300000001", label: "Đại Việt Showroom Quận 4" }],
+      },
+      {
+        key: "formIds",
+        label: "Các form cần nhận",
+        kind: "checks",
+        fromLogin: true,
+        options: [
+          { value: "2200000000001", label: "Ghế massage, người Việt tại Hàn" },
+          { value: "2200000000002", label: "Máy lọc nước, khách trong nước" },
+        ],
+      },
+      {
+        key: "fieldMapping",
+        label: "Ánh xạ câu hỏi của form sang trường lead",
+        kind: "mapping",
+        default: FORM_MAPPING_DEFAULT,
+      },
     ],
     secretLabels: {
       meta_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",
@@ -118,6 +158,7 @@ export const integrations = [
   },
   {
     key: "zalo_oa",
+    webhookPath: "/api/webhooks/zalo",
     name: "Zalo OA",
     description: "Nhận và trả lời tin nhắn Zalo OA ngay trên hồ sơ khách.",
     group: "channels",
@@ -134,7 +175,13 @@ export const integrations = [
     oauthScopes: "Zalo OA: đọc và gửi tin nhắn, đọc thông tin người theo dõi",
     testLabel: "Tin nhắn thử từ Zalo OA",
     configFields: [
-      { key: "oaId", label: "ID Zalo OA", kind: "text", placeholder: "Ví dụ 4318000000000000000" },
+      {
+        key: "oaId",
+        label: "Zalo OA",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "4318000000000000001", label: "Đại Việt Showroom Quận 4 (OA)" }],
+      },
     ],
     secretLabels: {
       zalo_app_secret: "Secret key của ứng dụng Zalo (kiểm chữ ký webhook)",
@@ -164,7 +211,7 @@ export const integrations = [
     connectMode: "api_key",
     configFields: [
       { key: "host", label: "Máy chủ SMTP", kind: "text", placeholder: "smtp.example.com" },
-      { key: "port", label: "Cổng", kind: "text", placeholder: "587" },
+      { key: "port", label: "Cổng", kind: "text", placeholder: "587", default: "587" },
       { key: "username", label: "Tên đăng nhập", kind: "text" },
       {
         key: "fromAddress",
@@ -178,6 +225,7 @@ export const integrations = [
   },
   {
     key: "call_provider",
+    webhookPath: "/api/webhooks/call/mock",
     name: "Tổng đài",
     description: "Gọi đi, nhận cuộc gọi đến và lưu ghi âm qua tổng đài.",
     group: "calls",
@@ -196,6 +244,7 @@ export const integrations = [
         key: "adapter",
         label: "Nhà cung cấp",
         kind: "select",
+        default: "mock",
         options: [{ value: "mock", label: "Tổng đài giả lập (kiểm thử)" }],
       },
     ],
@@ -204,6 +253,7 @@ export const integrations = [
   },
   {
     key: "pancake",
+    webhookPath: "/api/webhooks/pancake",
     name: "Pancake",
     description: "Đọc hội thoại từ Pancake cho kênh đội đang trả lời ở Pancake.",
     group: "channels",
@@ -223,6 +273,7 @@ export const integrations = [
   },
   {
     key: "meta_messenger",
+    webhookPath: "/api/webhooks/meta",
     name: "Tin nhắn Facebook",
     description: "Nhận và trả lời tin nhắn Facebook trong 24 giờ sau tin cuối của khách.",
     group: "channels",
@@ -238,7 +289,13 @@ export const integrations = [
     connectMode: "oauth",
     oauthScopes: "Facebook: pages_messaging, pages_manage_metadata, pages_show_list",
     configFields: [
-      { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
+      {
+        key: "pageId",
+        label: "Page Facebook",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "104857300000001", label: "Đại Việt Showroom Quận 4" }],
+      },
     ],
     secretLabels: {
       messenger_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",
@@ -249,6 +306,7 @@ export const integrations = [
   },
   {
     key: "tiktok_lead_forms",
+    webhookPath: "/api/webhooks/tiktok",
     name: "Form quảng cáo TikTok",
     description: "Nhận lead từ form quảng cáo TikTok.",
     group: "channels",
@@ -267,12 +325,24 @@ export const integrations = [
     configFields: [
       {
         key: "advertiserId",
-        label: "ID tài khoản quảng cáo TikTok",
-        kind: "text",
-        placeholder: "Ví dụ 7200000000000000001",
+        label: "Tài khoản quảng cáo TikTok",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "7200000000000000001", label: "Đại Việt Q4 Ads" }],
       },
-      { key: "formIds", label: "ID các form cần nhận", kind: "list", placeholder: "Mỗi dòng một ID form" },
-      { key: "fieldMapping", label: "Ánh xạ câu hỏi của form sang trường lead", kind: "mapping" },
+      {
+        key: "formIds",
+        label: "Các form cần nhận",
+        kind: "checks",
+        fromLogin: true,
+        options: [{ value: "7300000000001", label: "Form ghế massage TikTok" }],
+      },
+      {
+        key: "fieldMapping",
+        label: "Ánh xạ câu hỏi của form sang trường lead",
+        kind: "mapping",
+        default: FORM_MAPPING_DEFAULT,
+      },
     ],
     secretLabels: {
       tiktok_app_secret: "App secret của ứng dụng TikTok (kiểm chữ ký webhook)",
@@ -282,6 +352,7 @@ export const integrations = [
   },
   {
     key: "tiktok_messaging",
+    webhookPath: "/api/webhooks/tiktok",
     name: "Tin nhắn TikTok",
     description: "Nhận và trả lời tin nhắn TikTok khi được TikTok cấp quyền.",
     group: "channels",
@@ -299,9 +370,10 @@ export const integrations = [
     configFields: [
       {
         key: "businessId",
-        label: "ID tài khoản TikTok Business",
-        kind: "text",
-        placeholder: "Ví dụ 7300000000000000001",
+        label: "Tài khoản TikTok Business",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "7300000000000000001", label: "@daivietq4" }],
       },
     ],
     secretLabels: {
@@ -313,6 +385,7 @@ export const integrations = [
   },
   {
     key: "tiktok_shop",
+    webhookPath: "/api/webhooks/tiktok-shop",
     name: "TikTok Shop",
     description: "Đưa đơn TikTok Shop về cùng danh sách đơn hàng.",
     group: "channels",
@@ -331,11 +404,18 @@ export const integrations = [
     connectMode: "oauth",
     oauthScopes: "TikTok Shop: đọc đơn hàng, cập nhật trạng thái giao",
     configFields: [
-      { key: "shopId", label: "ID shop TikTok", kind: "text", placeholder: "Ví dụ 7495000001" },
+      {
+        key: "shopId",
+        label: "Shop TikTok",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "7495000001", label: "Đại Việt Official" }],
+      },
       {
         key: "warehouseId",
         label: "Kho giữ hàng cho đơn sàn",
         kind: "select",
+        default: "wh-q4",
         options: [
           { value: "wh-q4", label: "Kho showroom Q4" },
           { value: "wh-dv", label: "Kho Đại Việt" },
@@ -368,8 +448,20 @@ export const integrations = [
     connectMode: "oauth",
     oauthScopes: "Zalo OA: gửi tin ZNS theo mẫu đã duyệt",
     configFields: [
-      { key: "orderTemplateId", label: "ID mẫu xác nhận đơn", kind: "text", placeholder: "Ví dụ 312345" },
-      { key: "deliveryTemplateId", label: "ID mẫu lịch giao lắp", kind: "text", placeholder: "Ví dụ 312346" },
+      {
+        key: "orderTemplateId",
+        label: "Mẫu xác nhận đơn",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "312345", label: "Xác nhận đơn hàng (đã duyệt)" }],
+      },
+      {
+        key: "deliveryTemplateId",
+        label: "Mẫu lịch giao lắp",
+        kind: "select",
+        fromLogin: true,
+        options: [{ value: "312346", label: "Lịch giao lắp (đã duyệt)" }],
+      },
     ],
     secretLabels: {
       zns_app_secret: "Secret key của ứng dụng Zalo",
@@ -403,7 +495,13 @@ export const integrations = [
         kind: "text",
         placeholder: "Ví dụ 880000000000001",
       },
-      { key: "events", label: "Sự kiện gửi về", kind: "checks", options: CONVERSION_EVENTS },
+      {
+        key: "events",
+        label: "Sự kiện gửi về",
+        kind: "checks",
+        options: CONVERSION_EVENTS,
+        default: ["deposit", "delivered"],
+      },
     ],
     secretLabels: { capi_access_token: "Access token Conversions API" },
     testLabel: "Sự kiện thử (số điện thoại đã băm SHA-256, chỉ khách đã đồng ý)",
@@ -429,7 +527,13 @@ export const integrations = [
     connectMode: "api_key",
     configFields: [
       { key: "pixelCode", label: "Mã TikTok Pixel", kind: "text", placeholder: "Ví dụ CABC123DEF456GH" },
-      { key: "events", label: "Sự kiện gửi về", kind: "checks", options: CONVERSION_EVENTS },
+      {
+        key: "events",
+        label: "Sự kiện gửi về",
+        kind: "checks",
+        options: CONVERSION_EVENTS,
+        default: ["deposit", "delivered"],
+      },
     ],
     secretLabels: { tiktok_events_token: "Access token Events API" },
     testLabel: "Sự kiện thử (đã băm SHA-256, chỉ khách đã đồng ý)",
@@ -437,6 +541,7 @@ export const integrations = [
   },
   {
     key: "bank_webhook",
+    webhookPath: "/api/webhooks/bank",
     name: "Báo tiền về tài khoản",
     description: "Tự khớp tiền khách chuyển khoản với đơn theo nội dung chuyển khoản.",
     group: "finance",
@@ -529,9 +634,16 @@ export const integrations = [
         key: "provider",
         label: "Nơi lưu",
         kind: "select",
+        default: "supabase",
         options: [{ value: "supabase", label: "Supabase Storage, bucket riêng tư" }],
       },
-      { key: "linkMinutes", label: "Thời hạn link xem (phút)", kind: "text", placeholder: "10" },
+      {
+        key: "linkMinutes",
+        label: "Thời hạn link xem (phút)",
+        kind: "text",
+        placeholder: "10",
+        default: "10",
+      },
     ],
     testLabel: "Tải ảnh thử lên kho riêng tư, tạo link ký ngắn hạn",
   },
@@ -552,6 +664,7 @@ export const integrations = [
         key: "tools",
         label: "Nhóm dữ liệu được đọc (chỉ đọc)",
         kind: "checks",
+        default: ["leads", "customers", "orders", "products", "tasks"],
         options: [
           { value: "leads", label: "Lead và cơ hội" },
           { value: "customers", label: "Hồ sơ khách 360" },
@@ -590,7 +703,7 @@ export const integrations = [
           { value: "viettel", label: "Viettel AI" },
         ],
       },
-      { key: "retentionDays", label: "Giữ bản chép (ngày)", kind: "text", placeholder: "90" },
+      { key: "retentionDays", label: "Giữ bản chép (ngày)", kind: "text", placeholder: "90", default: "90" },
     ],
     secretLabels: { ai_speech_api_key: "API key chuyển giọng nói" },
     testLabel: "Chép thử một đoạn ghi âm mẫu",
@@ -616,6 +729,7 @@ export const integrations = [
         key: "model",
         label: "Mô hình",
         kind: "select",
+        default: "claude-sonnet-5-5",
         options: [
           { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (cân bằng)" },
           { value: "claude-opus-5-5", label: "Claude Opus 5.5 (mạnh nhất)" },
@@ -626,6 +740,7 @@ export const integrations = [
         key: "features",
         label: "Chức năng bật (mặc định tắt hết)",
         kind: "checks",
+        default: [],
         options: [
           { value: "summary", label: "Tóm tắt hồ sơ khách, cuộc gọi" },
           { value: "next_task", label: "Đề xuất việc tiếp theo" },
@@ -634,7 +749,13 @@ export const integrations = [
           { value: "household", label: "Đề xuất gộp hộ" },
         ],
       },
-      { key: "monthlyBudget", label: "Giới hạn chi phí tháng (đồng)", kind: "text", placeholder: "2000000" },
+      {
+        key: "monthlyBudget",
+        label: "Giới hạn chi phí tháng (đồng)",
+        kind: "text",
+        placeholder: "2000000",
+        default: "2000000",
+      },
     ],
     secretLabels: { ai_llm_api_key: "API key mô hình ngôn ngữ" },
     testLabel: "Câu hỏi thử (đã che số điện thoại)",

@@ -3,14 +3,17 @@
 import { Plug } from "lucide-react";
 import { useState } from "react";
 
+import { useToast } from "@/components/ui/toast";
 import {
   STATUS_LABEL,
   actionsFor,
   configErrors,
   connectBlockers,
+  fillFromLogin,
   isOauthToken,
+  loginFields,
   missingSummary,
-  prerequisiteWarnings,
+  quickFields,
   requiredSecrets,
   tokenDaysLeft,
   type IntegrationState,
@@ -21,6 +24,7 @@ import {
   groupLabels,
   integrations,
   phaseLabels,
+  type ConfigField,
   type IntegrationDefinition,
   type IntegrationGroup,
 } from "@/lib/integrations/registry";
@@ -133,25 +137,15 @@ function IntegrationRow({
 }) {
   const { state, act } = useCrm();
   const { me } = useShell();
-  const [oauth, setOauth] = useState(false);
-  const done = state.settings.prereqs[def.key] ?? [];
-  const blockers = connectBlockers(def, st);
+  const [quick, setQuick] = useState(false);
   const missing = missingSummary(def, st);
   const open = tab !== null;
-  const connectLabel = def.connectMode === "enable" ? "Bật" : "Kết nối";
-  // Mở thẳng tab còn thiếu: khóa trước, rồi cấu hình.
-  const setupTab: Tab = requiredSecrets(def).some((x) => !st.secrets[x])
-    ? "secret"
-    : configErrors(def, st.config).length
-      ? "config"
-      : "prereq";
-  const warnings = prerequisiteWarnings(def, done);
   const days = tokenDaysLeft(st, simDate(state.minutes));
   const actions = actionsFor(st.status);
-
-  function connect() {
-    if (def.connectMode === "oauth") setOauth(true);
-    else act({ type: "intConnect", key: def.key, actor: me }, `Đang kết nối ${def.name}`);
+  // Kết nối nhanh và chi tiết không mở cùng lúc, để hai nơi không sửa cùng một cấu hình.
+  function toggleQuick() {
+    if (!quick) onOpen(null);
+    setQuick(!quick);
   }
 
   return (
@@ -161,7 +155,10 @@ function IntegrationRow({
           type="button"
           className="c-link min-w-40 flex-1 font-semibold"
           aria-expanded={open}
-          onClick={() => onOpen(open ? null : "prereq")}
+          onClick={() => {
+            setQuick(false);
+            onOpen(open ? null : "prereq");
+          }}
         >
           {def.name}
         </button>
@@ -171,13 +168,9 @@ function IntegrationRow({
           <span className={`c-pill ${days < 3 ? "is-err" : "is-n"}`}>Token còn {days} ngày</span>
         ) : null}
         <span className="flex flex-wrap gap-1">
-          {actions.includes("connect") && blockers.length ? (
-            <button type="button" className="c-btn is-brand" onClick={() => onOpen(setupTab)}>
-              Thiết lập
-            </button>
-          ) : actions.includes("connect") ? (
-            <button type="button" className="c-btn is-brand" onClick={connect}>
-              {connectLabel}
+          {actions.includes("connect") ? (
+            <button type="button" className="c-btn is-brand" aria-expanded={quick} onClick={toggleQuick}>
+              {def.connectMode === "enable" ? "Bật" : "Kết nối"}
             </button>
           ) : null}
           {actions.includes("test") ? (
@@ -214,7 +207,7 @@ function IntegrationRow({
             </button>
           ) : null}
           {actions.includes("reconnect") ? (
-            <button type="button" className="c-btn" disabled={blockers.length > 0} onClick={connect}>
+            <button type="button" className="c-btn" aria-expanded={quick} onClick={toggleQuick}>
               Kết nối lại
             </button>
           ) : null}
@@ -242,37 +235,7 @@ function IntegrationRow({
       {st.status === "not_connected" && missing.length ? (
         <p className="c-lbl mt-1 mb-0">Còn thiếu: {missing.join(", ")}.</p>
       ) : null}
-      {oauth ? (
-        <div
-          className="mt-2 rounded-control border border-line bg-surface-2 p-3"
-          role="dialog"
-          aria-label={`Cấp quyền ${def.name}`}
-        >
-          <b>Cửa sổ đăng nhập của nhà cung cấp (mô phỏng)</b>
-          <p className="c-lbl my-1">
-            CRM xin quyền: {def.oauthScopes}. Owner đăng nhập bằng tài khoản quản trị của showroom trên nhà
-            cung cấp.
-          </p>
-          {warnings.length ? (
-            <p className="my-1 text-warn">Chưa đánh dấu điều kiện: {warnings.join("; ")}.</p>
-          ) : null}
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              className="c-btn is-brand"
-              onClick={() => {
-                setOauth(false);
-                act({ type: "intConnect", key: def.key, actor: me }, `Đã cấp quyền cho ${def.name}`);
-              }}
-            >
-              Cho phép
-            </button>
-            <button type="button" className="c-btn" onClick={() => setOauth(false)}>
-              Hủy
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {quick ? <QuickConnect def={def} st={st} onClose={() => setQuick(false)} /> : null}
       {tab ? <Drawer key={tab} def={def} st={st} initialTab={tab} /> : null}
     </li>
   );
@@ -378,18 +341,9 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
   const { state, act } = useCrm();
   const { me } = useShell();
   const [draft, setDraft] = useState<Record<string, unknown>>(st.config);
-  // Ô nhiều dòng giữ nguyên chữ đang gõ; mảng giá trị tách từ đó, để xuống dòng không làm dính hai ID.
-  const [listText, setListText] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      (def.configFields ?? [])
-        .filter((f) => f.kind === "list")
-        .map((f) => [f.key, ((st.config[f.key] as string[] | undefined) ?? []).join("\n")]),
-    ),
-  );
   const [submitted, setSubmitted] = useState(false);
   const errors = configErrors(def, draft);
   const replyMode = state.settings.replyMode;
-  const field = "mt-0.5 block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
   const mapping = (draft.fieldMapping as Record<string, string> | undefined) ?? {};
 
   return (
@@ -443,73 +397,8 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
                     Owner.
                   </p>
                 </fieldset>
-              ) : f.kind === "checks" ? (
-                <fieldset className="m-0 border-0 p-0" aria-label={f.label}>
-                  <legend className="c-lbl">{f.label}</legend>
-                  {f.options?.map((o) => {
-                    const cur = (draft[f.key] as string[] | undefined) ?? [];
-                    const on = cur.includes(o.value);
-                    return (
-                      <label key={o.value} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          onChange={() =>
-                            setDraft({
-                              ...draft,
-                              [f.key]: on ? cur.filter((x) => x !== o.value) : [...cur, o.value],
-                            })
-                          }
-                        />
-                        {o.label}
-                      </label>
-                    );
-                  })}
-                </fieldset>
               ) : (
-                <label className="c-lbl block">
-                  {f.label}
-                  {f.kind === "list" ? (
-                    <textarea
-                      aria-label={f.label}
-                      placeholder={f.placeholder}
-                      value={listText[f.key] ?? ""}
-                      onChange={(e) => {
-                        setListText({ ...listText, [f.key]: e.target.value });
-                        setDraft({
-                          ...draft,
-                          [f.key]: e.target.value
-                            .split(/[\n,]/)
-                            .map((x) => x.trim())
-                            .filter(Boolean),
-                        });
-                      }}
-                      className={`${field} h-16`}
-                    />
-                  ) : f.kind === "select" ? (
-                    <select
-                      aria-label={f.label}
-                      value={(draft[f.key] as string | undefined) ?? ""}
-                      onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
-                      className={field}
-                    >
-                      <option value="">Chọn…</option>
-                      {f.options?.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      aria-label={f.label}
-                      placeholder={f.placeholder}
-                      value={(draft[f.key] as string | undefined) ?? ""}
-                      onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
-                      className={field}
-                    />
-                  )}
-                </label>
+                <FieldInput f={f} value={draft[f.key]} onChange={(v) => setDraft({ ...draft, [f.key]: v })} />
               )}
             </div>
           ))}
@@ -556,6 +445,292 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+const FIELD = "mt-0.5 block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
+
+/** Một ô cấu hình (trừ bảng ánh xạ), dùng chung cho Kết nối nhanh và tab Cấu hình. */
+function FieldInput({
+  f,
+  value,
+  onChange,
+}: {
+  f: ConfigField;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  // Ô nhiều dòng giữ nguyên chữ đang gõ; mảng giá trị tách từ đó, để xuống dòng không làm dính hai ID.
+  const [raw, setRaw] = useState(() => (Array.isArray(value) ? value.join("\n") : ""));
+  if (f.kind === "checks") {
+    const cur = (value as string[] | undefined) ?? [];
+    return (
+      <fieldset className="m-0 border-0 p-0" aria-label={f.label}>
+        <legend className="c-lbl">{f.label}</legend>
+        {f.options?.map((o) => {
+          const on = cur.includes(o.value);
+          return (
+            <label key={o.value} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={on}
+                onChange={() => onChange(on ? cur.filter((x) => x !== o.value) : [...cur, o.value])}
+              />
+              {o.label}
+            </label>
+          );
+        })}
+      </fieldset>
+    );
+  }
+  return (
+    <label className="c-lbl block">
+      {f.label}
+      {f.kind === "list" ? (
+        <textarea
+          aria-label={f.label}
+          placeholder={f.placeholder}
+          value={raw}
+          onChange={(e) => {
+            setRaw(e.target.value);
+            onChange(
+              e.target.value
+                .split(/[\n,]/)
+                .map((x) => x.trim())
+                .filter(Boolean),
+            );
+          }}
+          className={`${FIELD} h-16`}
+        />
+      ) : f.kind === "select" ? (
+        <select
+          aria-label={f.label}
+          value={(value as string | undefined) ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={FIELD}
+        >
+          <option value="">Chọn…</option>
+          {f.options?.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          aria-label={f.label}
+          placeholder={f.placeholder}
+          value={(value as string | undefined) ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={FIELD}
+        />
+      )}
+    </label>
+  );
+}
+
+/**
+ * Địa chỉ nhận dữ liệu để Owner dán vào trang quản trị của nhà cung cấp. Khi chạy thật là tên miền của CRM;
+ * webhook kiểm chữ ký bằng khóa vừa dán.
+ */
+function WebhookUrl({ path }: { path: string }) {
+  const toast = useToast();
+  const url = `${typeof window === "undefined" ? "" : window.location.origin}${path}`;
+  return (
+    <div>
+      <span className="c-lbl">Địa chỉ nhận dữ liệu (dán vào trang quản trị của nhà cung cấp)</span>
+      <div className="mt-0.5 flex gap-1.5">
+        <input
+          readOnly
+          aria-label="Địa chỉ nhận dữ liệu"
+          value={url}
+          className={`${FIELD} mt-0 min-w-0 flex-1 bg-surface-2`}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <button
+          type="button"
+          className="c-btn"
+          onClick={async () => {
+            let ok = true;
+            try {
+              await navigator.clipboard.writeText(url);
+            } catch {
+              ok = false;
+            }
+            toast(ok ? "Đã sao chép địa chỉ" : "Không sao chép được, hãy chọn và sao chép tay");
+          }}
+        >
+          Sao chép
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const LOGIN_PROVIDER: Record<string, string> = {
+  meta_lead_ads: "Facebook",
+  meta_messenger: "Facebook",
+  zalo_oa: "Zalo",
+  zalo_zns: "Zalo",
+  tiktok_lead_forms: "TikTok",
+  tiktok_messaging: "TikTok",
+  tiktok_shop: "TikTok Shop",
+};
+
+/**
+ * Kết nối nhanh: chỉ hỏi khóa và ô không đoán được; phần còn lại điền sẵn hoặc chọn từ danh sách sau khi đăng nhập.
+ * Một lần bấm: lưu khóa, lưu cấu hình, (đăng nhập), kết nối, gửi dữ liệu thử.
+ */
+function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; onClose: () => void }) {
+  const { state, act } = useCrm();
+  const { me } = useShell();
+  const needed = requiredSecrets(def);
+  const fields = quickFields(def);
+  const done = state.settings.prereqs[def.key] ?? [];
+  const allDone = def.prerequisites.every((p) => done.includes(p.key));
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [cfg, setCfg] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(fields.map((f) => [f.key, st.config[f.key]]).filter(([, v]) => v !== undefined)),
+  );
+  const [prereqOk, setPrereqOk] = useState(allDone);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [login, setLogin] = useState<Record<string, unknown> | null>(null);
+  const pasted = needed.filter((n) => values[n]?.trim());
+  const provider = LOGIN_PROVIDER[def.key] ?? def.name;
+
+  function finish(choices?: Record<string, unknown>) {
+    act(
+      {
+        type: "intQuick",
+        key: def.key,
+        secretNames: pasted,
+        config: cfg,
+        prereqsDone: prereqOk && !allDone,
+        choices,
+        actor: me,
+      },
+      `Đang kết nối ${def.name}`,
+    );
+    setValues({});
+    setLogin(null);
+    onClose();
+  }
+
+  function submit() {
+    const preview: IntegrationState = {
+      ...st,
+      secrets: { ...st.secrets, ...Object.fromEntries(pasted.map((n) => [n, "x"])) },
+      config: { ...st.config, ...cfg },
+    };
+    const errs = connectBlockers(def, preview);
+    setErrors(errs);
+    if (errs.length) return;
+    if (def.connectMode === "oauth")
+      setLogin(
+        Object.fromEntries(loginFields(def).map((f) => [f.key, fillFromLogin(def, st.config)[f.key]])),
+      );
+    else finish();
+  }
+
+  return (
+    <form
+      className="mt-2 space-y-2 rounded-control border border-line bg-surface-2 p-3"
+      aria-label={`Kết nối nhanh ${def.name}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      {def.webhookPath ? <WebhookUrl path={def.webhookPath} /> : null}
+      {needed.map((name) => {
+        const label = def.secretLabels?.[name] ?? name;
+        return (
+          <label key={name} className="c-lbl block">
+            {label}
+            <input
+              aria-label={label}
+              type="password"
+              autoComplete="new-password"
+              placeholder={st.secrets[name] ? "Đã có, để trống nếu giữ nguyên" : "Dán vào đây"}
+              value={values[name] ?? ""}
+              onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
+              className={FIELD}
+            />
+          </label>
+        );
+      })}
+      {fields.map((f) => (
+        <FieldInput key={f.key} f={f} value={cfg[f.key]} onChange={(v) => setCfg({ ...cfg, [f.key]: v })} />
+      ))}
+      {needed.length === 0 && fields.length === 0 ? (
+        <p className="c-lbl m-0">Không cần khóa. Cấu hình đã điền sẵn, sửa được ở tab Cấu hình.</p>
+      ) : null}
+      {def.prerequisites.length ? (
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={prereqOk}
+            onChange={(e) => setPrereqOk(e.target.checked)}
+          />
+          <span>Đã làm xong các bước chuẩn bị: {def.prerequisites.map((p) => p.label).join("; ")}.</span>
+        </label>
+      ) : null}
+      {errors.length ? (
+        <ul className="m-0 list-none space-y-1 p-0" aria-label="Còn thiếu để kết nối">
+          {errors.map((er) => (
+            <li key={er} className="text-err">
+              {er}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {login ? (
+        <div
+          className="rounded-control border border-line bg-surface p-3"
+          role="dialog"
+          aria-label={`Cấp quyền ${def.name}`}
+        >
+          <b>Cửa sổ đăng nhập {provider} (mô phỏng)</b>
+          <p className="c-lbl my-1">
+            CRM xin quyền: {def.oauthScopes}. Sau khi đăng nhập, chọn từ danh sách {provider} trả về, không
+            cần gõ ID.
+          </p>
+          {loginFields(def).map((f) => (
+            <FieldInput
+              key={f.key}
+              f={f}
+              value={login[f.key]}
+              onChange={(v) => setLogin({ ...login, [f.key]: v })}
+            />
+          ))}
+          <div className="mt-2 flex gap-1.5">
+            <button type="button" className="c-btn is-brand" onClick={() => finish(login)}>
+              Cho phép
+            </button>
+            <button type="button" className="c-btn" onClick={() => setLogin(null)}>
+              Hủy
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          <button type="submit" className="c-btn is-brand">
+            {def.connectMode === "oauth"
+              ? `Đăng nhập ${provider} và kết nối`
+              : def.connectMode === "enable"
+                ? "Bật"
+                : "Kiểm tra và kết nối"}
+          </button>
+          <button type="button" className="c-btn" onClick={onClose}>
+            Đóng
+          </button>
+        </div>
+      )}
+      <p className="c-lbl m-0">
+        Khóa chỉ lưu ở máy chủ, không hiện lại. Kết nối xong, CRM tự gửi dữ liệu thử để kiểm tra.
+      </p>
+    </form>
   );
 }
 

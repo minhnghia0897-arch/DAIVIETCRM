@@ -29,6 +29,7 @@ import {
   connectBlockers,
   healthCheck,
   initialState as initialIntegration,
+  fillFromLogin,
   isOauthToken,
   type IntegrationState,
 } from "@/lib/integrations/connection";
@@ -743,7 +744,17 @@ type Action =
   | { type: "orderCod"; orderId: string; actor: string }
   | { type: "intConfig"; key: string; config: Record<string, unknown>; actor: string }
   | { type: "intSecret"; key: string; name: string; actor: string }
-  | { type: "intConnect"; key: string; actor: string }
+  | { type: "intConnect"; key: string; actor: string; choices?: Record<string, unknown> }
+  | {
+      type: "intQuick";
+      key: string;
+      /** Tên các khóa Owner vừa dán; giá trị không vào trạng thái. */
+      secretNames: string[];
+      config: Record<string, unknown>;
+      prereqsDone: boolean;
+      choices?: Record<string, unknown>;
+      actor: string;
+    }
   | { type: "intTest"; key: string; actor: string }
   | { type: "intPause"; key: string; paused: boolean; actor: string }
   | { type: "intDisconnect"; key: string; actor: string }
@@ -1836,6 +1847,8 @@ function reducer(s: State, a: Action): State {
         for (const t of def.secrets.filter((x) => isOauthToken(def, x))) tokens[t] = now.toISOString();
       const withTokens: IntegrationState = {
         ...cur,
+        // Ô chọn sau đăng nhập: lựa chọn của Owner trong cửa sổ cấp quyền, ô trống lấy mặc định.
+        config: fillFromLogin(def, { ...cur.config, ...a.choices }),
         secrets: { ...cur.secrets, ...tokens },
         tokenExpiresAt:
           def.connectMode === "oauth" ? new Date(now.getTime() + 60 * 86_400_000).toISOString() : undefined,
@@ -1868,6 +1881,32 @@ function reducer(s: State, a: Action): State {
         def.name,
         h.message,
       );
+    }
+    case "intQuick": {
+      // Kết nối nhanh: dán khóa, điền ô còn thiếu, (đăng nhập), kết nối và gửi dữ liệu thử trong một lần bấm.
+      const def = getIntegration(a.key as IntegrationKey);
+      let ns = s;
+      for (const name of a.secretNames)
+        ns = reducer(ns, { type: "intSecret", key: a.key, name, actor: a.actor });
+      if (Object.keys(a.config).length)
+        ns = reducer(ns, {
+          type: "intConfig",
+          key: a.key,
+          config: { ...ns.settings.integrationStates[a.key].config, ...a.config },
+          actor: a.actor,
+        });
+      if (a.prereqsDone)
+        ns = {
+          ...ns,
+          settings: {
+            ...ns.settings,
+            prereqs: { ...ns.settings.prereqs, [a.key]: def.prerequisites.map((p) => p.key) },
+          },
+        };
+      ns = reducer(ns, { type: "intConnect", key: a.key, actor: a.actor, choices: a.choices });
+      if (ns.settings.integrationStates[a.key].status === "connected")
+        ns = reducer(ns, { type: "intTest", key: a.key, actor: a.actor });
+      return ns;
     }
     case "intTest": {
       const def = getIntegration(a.key as IntegrationKey);
