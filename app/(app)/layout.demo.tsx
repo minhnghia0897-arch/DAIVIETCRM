@@ -29,7 +29,7 @@ export default function DemoAppLayout({ children }: { children: React.ReactNode 
             router.push("/login");
           }}
           banner={
-            <p className="m-0 bg-text px-4 py-1.5 text-center text-label text-white">
+            <p className="m-0 border-b border-line bg-warn-soft px-4 py-1.5 text-center text-label text-text">
               Bản demo với dữ liệu mô phỏng, agent chạy theo thời gian giả lập. Thay đổi không được lưu. Đổi
               vai trò: menu tài khoản, Đăng xuất.
             </p>

@@ -34,25 +34,28 @@ Khai báo token dạng CSS variables trong `app/globals.css`, ánh xạ sang Tai
 
 | Token | Giá trị | Dùng cho |
 |---|---|---|
-| `--page` | `#EEF1F6` | Nền trang |
-| `--band` | `#C9D8EE` | Dải màu phía trên nền trang, mờ dần xuống `--page` (cao 220px) |
-| `--surface` | `#FFFFFF` | Card, bảng, header |
-| `--surface-2` | `#F6F8FB` | Đầu bảng, hàng hover, nền phụ |
-| `--line` | `#DDDBDA` | Viền card, ô nhập |
-| `--line-2` | `#E5E5E5` | Đường kẻ bên trong card |
-| `--text` | `#181818` | Chữ chính |
-| `--text-weak` | `#5C5C5C` | Nhãn, chữ phụ |
+Phong cách kiểu Slack, giản lược cho dễ nhìn: nền nội dung trắng, card phẳng viền mảnh không đổ bóng, không dải màu chuyển. Sidebar và header dùng màu riêng (mục 4).
+
+| Token | Giá trị | Dùng cho |
+|---|---|---|
+| `--page` | `#FFFFFF` | Nền vùng nội dung |
+| `--surface` | `#FFFFFF` | Card, bảng |
+| `--surface-2` | `#F8F8F8` | Hàng hover, nền phụ, ô biểu tượng đầu trang |
+| `--line` | `#DDDCDD` | Viền card, ô nhập |
+| `--line-2` | `#EBEAEB` | Đường kẻ bên trong card |
+| `--text` | `#1D1C1D` | Chữ chính |
+| `--text-weak` | `#616061` | Nhãn, chữ phụ |
 
 ### Màu ý nghĩa
 
 | Token | Giá trị | Nền nhạt | Dùng cho |
 |---|---|---|---|
-| `--brand` | `#0176D3` | `#E5F1FC` | Hành động chính, liên kết, tab đang chọn |
-| `--brand-strong` | `#014486` | | Hover nút chính, giai đoạn hiện tại trên path |
-| `--ok` | `#2E844A` | `#E6F4EA` | Thành công, đã liên hệ, đúng hạn |
-| `--warn` | `#A96404` | `#FEF1DE` | Sắp quá hạn, cần chú ý, chờ duyệt |
-| `--err` | `#BA0517` | `#FDE7E9` | Quá hạn, lỗi, thất bại |
-| `--ai` | `#7526E3` | `#F2EAFE` | Dành cho tính năng AI từ tháng 3. Tháng 1 không dùng |
+| `--brand` | `#1264A3` | `#E8F5FA` | Hành động chính, liên kết |
+| `--brand-strong` | `#0B4C8C` | | Hover nút chính, giai đoạn hiện tại trên path |
+| `--ok` | `#007A5A` | `#E3F4EF` | Thành công, đã liên hệ, đúng hạn |
+| `--warn` | `#8A5300` | `#FDF3DD` | Sắp quá hạn, cần chú ý, chờ duyệt, dải thông báo bản demo |
+| `--err` | `#C4184F` | `#FDE8EF` | Quá hạn, lỗi, thất bại |
+| `--ai` | `#6B2BD9` | `#F1EBFD` | Tính năng AI |
 | `--obj-lead` | `#E07A2E` | | Icon đối tượng Lead |
 | `--obj-contact` | `#6E4FD6` | | Icon đối tượng Khách, Hộ |
 | `--obj-call` | `#3BA755` | | Icon cuộc gọi |
@@ -72,26 +75,27 @@ Tháng 1 chỉ làm giao diện sáng. Đặt token theo cách thêm giao diện
 
 ### Chữ
 
-- **Font:** **Nunito Sans** (kiểu chữ gần Lato của Slack; Lato không có bộ chữ tiếng Việt nên không dùng), nạp bằng `next/font` với bộ `latin` và `vietnamese`: font được lưu cùng trang lúc build, trình duyệt không gọi Google khi chạy. Dự phòng: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`. Cỡ gốc 13,5px.
+- **Font:** **Nunito Sans** (kiểu chữ gần Lato của Slack; Lato không có bộ chữ tiếng Việt nên không dùng), nạp bằng `next/font` với bộ `latin` và `vietnamese`: font được lưu cùng trang lúc build, trình duyệt không gọi Google khi chạy. Dự phòng: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`. Cỡ gốc 14px.
 - **Số:** mọi bảng, chỉ số, đồng hồ, tiền dùng `font-variant-numeric: tabular-nums`.
 
 | Cấp | Cỡ / dòng | Độ đậm | Dùng cho |
 |---|---|---|---|
-| Tiêu đề trang | 20 / 28 | 700 | Tên hồ sơ, tên màn hình trong page header |
-| Tiêu đề card | 15 / 22 | 700 | Đầu card, đầu bảng con |
-| Chỉ số lớn | 24 / 30 | 300 | Ô KPI |
+| Tiêu đề trang | 20 / 28 | 800 | Tên hồ sơ, tên màn hình trong page header |
+| Tiêu đề card | 15 / 22 | 800 | Đầu card, đầu bảng con |
+| Chỉ số lớn | 24 / 30 | 800 | Ô KPI |
 | Thân | 14 / 21 | 400 | Nội dung chính, ô bảng |
 | Nhãn | 12.5 / 18 | 400, màu `--text-weak` | Nhãn trường, chú thích |
-| Pill | 12 / 16 | 600 | Trạng thái |
+| Nút | 13.5 / 20 | 700 | Nút: viền xám, chữ màu chữ chính; nút chính nền `--brand` chữ trắng |
+| Pill | 12 / 16 | 700 | Trạng thái, bo góc 4px |
 
 Không viết hoa toàn bộ chữ ở bất kỳ đâu. Không dùng font monospace cho nhãn dữ liệu.
 
 ### Khoảng cách, bo góc, đổ bóng
 
 - Lưới 4px. Khoảng cách thường dùng: 4, 8, 12, 16, 24.
-- Khoảng giữa các card: 12px. Đệm trong card: 14px ngang, 12px dọc.
-- Bo góc: ô nhập, nút 4px; card 8px; pill 12px (dạng viên thuốc). Không bo cùng một mức cho mọi thứ.
-- Đổ bóng: card `0 2px 2px rgba(0,0,0,.05)`; menu, drawer, popup `0 4px 16px rgba(0,0,0,.16)`.
+- Khoảng giữa các card: 16px. Đệm trong card: 16px ngang, 14px dọc. Lề vùng nội dung 16px dọc, 20px ngang.
+- Bo góc: ô nhập, nút 6px; card 8px; pill 4px. Card không đổ bóng; chỉ popover, menu có bóng nhẹ.
+- Đổ bóng: card không có; menu, drawer, popup `0 4px 12px rgba(0,0,0,.12)`.
 - Chuyển động: 150–250ms, chỉ khi phản hồi thao tác (mở drawer, toast, hàng mới vào danh sách sáng lên rồi nhạt dần). Tôn trọng `prefers-reduced-motion`.
 
 ---
@@ -602,7 +606,7 @@ Phím tắt không hoạt động khi con trỏ đang ở trong ô nhập.
 ## 11. Không làm
 
 - Không dùng logo, tên, bộ icon, linh vật của Salesforce hay hãng khác.
-- Không dùng gradient trang trí (trừ dải `--band` ở đầu trang), không đổ bóng nặng, không hiệu ứng kính mờ.
+- Không dùng gradient trang trí, không đổ bóng nặng, không hiệu ứng kính mờ.
 - Không dùng emoji trên giao diện. Icon dùng một bộ nét mảnh thống nhất (lucide-react) cho icon hành động; icon đối tượng là glyph trắng trên ô màu.
 - Không viết hoa toàn bộ chữ, không gắn nhãn phụ phía trên mọi tiêu đề, không nối thông tin bằng dấu chấm giữa.
 - Không chia trang thành hàng loạt thẻ giống hệt nhau cùng bóng cùng bo góc.

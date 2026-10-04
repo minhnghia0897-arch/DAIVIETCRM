@@ -4,26 +4,26 @@
  */
 
 @layer components {
+  /* Thẻ phẳng kiểu Slack: viền mảnh, không đổ bóng, khoảng thở rộng hơn. */
   .c-card {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    box-shadow: var(--shadow-card);
   }
   .c-stack > * + * {
-    margin-top: 12px;
+    margin-top: 16px;
   }
   .c-ch {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    padding: 12px 14px 8px;
+    padding: 14px 16px 8px;
   }
   .c-ch h2 {
-    font-size: 14px;
+    font-size: 15px;
     margin: 0;
-    font-weight: 700;
+    font-weight: 800;
   }
   .c-ch .c-r {
     margin-left: auto;
@@ -33,7 +33,7 @@
     align-items: center;
   }
   .c-cb {
-    padding: 4px 14px 14px;
+    padding: 4px 16px 16px;
   }
   .c-oi {
     width: 28px;
@@ -61,19 +61,22 @@
     border-radius: 50%;
   }
 
+  /* Nút kiểu Slack: viền xám, chữ đậm màu chữ; nút chính nền màu thương hiệu. */
   .c-btn {
-    border: 1px solid var(--line);
+    border: 1px solid rgba(29, 28, 29, 0.3);
     background: var(--surface);
-    color: var(--brand);
-    border-radius: 4px;
+    color: var(--text);
+    border-radius: 6px;
     padding: 5px 12px;
-    font-weight: 500;
-    font-size: 13px;
+    min-height: 32px;
+    font-weight: 700;
+    font-size: 13.5px;
     white-space: nowrap;
     cursor: pointer;
   }
   .c-btn:hover {
     background: var(--surface-2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
   .c-btn.is-brand {
     background: var(--brand);
@@ -95,10 +98,10 @@
 
   .c-pill {
     display: inline-block;
-    padding: 1px 8px;
-    border-radius: 12px;
+    padding: 1px 7px;
+    border-radius: 4px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
   }
   .c-pill.is-ok {
@@ -122,7 +125,7 @@
     color: var(--text-weak);
   }
   .c-lbl {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-weak);
   }
   .c-weak {
@@ -159,20 +162,29 @@
   }
 
   /* Đầu trang */
+  /* Đầu trang kiểu tiêu đề kênh Slack: biểu tượng nhỏ cùng màu chữ, tên trang đậm. */
   .c-phd {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: 14px 16px;
+  }
+  .c-phd .c-oi.is-lg {
+    width: 28px;
+    height: 28px;
+    background: var(--surface-2) !important;
+    color: var(--text);
+    border-radius: 6px;
   }
   .c-phd .c-t small {
     display: block;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-weak);
   }
   .c-phd .c-t b {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.3;
   }
   .c-phd .c-r {
     margin-left: auto;
@@ -203,7 +215,7 @@
     border-top: 1px solid var(--line-2);
   }
   .c-kpis > div {
-    padding: 12px 14px;
+    padding: 14px 16px;
     border-left: 1px solid var(--line-2);
   }
   .c-kpis > div:first-child {
@@ -211,8 +223,8 @@
   }
   .c-kpis strong {
     display: block;
-    font-size: 22px;
-    font-weight: 300;
+    font-size: 24px;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
 
@@ -400,7 +412,7 @@
   }
   .c-gnum {
     font-size: 26px;
-    font-weight: 300;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
   .c-gside b {
@@ -600,17 +612,16 @@
   }
   .c-table th {
     text-align: left;
-    font-weight: 600;
-    font-size: 12px;
+    font-weight: 700;
+    font-size: 12.5px;
     color: var(--text-weak);
-    background: var(--surface-2);
-    padding: 7px 10px;
-    border-top: 1px solid var(--line);
+    background: none;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--line);
     white-space: nowrap;
   }
   .c-table td {
-    padding: 8px 10px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--line-2);
     white-space: nowrap;
   }
@@ -880,10 +891,9 @@
     flex: none;
     position: sticky;
     top: 12px;
-    height: calc(100vh - 190px);
+    height: calc(100vh - 150px);
     display: flex;
     flex-direction: column;
-    border-top: 3px solid var(--ai);
   }
   .c-aih {
     display: flex;
@@ -1226,8 +1236,8 @@
   }
   .c-shell {
     display: flex;
-    gap: 12px;
-    padding: 12px;
+    gap: 16px;
+    padding: 16px 20px;
     align-items: flex-start;
   }
   .c-main {

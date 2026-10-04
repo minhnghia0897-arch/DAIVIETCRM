@@ -6,28 +6,28 @@
  * Tháng 1 chỉ có giao diện sáng; giao diện tối sau này chỉ cần định nghĩa lại các biến này.
  */
 :root {
-  /* Nền và chữ */
-  --page: #eef1f6;
-  --band: #c9d8ee;
+  /* Nền và chữ: kiểu Slack, nền nội dung trắng, chữ gần đen, viền mảnh */
+  --page: #ffffff;
+  --band: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --line: #dddbda;
-  --line-2: #e5e5e5;
-  --text: #181818;
-  --text-weak: #5c5c5c;
+  --surface-2: #f8f8f8;
+  --line: #dddcdd;
+  --line-2: #ebeaeb;
+  --text: #1d1c1d;
+  --text-weak: #616061;
 
   /* Ý nghĩa */
-  --brand: #0176d3;
-  --brand-soft: #e5f1fc;
-  --brand-strong: #014486;
-  --ok: #2e844a;
-  --ok-soft: #e6f4ea;
-  --warn: #a96404;
-  --warn-soft: #fef1de;
-  --err: #ba0517;
-  --err-soft: #fde7e9;
-  --ai: #7526e3;
-  --ai-soft: #f2eafe;
+  --brand: #1264a3;
+  --brand-soft: #e8f5fa;
+  --brand-strong: #0b4c8c;
+  --ok: #007a5a;
+  --ok-soft: #e3f4ef;
+  --warn: #8a5300;
+  --warn-soft: #fdf3dd;
+  --err: #c4184f;
+  --err-soft: #fde8ef;
+  --ai: #6b2bd9;
+  --ai-soft: #f1ebfd;
 
   /* Icon đối tượng */
   --obj-lead: #e07a2e;
@@ -44,11 +44,11 @@
   --loc-other-soft: #eceff3;
 
   /* Bo góc, đổ bóng */
-  --radius-control: 4px;
+  --radius-control: 6px;
   --radius-card: 8px;
-  --radius-pill: 12px;
-  --shadow-card: 0 2px 2px rgba(0, 0, 0, 0.05);
-  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.16);
+  --radius-pill: 4px;
+  --shadow-card: none;
+  --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 @theme inline {
@@ -116,23 +116,23 @@
     sans-serif;
 
   /* Cỡ chữ theo DESIGN.md: tiêu đề trang, tiêu đề card, chỉ số lớn, thân, nhãn, pill */
-  --text-page-title: 18px;
-  --text-page-title--line-height: 24px;
-  --text-card-title: 14px;
-  --text-card-title--line-height: 20px;
-  --text-metric: 22px;
-  --text-metric--line-height: 28px;
-  --text-body: 13.5px;
-  --text-body--line-height: 1.45;
-  --text-label: 12px;
-  --text-label--line-height: 17px;
+  --text-page-title: 20px;
+  --text-page-title--line-height: 28px;
+  --text-card-title: 15px;
+  --text-card-title--line-height: 22px;
+  --text-metric: 24px;
+  --text-metric--line-height: 30px;
+  --text-body: 14px;
+  --text-body--line-height: 1.47;
+  --text-label: 12.5px;
+  --text-label--line-height: 18px;
   --text-pill: 12px;
   --text-pill--line-height: 16px;
 }
 
 @layer base {
   html {
-    font-size: 13.5px;
+    font-size: 14px;
   }
 
   body {
