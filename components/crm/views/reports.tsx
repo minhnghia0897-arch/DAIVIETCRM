@@ -5,6 +5,7 @@ import { BarChart3 } from "lucide-react";
 import { FUNNEL, GOAL, MONTH_PLAN, PRODUCT_MIX, STAGES, tr, ty } from "@/lib/demo/crm-data";
 import { PageHead } from "../parts";
 import { useShell } from "../shell";
+import { visibleOpps } from "../access";
 import { useCrm } from "../store";
 
 const pct = (a: number, b: number) =>
@@ -12,9 +13,11 @@ const pct = (a: number, b: number) =>
 
 // Báo cáo kinh doanh cơ bản: tiến độ mục tiêu theo tháng, phễu, thị trường người đặt, cơ cấu sản phẩm.
 export function CrmReports() {
-  const { state } = useCrm();
+  const { state, who } = useCrm();
   const { can, ask } = useShell();
   const team = can("report.team");
+  // Chỉ có báo cáo của mình: số liệu tính từ lead mình giữ, không hiện doanh thu, phễu của cả showroom.
+  const mine = visibleOpps(state, who).filter((o) => o.owner === who.me);
   // Tháng 10 cộng phần doanh thu phát sinh trong phiên mô phỏng.
   const months = MONTH_PLAN.map(([m, plan, done], i) => [m, plan, i === 0 ? state.revenue : done] as const);
   const maxFunnel = FUNNEL[0][1];
@@ -32,109 +35,133 @@ export function CrmReports() {
             Hỏi AI
           </button>
         </PageHead>
-        <div className="c-kpis">
-          <div>
-            <span className="c-lbl">Doanh thu đã cọc</span>
-            <strong>{ty(state.revenue)}</strong>
+        {team ? null : (
+          <div className="c-kpis">
+            <div>
+              <span className="c-lbl">Cơ hội đang mở</span>
+              <strong>{mine.filter((o) => o.stage < 5).length}</strong>
+            </div>
+            <div>
+              <span className="c-lbl">Pipeline</span>
+              <strong>{tr(mine.filter((o) => o.stage < 4).reduce((t, o) => t + o.value, 0))}</strong>
+            </div>
+            <div>
+              <span className="c-lbl">Đã cọc</span>
+              <strong>{tr(mine.filter((o) => o.stage >= 4).reduce((t, o) => t + o.value, 0))}</strong>
+            </div>
           </div>
-          <div>
-            <span className="c-lbl">Tiến độ mục tiêu {ty(GOAL)}</span>
-            <strong>{pct(state.revenue, GOAL)}</strong>
+        )}
+        {team ? (
+          <div className="c-kpis">
+            <div>
+              <span className="c-lbl">Doanh thu đã cọc</span>
+              <strong>{ty(state.revenue)}</strong>
+            </div>
+            <div>
+              <span className="c-lbl">Tiến độ mục tiêu {ty(GOAL)}</span>
+              <strong>{pct(state.revenue, GOAL)}</strong>
+            </div>
+            <div>
+              <span className="c-lbl">Lead → đặt cọc (theo lô lead)</span>
+              <strong>{pct(FUNNEL[4][1], FUNNEL[0][1])}</strong>
+            </div>
+            <div>
+              <span className="c-lbl">Giá trị đơn trung bình</span>
+              <strong>{tr(52.4)}</strong>
+            </div>
           </div>
-          <div>
-            <span className="c-lbl">Lead → đặt cọc (theo lô lead)</span>
-            <strong>{pct(FUNNEL[4][1], FUNNEL[0][1])}</strong>
-          </div>
-          <div>
-            <span className="c-lbl">Giá trị đơn trung bình</span>
-            <strong>{tr(52.4)}</strong>
-          </div>
-        </div>
+        ) : null}
       </section>
 
-      <div className="c-rgrid">
-        <section className="c-card">
-          <div className="c-ch">
-            <h2>Kế hoạch theo tháng</h2>
-          </div>
-          <div className="c-cb">
-            {months.map(([m, plan, done]) => (
-              <div key={m} className="c-hbar" style={{ gridTemplateColumns: "70px 1fr 110px" }}>
-                <span>{m}</span>
-                <i>
-                  <u
-                    style={{ width: `${Math.min(100, (done / plan) * 100)}%`, background: "var(--brand)" }}
-                  />
-                </i>
-                <span className="text-right tabular">
-                  {tr(done)} / {tr(plan)}
+      {team ? (
+        <div className="c-rgrid">
+          <section className="c-card">
+            <div className="c-ch">
+              <h2>Kế hoạch theo tháng</h2>
+            </div>
+            <div className="c-cb">
+              {months.map(([m, plan, done]) => (
+                <div key={m} className="c-hbar" style={{ gridTemplateColumns: "70px 1fr 110px" }}>
+                  <span>{m}</span>
+                  <i>
+                    <u
+                      style={{ width: `${Math.min(100, (done / plan) * 100)}%`, background: "var(--brand)" }}
+                    />
+                  </i>
+                  <span className="text-right tabular">
+                    {tr(done)} / {tr(plan)}
+                  </span>
+                </div>
+              ))}
+              <p className="c-lbl mt-2 mb-0">Tháng 12 gánh gần một nửa mục tiêu vì mùa quà Tết.</p>
+            </div>
+          </section>
+
+          <section className="c-card">
+            <div className="c-ch">
+              <h2>Phễu lead (theo lô lead quý IV)</h2>
+            </div>
+            <div className="c-cb c-funnel">
+              {FUNNEL.map(([label, n], i) => (
+                <div key={label}>
+                  <div className="c-fb" style={{ width: `${Math.max(42, (n / maxFunnel) * 100)}%` }}>
+                    {label}: {n}
+                    {i > 0 ? (
+                      <span className="ml-auto pl-2 font-normal opacity-85">{pct(n, FUNNEL[i - 1][1])}</span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              <div className="c-box-ai">
+                <b>Nút thắt:</b> Đã liên hệ → Demo chỉ {pct(FUNNEL[2][1], FUNNEL[1][1])}. Video call là đòn
+                bẩy lớn nhất.
+              </div>
+            </div>
+          </section>
+
+          <section className="c-card">
+            <div className="c-ch">
+              <h2>Doanh thu theo thị trường người đặt</h2>
+            </div>
+            <div className="c-cb">
+              <div className="c-bar-stack" role="img" aria-label="Hàn Quốc 78%, Việt Nam 22%">
+                <span style={{ width: "78%", background: "var(--loc-kr)" }} />
+                <span style={{ width: "22%", background: "var(--loc-vn)" }} />
+              </div>
+              <div className="c-legend">
+                <span style={{ "--c": "var(--loc-kr)" } as React.CSSProperties}>
+                  Người đặt ở Hàn Quốc 78%
+                </span>
+                <span style={{ "--c": "var(--loc-vn)" } as React.CSSProperties}>
+                  Người đặt trong nước 22%
                 </span>
               </div>
-            ))}
-            <p className="c-lbl mt-2 mb-0">Tháng 12 gánh gần một nửa mục tiêu vì mùa quà Tết.</p>
-          </div>
-        </section>
+              <p className="c-lbl mt-2 mb-0">Thị trường lấy từ hồ sơ khách do nhân viên xác nhận.</p>
+            </div>
+          </section>
 
-        <section className="c-card">
-          <div className="c-ch">
-            <h2>Phễu lead (theo lô lead quý IV)</h2>
-          </div>
-          <div className="c-cb c-funnel">
-            {FUNNEL.map(([label, n], i) => (
-              <div key={label}>
-                <div className="c-fb" style={{ width: `${Math.max(42, (n / maxFunnel) * 100)}%` }}>
-                  {label}: {n}
-                  {i > 0 ? (
-                    <span className="ml-auto pl-2 font-normal opacity-85">{pct(n, FUNNEL[i - 1][1])}</span>
-                  ) : null}
+          <section className="c-card">
+            <div className="c-ch">
+              <h2>Cơ cấu sản phẩm</h2>
+            </div>
+            <div className="c-cb">
+              {PRODUCT_MIX.map(([name, v, tone]) => (
+                <div key={name} className="c-hbar" style={{ gridTemplateColumns: "150px 1fr 40px" }}>
+                  <span>{name}</span>
+                  <i>
+                    <u style={{ width: `${v * 2}%`, background: `var(--${tone})` }} />
+                  </i>
+                  <span className="text-right tabular">{v}%</span>
                 </div>
+              ))}
+              <div className="c-box-ai">
+                <b>AI:</b> 86% hộ mới mua một sản phẩm. Bán chéo máy lọc nước cho hộ đã có ghế là doanh thu rẻ
+                nhất.
               </div>
-            ))}
-            <div className="c-box-ai">
-              <b>Nút thắt:</b> Đã liên hệ → Demo chỉ {pct(FUNNEL[2][1], FUNNEL[1][1])}. Video call là đòn bẩy
-              lớn nhất.
             </div>
-          </div>
-        </section>
-
-        <section className="c-card">
-          <div className="c-ch">
-            <h2>Doanh thu theo thị trường người đặt</h2>
-          </div>
-          <div className="c-cb">
-            <div className="c-bar-stack" role="img" aria-label="Hàn Quốc 78%, Việt Nam 22%">
-              <span style={{ width: "78%", background: "var(--loc-kr)" }} />
-              <span style={{ width: "22%", background: "var(--loc-vn)" }} />
-            </div>
-            <div className="c-legend">
-              <span style={{ "--c": "var(--loc-kr)" } as React.CSSProperties}>Người đặt ở Hàn Quốc 78%</span>
-              <span style={{ "--c": "var(--loc-vn)" } as React.CSSProperties}>Người đặt trong nước 22%</span>
-            </div>
-            <p className="c-lbl mt-2 mb-0">Thị trường lấy từ hồ sơ khách do nhân viên xác nhận.</p>
-          </div>
-        </section>
-
-        <section className="c-card">
-          <div className="c-ch">
-            <h2>Cơ cấu sản phẩm</h2>
-          </div>
-          <div className="c-cb">
-            {PRODUCT_MIX.map(([name, v, tone]) => (
-              <div key={name} className="c-hbar" style={{ gridTemplateColumns: "150px 1fr 40px" }}>
-                <span>{name}</span>
-                <i>
-                  <u style={{ width: `${v * 2}%`, background: `var(--${tone})` }} />
-                </i>
-                <span className="text-right tabular">{v}%</span>
-              </div>
-            ))}
-            <div className="c-box-ai">
-              <b>AI:</b> 86% hộ mới mua một sản phẩm. Bán chéo máy lọc nước cho hộ đã có ghế là doanh thu rẻ
-              nhất.
-            </div>
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      ) : null}
       <LeadReport />
     </div>
   );

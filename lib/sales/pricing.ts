@@ -235,6 +235,16 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
         comboTotal,
         parts.map((p) => p.retail),
       );
+      // Giảm tay trên combo áp cho mọi món bán của combo (không áp vào quà): phần trăm giữ nguyên từng dòng,
+      // số tiền chia theo giá trị từng dòng, để doanh thu theo SKU và tỷ lệ giảm so với giới hạn đều đúng.
+      const m = l.manualDiscount;
+      const amountShares =
+        m?.kind === "amount"
+          ? allocate(
+              m.value,
+              parts.map((p, i) => (p.it.isGift ? 0 : shares[i])),
+            )
+          : [];
       parts.forEach((p, i) => {
         const qty = p.it.qty * l.qty;
         lines.push({
@@ -248,7 +258,12 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
           total: shares[i],
           isGift: Boolean(p.it.isGift),
           policyIds: [],
-          manual: i === 0 ? l.manualDiscount : undefined,
+          manual:
+            !m || p.it.isGift
+              ? undefined
+              : m.kind === "amount"
+                ? { kind: "amount", value: amountShares[i] }
+                : m,
           categoryId: p.v!.categoryId,
         });
       });

@@ -685,6 +685,8 @@ export interface OrderLine {
   discount: number;
   isGift: boolean;
   serial?: string;
+  /** Số đang giữ cho dòng này (đặt trước thì có thể ít hơn số lượng); không có thì coi như giữ đủ. */
+  reserved?: number;
 }
 
 export interface Payment {

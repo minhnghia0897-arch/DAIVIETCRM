@@ -114,3 +114,11 @@ export const PERMISSION_KEYS: ReadonlySet<string> = new Set(PERMISSIONS.map((x) 
 export function can(effective: ReadonlySet<string> | readonly string[], perm: string): boolean {
   return Array.isArray(effective) ? effective.includes(perm) : (effective as ReadonlySet<string>).has(perm);
 }
+
+/**
+ * Vai trò này có quyền mặc định không (bảng mặc định ở trên). Dùng khi cần nhóm nhân sự theo việc họ làm,
+ * ví dụ "người nhận lead", thay cho so tên vai trò.
+ */
+export function roleDefaultHas(roleKey: string, perm: string): boolean {
+  return PERMISSIONS.some((x) => x.key === perm && (x.defaults as readonly string[]).includes(roleKey));
+}

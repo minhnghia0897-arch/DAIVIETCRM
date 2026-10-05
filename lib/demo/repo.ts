@@ -1,3 +1,4 @@
+import { roleDefaultHas } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/types";
 
 import {
@@ -19,7 +20,9 @@ import {
 // Lớp đọc dữ liệu mô phỏng. Lọc theo quyền giống luật RLS sẽ áp khi chuyển sang bảng thật:
 // không có quyền thì dữ liệu không được trả về (giá vốn bị bỏ khỏi object, không phải ẩn ở giao diện).
 
-const has = (u: SessionUser, p: string) => u.permissions.has(p);
+/** Người xem tối thiểu để lọc phạm vi: mã và quyền hiệu lực. */
+type Viewer = Pick<SessionUser, "id" | "permissions">;
+const has = (u: Pick<SessionUser, "permissions">, p: string) => u.permissions.has(p);
 
 export type PublicVariant = Omit<Variant, "cost"> & { cost?: number };
 
@@ -58,7 +61,7 @@ export function orderTotals(o: Order) {
   return { subtotal, discount, fees, total, confirmed, pending, balance: total - confirmed };
 }
 
-export function visibleOrders(u: SessionUser) {
+export function visibleOrders(u: Viewer) {
   if (has(u, "order.view_all")) return ORDERS;
   if (has(u, "order.view_own")) return ORDERS.filter((o) => o.sellerId === u.id);
   return [];
@@ -66,11 +69,11 @@ export function visibleOrders(u: SessionUser) {
 
 // ---------------------------------------------------------------- khách
 
-export function visibleCustomers(u: SessionUser) {
+/** Khách thuộc lead hoặc đơn mình được xem (CLAUDE.md 11.1: `lead.view_*`, `order.view_*`). */
+export function visibleCustomers(u: Viewer) {
   if (has(u, "lead.view_all")) return CUSTOMERS;
-  if (!has(u, "lead.view_own")) return [];
   const viaOrders = new Set(visibleOrders(u).flatMap((o) => [o.buyerId, o.recipientId]));
-  return CUSTOMERS.filter((c) => c.ownerId === u.id || viaOrders.has(c.id));
+  return CUSTOMERS.filter((c) => (has(u, "lead.view_own") && c.ownerId === u.id) || viaOrders.has(c.id));
 }
 
 export function getCustomer(u: SessionUser, id: string) {
@@ -144,7 +147,8 @@ export function getProduct(u: SessionUser, id: string) {
     ...stripCost(u, v),
     stock: WAREHOUSES.map((w) => ({ warehouse: w, ...stockOf(v.id, w.id) })),
   }));
-  const reservedBy = ORDERS.filter(
+  // Đơn đang giữ hàng chỉ liệt kê trong phạm vi đơn người xem được xem.
+  const reservedBy = visibleOrders(u).filter(
     (o) => o.holdUntil && o.lines.some((l) => variants.some((v) => v.id === l.variantId)),
   );
   return { product: p, variants, reservedBy };
@@ -158,7 +162,14 @@ export function visibleStaff(u: SessionUser) {
 /** Chỉ số theo người: kpi.team thấy cả đội (sale admin: người mình quản lý và telesale), kpi.own chỉ thấy mình. */
 export function teamKpis(u: SessionUser) {
   const all = KPIS.map((k) => ({ ...k, staff: STAFF.find((s) => s.id === k.staffId)! }));
-  if (has(u, "kpi.team")) return all;
+  // Owner (quyền chỉ Owner, không cấp được) thấy cả đội; người khác có kpi.team chỉ thấy người mình quản lý
+  // trực tiếp cộng các telesale, không thấy Owner hay sale admin khác (CLAUDE.md mục 5).
+  if (has(u, "settings.permissions")) return all;
+  if (has(u, "kpi.team"))
+    return all.filter(
+      (k) =>
+        k.staffId === u.id || k.staff.managerId === u.id || roleDefaultHas(k.staff.roleKey, "lead.receive"),
+    );
   if (has(u, "kpi.own")) return all.filter((k) => k.staffId === u.id);
   return [];
 }

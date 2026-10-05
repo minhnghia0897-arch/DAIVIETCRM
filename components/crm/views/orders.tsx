@@ -162,7 +162,7 @@ const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
 
 export function CrmOrder({ id }: { id: string }) {
   const { state, act } = useCrm();
-  const { can, me, userId } = useShell();
+  const { can, me, userId, isOwner } = useShell();
   const router = useRouter();
   const o = useVisibleOrders().find((x) => x.id === id);
   if (!o) notFound();
@@ -174,6 +174,12 @@ export function CrmOrder({ id }: { id: string }) {
     : [];
   const people = orderPeople(o);
   const mine = o.sellerId === userId;
+  // Đơn hủy hoặc trả hàng mà đã có tiền xác nhận thì ghi hoàn (CLAUDE.md 8.7, `payment.refund`).
+  const refundable =
+    m.confirmed -
+    o.payments
+      .filter((p) => p.type === "refund" && p.status === "confirmed")
+      .reduce((t, p) => t + p.amount, 0);
   const canEdit = can("order.edit_all") || (can("order.edit_own") && mine);
   const deliveryStep = next === "delivering" || next === "installed" || next === "completed";
   const canAdvance = next && (deliveryStep ? can("delivery.update") : canEdit);
@@ -285,11 +291,9 @@ export function CrmOrder({ id }: { id: string }) {
                         {NEXT_LABEL[next]}
                       </button>
                     ) : (
-                      <span className="c-lbl">Bạn chưa có quyền chuyển bước này.</span>
+                      <span className="c-lbl">Anh chị chưa có quyền chuyển bước này.</span>
                     )}
-                    {o.status === "ready_to_ship" &&
-                    !o.stockIssued &&
-                    (can("inventory.post") || can("delivery.update")) ? (
+                    {o.status === "ready_to_ship" && !o.stockIssued && can("inventory.post") ? (
                       <button
                         type="button"
                         className="c-btn"
@@ -307,7 +311,8 @@ export function CrmOrder({ id }: { id: string }) {
                     ) : null}
                     {(o.status === "deposit_paid" || o.status === "confirmed") &&
                     !o.codApproved &&
-                    can("payment.confirm") ? (
+                    can("payment.confirm") &&
+                    (!mine || isOwner) ? (
                       <button
                         type="button"
                         className="c-btn"
@@ -528,10 +533,27 @@ export function CrmOrder({ id }: { id: string }) {
                   </li>
                 ))}
               </ul>
-              {!ended &&
-              can("payment.record") &&
-              (can("order.edit_all") || mine || can("order.view_all")) &&
-              m.balance - m.pending > 0 ? (
+              {["cancelled", "returned"].includes(o.status) && can("payment.refund") && refundable > 0 ? (
+                <button
+                  type="button"
+                  className="c-btn mt-2"
+                  onClick={() =>
+                    act(
+                      {
+                        type: "orderRefund",
+                        orderId: o.id,
+                        amount: refundable,
+                        actorId: userId,
+                        actor: me,
+                      },
+                      `Đã ghi hoàn ${money(refundable)} cho đơn ${o.code}`,
+                    )
+                  }
+                >
+                  Ghi hoàn tiền {money(refundable)}
+                </button>
+              ) : null}
+              {!ended && can("payment.record") && canEdit && m.balance - m.pending > 0 ? (
                 <OrderPaymentForm
                   order={o}
                   remaining={m.balance - m.pending}
@@ -681,7 +703,8 @@ function CancelOrder({ order }: { order: OrderRec }) {
         Thôi
       </button>
       <span className="c-lbl w-full">
-        Đơn đã có tiền thì ghi hoàn tiền riêng; giai đoạn lead không tự đổi, người bán quyết định.
+        Đơn đã có tiền thì Owner ghi hoàn tiền trên đơn sau khi hủy; giai đoạn lead không tự đổi, người bán
+        quyết định.
       </span>
     </form>
   );

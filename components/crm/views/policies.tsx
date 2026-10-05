@@ -70,8 +70,19 @@ export function CrmPolicies() {
   const policies = state.settings.policies;
   const [editing, setEditing] = useState<string | null>(null);
 
-  function save(next: Policy[], label: string, detail: string) {
-    act({ type: "setSettings", patch: { policies: next }, actor: me, label, detail }, `${label}: ${detail}`);
+  function save(next: Policy[], label: string, detail: string, archived?: Policy) {
+    act(
+      {
+        type: "setSettings",
+        patch: archived
+          ? { policies: next, policyArchive: [archived, ...state.settings.policyArchive] }
+          : { policies: next },
+        actor: me,
+        label,
+        detail,
+      },
+      `${label}: ${detail}`,
+    );
   }
 
   return (
@@ -111,10 +122,12 @@ export function CrmPolicies() {
                         onSave={(np) => {
                           setEditing(null);
                           const versioned = p.status === "active" ? { ...np, version: p.version + 1 } : np;
+                          // Sửa chính sách đang chạy: giữ phiên bản cũ trong kho lưu, đơn cũ vẫn trỏ được tới nó.
                           save(
                             policies.map((x) => (x.id === p.id ? versioned : x)),
                             "Sửa chính sách",
                             `${p.name}${p.status === "active" ? `, tạo phiên bản ${versioned.version}` : ""}`,
+                            p.status === "active" ? p : undefined,
                           );
                         }}
                       />
@@ -129,7 +142,15 @@ export function CrmPolicies() {
                     {p.priority}
                     {p.type === "promotion" && !p.stackable ? " · không cộng dồn" : ""}
                   </td>
-                  <td className="tabular">v{p.version}</td>
+                  <td className="tabular">
+                    v{p.version}
+                    {state.settings.policyArchive.some((x) => x.id === p.id) ? (
+                      <span className="c-lbl">
+                        {" "}
+                        · lưu {state.settings.policyArchive.filter((x) => x.id === p.id).length} bản cũ
+                      </span>
+                    ) : null}
+                  </td>
                   <td>
                     <span className={`c-pill ${STATUS[p.status][1]}`}>{STATUS[p.status][0]}</span>
                   </td>

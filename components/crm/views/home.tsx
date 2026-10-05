@@ -9,6 +9,7 @@ import { integrations } from "@/lib/integrations/registry";
 import { DAYS_LEFT, GOAL, OCCASIONS, TEAM, tr, ty } from "@/lib/demo/crm-data";
 import { ApprovalList, Avatar, FeedList, LocTag, PageHead } from "../parts";
 import { useShell } from "../shell";
+import { visibleOpps, visibleQueue } from "../access";
 import { fmtMinutes, simDate, useCrm } from "../store";
 import { AssignSelect, SlaPill, slaStats } from "./lead-intake";
 
@@ -16,8 +17,12 @@ const TEAM_COLORS = ["#0176D3", "#E07A2E", "#7526E3", "#0B827C", "#C23934", "#3E
 
 // Trang chủ theo bản mẫu: mục tiêu quý, chỉ số trong ngày, nhật ký agent, hàng gọi, chờ duyệt, dịp tặng.
 export function CrmHome() {
-  const { state, act } = useCrm();
-  const { can, me: owner } = useShell();
+  const { state, act, who } = useCrm();
+  const { can } = useShell();
+  const opps = visibleOpps(state, who);
+  const queue = visibleQueue(state, who);
+  // Doanh thu, mục tiêu quý là số cả showroom: chỉ hiện cho người có báo cáo cả đội.
+  const teamReport = can("report.team");
   const router = useRouter();
   const sla = slaStats(state);
   const openLead = (id: string) => {
@@ -28,8 +33,8 @@ export function CrmHome() {
   const pct = Math.min(100, (state.revenue / GOAL) * 100);
   // Mốc kỳ vọng: số ngày đã qua của quý / tổng số ngày quý.
   const expected = ((92 - DAYS_LEFT) / 92) * 100;
-  const calls = state.opps
-    .filter((o) => o.owner && o.stage <= 1 && (team || o.owner === owner))
+  const calls = opps
+    .filter((o) => o.owner && o.stage <= 1)
     // Lead mới chưa liên hệ (đang chạy SLA) lên đầu, sau đó theo điểm.
     .sort(
       (a, b) =>
@@ -76,57 +81,72 @@ export function CrmHome() {
             Cập nhật lúc <b className="tabular">{fmtMinutes(state.minutes)}</b>
           </span>
         </PageHead>
-        <div className="c-cb">
-          <div className="c-goalrow">
-            <div>
-              <div className="c-lbl">Doanh thu đã cọc</div>
-              <div className="c-gnum">{ty(state.revenue)}</div>
+        {teamReport ? (
+          <div className="c-cb">
+            <div className="c-goalrow">
+              <div>
+                <div className="c-lbl">Doanh thu đã cọc</div>
+                <div className="c-gnum">{ty(state.revenue)}</div>
+              </div>
+              <div className="c-gside">
+                <span className="c-lbl">Mục tiêu quý</span>
+                <b>{ty(GOAL)}</b>
+              </div>
+              <div className="c-gside">
+                <span className="c-lbl">Còn lại</span>
+                <b>{ty(GOAL - state.revenue)}</b>
+              </div>
+              <div className="c-gside">
+                <span className="c-lbl">Cần mỗi ngày</span>
+                <b>{tr((GOAL - state.revenue) / DAYS_LEFT)}</b>
+              </div>
             </div>
-            <div className="c-gside">
-              <span className="c-lbl">Mục tiêu quý</span>
-              <b>{ty(GOAL)}</b>
+            <div
+              className="c-gbar"
+              role="progressbar"
+              aria-label="Tiến độ mục tiêu quý"
+              aria-valuenow={Math.round(pct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <i style={{ width: `${pct}%` }} />
+              <span className="c-gmark" style={{ left: `${expected}%` }} title="Mốc kỳ vọng hôm nay" />
             </div>
-            <div className="c-gside">
-              <span className="c-lbl">Còn lại</span>
-              <b>{ty(GOAL - state.revenue)}</b>
-            </div>
-            <div className="c-gside">
-              <span className="c-lbl">Cần mỗi ngày</span>
-              <b>{tr((GOAL - state.revenue) / DAYS_LEFT)}</b>
+            <div className="c-lbl">
+              Đạt {pct.toFixed(1).replace(".", ",")}% · vạch đen là mốc nên đạt hôm nay ({expected.toFixed(0)}
+              %) · còn {DAYS_LEFT} ngày
             </div>
           </div>
-          <div
-            className="c-gbar"
-            role="progressbar"
-            aria-label="Tiến độ mục tiêu quý"
-            aria-valuenow={Math.round(pct)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <i style={{ width: `${pct}%` }} />
-            <span className="c-gmark" style={{ left: `${expected}%` }} title="Mốc kỳ vọng hôm nay" />
-          </div>
-          <div className="c-lbl">
-            Đạt {pct.toFixed(1).replace(".", ",")}% · vạch đen là mốc nên đạt hôm nay ({expected.toFixed(0)}%)
-            · còn {DAYS_LEFT} ngày
-          </div>
-        </div>
+        ) : null}
         <div className="c-kpis">
+          {teamReport ? (
+            <>
+              <div>
+                <span className="c-lbl">Lead hôm nay</span>
+                <strong>{state.leadsToday}</strong>
+              </div>
+              <div>
+                <span className="c-lbl">Việc agent tự làm</span>
+                <strong>{state.autoCount}</strong>
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className="c-lbl">Cần gọi</span>
+              <strong>{calls.length}</strong>
+            </div>
+          )}
           <div>
-            <span className="c-lbl">Lead hôm nay</span>
-            <strong>{state.leadsToday}</strong>
+            <span className="c-lbl">
+              {can("order.discount_approve") || can("payment.confirm")
+                ? "Chờ người duyệt"
+                : "Đề xuất của tôi chờ duyệt"}
+            </span>
+            <strong className={queue.length ? "text-warn" : undefined}>{queue.length}</strong>
           </div>
           <div>
-            <span className="c-lbl">Việc agent tự làm</span>
-            <strong>{state.autoCount}</strong>
-          </div>
-          <div>
-            <span className="c-lbl">Chờ người duyệt</span>
-            <strong className={state.queue.length ? "text-warn" : undefined}>{state.queue.length}</strong>
-          </div>
-          <div>
-            <span className="c-lbl">Cơ hội đang mở</span>
-            <strong>{state.opps.filter((o) => o.stage < 5).length}</strong>
+            <span className="c-lbl">{team ? "Cơ hội đang mở" : "Cơ hội của tôi"}</span>
+            <strong>{opps.filter((o) => o.stage < 5).length}</strong>
           </div>
         </div>
       </section>
@@ -158,17 +178,19 @@ export function CrmHome() {
             </section>
           ) : null}
 
-          <section className="c-card">
-            <div className="c-ch">
-              <h2>Agent đang làm</h2>
-              <span className="c-r">
-                <span className={`c-pill ${state.paused ? "is-warn" : "is-ok"}`}>
-                  {state.paused ? "Đang tạm dừng" : "Đang chạy"}
+          {team ? (
+            <section className="c-card">
+              <div className="c-ch">
+                <h2>Agent đang làm</h2>
+                <span className="c-r">
+                  <span className={`c-pill ${state.paused ? "is-warn" : "is-ok"}`}>
+                    {state.paused ? "Đang tạm dừng" : "Đang chạy"}
+                  </span>
                 </span>
-              </span>
-            </div>
-            <FeedList items={state.feed} limit={8} />
-          </section>
+              </div>
+              <FeedList items={state.feed} limit={8} />
+            </section>
+          ) : null}
 
           <section className="c-card">
             <div className="c-ch">
@@ -292,10 +314,10 @@ export function CrmHome() {
             <div className="c-ch">
               <h2>Chờ duyệt</h2>
               <span className="c-r">
-                <span className="c-pill is-warn">{state.queue.length}</span>
+                <span className="c-pill is-warn">{queue.length}</span>
               </span>
             </div>
-            <ApprovalList items={state.queue.slice(0, 4)} />
+            <ApprovalList items={queue.slice(0, 4)} />
           </section>
         </div>
       </div>

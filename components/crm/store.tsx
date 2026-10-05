@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 
 import { useToast } from "@/components/ui/toast";
+import { roleDefaultHas } from "@/lib/auth/permissions";
+import { deniedReason, type Who } from "./access";
 import {
   CATALOGS,
   LEAD_INFO,
@@ -211,6 +213,8 @@ export interface OrderRec extends Order {
   stockIssued: boolean;
   codApproved: boolean;
   cancelReason?: string;
+  /** Số ngày giữ hàng theo chính sách đặt cọc đã áp ở báo giá (CLAUDE.md 8.3). */
+  holdDays?: number;
 }
 
 /** Thay đổi trên hồ sơ khách trong phiên mô phỏng: đồng ý, ẩn danh hóa, sự kiện mới. */
@@ -264,6 +268,8 @@ export interface Settings {
   /** Trạng thái từng đấu nối; khóa bí mật chỉ lưu ngày cập nhật, không lưu giá trị. */
   integrationStates: Record<string, IntegrationState>;
   policies: Policy[];
+  /** Phiên bản cũ của chính sách đang chạy khi bị sửa; đơn cũ vẫn tham chiếu được (CLAUDE.md 8.5). */
+  policyArchive: Policy[];
 }
 
 interface State {
@@ -463,7 +469,7 @@ function step(s: State, r: Rand): State {
   };
 }
 
-function initialState(): State {
+export function initialState(): State {
   const zero = Object.fromEntries(AGENTS.map((a) => [a.id, 0])) as Record<AgentId, number>;
   let s: State = {
     minutes: 9 * 60 + 12,
@@ -485,11 +491,16 @@ function initialState(): State {
     traceSel: null,
     seq: 0,
     leadInfo: LEAD_INFO,
-    receivers: [
-      { name: "Thảo", canReceive: true, active: true, onDuty: true, absent: false },
-      { name: "An", canReceive: true, active: true, onDuty: false, absent: false },
-      { name: "Phương", canReceive: true, active: true, onDuty: false, absent: false },
-    ],
+    // Người được phân lead lấy theo quyền `lead.receive` (mặc định theo vai trò), không theo tên vai trò.
+    receivers: STAFF.filter(
+      (st) => st.status !== "offboarded" && roleDefaultHas(st.roleKey, "lead.receive"),
+    ).map((st) => ({
+      name: staffShort(st.id),
+      canReceive: true,
+      active: true,
+      onDuty: staffShort(st.id) === "Thảo",
+      absent: false,
+    })),
     lastAssigned: "Thảo",
     leadMeta: Object.fromEntries(
       Object.entries(LEAD_INFO).map(([id, info]) => {
@@ -643,6 +654,7 @@ function initialState(): State {
       connected: [],
       integrationStates: Object.fromEntries(integrations.map((d) => [d.key, initialIntegration(d)])),
       policies: POLICIES,
+      policyArchive: [],
     },
   };
   // Dữ liệu ban đầu sinh bằng hạt cố định để server và trình duyệt hiển thị giống nhau.
@@ -655,14 +667,14 @@ function initialState(): State {
 // Hành động
 // ---------------------------------------------------------------------------
 
-type Action =
+export type CrmAction =
   | { type: "tick" }
   | { type: "togglePause" }
   | { type: "decide"; id: string; ok: boolean }
   | { type: "toggleAgent"; id: AgentId }
   | { type: "selectOpp"; id: string }
-  | { type: "advanceOpp"; actor?: string }
-  | { type: "loseOpp"; reason?: string; actor?: string }
+  | { type: "advanceOpp"; oppId: string; actor: string }
+  | { type: "loseOpp"; oppId: string; reason: string; actor: string }
   | { type: "callOpp"; id: string }
   | { type: "assignOccasion"; label: string }
   | { type: "selectHouse"; id: string }
@@ -688,8 +700,8 @@ type Action =
   | { type: "addDate"; oppId: string; label: string; date: string; actor: string }
   | { type: "completeTask"; id: string; outcome: string; actor: string }
   | { type: "snoozeTask"; id: string; minutes: number; actor: string }
-  /** Hoàn tác: trả lại trạng thái ngay trước thao tác (bản demo giữ ảnh chụp trong 5 giây). */
-  | { type: "restore"; state: State }
+  /** Hoàn tác thao tác vừa làm trên lead và việc; nhật ký, dòng hoạt động chỉ thêm, không xóa. */
+  | { type: "restore"; before: State; after: { type: string; id?: string; oppId?: string; actor?: string } }
   | { type: "missTask"; id: string; actor: string }
   | {
       type: "sendQuote";
@@ -768,7 +780,8 @@ type Action =
   | { type: "customerAnonymize"; customerId: string; actor: string }
   | { type: "orderWarehouse"; orderId: string; warehouseId: string; actor: string }
   | { type: "orderBackorder"; orderId: string; expected: string; actor: string }
-  | { type: "orderCancel"; orderId: string; reason: string; actor: string };
+  | { type: "orderCancel"; orderId: string; reason: string; actor: string }
+  | { type: "orderRefund"; orderId: string; amount: number; actorId: string; actor: string };
 
 function pushFeed(s: State, agent: AgentId, text: string, result: string, money = false): State {
   const minutes = s.minutes + 1;
@@ -781,17 +794,18 @@ function pushFeed(s: State, agent: AgentId, text: string, result: string, money 
   };
 }
 
-function reducer(s: State, a: Action): State {
+/** Bộ chuyển trạng thái thuần; xuất ra cho kiểm thử đơn vị. */
+export function reducer(s: State, a: CrmAction): State {
   switch (a.type) {
     case "tick":
-      return releaseWaiting(s.paused ? s : step(s, Math.random));
+      return releaseExpiredHolds(releaseWaiting(s.paused ? s : step(s, Math.random)));
     case "togglePause":
       return { ...s, paused: !s.paused };
     case "decide": {
       const q = s.queue.find((x) => x.id === a.id);
       if (!q) return s;
-      if (q.kind !== "agent")
-        return reducer(s, { type: "approve", id: a.id, ok: a.ok, actor: "Quản lý", isOwner: true });
+      // Mục khác đề xuất agent phải qua "approve" để kiểm người đề xuất và người duyệt.
+      if (q.kind !== "agent") return s;
       const rest = { ...s, queue: s.queue.filter((x) => x.id !== a.id) };
       return a.ok
         ? { ...pushFeed(rest, q.agent, q.okText, "Quản lý đã duyệt"), autoCount: s.autoCount + 1 }
@@ -803,43 +817,42 @@ function reducer(s: State, a: Action): State {
       return { ...s, oppSel: a.id };
     case "advanceOpp": {
       // Người chỉ chuyển tay Lead mới → Đã liên hệ → Demo; từ Báo giá trở đi do báo giá và đơn sinh ra.
-      const o = s.opps.find((x) => x.id === s.oppSel);
+      const o = s.opps.find((x) => x.id === a.oppId);
       if (!o || o.stage >= 2) return s;
       if (o.stage === 1 && missingInfo(s.leadInfo[o.id] ?? newLeadInfo("VN")).length) return s;
       const ns = setStage(s, o.id, o.stage + 1);
-      return addActivity(ns, o.id, "stage", `Chuyển sang ${STAGES[o.stage + 1]}`, a.actor ?? o.owner);
+      return addActivity(ns, o.id, "stage", `Chuyển sang ${STAGES[o.stage + 1]}`, a.actor);
     }
     case "loseOpp": {
       // Đánh thất bại hủy các việc đã lên lịch kèm lý do, không xóa (CLAUDE.md mục 6).
-      const id = s.oppSel;
+      const id = a.oppId;
       const lost = s.opps.find((x) => x.id === id);
+      // Từ Đặt cọc trở đi lead gắn với đơn: hủy đơn rồi người bán quyết định, không đánh thất bại thẳng.
+      if (!lost || lost.stage >= 4 || !a.reason) return s;
       const opps = s.opps.filter((x) => x.id !== id);
-      const phone = s.leadMeta[id]?.phoneE164;
-      return {
+      const ns: State = {
         ...s,
         opps,
-        closedLeads:
-          lost && phone
-            ? [
-                {
-                  id,
-                  name: lost.name,
-                  phoneE164: phone,
-                  stage: "lost",
-                  closedAt: s.minutes,
-                  reason: a.reason ?? "",
-                  owner: lost.owner,
-                },
-                ...s.closedLeads,
-              ]
-            : s.closedLeads,
-        oppSel: opps[0]?.id ?? "",
+        closedLeads: [
+          {
+            id,
+            name: lost.name,
+            phoneE164: s.leadMeta[id]?.phoneE164 ?? "",
+            stage: "lost",
+            closedAt: s.minutes,
+            reason: a.reason,
+            owner: lost.owner,
+          },
+          ...s.closedLeads,
+        ],
+        oppSel: s.oppSel === id ? "" : s.oppSel,
         tasks: s.tasks.map((t) =>
           t.oppId === id && t.status === "open"
-            ? { ...t, status: "cancelled", outcome: `Lead thất bại: ${a.reason ?? ""}` }
+            ? { ...t, status: "cancelled", outcome: `Lead thất bại: ${a.reason}` }
             : t,
         ),
       };
+      return addActivity(ns, id, "stage", `Đánh thất bại: ${a.reason}`, a.actor);
     }
     case "callOpp": {
       const o = s.opps.find((x) => x.id === a.id);
@@ -879,17 +892,19 @@ function reducer(s: State, a: Action): State {
         value: c.value,
         stage: 0,
         source: "Bán chéo hộ gia đình",
-        owner: "Thảo",
+        owner: "",
         score: 70,
         occasion: "",
         houseId: h.id,
         next: c.detail,
       };
-      return {
+      // Lead bán chéo đi qua luật phân lead như mọi lead mới: người đang trực, SLA, khung gọi (CLAUDE.md 7).
+      const created: State = {
         ...pushFeed(
           {
             ...s,
             opps: [opp, ...s.opps],
+            leadMeta: { ...s.leadMeta, [opp.id]: { phoneE164: null, createdAt: s.minutes } },
             leadInfo: {
               ...s.leadInfo,
               [opp.id]: {
@@ -909,6 +924,7 @@ function reducer(s: State, a: Action): State {
         crossDone: [...s.crossDone, `${h.id}:${a.index}`],
         agentCount: { ...s.agentCount, house: s.agentCount.house + 1 },
       };
+      return routeOpp(created, opp.id);
     }
     case "selectConv":
       return { ...s, convSel: a.id };
@@ -936,6 +952,13 @@ function reducer(s: State, a: Action): State {
       if (!c?.followUp) return s;
       const minutes = s.minutes + 1;
       const t = fmtMinutes(minutes);
+      const lead = c.moveOpportunity ? s.opps.find((o) => o.id === c.moveOpportunity) : undefined;
+      // Demo chỉ lên từ Đã liên hệ khi đủ 4 thông tin; lead đã ở Báo giá trở đi không bị kéo lùi (CLAUDE.md 6).
+      const canDemo =
+        lead !== undefined &&
+        lead.stage === 1 &&
+        missingInfo(s.leadInfo[lead.id] ?? newLeadInfo("VN")).length === 0;
+      const holder = lead?.owner || "người giữ lead";
       let ns = updateConv({ ...s, minutes }, c.id, (x) => ({
         ...x,
         followUp: undefined,
@@ -946,30 +969,31 @@ function reducer(s: State, a: Action): State {
           ["cu", c.followUp!, t],
           [
             "sys",
-            "AI: khách đồng ý video call. Đã tạo lịch 21:00 giờ Hàn cho My, chuyển cơ hội sang bước Demo",
+            `AI: khách đồng ý video call. Đã tạo lịch 21:00 giờ Hàn cho ${holder}${canDemo ? ", chuyển cơ hội sang bước Demo" : ""}`,
             t,
           ],
         ],
       }));
-      if (c.moveOpportunity) {
+      if (lead) {
         ns = {
           ...ns,
           opps: ns.opps.map((o) =>
-            o.id === c.moveOpportunity
+            o.id === lead.id
               ? {
                   ...o,
-                  stage: 2,
-                  score: 78,
-                  next: "Video call 21:00 giờ Hàn tối nay. My chuẩn bị demo phần massage chân như khách yêu cầu.",
+                  score: Math.max(o.score, 78),
+                  next: `Video call 21:00 giờ Hàn tối nay. ${holder} chuẩn bị demo phần massage chân như khách yêu cầu.`,
                 }
               : o,
           ),
         };
+        if (canDemo)
+          ns = addActivity(setStage(ns, lead.id, 2), lead.id, "stage", "Chuyển sang Demo", "Hệ thống");
       }
       return pushFeed(
         ns,
         "tele",
-        `${c.name} đồng ý video call 21:00 giờ Hàn, cơ hội lên bước Demo`,
+        `${c.name} đồng ý video call 21:00 giờ Hàn${canDemo ? ", cơ hội lên bước Demo" : ""}`,
         "Đã hẹn",
       );
     }
@@ -1097,8 +1121,24 @@ function reducer(s: State, a: Action): State {
         ? addActivity(ns, t.oppId, "task", `Dời việc "${t.title}" sang ${fmtMinutes(due)}`, a.actor)
         : ns;
     }
-    case "restore":
-      return a.state;
+    case "restore": {
+      // Chỉ trả lại phần dữ liệu lead và việc; nhật ký kiểm toán, dòng hoạt động, sổ kho giữ nguyên và ghi thêm.
+      const b = a.before;
+      const oppId =
+        a.after.oppId ??
+        b.tasks.find((t) => t.id === a.after.id)?.oppId ??
+        (a.after.type === "loseOpp" ? b.oppSel : undefined);
+      const ns: State = {
+        ...s,
+        opps: b.opps,
+        oppSel: b.oppSel,
+        tasks: b.tasks.map((t) => ({ ...t, flash: (s.tasks.find((x) => x.id === t.id)?.flash ?? 0) + 1 })),
+        closedLeads: b.closedLeads,
+        leadInfo: b.leadInfo,
+        leadMeta: b.leadMeta,
+      };
+      return oppId ? addActivity(ns, oppId, "info", "Hoàn tác thao tác vừa làm", a.after.actor ?? "") : ns;
+    }
 
     case "sendQuote": {
       const o = s.opps.find((x) => x.id === a.oppId);
@@ -1497,14 +1537,20 @@ function reducer(s: State, a: Action): State {
       if (to === "deposit_paid") {
         // Đã cọc thì giữ hàng cho từng dòng; quá hạn giữ mà chưa thanh toán đủ thì nhả (CLAUDE.md 8.3).
         let stock = ns.stock;
-        // Đặt trước: chỉ giữ phần đang có, phần thiếu chờ hàng về.
-        for (const l of o.lines) {
+        // Đặt trước: chỉ giữ phần đang có, phần thiếu chờ hàng về; ghi số đã giữ từng dòng để nhả đúng.
+        const lines = o.lines.map((l) => {
           const avail = levelOf(stock, l.variantId, o.warehouseId);
           const qty = Math.min(l.qty, Math.max(0, avail.onHand - avail.reserved));
           if (qty > 0) stock = reserve(stock, l.variantId, o.warehouseId, qty);
-        }
-        const hold = new Date(simDate(s.minutes).getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
-        ns = { ...ns, stock, orders: ns.orders.map((x) => (x.id === o.id ? { ...x, holdUntil: hold } : x)) };
+          return { ...l, reserved: qty };
+        });
+        const days = o.holdDays ?? 14;
+        const hold = new Date(simDate(s.minutes).getTime() + days * 86_400_000).toISOString().slice(0, 10);
+        ns = {
+          ...ns,
+          stock,
+          orders: ns.orders.map((x) => (x.id === o.id ? { ...x, lines, holdUntil: hold } : x)),
+        };
       }
       if (to === "completed") ns = completeOrder(ns, { ...o, status: to });
       ns = syncLeadFromOrder(ns, { ...o, status: to }, a.actor);
@@ -1514,8 +1560,7 @@ function reducer(s: State, a: Action): State {
       // Phiếu xuất kho giao hàng: chuyển hàng đang giữ thành xuất bán và gán serial cho hàng có serial.
       const o = s.orders.find((x) => x.id === a.orderId);
       if (!o || o.stockIssued || o.status !== "ready_to_ship") return s;
-      let stock = s.stock;
-      for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+      const stock = releaseLines(s.stock, o);
       const doc: StockDoc = {
         id: `PX-${o.code}`,
         kind: "issue",
@@ -1731,6 +1776,24 @@ function reducer(s: State, a: Action): State {
         };
         ns = addActivity(ns, o.id, "info", `Bàn giao do nghỉ việc: ${name} → ${to}`, a.actor);
       }
+      // Đơn chưa hoàn tất của người nghỉ chuyển người bán cho người nhận (CLAUDE.md 9.7 bước 3).
+      const openOrders = ns.orders.filter(
+        (o) => o.sellerId === a.staffId && !["completed", "cancelled", "returned"].includes(o.status),
+      );
+      for (const o of openOrders) {
+        const to = a.to[i++ % a.to.length];
+        const seller = staffIdByShort(to);
+        if (!seller) continue;
+        ns = { ...ns, orders: ns.orders.map((x) => (x.id === o.id ? { ...x, sellerId: seller } : x)) };
+        if (o.oppId)
+          ns = addActivity(
+            ns,
+            o.oppId,
+            "info",
+            `Bàn giao đơn ${o.code} do nghỉ việc: ${name} → ${to}`,
+            a.actor,
+          );
+      }
       const orphan = ns.tasks.filter(
         (t) => t.owner === "" && t.outcome === "Bàn giao" && t.status === "open",
       );
@@ -1745,7 +1808,7 @@ function reducer(s: State, a: Action): State {
         a.actor,
         "Bàn giao do nghỉ việc",
         name,
-        `${pending.length} lead, ${orphan.length} việc chia cho ${a.to.join(", ")}`,
+        `${pending.length} lead, ${openOrders.length} đơn, ${orphan.length} việc chia cho ${a.to.join(", ")}`,
       );
     }
     case "intConfig":
@@ -1939,7 +2002,7 @@ function reducer(s: State, a: Action): State {
       let stock = s.stock;
       // Hủy đơn nhả đúng số hàng đang giữ (hàng đã xuất kho thì cần phiếu nhập trả, không tự cộng lại).
       if ((o.status === "deposit_paid" || o.status === "ready_to_ship") && !o.stockIssued)
-        for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+        stock = releaseLines(stock, o);
       return addAudit(
         {
           ...s,
@@ -1954,6 +2017,24 @@ function reducer(s: State, a: Action): State {
         a.reason,
       );
     }
+    case "orderRefund": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || !["cancelled", "returned"].includes(o.status) || a.amount <= 0) return s;
+      const pay = {
+        type: "refund" as const,
+        method: "Chuyển khoản",
+        amount: a.amount,
+        reference: `Hoàn tiền ${o.code}`,
+        status: "confirmed" as const,
+        recordedBy: a.actorId,
+        at: simDate(s.minutes).toISOString(),
+      };
+      const ns = {
+        ...s,
+        orders: s.orders.map((x) => (x.id === o.id ? { ...x, payments: [...x.payments, pay] } : x)),
+      };
+      return addAudit(ns, a.actor, "Ghi hoàn tiền", o.code, vnd(a.amount));
+    }
     case "importLeads": {
       let ns = s;
       let created = 0;
@@ -1962,7 +2043,10 @@ function reducer(s: State, a: Action): State {
         if (r.status === "ok") {
           const seq = ns.seq + 1;
           const id = `o${seq + 200}`;
-          const owner = ns.receivers.some((x) => x.name === r.previousOwner) ? r.previousOwner : "";
+          // Người phụ trách cũ chỉ giữ lại khi còn làm và còn quyền nhận lead; không thì đi luật phân lead.
+          const owner = ns.receivers.some((x) => x.name === r.previousOwner && x.active && x.canReceive)
+            ? r.previousOwner
+            : "";
           ns = {
             ...ns,
             seq,
@@ -1997,6 +2081,7 @@ function reducer(s: State, a: Action): State {
               [id]: {
                 phoneE164: r.e164,
                 createdAt: ns.minutes,
+                assignedAt: owner ? ns.minutes : undefined,
                 firstContactAt: r.lastContact ? -1 : undefined,
               },
             },
@@ -2008,6 +2093,7 @@ function reducer(s: State, a: Action): State {
             `Nhập từ dữ liệu cũ (dòng ${r.line})${r.note ? `: ${r.note}` : ""}`,
             a.actor,
           );
+          if (!owner) ns = routeOpp(ns, id);
           created++;
         } else if (r.status === "duplicate_existing" && a.duplicateMode !== "skip" && r.e164) {
           const d = intakeDecision(ns, r.e164);
@@ -2164,10 +2250,59 @@ export function stockBlockers(s: State, o: OrderRec): string[] {
     });
 }
 
+/** Nhả đúng số đang giữ của từng dòng đơn (đặt trước có thể giữ ít hơn số lượng). */
+function releaseLines(stock: StockLevel[], o: OrderRec): StockLevel[] {
+  return o.lines.reduce((st, l) => {
+    const qty = l.reserved ?? l.qty;
+    return qty > 0 ? reserve(st, l.variantId, o.warehouseId, -qty) : st;
+  }, stock);
+}
+
+/**
+ * Việc nền mô phỏng: quá hạn giữ hàng mà chưa thanh toán đủ thì nhả hàng và báo người phụ trách đơn
+ * (CLAUDE.md 8.3, nghiệm thu tuần 6 "hết hạn giữ thì nhả hàng").
+ */
+function releaseExpiredHolds(s: State): State {
+  const today = simDate(s.minutes).toISOString().slice(0, 10);
+  const expired = s.orders.filter(
+    (o) =>
+      o.status === "deposit_paid" &&
+      !o.stockIssued &&
+      o.holdUntil !== null &&
+      o.holdUntil < today &&
+      orderMoney(o).balance > 0,
+  );
+  return expired.reduce((acc, o) => {
+    let ns: State = {
+      ...acc,
+      stock: releaseLines(acc.stock, o),
+      orders: acc.orders.map((x) =>
+        x.id === o.id ? { ...x, holdUntil: null, lines: x.lines.map((l) => ({ ...l, reserved: 0 })) } : x,
+      ),
+    };
+    ns = addAudit(
+      ns,
+      "Hệ thống",
+      "Nhả hàng hết hạn giữ",
+      o.code,
+      `Hạn giữ ${o.holdUntil}, chưa thanh toán đủ`,
+    );
+    return addTask(ns, {
+      type: "delivery_step",
+      title: `Đơn ${o.code} hết hạn giữ hàng, đã nhả hàng: liên hệ khách thanh toán hoặc gia hạn`,
+      orderId: o.id,
+      oppId: o.oppId,
+      owner: staffShort(o.sellerId),
+      due: s.minutes + 60,
+      priority: "high",
+      source: "rule",
+    });
+  }, s);
+}
+
 /** Lý do chưa xuất kho được cho đơn (hàng đặt trước chưa về đủ). */
 export function issueBlockers(s: State, o: OrderRec): string[] {
-  let stock = s.stock;
-  for (const l of o.lines) stock = reserve(stock, l.variantId, o.warehouseId, -l.qty);
+  const stock = releaseLines(s.stock, o);
   const errors = planDocument(stock, {
     id: "check",
     kind: "issue",
@@ -2275,7 +2410,13 @@ export function intakeDecision(s: State, e164: string): IntakeDecision {
     ...s.closedLeads.map((c) => ({ id: c.id, identities: [{ type: "phone" as const, value: c.phoneE164 }] })),
   ];
   const leads: KnownLead[] = [
-    ...s.opps.map((o) => ({ id: o.id, contactId: o.id, stage: "contacted" as const })),
+    ...s.opps.map((o) => ({
+      id: o.id,
+      contactId: o.id,
+      // Lead đã giao lắp xong là đã chốt: khách hỏi lại thì tạo lead mới (CLAUDE.md 6, chống trùng mục 3).
+      stage: o.stage >= 5 ? ("won" as const) : ("contacted" as const),
+      closedAt: o.stage >= 5 ? simDate(s.minutes) : undefined,
+    })),
     ...s.closedLeads.map((c) => ({
       id: c.id,
       contactId: c.id,
@@ -2472,12 +2613,14 @@ function createOrder(s: State, q: QuoteRec, actor: string): State {
       isGift: l.isGift,
     })),
     fees: q.result.fees,
-    policies: q.result.appliedPolicies.map((p) => p.name),
+    // Ảnh chụp chính sách đã áp kèm phiên bản (`order_policy_applications`).
+    policies: q.result.appliedPolicies.map((p) => `${p.name} (v${p.version})`),
     payments: [],
     holdUntil: null,
     oppId: o.id,
     quoteId: q.id,
     depositMin: q.result.deposit.minimum,
+    holdDays: q.result.deposit.holdDays,
     warehouseId: "wh-q4",
     stockIssued: false,
     codApproved: false,
@@ -2528,38 +2671,57 @@ function updateConv(s: State, id: string, f: (c: Conversation) => Conversation):
 
 interface Ctx {
   state: State;
-  dispatch: (a: Action) => void;
+  /** Gửi hành động qua kiểm quyền; trả false khi bị chặn (đã báo lý do). */
+  dispatch: (a: CrmAction) => boolean;
   /** Gửi hành động và báo toast. */
   /** `undo`: toast kèm nút Hoàn tác trả lại trạng thái ngay trước thao tác. */
-  act: (a: Action, message?: string, opts?: { undo?: boolean }) => void;
+  act: (a: CrmAction, message?: string, opts?: { undo?: boolean }) => void;
+  /** Người đang dùng và quyền hiệu lực, để lọc phạm vi xem (access.ts). */
+  who: Who;
 }
 
 const CrmContext = createContext<Ctx | null>(null);
 
-export function CrmProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+export function CrmProvider({ who, children }: { who: Who; children: React.ReactNode }) {
+  const [state, rawDispatch] = useReducer(reducer, undefined, initialState);
   const toast = useToast();
   const latest = useRef(state);
+  const whoRef = useRef(who);
   useEffect(() => {
     latest.current = state;
-  }, [state]);
+    whoRef.current = who;
+  }, [state, who]);
+
+  // Mọi thao tác đi qua kiểm quyền trước khi đổi dữ liệu, như server action của bản thật (access.ts).
+  const dispatch = useCallback(
+    (a: CrmAction) => {
+      const why = deniedReason(latest.current, a, whoRef.current);
+      if (why) {
+        toast(why, "err");
+        return false;
+      }
+      rawDispatch(a);
+      return true;
+    },
+    [toast],
+  );
 
   useEffect(() => {
     if (state.paused) return;
-    const id = setInterval(() => dispatch({ type: "tick" }), 3200);
+    const id = setInterval(() => rawDispatch({ type: "tick" }), 3200);
     return () => clearInterval(id);
   }, [state.paused]);
 
   const act = useCallback(
-    (a: Action, message?: string, opts?: { undo?: boolean }) => {
+    (a: CrmAction, message?: string, opts?: { undo?: boolean }) => {
       const before = latest.current;
-      dispatch(a);
+      if (!dispatch(a)) return;
       if (message)
         toast(
           message,
           "ok",
           opts?.undo
-            ? { label: "Hoàn tác", onClick: () => dispatch({ type: "restore", state: before }) }
+            ? { label: "Hoàn tác", onClick: () => rawDispatch({ type: "restore", before, after: a }) }
             : undefined,
         );
       if (a.type === "reply") {
@@ -2567,16 +2729,16 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         if (conv?.followUp) {
           // Khách phản hồi sau khi nhân viên trả lời (mô phỏng).
           setTimeout(() => {
-            dispatch({ type: "customerFollowUp", convId: conv.id });
+            rawDispatch({ type: "customerFollowUp", convId: conv.id });
             toast("Khách đã đồng ý video call");
           }, 2200);
         }
       }
     },
-    [toast],
+    [toast, dispatch],
   );
 
-  const value = useMemo(() => ({ state, dispatch, act }), [state, act]);
+  const value = useMemo(() => ({ state, dispatch, act, who }), [state, dispatch, act, who]);
   return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>;
 }
 

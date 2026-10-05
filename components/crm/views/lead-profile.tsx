@@ -149,7 +149,10 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
               disabled={opp.stage === 1 && missing.length > 0}
               title={opp.stage === 1 && missing.length ? `Thiếu: ${missing.join(", ")}` : undefined}
               onClick={() =>
-                act({ type: "advanceOpp", actor: me }, `Đã chuyển sang ${STAGES[opp.stage + 1]}`)
+                act(
+                  { type: "advanceOpp", oppId: opp.id, actor: me },
+                  `Đã chuyển sang ${STAGES[opp.stage + 1]}`,
+                )
               }
             >
               Chuyển sang {STAGES[opp.stage + 1]}
@@ -260,7 +263,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
               onClick={() => {
                 setLosing(false);
                 act(
-                  { type: "loseOpp", reason: lostReason, actor: me },
+                  { type: "loseOpp", oppId: opp.id, reason: lostReason, actor: me },
                   `Đã đánh thất bại: ${lostReason}. Việc đã lên lịch được hủy kèm lý do`,
                   { undo: true },
                 );

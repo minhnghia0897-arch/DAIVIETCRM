@@ -223,35 +223,37 @@ export function ShiftSettings() {
                 ))}
                 <td>
                   <span className="flex flex-wrap gap-1">
-                    {["Thảo", "An", "My"].map((p) => {
-                      const on = sh.members.includes(p);
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          aria-pressed={on}
-                          className={`c-btn ${on ? "is-brand" : ""}`}
-                          onClick={() =>
-                            save(
-                              {
-                                shifts: shifts.map((x) =>
-                                  x.id === sh.id
-                                    ? {
-                                        ...x,
-                                        members: on ? x.members.filter((m) => m !== p) : [...x.members, p],
-                                      }
-                                    : x,
-                                ),
-                              },
-                              "Sửa người trong ca",
-                              `${on ? "Bỏ" : "Thêm"} ${p} ${on ? "khỏi" : "vào"} ${sh.name}`,
-                            )
-                          }
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
+                    {state.receivers
+                      .map((r) => r.name)
+                      .map((p) => {
+                        const on = sh.members.includes(p);
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            aria-pressed={on}
+                            className={`c-btn ${on ? "is-brand" : ""}`}
+                            onClick={() =>
+                              save(
+                                {
+                                  shifts: shifts.map((x) =>
+                                    x.id === sh.id
+                                      ? {
+                                          ...x,
+                                          members: on ? x.members.filter((m) => m !== p) : [...x.members, p],
+                                        }
+                                      : x,
+                                  ),
+                                },
+                                "Sửa người trong ca",
+                                `${on ? "Bỏ" : "Thêm"} ${p} ${on ? "khỏi" : "vào"} ${sh.name}`,
+                              )
+                            }
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
                   </span>
                 </td>
               </tr>

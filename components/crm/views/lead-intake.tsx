@@ -21,7 +21,7 @@ const PRODUCTS = [
 /** Nhập nhanh lead tay: khách đến showroom, bình luận live, giới thiệu (CLAUDE.md mục 6). */
 export function NewLeadForm({ onDone }: { onDone: () => void }) {
   const { state, act } = useCrm();
-  const { me } = useShell();
+  const { me, can } = useShell();
   const sources = state.settings.catalogs.sources.items.filter((i) => i.active).map((i) => i.label);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -38,18 +38,26 @@ export function NewLeadForm({ onDone }: { onDone: () => void }) {
       return { tone: "warn", text: "Số chưa hợp lệ: vẫn tạo lead, gắn cờ và đưa vào hàng kiểm tra." };
     const d = intakeDecision(state, p.e164);
     const inferred = p.country === "KR" ? "Hàn Quốc" : p.country === "VN" ? "Việt Nam" : p.country;
+    // Không có `lead.view_all` thì không lộ tên khách, người giữ của lead người khác qua ô xem trước.
+    const all = can("lead.view_all");
     if (d.action === "attach_open") {
       const o = state.opps.find((x) => x.id === d.leadId);
       return {
         tone: "err",
-        text: `Trùng lead đang mở của ${o?.name} (${o?.owner || "chưa phân"}): sẽ nối vào lead đó, không tạo mới.`,
+        text:
+          all || o?.owner === me
+            ? `Trùng lead đang mở của ${o?.name} (${o?.owner || "chưa phân"}): sẽ nối vào lead đó, không tạo mới.`
+            : "Trùng lead đang mở: sẽ nối vào lead đó và báo người đang giữ, không tạo mới.",
       };
     }
     if (d.action === "attach_recent_lost") {
       const c = state.closedLeads.find((x) => x.id === d.leadId);
       return {
         tone: "warn",
-        text: `Khách ${c?.name} vừa thất bại (${c?.reason}): sẽ báo ${c?.owner} xem xét mở lại, không tạo lead mới.`,
+        text:
+          all || c?.owner === me
+            ? `Khách ${c?.name} vừa thất bại (${c?.reason}): sẽ báo ${c?.owner} xem xét mở lại, không tạo lead mới.`
+            : "Khách vừa thất bại gần đây: sẽ báo người từng giữ xem xét mở lại, không tạo lead mới.",
       };
     }
     if (d.action === "new_lead")
@@ -58,7 +66,7 @@ export function NewLeadForm({ onDone }: { onDone: () => void }) {
         text: `Khách cũ, lead trước đã đóng hơn 30 ngày: tạo lead mới. Số ${p.e164} (${inferred}).`,
       };
     return { tone: "ok", text: `Số hợp lệ ${p.e164} (${inferred}).` };
-  }, [phone, market, state]);
+  }, [phone, market, state, can, me]);
 
   return (
     <form

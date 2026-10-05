@@ -20,6 +20,22 @@ export interface NavTab {
   children?: { href: string; label: string; perm: string }[];
 }
 
+/** Quyền mở từng khu, dùng chung cho thanh tab và kiểm quyền ở trang (requireAnyPermission, DemoPage). */
+export const LEAD_VIEW = ["lead.view_own", "lead.view_all"];
+/** Khách thuộc lead hoặc đơn mình được xem (CLAUDE.md 11.1). */
+export const CUSTOMER_VIEW = ["lead.view_own", "lead.view_all", "order.view_own", "order.view_all"];
+/** Đội ngũ: chỉ số của mình hoặc đội, hoặc một trong các trang con theo quyền riêng. */
+export const TEAM_VIEW = [
+  "kpi.own",
+  "kpi.team",
+  "staff.view",
+  "staff.manage",
+  "target.manage",
+  "coaching.manage",
+  "attendance.view_team",
+  "staff.offboard",
+];
+
 export const NAV_TABS: NavTab[] = [
   {
     href: "/home",
@@ -84,14 +100,8 @@ export const NAV_TABS: NavTab[] = [
       { href: "/policies", label: "Chính sách", perm: "policy.view" },
     ],
   },
-  { href: "/team", label: "Đội ngũ", section: "insight", anyOf: ["kpi.own", "kpi.team"], ready: true },
-  {
-    href: "/customers",
-    label: "Khách",
-    section: "sales",
-    anyOf: ["lead.view_own", "lead.view_all"],
-    ready: true,
-  },
+  { href: "/team", label: "Đội ngũ", section: "insight", anyOf: TEAM_VIEW, ready: true },
+  { href: "/customers", label: "Khách", section: "sales", anyOf: CUSTOMER_VIEW, ready: true },
 ];
 
 export interface SettingsItem {
@@ -109,7 +119,8 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { href: "/settings/markets", label: "Thị trường", perm: "settings.assignment" },
   { href: "/settings/task-rules", label: "Luật sinh việc", perm: "settings.assignment" },
   { href: "/settings/call-mode", label: "Chế độ gọi", perm: "settings.integrations" },
-  { href: "/settings/catalog", label: "Danh mục", perm: "catalog.manage" },
+  // Xem danh mục chỉ cần catalog.view; sửa cần catalog.manage (kiểm trong trang).
+  { href: "/settings/catalog", label: "Danh mục", perm: "catalog.view" },
   { href: "/settings/integrations", label: "Tích hợp", perm: "settings.integrations" },
   { href: "/settings/audit", label: "Nhật ký kiểm toán", perm: "audit.view" },
 ];

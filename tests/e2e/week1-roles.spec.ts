@@ -39,6 +39,20 @@ test("Owner bật quyền nhạy cảm phải xác nhận và thấy toast", asy
   // Cột Owner khóa, quyền chỉ Owner không có công tắc ở cột khác.
   await expect(page.getByRole("switch", { name: "Bật tắt quyền, Chủ hệ thống" })).toBeDisabled();
   await expect(page.getByRole("switch", { name: "Bật tắt quyền, Sale admin" })).toHaveCount(0);
+
+  // Thay đổi quyền nằm trong nhật ký kiểm toán thật (bảng audit_logs), kèm trạng thái trước và sau.
+  await page.goto("/settings/audit");
+  const real = page.getByRole("region", { name: "Nhật ký kiểm toán phân quyền và người dùng" });
+  await expect(real.getByRole("row").filter({ hasText: "Bật quyền cho vai trò" }).first()).toContainText(
+    "lead.export",
+  );
+});
+
+test("telesale xem được danh mục tra cứu nhưng không sửa", async ({ page }) => {
+  await login(page, USERS.thao);
+  await page.goto("/settings/catalog");
+  await expect(page.getByRole("heading", { name: "Danh mục tra cứu", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Thêm" })).toHaveCount(0);
 });
 
 test("Owner khóa telesale thì lead của họ về hàng chưa phân", async ({ page }, testInfo) => {

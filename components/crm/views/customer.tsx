@@ -58,10 +58,18 @@ export function CrmCustomer({ id }: { id: string }) {
   const orders = visibleOrders.filter((o) => o.buyerId === c.id || o.recipientId === c.id);
   const openOrder = orders.some((o) => !["completed", "cancelled"].includes(o.status));
   const purpose: Purpose = openOrder ? "care" : "marketing";
-  const zalo = canContact(care.consents, purpose, "zalo_oa");
-  const call = canContact(care.consents, openOrder ? "care" : "care", "call");
+  // Giữ bất ngờ: khách là người nhận của đơn đang mở có cờ thì không gọi, không nhắn, không hiện số
+  // (kiểm trên mọi đơn, không chỉ đơn mình được xem; CLAUDE.md mục 4, leads.keep_surprise).
+  const surprise = state.orders.some(
+    (o) => o.recipientId === c.id && o.keepSurprise && !["completed", "cancelled"].includes(o.status),
+  );
+  const SURPRISE = { allowed: false, reason: "Người đặt đang giữ bất ngờ: chưa liên hệ người nhận" };
+  const zalo = surprise ? SURPRISE : canContact(care.consents, purpose, "zalo_oa");
+  // Chăm sóc đơn đang có không cần đồng ý marketing; gọi làm nóng khách không có đơn mở thì cần.
+  const call = surprise ? SURPRISE : canContact(care.consents, purpose, "call");
   const canReveal =
-    can("contact.phone_reveal") || (can("contact.phone_reveal_assigned") && c.ownerId === userId);
+    !surprise &&
+    (can("contact.phone_reveal") || (can("contact.phone_reveal_assigned") && c.ownerId === userId));
   const canEditConsent = can("lead.edit_all") || (can("lead.edit_own") && c.ownerId === userId);
   const owned = orders
     .filter((o) => o.status === "completed" && o.recipientId === c.id)

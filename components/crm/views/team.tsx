@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { roleDefaultHas } from "@/lib/auth/permissions";
 import { KPIS, STAFF } from "@/lib/demo/data";
 import { useShell } from "../shell-context";
 import { staffShort, useCrm, vnd, type CoachingNote } from "../store";
@@ -23,16 +24,15 @@ function Card({ title, note, children }: { title: string; note?: string; childre
   );
 }
 
-/** Người mà quản lý được xem chỉ số, ghi chú: Owner thấy tất cả; người khác thấy người mình quản lý trực tiếp và telesale. */
+/**
+ * Người mà quản lý được xem chỉ số, ghi chú: Owner thấy tất cả; người khác thấy người mình quản lý trực tiếp
+ * và người nhận lead (telesale), không thấy Owner hay quản lý khác. Nhóm theo quyền, không so tên vai trò.
+ */
 function useManaged() {
   const { isOwner, userId } = useShell();
   return STAFF.filter(
     (s) =>
-      s.id !== userId &&
-      (isOwner ||
-        (s.roleKey !== "owner" &&
-          s.roleKey !== "sale_admin" &&
-          (s.managerId === userId || s.roleKey === "telesale"))),
+      s.id !== userId && (isOwner || s.managerId === userId || roleDefaultHas(s.roleKey, "lead.receive")),
   );
 }
 
@@ -405,9 +405,13 @@ export function SharedCoaching({ staffId }: { staffId: string }) {
 
 export function CrmOffboarding() {
   const { state, act } = useCrm();
-  const { me } = useShell();
-  const candidates = STAFF.filter((s) => s.roleKey !== "owner");
-  const [staffId, setStaffId] = useState(candidates.find((s) => s.roleKey === "telesale")?.id ?? "");
+  const { me, userId } = useShell();
+  const candidates = STAFF.filter(
+    (s) => s.id !== userId && !roleDefaultHas(s.roleKey, "settings.permissions"),
+  );
+  const [staffId, setStaffId] = useState(
+    candidates.find((s) => roleDefaultHas(s.roleKey, "lead.receive"))?.id ?? "",
+  );
   const [to, setTo] = useState<string[]>([]);
   const name = staffShort(staffId);
   const locked = state.offboarded.includes(staffId);

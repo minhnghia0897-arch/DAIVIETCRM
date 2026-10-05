@@ -13,6 +13,7 @@ const ctx = (view: AiView): AiContext => ({
   opps: OPPORTUNITIES,
   oppSel: "o1",
   houseSel: "h1",
+  team: true,
   orders: [
     {
       id: "o-0012",
@@ -57,5 +58,22 @@ describe("aiAnswer", () => {
 
   it("câu không nhận ra thì trả lời mặc định", () => {
     expect(aiAnswer("thời tiết hôm nay", ctx("home")).paragraphs[0]).toMatch(/^Bản demo trả lời được/);
+  });
+});
+
+describe("trợ lý chạy dưới quyền người hỏi", () => {
+  it("không nói số liệu cả showroom cho người chỉ có báo cáo của mình", () => {
+    const a = aiAnswer("Còn bao xa tới 3 tỷ?", { ...ctx("home"), team: false });
+    expect(a.paragraphs.join(" ")).toContain("cần quyền xem báo cáo cả đội");
+  });
+  it("chỉ liệt kê cơ hội trong phạm vi được truyền vào", () => {
+    const mine = OPPORTUNITIES.filter((o) => o.owner === "Thảo");
+    const a = aiAnswer("Cơ hội nào sắp chốt?", { ...ctx("opps"), opps: mine, team: false });
+    const others = OPPORTUNITIES.filter((o) => o.owner !== "Thảo").map((o) => o.name);
+    for (const n of others) expect(a.paragraphs.join(" ")).not.toContain(n);
+  });
+  it("không có hộ trong phạm vi thì không tóm tắt hộ nào", () => {
+    const a = aiAnswer("Tóm tắt hộ gia đình này", { ...ctx("house"), houseSel: "" });
+    expect(a.paragraphs[0]).toContain("Chưa chọn hộ gia đình");
   });
 });

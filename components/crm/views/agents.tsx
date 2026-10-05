@@ -11,7 +11,7 @@ import { useCrm } from "../store";
 // Agent: bật tắt từng agent, luật chung mọi agent phải theo, nhật ký quyết định có truy vết từng bước.
 export function CrmAgents() {
   const { state, act } = useCrm();
-  const { ask } = useShell();
+  const { ask, can } = useShell();
   const trace = state.feed.find((f) => f.id === state.traceSel) ?? state.feed[0];
 
   return (
@@ -56,6 +56,7 @@ export function CrmAgents() {
                     <Switch
                       label={a.name}
                       checked={state.agentOn[a.id]}
+                      disabled={!can("settings.integrations")}
                       onCheckedChange={() =>
                         act(
                           { type: "toggleAgent", id: a.id },

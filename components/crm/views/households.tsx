@@ -2,20 +2,18 @@
 
 import { Home, Sparkles } from "lucide-react";
 
-import { HOUSES, tr } from "@/lib/demo/crm-data";
+import { tr } from "@/lib/demo/crm-data";
 import { KindIcon, LocTag } from "../parts";
 import { useShell } from "../shell";
+import { visibleHouses } from "../access";
 import { useCrm } from "../store";
 
 // Hộ gia đình (hồ sơ khách 360 theo hộ): thành viên và vai trò, vì sao gộp, bán chéo, dòng thời gian,
 // sản phẩm đang dùng, ngày quan trọng, niềm tin. Số điện thoại luôn ở dạng che.
 export function CrmHouseholds() {
-  const { state, act } = useCrm();
-  const { can, me, ask } = useShell();
-  const all = can("lead.view_all");
-  const houses = all
-    ? HOUSES
-    : HOUSES.filter((h) => state.opps.some((o) => o.houseId === h.id && o.owner === me));
+  const { state, act, who } = useCrm();
+  const { can, ask } = useShell();
+  const houses = visibleHouses(state, who);
   const h = houses.find((x) => x.id === state.houseSel) ?? houses[0];
 
   if (!h)
@@ -153,11 +151,11 @@ export function CrmHouseholds() {
                       onClick={() =>
                         act(
                           { type: "createCross", houseId: h.id, index: i },
-                          `Đã tạo cơ hội cho ${c.to}, giao Thảo`,
+                          `Đã tạo cơ hội cho ${c.to}, phân theo luật cho người đang trực`,
                         )
                       }
                     >
-                      Tạo cơ hội, giao Thảo
+                      Tạo cơ hội
                     </button>
                   ) : null}
                 </div>

@@ -194,6 +194,26 @@ describe("priceQuote", () => {
     expect(owner.approvalsNeeded).toHaveLength(0);
   });
 
+  it("giảm tay trên combo áp cho mọi món bán, không áp vào quà", () => {
+    const pct = priceQuote(
+      { lines: [{ comboId: "tho", qty: 1, manualDiscount: { kind: "percent", value: 7 } }], context: ctx() },
+      catalog([limit]),
+    );
+    // Tỷ lệ so với giới hạn tính trên cả combo, không chỉ món đầu.
+    expect(pct.approvalsNeeded[0].reason).toContain("7,0%");
+    expect(pct.lines.every((l) => l.discount > 0)).toBe(true);
+
+    const amt = priceQuote(
+      {
+        lines: [{ comboId: "gift", qty: 1, manualDiscount: { kind: "amount", value: 1_000_000 } }],
+        context: ctx(),
+      },
+      catalog([]),
+    );
+    expect(amt.totals.total).toBe(47_000_000);
+    expect(amt.lines.find((l) => l.isGift)!.total).toBe(0);
+  });
+
   it("giảm tay áp sau khuyến mãi", () => {
     const promo: Policy = {
       ...base,

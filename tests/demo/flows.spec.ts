@@ -40,7 +40,7 @@ test("tìm kiếm mở hộ gia đình và tạo cơ hội bán chéo", async ({
   await search.press("Enter");
   await expect(page).toHaveURL(/households/);
   await expect(page.getByRole("heading", { name: "Hộ Lê" })).toBeVisible();
-  await page.getByRole("button", { name: "Tạo cơ hội, giao Thảo" }).click();
+  await page.getByRole("button", { name: "Tạo cơ hội", exact: true }).first().click();
   await expect(page.getByText("Đã tạo cơ hội", { exact: true })).toBeVisible();
 });
 
@@ -211,7 +211,11 @@ test("sidebar in đậm mục có việc chưa xem; nhật ký agent có vạch 
   // Đã xem trang Việc cần làm: hết in đậm cho tới khi có việc mới.
   await expect(tasks).not.toHaveClass(/is-unread/);
 
+  // Nhật ký agent (cả showroom) chỉ hiện cho người xem mọi lead: telesale không thấy.
+  await expect(page.getByRole("heading", { name: "Agent đang làm" })).toHaveCount(0);
+
   // Agent làm thêm việc trong lúc mở trang: việc mới nằm trên vạch "Mới".
+  await as(page, "sale_admin", "home/");
   await expect(page.getByLabel("Mới từ lúc mở trang")).toBeVisible({ timeout: 15000 });
 });
 
@@ -260,3 +264,17 @@ for (const path of [
     expect(overflow).toBeLessThanOrEqual(0);
   });
 }
+
+test("telesale chỉ thấy hội thoại, số liệu của mình; Owner thấy cả showroom", async ({ page }) => {
+  await as(page, "telesale", "inbox/");
+  const list = page.getByLabel("Danh sách hội thoại");
+  await expect(list.getByRole("button", { name: /Nguyễn Thị Thu/ })).toBeVisible();
+  // Hội thoại của lead người khác và tin của người lạ chưa gắn lead: cần quyền xem mọi hội thoại.
+  await expect(list.getByRole("button", { name: /Phạm Ngọc Lan/ })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: /phuong\.kr92/ })).toHaveCount(0);
+
+  await as(page, "telesale", "home/");
+  await expect(page.getByRole("progressbar", { name: "Tiến độ mục tiêu quý" })).toHaveCount(0);
+  await as(page, "owner", "home/");
+  await expect(page.getByRole("progressbar", { name: "Tiến độ mục tiêu quý" })).toBeVisible();
+});

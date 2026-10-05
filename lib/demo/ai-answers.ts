@@ -55,14 +55,25 @@ export interface AiContext {
   /** Đơn đang mở (trang hồ sơ đơn), nếu có. */
   orderSel?: string;
   convs: Conversation[];
+  /** Có `report.team`: được nghe số liệu cả showroom (doanh thu, mục tiêu, báo cáo). */
+  team: boolean;
 }
+
+const NO_TEAM: AiAnswer = {
+  paragraphs: [
+    "Câu này dùng số liệu cả showroom, cần quyền xem báo cáo cả đội. Em chỉ trả lời được theo khách và đơn anh chị đang phụ trách.",
+  ],
+};
 
 export function aiAnswer(question: string, c: AiContext): AiAnswer {
   const t = question.toLowerCase();
   const open = c.opps.filter((o) => o.stage < 5);
   const pipeline = open.reduce((s, o) => s + o.value, 0);
   const opp = c.opps.find((o) => o.id === c.oppSel) ?? c.opps[0];
-  const h = houseById(c.houseSel)!;
+  // Trợ lý chạy dưới quyền người hỏi (CLAUDE.md 10.7): ngữ cảnh truyền vào đã lọc theo phạm vi xem.
+  const h = c.houseSel ? houseById(c.houseSel) : undefined;
+  const teamOnly = ["3 tỷ", "ưu tiên", "báo cáo"].some((k) => t.includes(k));
+  if (teamOnly && !c.team) return NO_TEAM;
   const d = c.orders.find((x) => x.id === c.orderSel) ?? c.orders.find((x) => x.risks.length) ?? c.orders[0];
 
   if (t.includes("3 tỷ") && t.includes("bao xa"))
@@ -105,7 +116,12 @@ export function aiAnswer(question: string, c: AiContext): AiAnswer {
       ],
     };
   if (t.includes("bước tiếp") && opp) return { paragraphs: [`${opp.name}: ${opp.next}`] };
-  if (t.includes("tóm tắt hộ gia đình")) {
+  if (
+    (t.includes("hộ gia đình") || t.includes("bán chéo") || (t.includes("soạn tin") && c.view === "house")) &&
+    !h
+  )
+    return { paragraphs: ["Chưa chọn hộ gia đình nào trong phạm vi anh chị được xem."] };
+  if (t.includes("tóm tắt hộ gia đình") && h) {
     const payers = h.members
       .filter((m) => m.loc === "KR")
       .map((m) => `${m.name} ở ${m.city} là người trả tiền`);
@@ -117,9 +133,9 @@ export function aiAnswer(question: string, c: AiContext): AiAnswer {
       ],
     };
   }
-  if (t.includes("bán chéo"))
+  if (t.includes("bán chéo") && h)
     return { paragraphs: h.cross.map((x) => `${x.title} (${tr(x.value)}): ${x.detail}`) };
-  if (t.includes("soạn tin") && c.view === "house") {
+  if (t.includes("soạn tin") && c.view === "house" && h) {
     const m = h.members.find((x) => x.role === "Người đặt") ?? h.members[0];
     const first = m.name.split(" ").pop();
     const xưng = m.rel === "Con gái" ? "chị" : "anh";

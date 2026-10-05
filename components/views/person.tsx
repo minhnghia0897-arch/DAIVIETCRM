@@ -13,7 +13,8 @@ import { formatMoneyShort, formatPercent } from "@/lib/format";
 export function PersonView({ user, id }: { user: SessionUser; id: string }) {
   // teamKpis đã lọc theo quyền: người chỉ có kpi.own không mở được trang của người khác.
   const k = teamKpis(user).find((x) => x.staffId === id);
-  if (!k) notFound();
+  // Bảng xếp hạng tắt: chỉ mở được trang của chính mình, không lộ tên người khác (nghiệm thu tuần 7).
+  if (!k || (id !== user.id && !user.permissions.has("kpi.leaderboard"))) notFound();
   const median = teamMedian();
   const isManager = user.permissions.has("kpi.team");
   const tasks = staffTasks(id);

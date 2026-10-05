@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { CHANNEL_COLOR, CONV_STATUS, houseById } from "@/lib/demo/crm-data";
-import { useShell } from "../shell";
+import { replyBlocker, visibleConvs } from "../access";
 import { useCrm } from "../store";
 
 const WHO = { cu: "Khách", ag: "Agent", hu: "Nhân viên" } as const;
@@ -12,25 +12,30 @@ const WHO = { cu: "Khách", ag: "Agent", hu: "Nhân viên" } as const;
 // Hội thoại: danh sách theo kênh và trạng thái, khung chat, khung trợ lý bên phải (ý định, tóm tắt, câu trả lời gợi ý).
 // Agent trả lời trước; tin cần người thì nhân viên tiếp quản. Mỗi kênh chỉ một nơi trả lời (CLAUDE.md 10.1).
 export function CrmInbox() {
-  const { state, act } = useCrm();
-  const { can } = useShell();
+  const { state, act, who } = useCrm();
   const router = useRouter();
   const [text, setText] = useState("");
   const trs = useRef<HTMLDivElement>(null);
-  const c = state.convs.find((x) => x.id === state.convSel) ?? state.convs[0];
+  // Không có `message.view_all` thì chỉ thấy hội thoại gắn lead mình được xem (CLAUDE.md mục 5).
+  const convs = visibleConvs(state, who);
+  const c = convs.find((x) => x.id === state.convSel) ?? convs[0];
   // Mỗi kênh chỉ một nơi trả lời: kênh đặt "trả lời ở công cụ khác" thì ô soạn chỉ đọc (CLAUDE.md 10.1, 11.2).
-  const channelKey = { Zalo: "zalo_oa", Facebook: "meta_messenger", "TikTok Live": "", Hotline: "" }[
-    c.channel
-  ];
-  const mode = channelKey ? (state.settings.replyMode[channelKey] ?? "crm") : "crm";
-  const canSend = can("message.zalo_send") && mode === "crm";
+  const blocker = c ? replyBlocker(state, who, c.channel) : null;
+  const canSend = Boolean(c) && !blocker;
 
   useEffect(() => {
     trs.current?.scrollTo({ top: trs.current.scrollHeight });
-  }, [c.messages.length, c.id]);
+  }, [c?.messages.length, c?.id]);
+
+  if (!c)
+    return (
+      <p className="c-card c-empty">
+        Chưa có hội thoại nào gắn với khách anh chị đang phụ trách. Tin mới của khách sẽ hiện ở đây.
+      </p>
+    );
 
   const order = { need: 0, human: 1, agent: 2, done: 3 } as const;
-  const list = [...state.convs].sort((a, b) => order[a.status] - order[b.status]);
+  const list = [...convs].sort((a, b) => order[a.status] - order[b.status]);
 
   return (
     <section className="c-card c-inbox" aria-labelledby="inbox-title">
@@ -81,7 +86,7 @@ export function CrmInbox() {
               <button
                 type="button"
                 className="c-btn is-brand"
-                onClick={() => act({ type: "takeOver" }, `Bạn đã tiếp quản hội thoại với ${c.name}`)}
+                onClick={() => act({ type: "takeOver" }, `Đã tiếp quản hội thoại với ${c.name}`)}
               >
                 Tiếp quản
               </button>
@@ -140,13 +145,7 @@ export function CrmInbox() {
             </button>
           </form>
         ) : (
-          <p className="c-reply c-lbl m-0">
-            {mode === "external"
-              ? "Kênh này đang được trả lời trên Pancake, CRM chỉ đọc."
-              : mode === "off"
-                ? "Kênh này đang tắt trong Cài đặt, Tích hợp."
-                : "Bạn chỉ xem được hội thoại này."}
-          </p>
+          <p className="c-reply c-lbl m-0">{blocker}.</p>
         )}
       </div>
 

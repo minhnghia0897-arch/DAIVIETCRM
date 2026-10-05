@@ -31,3 +31,17 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
 
 17. **Lưu khóa đấu nối thật, để "dán khóa là chạy":** màn Tích hợp đã có Kết nối nhanh (chỉ hỏi khóa và ô không đoán được, phần còn lại điền sẵn; Facebook, Zalo, TikTok đăng nhập rồi chọn Page, OA, form từ danh sách; kết nối xong tự gửi dữ liệu thử; có địa chỉ webhook để sao chép) nhưng bản demo chỉ mô phỏng. Để chạy thật cần: (a) migration thêm cột trạng thái trên `integrations` theo mục 10.2 và hàm `security definer` ghi khóa vào Supabase Vault (chỉ Owner, `settings.integrations`), không trả giá trị khóa về trình duyệt; (b) adapter từng nhà cung cấp, viết sau khi kiểm tài liệu chính thức vào `docs/integrations/<key>.md`; (c) tên miền thật có HTTPS cho webhook và địa chỉ chuyển hướng OAuth. Chờ duyệt (a) trước khi làm vì đổi schema.
 18. **OAuth Meta và Zalo** cần ứng dụng đứng tên showroom và tên miền thật cho địa chỉ chuyển hướng (câu hỏi mở 1, 6 ở `CLAUDE.md`).
+
+## Rà soát quyền theo vai trò (05/10/2026)
+
+Đã sửa trong bản demo: mọi thao tác đi qua lớp kiểm quyền chung (`components/crm/access.ts`, đóng vai server action), chế độ "Xem như" chặn mọi thao tác ghi, phạm vi xem của hộp thư, trợ lý AI, ô tìm kiếm, chuông duyệt, trang chủ, báo cáo, chống trùng, Giữ bất ngờ trên hồ sơ khách, nhả hàng khi hết hạn giữ, nhả đúng số hàng đã giữ của đơn đặt trước, hoàn tiền, phiên bản chính sách, bàn giao đơn khi nghỉ việc. Các điểm dưới đây cần anh quyết hoặc thuộc phần nối dữ liệu thật:
+
+19. **Owner tự bật `lead.receive` cho mình** (mục 5 cho phép) nhưng database đang chặn: policy của `role_permissions` không cho sửa vai trò Owner, màn Người dùng ẩn quyền riêng trên dòng Owner. Đề xuất migration nhỏ cho phép quyền riêng `lead.receive` trên người dùng Owner. Chờ duyệt vì đổi quyền.
+20. **Bốn mục Cài đặt còn thiếu** (Kho, Chỉ số và chỉ tiêu, Bán hàng, Dữ liệu và quyền riêng tư) cần mã quyền riêng như đề xuất ở điểm 1. Chờ duyệt mã quyền rồi dựng màn.
+21. **Dữ liệu mô phỏng nằm sẵn trong trình duyệt:** bản demo nạp cả ghi chú kèm cặp, số điện thoại, giá vốn xuống trình duyệt rồi mới lọc theo quyền. Khi nối bảng thật, mọi màn này đọc qua Supabase dưới RLS (giá vốn, số đầy đủ chỉ trả khi có quyền), không dùng kho trạng thái chung.
+22. **Trình bàn giao chưa khóa tài khoản thật:** bước 1 mới khóa trong dữ liệu mô phỏng. Khi có bảng `staff_profiles` thật sẽ gọi cùng hàm khóa người dùng ở Cài đặt, Người dùng.
+23. **Đơn sinh từ báo giá** đang lấy tỉnh làm địa chỉ và chuyển thẳng "Đã xác nhận". Mục 8.7 cần đủ huyện, xã, chi tiết và chạy lại hàm định giá khi khách đồng ý. Làm ở tuần 6 cùng màn đơn thật.
+24. **Thị trường "chưa rõ"** của khách đang bị gộp vào VN trong dữ liệu mô phỏng; khi nối bảng thật dùng `unknown` và bắt chọn ở cuộc gọi đầu (mục 6).
+25. **Màn ngoài phạm vi tháng 1 đang có trong menu:** "Cơ hội" (Kanban) và "Agent". Đề xuất giữ để duyệt luồng, ghi rõ "Bản xem trước" hoặc ẩn khi chạy thật. Chưa có màn "Danh sách lead" dạng bảng (mục 11.1).
+26. **Tab "Chỉ tiêu" của Đội ngũ** đang mở cho `kpi.team` (chỉ xem) lẫn `target.manage` (sửa). Mục 11.1 chỉ ghi `target.manage`. Anh chọn giữ chỉ xem cho sale admin hay ẩn.
+27. **Đề xuất của agent AI** (từ tháng 2) đang đi hàng chờ với quyền duyệt giảm giá; khi làm thật dùng loại `ai_proposal` với quyền riêng.

@@ -35,14 +35,15 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
-import { HOUSES, STAGES, houseById } from "@/lib/demo/crm-data";
-import { CUSTOMERS } from "@/lib/demo/data";
+import { STAGES, houseById } from "@/lib/demo/crm-data";
+import { visibleCustomers } from "@/lib/demo/repo";
 import { NAV_SECTIONS, visibleTabs } from "@/lib/nav";
 import { ApprovalList, FeedList } from "./parts";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
 import { ORDER_STATUS } from "@/lib/demo/labels";
+import { visibleConvs, visibleHouses, visibleOpps, visibleQueue } from "./access";
 import { CrmProvider, fmtMinutes, orderPeople, orderRisks, useCrm, visibleOrders } from "./store";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
@@ -58,6 +59,8 @@ export interface ShellUser {
   roleKey: string;
   showroomName: string;
   permissions: string[];
+  /** Đang "Xem như người dùng": chỉ đọc, mọi thao tác ghi bị chặn. */
+  readOnly?: boolean;
 }
 
 export { useShell } from "./shell-context";
@@ -72,9 +75,21 @@ export function CrmShell(props: {
   shortcuts?: { label: string; count: number }[];
   children: React.ReactNode;
 }) {
+  const { user } = props;
+  const who = useMemo(
+    () => ({
+      perms: new Set(user.permissions),
+      me: user.shortName,
+      userId: user.id,
+      // Quyền chỉ Owner (không cấp được) dùng để nhận ra Owner, không suy từ tên vai trò.
+      isOwner: user.permissions.includes("settings.permissions"),
+      readOnly: Boolean(user.readOnly),
+    }),
+    [user.permissions, user.shortName, user.id, user.readOnly],
+  );
   return (
     <ToastProvider>
-      <CrmProvider>
+      <CrmProvider who={who}>
         <ShellInner {...props} />
       </CrmProvider>
     </ToastProvider>
@@ -161,7 +176,7 @@ function ShellInner({
   shortcuts,
   children,
 }: Parameters<typeof CrmShell>[0]) {
-  const { state, act } = useCrm();
+  const { state, act, who } = useCrm();
   const toast = useToast();
   const pathname = usePathname();
   const router = useRouter();
@@ -202,14 +217,18 @@ function ShellInner({
   const ask = useCallback(
     (question: string) => {
       const s = latest.current;
+      // Trợ lý chạy dưới quyền người hỏi: chỉ nhận dữ liệu người đó được xem (CLAUDE.md 10.7).
+      const opps = visibleOpps(s, who);
+      const houses = visibleHouses(s, who);
       const answer = aiAnswer(question, {
         view,
         revenue: s.revenue,
         minutes: fmtMinutes(s.minutes),
         autoCount: s.autoCount,
-        opps: s.opps,
-        oppSel: s.oppSel,
-        houseSel: s.houseSel,
+        opps,
+        oppSel: opps.some((o) => o.id === s.oppSel) ? s.oppSel : (opps[0]?.id ?? ""),
+        houseSel: houses.some((h) => h.id === s.houseSel) ? s.houseSel : (houses[0]?.id ?? ""),
+        team: perms.has("report.team"),
         orders: visibleOrders(s.orders, perms, user.id).map((o) => {
           const p = orderPeople(o);
           return {
@@ -222,12 +241,12 @@ function ShellInner({
           };
         }),
         orderSel: pathname.match(/^\/orders\/([^/]+)/)?.[1],
-        convs: s.convs,
+        convs: visibleConvs(s, who),
       });
       setAiPref(true);
       setMessages((m) => [...m, { id: (m.at(-1)?.id ?? 0) + 1, question, answer }]);
     },
-    [view, perms, pathname, user.id],
+    [view, perms, pathname, user.id, who],
   );
 
   const me = user.shortName;
@@ -240,16 +259,17 @@ function ShellInner({
   );
 
   const tabs = visibleTabs(perms);
+  // Hàng chờ duyệt theo quyền duyệt tương ứng, cộng đề xuất của chính mình (CLAUDE.md 11.1).
+  const queue = visibleQueue(state, who);
   // Số đếm kiểu Slack trên sidebar: việc mở của tôi, hội thoại cần người, lead quá SLA.
   const navCounts: Record<string, number> = {
     "/tasks": state.tasks.filter((t) => t.status === "open" && t.owner === me).length,
-    "/inbox": state.convs.filter((c) => c.status === "need").length,
+    "/inbox": visibleConvs(state, who).filter((c) => c.status === "need").length,
   };
   // Mục "chưa đọc" kiểu Slack: in đậm khi có việc mới so với lần cuối rời trang đó (đang mở thì không đậm).
   const activity: Record<string, number> = {
     ...navCounts,
-    "/opportunities": state.opps.filter((o) => o.stage === 0 && (can("lead.view_all") || o.owner === me))
-      .length,
+    "/opportunities": visibleOpps(state, who).filter((o) => o.stage === 0).length,
   };
   const hrefOf = (p: string) => tabs.find((t) => p === t.href || p.startsWith(t.href + "/"))?.href ?? p;
   const [seenPath, setSeenPath] = useState(pathname);
@@ -306,7 +326,6 @@ function ShellInner({
   });
 
   function quickItems(): QuickItem[] {
-    const team = can("lead.view_all");
     const pages: QuickItem[] = [
       ...tabs.flatMap((t): { href: string; label: string }[] => (t.children?.length ? t.children : [t])),
       ...settings,
@@ -317,18 +336,16 @@ function ShellInner({
       group: "Màn hình" as const,
       run: () => router.push(t.href),
     }));
-    const leads: QuickItem[] = state.opps
-      .filter((o) => team || o.owner === me)
-      .map((o) => ({
-        id: `l${o.id}`,
-        label: o.name,
-        hint: `${o.product} · ${STAGES[o.stage]}${o.owner ? ` · ${o.owner}` : ""}`,
-        group: "Lead" as const,
-        run: () => {
-          act({ type: "selectOpp", id: o.id });
-          router.push("/opportunities");
-        },
-      }));
+    const leads: QuickItem[] = visibleOpps(state, who).map((o) => ({
+      id: `l${o.id}`,
+      label: o.name,
+      hint: `${o.product} · ${STAGES[o.stage]}${o.owner ? ` · ${o.owner}` : ""}`,
+      group: "Lead" as const,
+      run: () => {
+        act({ type: "selectOpp", id: o.id });
+        router.push("/opportunities");
+      },
+    }));
     const orders: QuickItem[] = visibleOrders(state.orders, perms, user.id).map((o) => ({
       id: `o${o.id}`,
       label: o.code,
@@ -336,34 +353,30 @@ function ShellInner({
       group: "Đơn hàng" as const,
       run: () => router.push(`/orders/${o.id}`),
     }));
-    const houses: QuickItem[] = team
-      ? HOUSES.map((h) => ({
-          id: `h${h.id}`,
-          label: h.name,
-          hint: h.members.map((m) => m.name).join(", "),
-          group: "Hộ gia đình" as const,
-          run: () => {
-            act({ type: "selectHouse", id: h.id });
-            router.push("/households");
-          },
-        }))
-      : [];
-    const customers: QuickItem[] = team
-      ? CUSTOMERS.map((c) => ({
-          id: `c${c.id}`,
-          label: c.fullName,
-          hint: `Khách · ${c.phoneMasked}`,
-          group: "Khách" as const,
-          run: () => router.push(`/customers/${c.id}`),
-        }))
-      : [];
+    const houses: QuickItem[] = visibleHouses(state, who).map((h) => ({
+      id: `h${h.id}`,
+      label: h.name,
+      hint: h.members.map((m) => m.name).join(", "),
+      group: "Hộ gia đình" as const,
+      run: () => {
+        act({ type: "selectHouse", id: h.id });
+        router.push("/households");
+      },
+    }));
+    const customers: QuickItem[] = visibleCustomers({ id: user.id, permissions: perms }).map((c) => ({
+      id: `c${c.id}`,
+      label: c.fullName,
+      hint: `Khách · ${c.phoneMasked}`,
+      group: "Khách" as const,
+      run: () => router.push(`/customers/${c.id}`),
+    }));
     return [...pages, ...leads, ...orders, ...houses, ...customers];
   }
 
   function search(text: string) {
     const t = fold(text);
     if (!t) return;
-    const house = HOUSES.find(
+    const house = visibleHouses(state, who).find(
       (h) => fold(h.name).includes(t) || h.members.some((m) => fold(m.name).includes(t)),
     );
     if (house) {
@@ -474,11 +487,11 @@ function ShellInner({
           <button
             type="button"
             className="c-ib"
-            aria-label={`Chờ duyệt: ${state.queue.length}`}
+            aria-label={`Chờ duyệt: ${queue.length}`}
             onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}
           >
             <Bell size={18} />
-            {state.queue.length ? <span className="c-badge">{state.queue.length}</span> : null}
+            {queue.length ? <span className="c-badge">{queue.length}</span> : null}
           </button>
           <AccountMenu
             fullName={user.fullName}
@@ -636,18 +649,19 @@ function ShellInner({
                           {m.answer.draft ? (
                             <>
                               <div className="c-draft">{m.answer.draft}</div>
-                              {can("message.zalo_send") ? (
-                                <button
-                                  type="button"
-                                  className="c-btn is-ai"
-                                  onClick={() => toast("Đã gửi qua Zalo OA")}
-                                >
-                                  <Send size={13} className="mr-1 inline" aria-hidden />
-                                  Gửi qua Zalo
-                                </button>
-                              ) : (
-                                <span className="c-lbl">Bạn chưa có quyền gửi tin Zalo.</span>
-                              )}
+                              {/* Nháp AI không gửi thẳng: người dùng gửi từ hồ sơ khách hoặc hội thoại, nơi server
+                                  kiểm đồng ý theo mục đích và kênh, giữ bất ngờ (CLAUDE.md mục 5, 10.7). */}
+                              <button
+                                type="button"
+                                className="c-btn is-ai"
+                                onClick={() => {
+                                  void navigator.clipboard?.writeText(m.answer.draft ?? "").catch(() => {});
+                                  toast("Đã chép bản nháp. Gửi từ hồ sơ khách để hệ thống kiểm đồng ý trước");
+                                }}
+                              >
+                                <Send size={13} className="mr-1 inline" aria-hidden />
+                                Chép bản nháp
+                              </button>
                             </>
                           ) : null}
                         </div>
@@ -675,18 +689,14 @@ function ShellInner({
             aria-label={pop === "appr" ? "Chờ duyệt" : "Nhật ký agent"}
           >
             <div className="c-ch">
-              <h2>{pop === "appr" ? `Chờ duyệt (${state.queue.length})` : "Nhật ký agent"}</h2>
+              <h2>{pop === "appr" ? `Chờ duyệt (${queue.length})` : "Nhật ký agent"}</h2>
               <span className="c-r">
                 <button type="button" className="c-ib" aria-label="Đóng" onClick={() => setPop(null)}>
                   <X size={16} />
                 </button>
               </span>
             </div>
-            {pop === "appr" ? (
-              <ApprovalList items={state.queue} />
-            ) : (
-              <FeedList items={state.feed} limit={20} />
-            )}
+            {pop === "appr" ? <ApprovalList items={queue} /> : <FeedList items={state.feed} limit={20} />}
           </div>
         ) : null}
 
@@ -698,12 +708,14 @@ function ShellInner({
           <button type="button" onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}>
             <ClipboardCheck size={15} aria-hidden />
             <span className="c-lbltxt">Chờ duyệt</span>
-            <span className="c-cnt">{state.queue.length}</span>
+            <span className="c-cnt">{queue.length}</span>
           </button>
-          <button type="button" onClick={() => setPop((p) => (p === "feed" ? null : "feed"))}>
-            <ScrollText size={15} aria-hidden />
-            <span className="c-lbltxt">Nhật ký agent</span>
-          </button>
+          {can("lead.view_all") ? (
+            <button type="button" onClick={() => setPop((p) => (p === "feed" ? null : "feed"))}>
+              <ScrollText size={15} aria-hidden />
+              <span className="c-lbltxt">Nhật ký agent</span>
+            </button>
+          ) : null}
           {can("settings.integrations") ? (
             <button
               type="button"

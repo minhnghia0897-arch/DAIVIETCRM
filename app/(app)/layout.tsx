@@ -20,6 +20,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         roleKey: user.roleKey,
         showroomName: user.showroomName,
         permissions: [...user.permissions],
+        readOnly: Boolean(user.viewAs),
       }}
       settings={visibleSettings(user.permissions)}
       signOutAction={signOut}

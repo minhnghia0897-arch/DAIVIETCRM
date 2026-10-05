@@ -57,9 +57,17 @@ export function TeamOverviewView({ user }: { user: SessionUser }) {
               {rows.map((k, i) => (
                 <tr key={k.staffId} className="h-11 border-t border-line-2 hover:bg-surface-2">
                   <td className="px-[14px] py-1">
-                    <Link href={`/team/people/${k.staffId}`} className="font-bold text-text hover:underline">
-                      {showNames ? k.staff.fullName : `Nhân viên ${i + 1}`}
-                    </Link>
+                    {/* Bảng xếp hạng tắt thì không có tên, cũng không có link sang trang hiện tên. */}
+                    {showNames || k.staffId === user.id ? (
+                      <Link
+                        href={`/team/people/${k.staffId}`}
+                        className="font-bold text-text hover:underline"
+                      >
+                        {showNames ? k.staff.fullName : "Tôi"}
+                      </Link>
+                    ) : (
+                      <b>{`Nhân viên ${i + 1}`}</b>
+                    )}
                   </td>
                   <td className="px-3 py-1">{k.staff.onDuty ? "Đang trực" : "Nghỉ"}</td>
                   <td className="px-3 py-1">

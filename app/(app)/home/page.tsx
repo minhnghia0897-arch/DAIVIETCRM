@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 import { HomeView } from "@/components/views/home";
-import { requireUser } from "@/lib/auth/session";
+import { requireAnyPermission } from "@/lib/auth/session";
+import { LEAD_VIEW } from "@/lib/nav";
 import { createClient } from "@/lib/db/server";
 
 export const metadata: Metadata = { title: "Trang chủ · Đại Việt CRM" };
 
 export default async function HomePage() {
-  const user = await requireUser();
+  const user = await requireAnyPermission(LEAD_VIEW);
   const supabase = await createClient();
   const teamView = user.permissions.has("lead.view_all");
 
