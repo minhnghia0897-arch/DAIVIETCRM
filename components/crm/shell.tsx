@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   BarChart3,
   Bell,
   Bot,
@@ -37,7 +38,8 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
 import { STAGES, houseById } from "@/lib/demo/crm-data";
 import { visibleCustomers } from "@/lib/demo/repo";
-import { NAV_SECTIONS, visibleTabs } from "@/lib/nav";
+import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, visibleTabs } from "@/lib/nav";
+import { CUSTOMERS } from "@/lib/demo/data";
 import { ApprovalList, FeedList } from "./parts";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
@@ -124,6 +126,32 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/team": UsersRound,
   "/customers": Contact,
 };
+
+interface TrailStep {
+  path: string;
+  opp: string;
+  house: string;
+}
+
+const normPath = (p: string) => p.replace(/\/+$/, "") || "/";
+
+/** Tên màn để ghi trên nút Quay lại: "đơn Q4-2610-0012", "lead Nguyễn Thị Thu", "Việc cần làm"… */
+function trailLabel(step: TrailStep, s: ReturnType<typeof useCrm>["state"]): string {
+  const [, root, id] = step.path.split("/");
+  if (root === "orders" && id) return `đơn ${s.orders.find((o) => o.id === id)?.code ?? ""}`.trim();
+  if (root === "customers" && id) return `khách ${CUSTOMERS.find((c) => c.id === id)?.fullName ?? ""}`.trim();
+  if (root === "opportunities") {
+    const o = s.opps.find((x) => x.id === step.opp);
+    return o ? `lead ${o.name}` : "Cơ hội";
+  }
+  if (root === "households") return houseById(step.house)?.name ?? "Hộ gia đình";
+  if (root === "products" && id) return "sản phẩm";
+  if (root === "team" && step.path.includes("/people/")) return "hiệu suất";
+  const tab = [...NAV_TABS.flatMap((t) => [t, ...(t.children ?? [])]), ...SETTINGS_ITEMS].find(
+    (t) => t.href === step.path,
+  );
+  return tab?.label ?? "trang trước";
+}
 
 const NAV_KEY = "dv_nav_collapsed";
 const navListeners = new Set<() => void>();
@@ -253,9 +281,33 @@ function ShellInner({
   // Quyền chỉ Owner (không cấp được) dùng để nhận ra Owner, không suy từ tên vai trò.
   const isOwner = perms.has("settings.permissions");
   const roleKey = user.roleKey;
+  // Đường đi giữa các nghiệp vụ (lead → đơn → khách…): mỗi lần đổi trang ghi lại màn vừa rời kèm lead, hộ
+  // đang chọn; đi lùi (nút Quay lại hoặc nút lùi của trình duyệt) thì bỏ bước cuối. Cập nhật khi đổi trang.
+  const [trail, setTrail] = useState<TrailStep[]>([]);
+  const [trailAt, setTrailAt] = useState(pathname);
+  if (trailAt !== pathname) {
+    const left: TrailStep = { path: normPath(trailAt), opp: state.oppSel, house: state.houseSel };
+    const cur = normPath(pathname);
+    setTrailAt(pathname);
+    setTrail((t) => (t.at(-1)?.path === cur ? t.slice(0, -1) : [...t, left].slice(-20)));
+  }
+  const prev = trail.at(-1);
+  const back = useMemo(() => {
+    if (!prev) return null;
+    const label = trailLabel(prev, state);
+    return {
+      label,
+      go: () => {
+        // Trả lại lead, hộ đang chọn lúc rời màn đó rồi lùi lịch sử trình duyệt.
+        if (prev.path === "/opportunities" && prev.opp) act({ type: "selectOpp", id: prev.opp });
+        if (prev.path === "/households" && prev.house) act({ type: "selectHouse", id: prev.house });
+        router.back();
+      },
+    };
+  }, [prev, state, act, router]);
   const shell = useMemo(
-    () => ({ perms, can, ask, me, isOwner, roleKey, userId: user.id }),
-    [perms, can, ask, me, isOwner, roleKey, user.id],
+    () => ({ perms, can, ask, me, isOwner, roleKey, userId: user.id, back }),
+    [perms, can, ask, me, isOwner, roleKey, user.id, back],
   );
 
   const tabs = visibleTabs(perms);
@@ -432,6 +484,17 @@ function ShellInner({
             </span>
             <span className="hidden sm:inline">Đại Việt</span>
           </span>
+          {/* Nút lùi trên thanh đầu như Slack: trả lại màn nghiệp vụ vừa rời. */}
+          <button
+            type="button"
+            className="c-ib c-hback"
+            aria-label={back ? `Quay lại ${back.label}` : "Quay lại"}
+            title={back ? `Quay lại ${back.label}` : undefined}
+            disabled={!back}
+            onClick={back?.go}
+          >
+            <ArrowLeft size={17} />
+          </button>
           <form
             role="search"
             className="c-search"

@@ -28,6 +28,7 @@ export function CrmOpportunities() {
           color="var(--obj-lead)"
           kicker={all ? "Toàn showroom" : "Cơ hội của tôi"}
           title="Cơ hội"
+          back
         >
           <span className="c-lbl">
             {open.length} đang mở · pipeline <b>{tr(open.reduce((s, o) => s + o.value, 0))}</b>

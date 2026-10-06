@@ -20,6 +20,7 @@ export function ProductView({ user, id }: { user: SessionUser; id: string }) {
         kind="product"
         label="Sản phẩm"
         title={p.name}
+        back={{ href: "/products", label: "Sản phẩm" }}
         demo
         highlights={[
           { label: "Danh mục", value: p.category },

@@ -1,6 +1,7 @@
 import { Box, Building2, ShoppingCart, User, Users, Warehouse } from "lucide-react";
 import Link from "next/link";
 
+import { BackButton } from "@/components/crm/back-button";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
@@ -47,6 +48,7 @@ export function PageHeader({
   actions,
   highlights,
   demo,
+  back,
 }: {
   kind: ObjectKind;
   label: string;
@@ -55,9 +57,12 @@ export function PageHeader({
   actions?: React.ReactNode;
   highlights?: { label: string; value: React.ReactNode }[];
   demo?: boolean;
+  /** Nút Quay lại màn nghiệp vụ vừa rời; mở thẳng thì về danh sách cha. */
+  back?: { href: string; label: string };
 }) {
   return (
     <section className="border-b border-line">
+      {back ? <BackButton fallback={back} /> : null}
       <div className="flex flex-wrap items-start gap-3 px-0.5 py-3">
         <ObjectIcon kind={kind} />
         <div className="min-w-0 flex-1">

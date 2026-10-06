@@ -14,6 +14,8 @@ export interface ShellCtx {
   isOwner: boolean;
   /** Khóa vai trò, đầu vào của giới hạn giảm giá trong hàm định giá. */
   roleKey: string;
+  /** Màn nghiệp vụ vừa rời (lead, đơn, khách…) để nút Quay lại trả đúng chỗ; null khi mở thẳng. */
+  back: { label: string; go: () => void } | null;
 }
 
 export const ShellContext = createContext<ShellCtx | null>(null);

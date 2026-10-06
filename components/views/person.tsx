@@ -32,6 +32,7 @@ export function PersonView({ user, id }: { user: SessionUser; id: string }) {
   return (
     <>
       <PageHeader
+        back={{ href: "/team", label: "Đội ngũ" }}
         kind="team"
         label={id === user.id ? "Hiệu suất của tôi" : "Hiệu suất cá nhân"}
         title={k.staff.fullName}

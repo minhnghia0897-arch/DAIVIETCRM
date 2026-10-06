@@ -195,7 +195,13 @@ export function CrmOrder({ id }: { id: string }) {
   return (
     <div className="c-stack">
       <section className="c-card">
-        <PageHead icon={ShoppingCart} color="var(--obj-lead)" kicker="Đơn hàng" title={`Đơn ${o.code}`}>
+        <PageHead
+          icon={ShoppingCart}
+          color="var(--obj-lead)"
+          kicker="Đơn hàng"
+          title={`Đơn ${o.code}`}
+          back={{ href: "/orders", label: "Đơn hàng" }}
+        >
           <span className={`c-pill ${TONE[ORDER_STATUS[o.status].tone]}`}>
             {ORDER_STATUS[o.status].label}
           </span>

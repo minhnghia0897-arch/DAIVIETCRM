@@ -15,6 +15,7 @@ import {
 import { Fragment, useState } from "react";
 
 import { agentById, type AgentId, type Loc, type TimelineKind } from "@/lib/demo/crm-data";
+import { BackButton } from "./back-button";
 import { useShell } from "./shell-context";
 import { useCrm, type FeedItem, type QueueItem } from "./store";
 
@@ -48,27 +49,33 @@ export function PageHead({
   color,
   kicker,
   title,
+  back,
   children,
 }: {
   icon: LucideIcon;
   color: string;
   kicker: string;
   title: string;
+  /** Trang chi tiết: nút Quay lại màn nghiệp vụ vừa rời; mở thẳng thì về danh sách cha (nếu có). */
+  back?: { href: string; label: string } | true;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="c-phd">
-      <span className="c-oi is-lg" style={{ "--c": color } as React.CSSProperties} aria-hidden>
-        <Icon />
-      </span>
-      <div className="c-t">
-        <small>{kicker}</small>
-        <h1 className="m-0">
-          <b>{title}</b>
-        </h1>
+    <>
+      {back ? <BackButton fallback={back === true ? undefined : back} /> : null}
+      <div className="c-phd">
+        <span className="c-oi is-lg" style={{ "--c": color } as React.CSSProperties} aria-hidden>
+          <Icon />
+        </span>
+        <div className="c-t">
+          <small>{kicker}</small>
+          <h1 className="m-0">
+            <b>{title}</b>
+          </h1>
+        </div>
+        {children ? <div className="c-r">{children}</div> : null}
       </div>
-      {children ? <div className="c-r">{children}</div> : null}
-    </div>
+    </>
   );
 }
 

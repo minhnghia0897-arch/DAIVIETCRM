@@ -1935,3 +1935,38 @@ kbd {
 .c-card .bg-surface-2 {
   border-radius: 10px;
 }
+
+/* Nút Quay lại giữa các nghiệp vụ: dòng chữ nhỏ trên tiêu đề trang chi tiết, mũi tên trái, rê chuột đổi xanh. */
+.c-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 10px 14px 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-weak);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.c-back:hover {
+  background: var(--surface-2);
+  color: var(--action);
+}
+.c-flat .c-back,
+.c-c360 + .c-back,
+section.border-b > .c-back {
+  margin-left: 0;
+}
+/* Nút lùi trên thanh đầu tối. */
+.c-hback {
+  color: #fff;
+}
+.c-hback:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

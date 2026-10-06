@@ -113,7 +113,13 @@ export function CrmCustomer({ id }: { id: string }) {
   return (
     <div className="c-stack">
       <section className="c-card">
-        <PageHead icon={UserRound} color="var(--obj-contact)" kicker="Khách" title={name}>
+        <PageHead
+          icon={UserRound}
+          color="var(--obj-contact)"
+          kicker="Khách"
+          title={name}
+          back={{ href: "/customers", label: "Khách" }}
+        >
           <LocTag loc={c.market} />
           <span
             className={`c-pill ${TONE[lc.tone as keyof typeof TONE] ?? "is-n"}`}

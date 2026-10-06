@@ -278,3 +278,20 @@ test("telesale chỉ thấy hội thoại, số liệu của mình; Owner thấy
   await as(page, "owner", "home/");
   await expect(page.getByRole("progressbar", { name: "Tiến độ mục tiêu quý" })).toBeVisible();
 });
+
+test("nút Quay lại trả đúng màn nghiệp vụ vừa rời: danh sách đơn → đơn → khách → đơn", async ({ page }) => {
+  await as(page, "owner", "orders/");
+  await page.getByRole("link", { name: "Q4-2610-0012" }).click();
+  await expect(page.getByRole("heading", { name: "Đơn Q4-2610-0012" })).toBeVisible();
+  await page.getByRole("link", { name: "Võ Thanh Tùng" }).first().click();
+  await expect(page.getByRole("heading", { name: "Võ Thanh Tùng" })).toBeVisible();
+  await page.getByRole("button", { name: "Quay lại đơn Q4-2610-0012" }).first().click();
+  await expect(page.getByRole("heading", { name: "Đơn Q4-2610-0012" })).toBeVisible();
+  await page.getByRole("button", { name: "Quay lại Đơn hàng" }).first().click();
+  await expect(page).toHaveURL(/\/orders\/$/);
+
+  // Mở thẳng bằng đường link: về danh sách cha.
+  await page.goto("customers/c-tung/");
+  await page.locator(".c-back", { hasText: "Khách" }).click();
+  await expect(page).toHaveURL(/\/customers\/$/);
+});
