@@ -315,11 +315,25 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
   // Danh sách người theo quyền dùng lại trong cả vòng quét, tránh hỏi database lặp.
   const permCache = new Map<string, string[]>();
 
+  // Con trỏ cao hơn sự kiện mới nhất nghĩa là dãy id đã lùi (khôi phục từ bản sao lưu, dựng lại database).
+  // Không hạ xuống thì mọi sự kiện sau đó bị bỏ qua vĩnh viễn mà không ai biết.
+  const { data: newest } = await db
+    .from("events")
+    .select("id")
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const maxEventId = newest?.id ?? 0;
+  if (next.lastEventId > maxEventId) {
+    console.warn(`Con trỏ sự kiện (${next.lastEventId}) cao hơn thực tế (${maxEventId}), hạ về đúng mốc.`);
+    next.lastEventId = maxEventId;
+  }
+
   // 1. Lead được giao, lead mới.
   const { data: events } = await db
     .from("events")
     .select("id, type, showroom_id, lead_id, payload")
-    .gt("id", cur.lastEventId)
+    .gt("id", next.lastEventId)
     .in("type", ["assignment", "lead_created"])
     .order("id")
     .limit(100);
