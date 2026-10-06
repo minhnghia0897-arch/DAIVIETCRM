@@ -31,6 +31,10 @@ import { visibleChats } from "../access";
 import { useShell } from "../shell-context";
 import { maskPhonesInText, useCrm } from "../store";
 
+// GIỮ LẠI, CHƯA DÙNG: hộp chat nội bộ do chính CRM lưu tin (DESIGN.md mục Nhóm nội bộ). Chờ duyệt bảng lưu tin
+// và quyền riêng từng nhóm (docs/open-questions.md mục 28). Màn /chat hiện là màn kiểm soát nhóm Telegram
+// (components/crm/views/telegram-groups.tsx), vì đội chat trên Telegram và CRM không đọc nội dung đó.
+//
 // Nhóm nội bộ của đội (giao diện kiểu Telegram): danh sách nhóm bên trái, mỗi nhóm nhiều chủ đề; khung chat nền
 // họa tiết, bong bóng tin, trả lời trích dẫn, ảnh, tệp, liên kết, tin ghim, thích; khung thông tin nhóm gom ảnh,
 // tệp, liên kết đã gửi. Số điện thoại khách gõ vào bị che trước khi gửi (CLAUDE.md mục 5).

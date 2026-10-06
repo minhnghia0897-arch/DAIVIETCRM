@@ -296,38 +296,42 @@ test("nút Quay lại trả đúng màn nghiệp vụ vừa rời: danh sách đ
   await expect(page).toHaveURL(/\/customers\/$/);
 });
 
-test("nhóm nội bộ kiểu Telegram: chủ đề mới, gửi tin che số khách, đính kèm tệp, kênh thông báo chỉ đọc", async ({
-  page,
-}) => {
-  await as(page, "telesale", "chat/");
-  const menu = page.getByRole("button", { name: "Về danh sách nhóm" });
+test("Nhóm nội bộ: nhóm Telegram đã nối, đổi công dụng, không mirror trò chuyện", async ({ page }) => {
+  await as(page, "owner", "chat/");
   const side = page.getByRole("complementary", { name: "Danh sách nhóm" });
-  await side.getByRole("button", { name: /Cả đội Showroom Q4/ }).click();
-  if (await menu.isVisible()) await menu.click();
-  await side.getByRole("button", { name: "Chủ đề mới" }).click();
-  await side.getByLabel("Tên chủ đề mới").fill("Đơn Tết");
-  await side.getByRole("button", { name: "Tạo chủ đề" }).click();
-  await side.getByRole("button", { name: /Đơn Tết/ }).click();
+  const back = page.getByRole("button", { name: "Về danh sách nhóm" });
+  // Màn hẹp: danh sách và khung chi tiết thay nhau, nên quay lại danh sách trước khi xem cột trái.
+  const toList = async () => {
+    if (await back.isVisible()) await back.click();
+  };
 
-  await page.getByLabel("Viết tin nhắn").fill("Khách mới 0912 345 678 hỏi ghế, xem đơn #Q4-2610-0012");
-  await expect(page.getByText("Số điện thoại sẽ được che khi gửi")).toBeVisible();
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  const log = page.getByRole("log", { name: "Tin nhắn" });
-  await expect(log).toContainText("091•••678");
-  await expect(log).not.toContainText("0912 345 678");
-  await expect(log.getByRole("link", { name: "#Q4-2610-0012" })).toBeVisible();
+  await expect(side.getByRole("button", { name: /Cả đội Showroom Q4/ })).toContainText(
+    "Kênh thông báo chung",
+  );
+  await expect(side.getByRole("button", { name: /Telesale/ })).toContainText("Chờ gán");
+  await expect(side.getByRole("button", { name: /Nhóm cũ 2025/ })).toContainText("Bot đã rời nhóm");
 
-  await page.getByRole("button", { name: "Đính kèm" }).click();
-  await page.getByLabel("Chọn tệp").setInputFiles({
-    name: "danh-sach-giao.pdf",
-    mimeType: "application/pdf",
-    buffer: Buffer.from("pdf"),
-  });
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(log).toContainText("danh-sach-giao.pdf");
+  // Nói rõ CRM không đọc trò chuyện của nhóm (CLAUDE.md 10.3).
+  await side.getByRole("button", { name: /Telesale/ }).click();
+  await expect(page.getByRole("region", { name: "Trò chuyện của nhóm" })).toContainText("CRM không đọc");
 
-  // Kênh thông báo: telesale chỉ đọc.
-  if (await menu.isVisible()) await menu.click();
-  await side.getByRole("button", { name: /Thông báo showroom/ }).click();
-  await expect(page.getByText("Kênh thông báo: chỉ quản trị kênh đăng tin.")).toBeVisible();
+  // Gán công dụng: nhóm đang giữ công dụng đó chuyển sang Ngưng.
+  const card = page.getByRole("region", { name: "Công dụng của nhóm" });
+  await card.getByRole("radio", { name: "Kênh thông báo chung" }).click();
+  await toList();
+  await expect(side.getByRole("button", { name: /Telesale/ })).toContainText("Đang dùng");
+  await expect(side.getByRole("button", { name: /Cả đội Showroom Q4/ })).toContainText("Ngưng");
+
+  // Bot đã rời nhóm thì không gán lại được từ CRM.
+  await side.getByRole("button", { name: /Nhóm cũ 2025/ }).click();
+  await expect(card).toContainText("Bot đã rời nhóm này");
+  await expect(card.getByRole("radiogroup", { name: "Công dụng của nhóm" })).toHaveCount(0);
+});
+
+test("telesale xem được nhóm nhưng không đổi được công dụng", async ({ page }) => {
+  await as(page, "telesale", "chat/");
+  await page.getByRole("button", { name: /Kho & giao lắp/ }).click();
+  const card = page.getByRole("region", { name: "Công dụng của nhóm" });
+  await expect(card).toContainText("Nhóm giao hàng");
+  await expect(card.getByRole("radiogroup", { name: "Công dụng của nhóm" })).toHaveCount(0);
 });

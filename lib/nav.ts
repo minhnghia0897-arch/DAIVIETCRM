@@ -36,6 +36,26 @@ export const TEAM_VIEW = [
   "staff.offboard",
 ];
 
+/**
+ * Màn đã đọc dữ liệu thật từ database. Các màn còn lại vẫn chạy dữ liệu mô phỏng trong trình duyệt, nên thanh
+ * dưới cùng nhắc người dùng điều đó. Thêm màn vào đây mỗi lần nối xong một màn vào database.
+ */
+export const LIVE_SCREENS = [
+  "/home",
+  "/chat",
+  "/settings/users",
+  "/settings/permissions",
+  "/settings/audit",
+  "/settings/notifications",
+  "/settings/integrations",
+];
+
+/** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */
+export function isLiveScreen(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return LIVE_SCREENS.some((s) => path === s || path.startsWith(`${s}/`));
+}
+
 export const NAV_TABS: NavTab[] = [
   {
     href: "/home",

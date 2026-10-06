@@ -640,9 +640,23 @@ Phím tắt không hoạt động khi con trỏ đang ở trong ô nhập.
 - Không chia trang thành hàng loạt thẻ giống hệt nhau cùng bóng cùng bo góc.
 - Không để chữ tiếng Anh, mã lỗi kỹ thuật hay tên bảng dữ liệu lọt ra giao diện người dùng.
 
-## Nhóm nội bộ (kiểu Telegram)
+## Nhóm nội bộ
 
-- Màn `/chat` theo bố cục Telegram: cột trái nền xám nhạt `#F4F4F5`, ô tìm bo tròn, mỗi nhóm một dòng (ảnh đại diện tròn chữ cái đầu, tên, giờ tin cuối, xem trước "Người gửi: nội dung", số chưa đọc xanh `#3390EC`); nhóm đang mở nền xanh `#4A8FD8` chữ trắng; chủ đề của nhóm lùi vào dưới nhóm với biểu tượng `#` tròn màu.
+Màn `/chat` là nơi kiểm soát các nhóm Telegram của đội. Đội trao đổi trong nhóm Telegram, **CRM không đọc nội dung
+trò chuyện** (bot giữ chế độ riêng tư và không làm quản trị nhóm, `CLAUDE.md` mục 10.3), nên màn này cho biết nhóm
+nào đã nối với CRM chứ không chép lại hộp chat.
+
+- Giữ bố cục hai cột kiểu Telegram: cột trái nền xám nhạt `#F4F4F5`, ô tìm bo tròn, mỗi nhóm một dòng (ảnh đại diện tròn chữ cái đầu theo màu cố định của nhóm, tên nhóm, công dụng, chip trạng thái); nhóm đang mở nền xanh `#4A8FD8` chữ trắng.
+- Khung phải: thanh tiêu đề dạng viên bo tròn như cũ, rồi các thẻ — một thẻ nói rõ CRM không đọc trò chuyện, một thẻ chọn công dụng (Nhóm chung, Nhóm giao hàng, Nhóm chăm sóc khách hàng, Kênh thông báo chung, Chưa dùng) kèm nút tạm ngưng, một thẻ liệt kê tin CRM đã đăng vào nhóm.
+- Trạng thái nhóm: *Chờ gán* (bot vừa được thêm vào), *Đang dùng*, *Ngưng*, *Bot đã rời nhóm* (không gán lại được cho tới khi thêm bot vào nhóm lại).
+- Chỉ người có `settings.integrations` thấy phần chọn công dụng; người khác chỉ đọc.
+- Màn hẹp: danh sách nhóm và khung chi tiết thay nhau như Telegram điện thoại.
+
+### Hộp chat nội bộ trong CRM (chờ duyệt, câu hỏi mở 28)
+
+Bản mẫu đã dựng ở `components/crm/views/team-chat.tsx`, chưa gắn vào đường dẫn nào. Khi duyệt bảng lưu tin và quyền riêng từng nhóm thì dựng theo mô tả dưới đây.
+
+- Bố cục Telegram: cột trái nền xám nhạt `#F4F4F5`, ô tìm bo tròn, mỗi nhóm một dòng (ảnh đại diện tròn chữ cái đầu, tên, giờ tin cuối, xem trước "Người gửi: nội dung", số chưa đọc xanh `#3390EC`); nhóm đang mở nền xanh `#4A8FD8` chữ trắng; chủ đề của nhóm lùi vào dưới nhóm với biểu tượng `#` tròn màu.
 - Khung chat nền xanh lá có họa tiết chấm vẽ bằng CSS; thanh tiêu đề và ô soạn dạng viên bo tròn nổi trên nền; mốc ngày là viên nhãn mờ ở giữa.
 - Bong bóng tin bo 16px, góc đuôi 4px; tin người khác nền trắng có tên người gửi theo màu riêng từng người; tin của mình nền xanh nhạt `#EFFDDE`, giờ và dấu đã gửi màu xanh lá. Trả lời trích dẫn là khối có vạch trái cùng màu người được trích. Rê chuột lên tin hiện Trả lời, Thích, Ghim (quản trị).
 - Ô soạn: nút đính kèm tròn (Ảnh, Tệp), ô nhập bo tròn, nút gửi tròn xanh. Gõ số điện thoại thì báo trước sẽ bị che.

@@ -24,6 +24,7 @@ export default function DemoAppLayout({ children }: { children: React.ReactNode 
             permissions: [...user.permissions],
           }}
           settings={visibleSettings(user.permissions)}
+          allDemo
           signOutAction={() => {
             setDemoRole(null);
             router.push("/login");

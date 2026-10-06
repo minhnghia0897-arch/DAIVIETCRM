@@ -38,7 +38,7 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
 import { STAGES, houseById } from "@/lib/demo/crm-data";
 import { visibleCustomers } from "@/lib/demo/repo";
-import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, visibleTabs } from "@/lib/nav";
+import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
 import { CUSTOMERS } from "@/lib/demo/data";
 import { ApprovalList, FeedList } from "./parts";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
@@ -75,6 +75,8 @@ export function CrmShell(props: {
   banner?: React.ReactNode;
   /** Lối tắt thêm vào thanh tiện ích. */
   shortcuts?: { label: string; count: number }[];
+  /** Bản demo tĩnh: mọi màn đều là dữ liệu mô phỏng. */
+  allDemo?: boolean;
   children: React.ReactNode;
 }) {
   const { user } = props;
@@ -203,6 +205,7 @@ function ShellInner({
   signOutAction,
   banner,
   shortcuts,
+  allDemo,
   children,
 }: Parameters<typeof CrmShell>[0]) {
   const { state, act, who } = useCrm();
@@ -212,6 +215,8 @@ function ShellInner({
   const perms = useMemo(() => new Set(user.permissions), [user.permissions]);
   const can = useCallback((p: string) => perms.has(p), [perms]);
   const view: AiView = VIEW_BY_PATH.find(([p]) => pathname.startsWith(p))?.[1] ?? "other";
+  // Nhắc "Dữ liệu mô phỏng" chỉ ở màn chưa nối database, để nhãn này còn đáng tin.
+  const demoData = Boolean(allDemo) || !isLiveScreen(pathname);
 
   // Màn hình rộng: mở sẵn trợ lý AI như bản mẫu; màn hình hẹp: khung AI là lớp phủ, chỉ mở khi bấm.
   const wide = useSyncExternalStore(subscribeWide, isWide, () => false);
@@ -831,9 +836,11 @@ function ShellInner({
               {s.label}&nbsp;<b className="tabular">({s.count})</b>
             </span>
           ))}
-          <span className="ml-auto flex items-center px-2 text-label whitespace-nowrap text-text-weak">
-            Dữ liệu mô phỏng
-          </span>
+          {demoData ? (
+            <span className="ml-auto flex items-center px-2 text-label whitespace-nowrap text-text-weak">
+              Dữ liệu mô phỏng
+            </span>
+          ) : null}
         </footer>
       </div>
     </ShellContext.Provider>
