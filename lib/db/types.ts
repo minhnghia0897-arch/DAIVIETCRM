@@ -1109,6 +1109,57 @@ export type Database = {
           },
         ];
       };
+      notification_prefs: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          events: NonNullable<Json>;
+          level: string;
+          quiet_from: string | null;
+          quiet_to: string | null;
+          showroom_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          events?: NonNullable<Json>;
+          level?: string;
+          quiet_from?: string | null;
+          quiet_to?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          events?: NonNullable<Json>;
+          level?: string;
+          quiet_from?: string | null;
+          quiet_to?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_prefs_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notification_prefs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           created_at: string;
@@ -1543,6 +1594,242 @@ export type Database = {
           },
         ];
       };
+      telegram_groups: {
+        Row: {
+          assigned_at: string | null;
+          assigned_by: string | null;
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          purpose: string;
+          showroom_id: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_at?: string | null;
+          assigned_by?: string | null;
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          purpose?: string;
+          showroom_id: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_at?: string | null;
+          assigned_by?: string | null;
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          purpose?: string;
+          showroom_id?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_groups_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_groups_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_link_codes: {
+        Row: {
+          code_hash: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          showroom_id: string;
+          updated_at: string;
+          used_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          code_hash: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          showroom_id: string;
+          updated_at?: string;
+          used_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          code_hash?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          showroom_id?: string;
+          updated_at?: string;
+          used_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_codes_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_link_codes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_links: {
+        Row: {
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          linked_at: string;
+          revoked_at: string | null;
+          showroom_id: string;
+          telegram_user_id: number;
+          updated_at: string;
+          user_id: string;
+          username: string | null;
+        };
+        Insert: {
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          linked_at?: string;
+          revoked_at?: string | null;
+          showroom_id: string;
+          telegram_user_id: number;
+          updated_at?: string;
+          user_id: string;
+          username?: string | null;
+        };
+        Update: {
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          linked_at?: string;
+          revoked_at?: string | null;
+          showroom_id?: string;
+          telegram_user_id?: number;
+          updated_at?: string;
+          user_id?: string;
+          username?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_links_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_links_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_messages: {
+        Row: {
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          event_type: string;
+          id: string;
+          lead_id: string | null;
+          message_id: number;
+          showroom_id: string;
+          task_id: string | null;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          event_type: string;
+          id?: string;
+          lead_id?: string | null;
+          message_id: number;
+          showroom_id: string;
+          task_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          event_type?: string;
+          id?: string;
+          lead_id?: string | null;
+          message_id?: number;
+          showroom_id?: string;
+          task_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_messages_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_permission_overrides: {
         Row: {
           effect: string;
@@ -1830,6 +2117,7 @@ export type Database = {
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
+      create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
@@ -1853,8 +2141,27 @@ export type Database = {
         };
         Returns: number;
       };
+      redeem_telegram_link_code: {
+        Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
+        Returns: string;
+      };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
+      revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
+      telegram_act_as: { Args: { p_user: string }; Returns: undefined };
+      telegram_add_note: {
+        Args: { p_file_path?: string; p_lead_id: string; p_telegram_user_id: number; p_text: string };
+        Returns: number;
+      };
+      telegram_assign_group: {
+        Args: { p_chat_id: number; p_purpose: string; p_telegram_user_id: number; p_title: string };
+        Returns: string;
+      };
+      telegram_task_action: {
+        Args: { p_action: string; p_minutes?: number; p_task_id: string; p_telegram_user_id: number };
+        Returns: string;
+      };
+      telegram_user: { Args: { p_telegram_user_id: number }; Returns: string };
       view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
       whoami: {
         Args: Record<PropertyKey, never>;

@@ -48,21 +48,28 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 | Cài đặt của từng người | `/settings/notifications` (`components/crm/views/notify-settings.tsx`) |
 | Mini App | `/m` (`components/crm/views/mini-app.tsx`) |
 | Ghi ngược từ Telegram (trả lời, ảnh, lệnh) | `components/crm/telegram-in.ts`, thao tác `tgReply` |
+| Bộ nối thật | `lib/integrations/telegram_bot/` (`api.ts`, `inbound.ts`, `outbound.ts`) |
+| Database | `supabase/migrations/20261007000100_telegram.sql`: `telegram_links`, `telegram_link_codes`, `telegram_groups`, `telegram_messages`, `notification_prefs`, hàm `telegram_*`, bucket `telegram-attachments` |
+| Chạy thử | `node scripts/telegram-bot.mts run \| link <email> \| demo-lead <email>` |
 | Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` (Sắp có) |
 
-## Điểm cần kiểm theo tài liệu chính thức trước khi viết bộ nối thật
+## Đã kiểm theo tài liệu chính thức (07/10/2026)
 
-Môi trường làm việc hiện chặn `core.telegram.org`, nên các điểm dưới **chưa kiểm chứng**; không được viết bộ nối thật
-dựa vào trí nhớ (mục 10.1). Mở quyền truy cập tên miền này rồi ghi lại endpoint, tham số, giới hạn đã đọc được:
+Nguồn: `core.telegram.org/bots/api`, `core.telegram.org/bots/features`, `core.telegram.org/bots/faq`.
 
-1. Bot API `sendMessage` với `reply_markup.inline_keyboard`; nút `web_app` mở Mini App; nút `callback_data` cho thao tác nhanh
-   (giới hạn độ dài `callback_data`).
-2. `setWebhook` với `secret_token`, Telegram gửi lại trong header để server kiểm (mục 10.1 điều 4).
-3. Liên kết tài khoản bằng deep link `https://t.me/<bot>?start=<mã>`: mã một lần, hết hạn ngắn, gắn với người dùng CRM.
-4. Mini App: kiểm `initData` bằng HMAC với bot token ở server, đổi sang phiên CRM của đúng người đã liên kết.
-5. `disable_notification` cho giờ im lặng.
-6. Giới hạn tốc độ gửi tin của bot (theo giây, theo nhóm), cách xử lý lỗi 429 và người dùng đã chặn bot.
-7. Trả lời `answerCallbackQuery` sau thao tác nhanh.
+| Điểm | Theo tài liệu | Cách CRM dùng |
+|---|---|---|
+| Nhận tin | Hai cách loại trừ nhau: `getUpdates` (hỏi liên tục) hoặc webhook. Tin chờ trên máy chủ Telegram tối đa 24 giờ. `getUpdates`: `offset` = update_id lớn nhất + 1 để xác nhận; `timeout` giây cho hỏi dài; `allowed_updates` | Chạy thử: `getUpdates` (`scripts/telegram-bot.mts`). Bản thật: webhook, cùng bộ xử lý `inbound.ts` |
+| Webhook | `setWebhook` với `secret_token`; Telegram gửi lại trong header `X-Telegram-Bot-Api-Secret-Token`; gửi lại khi phản hồi không phải 2XX | Bản thật kiểm header trước khi lưu `webhook_events` |
+| Chống trùng | `update_id` tăng dần, dùng để bỏ tin lặp | `webhook_events` duy nhất theo (`telegram`, `update_id`) |
+| Nút | `callback_data` 1–64 byte; sau khi người dùng bấm phải gọi `answerCallbackQuery` (kể cả không cần báo gì) | `t:done:<mã việc>`, `t:snz:<mã việc>` (42 byte); luôn trả lời nút |
+| Tin im lặng | `disable_notification`: tin tới không có âm thanh | Giờ im lặng của từng người |
+| Trả lời | `reply_to_message` là tin gốc (một tầng); `reply_parameters` để bot trả lời đúng tin | Tra `telegram_messages` theo (chat_id, message_id) để biết tin báo về lead nào |
+| Ảnh | `photo` là mảng nhiều cỡ; `getFile` → tải `https://api.telegram.org/file/bot<token>/<file_path>`, tối đa 20MB, link còn hạn ít nhất 1 giờ; tên và loại tệp gốc có thể mất | Lấy cỡ lớn nhất, lưu bucket riêng tư `telegram-attachments` |
+| Nhóm | `my_chat_member`: trạng thái của bot trong nhóm đổi (được thêm, bị xóa). `migrate_to_chat_id`: nhóm nâng lên siêu nhóm với mã mới (lưu bằng số nguyên 64 bit) | Nhóm mới vào "Chờ gán"; bị xóa thì "Mất kết nối"; đổi mã thì cập nhật |
+| Chế độ riêng tư | Mặc định bật: trong nhóm, bot chỉ nhận lệnh gửi bot, tin trả lời tin của bot, tin hệ thống; tin riêng thì nhận hết. Bot làm quản trị nhóm sẽ nhận mọi tin | Giữ chế độ riêng tư; **không đặt bot làm quản trị nhóm**, để bot không đọc trò chuyện của đội |
+| Liên kết | `t.me/<bot>?start=<tham số>`: ký tự A-Z a-z 0-9 _ -, tối đa 64 ký tự; bot nhận `/start <tham số>` | Mã ngẫu nhiên 32 ký tự hex, một lần, 10 phút |
+| Giới hạn | Một chat: khoảng 1 tin/giây; một nhóm: tối đa 20 tin/phút; gửi hàng loạt khoảng 30 tin/giây, vượt thì lỗi 429 | Bản thật gửi qua hàng đợi `jobs`, giãn theo giới hạn |
 
 ## Điều kiện tiên quyết (Owner chuẩn bị)
 
