@@ -52,7 +52,7 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 | Nhận tin (bản thật) | `app/api/webhooks/telegram/route.ts` |
 | Đẩy tin (bản thật) | `supabase/functions/telegram-outbound/`, chạy theo lịch `pg_cron` |
 | Database | `supabase/migrations/20261007000100_telegram.sql`: `telegram_links`, `telegram_link_codes`, `telegram_groups`, `telegram_messages`, `notification_prefs`, hàm `telegram_*`, bucket `telegram-attachments`. `20261007000200_telegram_live.sql`: cột `quiet_on`, bảng `telegram_outbound_state`, hàm `dispatch_telegram_outbound`, lịch cron |
-| Chạy thử | `node scripts/telegram-bot.mts run \| run-inbound \| link <email> \| demo-lead <email> \| setup \| webhook-set <url> \| webhook-off` |
+| Chạy thử | `node scripts/telegram-bot.mts run \| run-inbound \| link <email> \| demo-lead <email> \| demo-flow <email> \| setup \| webhook-set <url> \| webhook-off`. `demo-flow` dựng một lượt đủ các loại tin đang chạy để kiểm tra một lần cài đặt mới có thông suốt không (có đặt đấu nối sang trạng thái lỗi, nhớ kết nối lại sau khi thử) |
 | Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` |
 
 ## Nối vào CRM thật
