@@ -93,13 +93,19 @@ export async function notifyUser(
   return true;
 }
 
-/** Đăng tin rút gọn vào nhóm đang giữ một công dụng (nếu Owner đã gán). */
+/**
+ * Đăng tin rút gọn vào nhóm đang giữ một công dụng (nếu Owner đã gán).
+ * Ghi lại tin đã đăng để màn Nhóm nội bộ cho thấy CRM đã nói gì vào nhóm; bot không đọc trò chuyện của đội.
+ */
 export async function postToGroup(
   db: Db,
   api: TelegramApi,
   showroomId: string,
   purpose: "general" | "delivery" | "care" | "announce",
   text: string,
+  ref: { eventType: string; leadId?: string | null; orderId?: string | null } = {
+    eventType: "group_post",
+  },
 ): Promise<boolean> {
   const { data: group } = await db
     .from("telegram_groups")
@@ -109,7 +115,14 @@ export async function postToGroup(
     .eq("status", "active")
     .maybeSingle();
   if (!group) return false;
-  await api.call("sendMessage", { chat_id: group.chat_id, text });
+  const sent = await api.call<{ message_id: number }>("sendMessage", { chat_id: group.chat_id, text });
+  await db.from("telegram_messages").insert({
+    showroom_id: showroomId,
+    chat_id: group.chat_id,
+    message_id: sent.message_id,
+    lead_id: ref.leadId ?? null,
+    event_type: ref.eventType,
+  });
   return true;
 }
 
@@ -180,7 +193,10 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
       );
     }
     if (e.type === "lead_created") {
-      await postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`);
+      await postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`, {
+        eventType: "lead_created",
+        leadId: lead.id,
+      });
     }
   }
 

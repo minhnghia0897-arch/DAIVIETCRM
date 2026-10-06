@@ -2,7 +2,7 @@
 -- của mình, bot làm thay người dùng đúng quyền như trên CRM, khóa người dùng thì thu hồi liên kết, gán nhóm cần quyền.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(25);
 
 create function pg_temp.login(uid uuid, view_as uuid default null) returns void language plpgsql as $$
 begin
@@ -88,6 +88,28 @@ select throws_ok($$ select public.telegram_assign_group(1001, -100123, 'Nhóm ch
   '42501', null, 'telesale không gán được nhóm');
 select pg_temp.as_service();
 select is(public.telegram_assign_group(1002, -100123, 'Nhóm chung', 'general'), 'general', 'Owner gán nhóm chung');
+
+-- Quản lý nhóm từ màn CRM (migration 20261007000300): ai cũng đọc được danh sách nhóm của đội, chỉ
+-- settings.integrations đổi được công dụng, và không đổi được khi đang "Xem như".
+select pg_temp.login('11111111-1111-4111-8111-000000000003');
+select ok(exists (select 1 from public.telegram_groups where chat_id = -100123),
+  'telesale xem được nhóm của đội');
+select throws_ok($$ select public.set_telegram_group(-100123, 'care') $$,
+  '42501', null, 'telesale không đổi được công dụng nhóm');
+
+select pg_temp.login('11111111-1111-4111-8111-000000000001');
+select is(public.set_telegram_group(-100123, 'care'), 'active', 'Owner đổi công dụng nhóm từ CRM');
+select is(public.set_telegram_group(-100123, 'unused'), 'inactive', 'bỏ công dụng thì nhóm thành Ngưng');
+select throws_ok($$ select public.set_telegram_group(-999999, 'care') $$,
+  'P0002', null, 'nhóm không có trong CRM thì báo lỗi');
+
+-- Owner mở phiên "Xem như": phiên đó chỉ đọc, không đổi được nhóm.
+insert into public.view_as_sessions (id, showroom_id, owner_id, target_id)
+values ('99999999-9999-4999-8999-000000000009', '4a000000-0000-4000-8000-000000000004',
+        '11111111-1111-4111-8111-000000000001', '11111111-1111-4111-8111-000000000002');
+select pg_temp.login('11111111-1111-4111-8111-000000000001', '99999999-9999-4999-8999-000000000009');
+select throws_ok($$ select public.set_telegram_group(-100123, 'care') $$,
+  '42501', null, 'đang Xem như người khác thì không đổi được nhóm');
 
 -- Khóa Thảo: liên kết bị thu hồi ngay.
 select pg_temp.as_service();

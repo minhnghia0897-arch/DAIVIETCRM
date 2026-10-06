@@ -59,3 +59,26 @@ insert into public.leads (id, showroom_id, contact_id, recipient_contact_id, kee
   ('33333333-3333-4333-8333-000000000003', '4a000000-0000-4000-8000-000000000004',
    '22222222-2222-4222-8222-000000000004', null, false,
    'meta_lead_ads', null, null);
+
+-- Nhóm Telegram giả cho màn Nhóm nội bộ: một nhóm đang dùng, một nhóm bot vừa vào chưa gán, một nhóm bot đã rời.
+-- chat_id âm là nhóm, đúng như Telegram đánh số.
+insert into public.telegram_groups (showroom_id, chat_id, title, purpose, status, assigned_by, assigned_at) values
+  ('4a000000-0000-4000-8000-000000000004', -1001000000001, 'Cả đội Showroom Q4', 'announce', 'active',
+   '11111111-1111-4111-8111-000000000001', now() - interval '3 days'),
+  ('4a000000-0000-4000-8000-000000000004', -1001000000002, 'Kho & giao lắp', 'delivery', 'active',
+   '11111111-1111-4111-8111-000000000001', now() - interval '2 days'),
+  ('4a000000-0000-4000-8000-000000000004', -1001000000003, 'Telesale', 'unused', 'pending', null, null),
+  ('4a000000-0000-4000-8000-000000000004', -1001000000004, 'Nhóm cũ 2025', 'general', 'lost',
+   '11111111-1111-4111-8111-000000000001', now() - interval '60 days'),
+  ('4a000000-0000-4000-8000-000000000004', -1001000000005, 'Nhóm thử phân công', 'unused', 'inactive',
+   null, null);
+
+insert into public.telegram_messages (showroom_id, chat_id, message_id, event_type, created_at) values
+  ('4a000000-0000-4000-8000-000000000004', -1001000000001, 9001, 'lead_created', now() - interval '2 hours'),
+  ('4a000000-0000-4000-8000-000000000004', -1001000000001, 9002, 'lead_created', now() - interval '40 minutes');
+
+-- Tên bot giả, để màn Cài đặt → Thông báo Telegram dựng được link liên kết trong môi trường dev.
+-- Môi trường thật: Owner điền ở Cài đặt → Tích hợp, token và mã bí mật webhook vào Supabase Vault.
+insert into public.integrations (showroom_id, key, config) values
+  ('4a000000-0000-4000-8000-000000000004', 'telegram_bot', '{"botUsername": "DaiVietQ4Bot"}'::jsonb)
+on conflict (showroom_id, key) do update set config = excluded.config;

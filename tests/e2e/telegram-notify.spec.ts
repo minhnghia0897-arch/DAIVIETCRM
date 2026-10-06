@@ -4,7 +4,7 @@ import { USERS, login } from "./helpers";
 
 // Thông báo Telegram nối dữ liệu thật (CLAUDE.md 10.3 telegram_bot): link liên kết do database sinh, một lần,
 // hết hạn 10 phút; thiết lập lưu vào notification_prefs; nhóm chỉ người có settings.integrations xem được.
-// Cần `node scripts/telegram-bot.mts setup` (hoặc Owner điền tên bot ở Tích hợp) trước khi chạy.
+// Tên bot lấy từ `integrations.config.botUsername`; dữ liệu giả trong supabase/seed.sql đã có sẵn.
 
 test("tạo được link liên kết thật, mỗi lần một mã khác", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "laptop", "Sửa dữ liệu một lần là đủ");

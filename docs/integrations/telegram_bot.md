@@ -70,11 +70,24 @@ Tên bot đọc từ `integrations.config.botUsername`; chưa khai thì trang ch
 sánh thời gian không đổi; sai mã trả 401 và không đọc nội dung. Chưa có tên miền HTTPS thì vẫn chạy `getUpdates` bằng
 lệnh `run`. Lưu ý: `proxy.ts` phải cho `/api/webhooks/` đi qua, vì Telegram gọi vào không có phiên đăng nhập.
 
-**3. Đẩy tin bằng việc nền.** `pg_cron` gọi `public.dispatch_telegram_outbound()` mỗi phút; hàm này đọc hai khóa
+**3. Nhóm của đội ở màn Nhóm nội bộ.** `/chat` liệt kê đúng các nhóm Telegram bot đang ở (`telegram_groups`):
+tên nhóm, công dụng, trạng thái (Chờ gán, Đang dùng, Ngưng, Bot đã rời nhóm), ai gán và lúc nào, cùng những tin
+CRM đã đăng vào nhóm. Người có `settings.integrations` đổi được công dụng ngay trên CRM qua `set_telegram_group`,
+cùng quy tắc với lệnh `/gan` trong nhóm: mỗi công dụng chỉ một nhóm đang dùng, nhóm cũ chuyển Ngưng.
+Nhóm `status = 'lost'` phải thêm bot vào nhóm lại trên Telegram mới gán được.
+
+**CRM không đọc trò chuyện của nhóm.** Bot giữ chế độ riêng tư và không làm quản trị nhóm, nên chỉ nhận lệnh gửi
+bot và tin trả lời tin của bot. Màn Nhóm nội bộ vì vậy là màn kiểm soát, không phải bản sao hộp chat; màn có nói rõ
+điều này cho người dùng.
+
+**4. Đẩy tin bằng việc nền.** `pg_cron` gọi `public.dispatch_telegram_outbound()` mỗi phút; hàm này đọc hai khóa
 trong Vault (`edge_functions_base_url`, `edge_functions_service_key`) rồi gọi Edge Function `telegram-outbound`.
 Thiếu một trong hai khóa thì hàm im lặng, cron không báo lỗi. Con trỏ quét nằm ở `telegram_outbound_state` nên lần
 chạy sau tiếp đúng chỗ lần trước dừng. Khi lịch này đã chạy, script chạy thử phải dùng `run-inbound` để không gửi
 trùng tin.
+
+Màn Nhóm nội bộ cho mọi người trong showroom đọc danh sách nhóm (migration `20261007000300`); trước đó chỉ
+`settings.integrations` đọc được nên màn trống với telesale. Tin bot gửi riêng cho một người thì chỉ người đó đọc.
 
 Thứ tự cài một môi trường mới: đặt hai khóa Vault cho việc nền → Owner dán token, mã bí mật webhook và tên bot ở
 Tích hợp → `webhook-set` → nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.

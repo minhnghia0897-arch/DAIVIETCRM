@@ -2187,6 +2187,10 @@ export type Database = {
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
+      set_telegram_group: {
+        Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
+        Returns: string;
+      };
       telegram_act_as: { Args: { p_user: string }; Returns: undefined };
       telegram_add_note: {
         Args: { p_file_path?: string; p_lead_id: string; p_telegram_user_id: number; p_text: string };
