@@ -23,7 +23,7 @@ const HOURS = Array.from(
   { length: 48 },
   (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`,
 );
-const BOT = "DaiVietQ4Bot";
+const BOT = "DAIVIETS4BOT";
 
 function Card({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
