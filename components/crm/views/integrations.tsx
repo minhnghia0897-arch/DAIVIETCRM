@@ -1,7 +1,7 @@
 "use client";
 
 import { Plug } from "lucide-react";
-import { useState } from "react";
+import { createContext, useContext, useEffect, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import {
@@ -73,8 +73,67 @@ const fmt = (iso?: string) =>
 type Def = IntegrationDefinition;
 const DEFS = integrations as readonly Def[];
 
-export function IntegrationSettings() {
-  const { state } = useCrm();
+type Result = { ok: boolean; message: string };
+
+/** Một đấu nối đã lưu ở database (bản thật); không bao giờ chứa giá trị khóa. */
+export interface LiveIntegrationRow {
+  status: IntegrationStatus;
+  config: Record<string, unknown>;
+  prerequisitesDone: string[];
+  replyMode?: ReplyMode;
+  /** Tên khóa → thời điểm cập nhật. */
+  secrets: Record<string, string>;
+}
+
+/**
+ * Bản thật: khóa đi thẳng vào Supabase Vault, cấu hình lưu bảng `integrations` qua server action (kiểm quyền,
+ * nhật ký ở database). Không có thì màn chạy mô phỏng trong trình duyệt như bản demo.
+ */
+export interface LiveIntegrations {
+  rows: Record<string, LiveIntegrationRow>;
+  saveSecrets: (input: { key: string; secrets: Record<string, string> }) => Promise<Result>;
+  removeSecret: (input: { key: string; name: string }) => Promise<Result>;
+  saveSettings: (input: {
+    key: string;
+    config?: Record<string, unknown>;
+    prerequisitesDone?: string[];
+    replyMode?: ReplyMode;
+    status?: "paused" | "not_connected";
+  }) => Promise<Result>;
+}
+
+const LiveContext = createContext<LiveIntegrations | null>(null);
+
+/** Gọi server action của bản thật và báo kết quả bằng toast. */
+function useLive() {
+  const live = useContext(LiveContext);
+  const toast = useToast();
+  const [pending, start] = useTransition();
+  const run = (f: (l: LiveIntegrations) => Promise<Result>, after?: (r: Result) => void) =>
+    start(async () => {
+      if (!live) return;
+      const r = await f(live);
+      toast(r.message, r.ok ? "ok" : "err");
+      after?.(r);
+    });
+  return { live, run, pending };
+}
+
+export function IntegrationSettings({ live }: { live?: LiveIntegrations }) {
+  return (
+    <LiveContext.Provider value={live ?? null}>
+      <IntegrationList />
+    </LiveContext.Provider>
+  );
+}
+
+function IntegrationList() {
+  const { state, act } = useCrm();
+  const live = useContext(LiveContext);
+  // Bản thật: trạng thái, cấu hình, khóa đã có lấy từ database mỗi lần trang tải lại sau thao tác.
+  useEffect(() => {
+    if (live) act({ type: "intHydrate", rows: live.rows });
+  }, [live, act]);
   const [open, setOpen] = useState<{ key: string; tab: Tab } | null>(null);
   const states = state.settings.integrationStates;
   const count = (st: IntegrationStatus) => DEFS.filter((d) => states[d.key]?.status === st).length;
@@ -96,9 +155,9 @@ export function IntegrationSettings() {
           ) : null}
         </PageHead>
         <p className="c-lbl mx-4 mt-0 mb-3">
-          Bản mô phỏng: bấm Kết nối chưa gọi API thật của nhà cung cấp. Khi chạy thật, khóa lưu ở Supabase
-          Vault, webhook kiểm chữ ký và mọi thao tác ở đây ghi nhật ký kiểm toán. Đấu nối ngoài tháng 1 cấu
-          hình sẵn được ở đây; adapter thật làm theo giai đoạn ghi trên nhãn.
+          {live
+            ? "Khóa dán vào đây lưu thẳng vào kho bí mật (Supabase Vault), không hiện lại, mọi thao tác ghi nhật ký kiểm toán. Đấu nối chỉ chuyển sang Đã kết nối khi bộ nối của nhà cung cấp kiểm tra được khóa; bộ nối làm theo giai đoạn ghi trên nhãn."
+            : "Bản mô phỏng: bấm Kết nối chưa gọi API thật của nhà cung cấp. Khi chạy thật, khóa lưu ở Supabase Vault, webhook kiểm chữ ký và mọi thao tác ở đây ghi nhật ký kiểm toán. Đấu nối ngoài tháng 1 cấu hình sẵn được ở đây; adapter thật làm theo giai đoạn ghi trên nhãn."}
         </p>
       </section>
       {(Object.keys(groupLabels) as IntegrationGroup[]).map((g) => (
@@ -137,6 +196,8 @@ function IntegrationRow({
 }) {
   const { state, act } = useCrm();
   const { me } = useShell();
+  const { live, run } = useLive();
+  const toast = useToast();
   const [quick, setQuick] = useState(false);
   const missing = missingSummary(def, st);
   const open = tab !== null;
@@ -178,7 +239,9 @@ function IntegrationRow({
               type="button"
               className="c-btn"
               onClick={() =>
-                act({ type: "intTest", key: def.key, actor: me }, `Đã gửi dữ liệu thử qua ${def.name}`)
+                live
+                  ? toast(`Bộ nối ${def.name} chưa được viết, chưa gửi được dữ liệu thử thật`, "err")
+                  : act({ type: "intTest", key: def.key, actor: me }, `Đã gửi dữ liệu thử qua ${def.name}`)
               }
             >
               Gửi dữ liệu thử
@@ -189,7 +252,12 @@ function IntegrationRow({
               type="button"
               className="c-btn"
               onClick={() =>
-                act({ type: "intPause", key: def.key, paused: true, actor: me }, `Đã tạm dừng ${def.name}`)
+                live
+                  ? run((l) => l.saveSettings({ key: def.key, status: "paused" }))
+                  : act(
+                      { type: "intPause", key: def.key, paused: true, actor: me },
+                      `Đã tạm dừng ${def.name}`,
+                    )
               }
             >
               Tạm dừng
@@ -216,7 +284,16 @@ function IntegrationRow({
               type="button"
               className="c-btn"
               style={{ color: "var(--err)" }}
-              onClick={() => act({ type: "intDisconnect", key: def.key, actor: me }, `Đã ngắt ${def.name}`)}
+              onClick={() =>
+                live
+                  ? run(async (l) => {
+                      // Ngắt: thu hồi token đăng nhập, giữ khóa nhập tay (App Secret…).
+                      for (const name of def.secrets.filter((n) => isOauthToken(def, n) && st.secrets[n]))
+                        await l.removeSecret({ key: def.key, name });
+                      return l.saveSettings({ key: def.key, status: "not_connected" });
+                    })
+                  : act({ type: "intDisconnect", key: def.key, actor: me }, `Đã ngắt ${def.name}`)
+              }
             >
               Ngắt kết nối
             </button>
@@ -293,6 +370,7 @@ function Drawer({ def, st, initialTab }: { def: Def; st: IntegrationState; initi
 function Prerequisites({ def }: { def: Def }) {
   const { state, act } = useCrm();
   const { me } = useShell();
+  const { live, run } = useLive();
   const prereqs = state.settings.prereqs;
   const done = prereqs[def.key] ?? [];
   return (
@@ -308,21 +386,28 @@ function Prerequisites({ def }: { def: Def }) {
                   type="checkbox"
                   checked={on}
                   onChange={() =>
-                    act(
-                      {
-                        type: "setSettings",
-                        patch: {
-                          prereqs: {
-                            ...prereqs,
-                            [def.key]: on ? done.filter((d) => d !== p.key) : [...done, p.key],
+                    live
+                      ? run((l) =>
+                          l.saveSettings({
+                            key: def.key,
+                            prerequisitesDone: on ? done.filter((d) => d !== p.key) : [...done, p.key],
+                          }),
+                        )
+                      : act(
+                          {
+                            type: "setSettings",
+                            patch: {
+                              prereqs: {
+                                ...prereqs,
+                                [def.key]: on ? done.filter((d) => d !== p.key) : [...done, p.key],
+                              },
+                            },
+                            actor: me,
+                            label: on ? "Bỏ đánh dấu điều kiện" : "Đánh dấu điều kiện",
+                            detail: `${def.name}: ${p.label}`,
                           },
-                        },
-                        actor: me,
-                        label: on ? "Bỏ đánh dấu điều kiện" : "Đánh dấu điều kiện",
-                        detail: `${def.name}: ${p.label}`,
-                      },
-                      on ? "Đã bỏ đánh dấu" : "Đã đánh dấu điều kiện",
-                    )
+                          on ? "Đã bỏ đánh dấu" : "Đã đánh dấu điều kiện",
+                        )
                   }
                   className="mt-1"
                 />
@@ -340,6 +425,7 @@ function Prerequisites({ def }: { def: Def }) {
 function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
   const { state, act } = useCrm();
   const { me } = useShell();
+  const { live, run } = useLive();
   const [draft, setDraft] = useState<Record<string, unknown>>(st.config);
   const [submitted, setSubmitted] = useState(false);
   const errors = configErrors(def, draft);
@@ -355,6 +441,11 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
           onSubmit={(e) => {
             e.preventDefault();
             setSubmitted(true);
+            // Bản thật chỉ lưu cấu hình hợp lệ (server kiểm lại bằng cùng schema).
+            if (live) {
+              if (!errors.length) run((l) => l.saveSettings({ key: def.key, config: draft }));
+              return;
+            }
             act(
               { type: "intConfig", key: def.key, config: draft, actor: me },
               errors.length ? "Đã lưu nháp cấu hình, còn ô chưa hợp lệ" : "Đã lưu cấu hình",
@@ -426,16 +517,18 @@ function ConfigForm({ def, st }: { def: Def; st: IntegrationState }) {
                 name={`reply-${def.key}`}
                 checked={(replyMode[def.key] ?? "crm") === m}
                 onChange={() =>
-                  act(
-                    {
-                      type: "setSettings",
-                      patch: { replyMode: { ...replyMode, [def.key]: m } },
-                      actor: me,
-                      label: "Đổi chế độ trả lời",
-                      detail: `${def.name}: ${REPLY[m]}`,
-                    },
-                    `Đã lưu: ${REPLY[m]}`,
-                  )
+                  live
+                    ? run((l) => l.saveSettings({ key: def.key, replyMode: m }))
+                    : act(
+                        {
+                          type: "setSettings",
+                          patch: { replyMode: { ...replyMode, [def.key]: m } },
+                          actor: me,
+                          label: "Đổi chế độ trả lời",
+                          detail: `${def.name}: ${REPLY[m]}`,
+                        },
+                        `Đã lưu: ${REPLY[m]}`,
+                      )
                 }
               />
               {REPLY[m]}
@@ -584,8 +677,18 @@ const LOGIN_PROVIDER: Record<string, string> = {
 function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; onClose: () => void }) {
   const { state, act } = useCrm();
   const { me } = useShell();
+  const { live, run, pending } = useLive();
   const needed = requiredSecrets(def);
-  const fields = quickFields(def);
+  // Bản thật chưa có ứng dụng OAuth đứng tên showroom: ô chọn sau đăng nhập (Page, OA, form) nhập tay.
+  const manualLogin: ConfigField[] = live
+    ? loginFields(def).map((f) => ({
+        ...f,
+        kind: f.kind === "checks" ? "list" : "text",
+        options: undefined,
+        fromLogin: false,
+      }))
+    : [];
+  const fields = [...quickFields(def), ...manualLogin];
   const done = state.settings.prereqs[def.key] ?? [];
   const allDone = def.prerequisites.every((p) => done.includes(p.key));
   const [values, setValues] = useState<Record<string, string>>({});
@@ -616,15 +719,53 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
     onClose();
   }
 
+  /** Bản thật: lưu khóa vào Vault, lưu cấu hình và điều kiện; không giả lập "Đã kết nối". */
+  function saveLive() {
+    const secrets = Object.fromEntries(pasted.map((n) => [n, values[n]]));
+    const prereqs = prereqOk ? def.prerequisites.map((p) => p.key) : done;
+    run(
+      async (l) => {
+        if (pasted.length) {
+          const r = await l.saveSecrets({ key: def.key, secrets });
+          if (!r.ok) return r;
+        }
+        const r = await l.saveSettings({
+          key: def.key,
+          config: { ...st.config, ...cfg },
+          prerequisitesDone: prereqs,
+        });
+        if (!r.ok) return r;
+        return {
+          ok: true,
+          message: def.implemented
+            ? `Đã lưu khóa và cấu hình ${def.name}, đang kiểm tra kết nối`
+            : `Đã lưu khóa và cấu hình ${def.name} vào kho bí mật. Bộ nối ${def.name} chưa được viết nên chưa kiểm tra được kết nối thật.`,
+        };
+      },
+      (r) => {
+        if (!r.ok) return;
+        setValues({});
+        onClose();
+      },
+    );
+  }
+
   function submit() {
     const preview: IntegrationState = {
       ...st,
       secrets: { ...st.secrets, ...Object.fromEntries(pasted.map((n) => [n, "x"])) },
       config: { ...st.config, ...cfg },
     };
-    const errs = connectBlockers(def, preview);
+    const errs = live
+      ? [
+          ...needed.filter((n) => !preview.secrets[n]).map((n) => `Chưa nhập ${def.secretLabels?.[n] ?? n}`),
+          ...configErrors(def, preview.config),
+        ]
+      : connectBlockers(def, preview);
     setErrors(errs);
     if (errs.length) return;
+    // Bản thật chưa có ứng dụng OAuth đứng tên showroom: chưa mở cửa sổ đăng nhập mô phỏng.
+    if (live) return saveLive();
     if (def.connectMode === "oauth")
       setLogin(
         Object.fromEntries(loginFields(def).map((f) => [f.key, fillFromLogin(def, st.config)[f.key]])),
@@ -715,12 +856,16 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
         </div>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          <button type="submit" className="c-btn is-brand">
-            {def.connectMode === "oauth"
-              ? `Đăng nhập ${provider} và kết nối`
-              : def.connectMode === "enable"
-                ? "Bật"
-                : "Kiểm tra và kết nối"}
+          <button type="submit" className="c-btn is-brand" disabled={pending}>
+            {live
+              ? pending
+                ? "Đang lưu…"
+                : "Lưu khóa và cấu hình"
+              : def.connectMode === "oauth"
+                ? `Đăng nhập ${provider} và kết nối`
+                : def.connectMode === "enable"
+                  ? "Bật"
+                  : "Kiểm tra và kết nối"}
           </button>
           <button type="button" className="c-btn" onClick={onClose}>
             Đóng
@@ -737,6 +882,7 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
 function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
   const { act } = useCrm();
   const { me } = useShell();
+  const { live, run, pending } = useLive();
   const [values, setValues] = useState<Record<string, string>>({});
   return (
     <ul className="m-0 list-none space-y-2 p-0">
@@ -759,6 +905,14 @@ function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!values[name]?.trim()) return;
+                  if (live) {
+                    const value = values[name];
+                    run(
+                      (l) => l.saveSecrets({ key: def.key, secrets: { [name]: value } }),
+                      (r) => r.ok && setValues((v) => ({ ...v, [name]: "" })),
+                    );
+                    return;
+                  }
                   act(
                     { type: "intSecret", key: def.key, name, actor: me },
                     st.secrets[name] ? "Đã thay khóa" : "Đã lưu khóa",
@@ -775,7 +929,7 @@ function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
                   onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
                   className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
                 />
-                <button type="submit" className="c-btn">
+                <button type="submit" className="c-btn" disabled={pending}>
                   {st.secrets[name] ? "Thay khóa" : "Lưu khóa"}
                 </button>
               </form>

@@ -665,6 +665,54 @@ export type Database = {
           },
         ];
       };
+      integration_secrets: {
+        Row: {
+          created_at: string;
+          id: string;
+          integration_key: string;
+          name: string;
+          showroom_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          vault_secret_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          integration_key: string;
+          name: string;
+          showroom_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          vault_secret_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          integration_key?: string;
+          name?: string;
+          showroom_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          vault_secret_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integration_secrets_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "integration_secrets_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       integrations: {
         Row: {
           config: NonNullable<Json>;
@@ -1778,11 +1826,17 @@ export type Database = {
         };
       };
       approval_permission: { Args: { p_type: string }; Returns: string };
+      assert_integration_writer: { Args: { p_key: string }; Returns: string };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
+      delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
+      get_integration_secret: {
+        Args: { p_key: string; p_name: string; p_showroom: string };
+        Returns: string;
+      };
       has_perm: { Args: { perm: string }; Returns: boolean };
       has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
       has_real_perm: { Args: { perm: string }; Returns: boolean };
@@ -1800,6 +1854,7 @@ export type Database = {
         Returns: number;
       };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
+      set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
       view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
       whoami: {
         Args: Record<PropertyKey, never>;

@@ -767,6 +767,20 @@ export type CrmAction =
       actor: string;
     }
   | { type: "intTest"; key: string; actor: string }
+  /** Bản thật: nạp trạng thái đấu nối đã lưu ở database (không có giá trị khóa). */
+  | {
+      type: "intHydrate";
+      rows: Record<
+        string,
+        {
+          status: IntegrationState["status"];
+          config: Record<string, unknown>;
+          prerequisitesDone: string[];
+          replyMode?: ReplyMode;
+          secrets: Record<string, string>;
+        }
+      >;
+    }
   | { type: "intPause"; key: string; paused: boolean; actor: string }
   | { type: "intDisconnect"; key: string; actor: string }
   | { type: "setTarget"; staffId: string; revenue: number; calls: number; actor: string }
@@ -1903,6 +1917,38 @@ export function reducer(s: State, a: CrmAction): State {
       ns = reducer(ns, { type: "intConnect", key: a.key, actor: a.actor, choices: a.choices });
       if (ns.settings.integrationStates[a.key].status === "connected")
         ns = reducer(ns, { type: "intTest", key: a.key, actor: a.actor });
+      return ns;
+    }
+    case "intHydrate": {
+      // Mọi đấu nối trong sổ đăng ký lấy theo database; chưa có dòng thì về trạng thái ban đầu
+      // (không giữ trạng thái, nhật ký, token mô phỏng của bản demo).
+      let ns = s;
+      for (const def of integrations) {
+        const fresh = initialIntegration(def);
+        const row = a.rows[def.key] ?? {
+          status: fresh.status,
+          config: {},
+          prerequisitesDone: [],
+          secrets: {},
+        };
+        const key = def.key;
+        ns = setInt(ns, key, () => ({
+          ...fresh,
+          status: def.connectMode ? row.status : fresh.status,
+          config: { ...fresh.config, ...row.config },
+          secrets: row.secrets,
+        }));
+        ns = {
+          ...ns,
+          settings: {
+            ...ns.settings,
+            prereqs: { ...ns.settings.prereqs, [key]: row.prerequisitesDone },
+            replyMode: row.replyMode
+              ? { ...ns.settings.replyMode, [key]: row.replyMode }
+              : ns.settings.replyMode,
+          },
+        };
+      }
       return ns;
     }
     case "intTest": {

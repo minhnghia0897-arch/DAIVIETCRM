@@ -267,6 +267,7 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
     case "intConnect":
     case "intQuick":
     case "intTest":
+    case "intHydrate":
     case "intPause":
     case "intDisconnect":
       return has(w, "settings.integrations") ? null : NO;

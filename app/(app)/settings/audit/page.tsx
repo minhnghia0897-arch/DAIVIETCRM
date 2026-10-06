@@ -18,6 +18,10 @@ const ACTION_LABEL: Record<string, string> = {
   "profile.role_change": "Đổi vai trò",
   "view_as.start": "Bắt đầu xem như người dùng",
   "view_as.end": "Kết thúc xem như người dùng",
+  "integration.secret_set": "Lưu khóa đấu nối",
+  "integration.secret_replace": "Thay khóa đấu nối",
+  "integration.secret_delete": "Xóa khóa đấu nối",
+  "integration.update": "Đổi cấu hình đấu nối",
 };
 
 const fmt = new Intl.DateTimeFormat("vi-VN", {
@@ -55,7 +59,7 @@ export default async function Page() {
     <div className="c-stack">
       <section className="c-card" aria-label="Nhật ký kiểm toán phân quyền và người dùng">
         <div className="c-ch">
-          <h2>Phân quyền và người dùng</h2>
+          <h2>Phân quyền, người dùng, đấu nối</h2>
           <span className="c-r c-lbl">200 thao tác gần nhất · không sửa, không xóa được</span>
         </div>
         <div className="c-tw">
