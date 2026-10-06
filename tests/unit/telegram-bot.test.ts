@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { telegramApi } from "@/lib/integrations/telegram_bot/api";
 import { parseCommand, PURPOSES, reasonVi } from "@/lib/integrations/telegram_bot/inbound";
-import { keyboardFor } from "@/lib/integrations/telegram_bot/outbound";
+import { isChatGone, keyboardFor } from "@/lib/integrations/telegram_bot/outbound";
+import { TelegramError } from "@/lib/integrations/telegram_bot/api";
 import { formatNotify, NOTIFY_EVENTS } from "@/lib/notify/events";
 
 // Bộ nối Telegram thật (lib/integrations/telegram_bot): phần thuần, không gọi mạng.
@@ -110,5 +111,35 @@ describe("lời tin của các loại mới", () => {
     );
     expect(text).toContain("Zalo OA");
     expect(text).toContain("lead có thể chưa vào CRM");
+  });
+});
+
+// Một người chặn bot hay một nhóm hỏng không được làm chết cả vòng gửi tin: nhận ra đúng loại lỗi này thì thôi
+// hẳn chat đó (thu hồi liên kết, đánh dấu nhóm đã rời) và đi tiếp, thay vì thử lại mỗi phút.
+describe("chat không gửi được nữa", () => {
+  it("bị chặn, bị đưa ra khỏi nhóm", () => {
+    expect(isChatGone(new TelegramError("sendMessage", 403, "Forbidden: bot was blocked by the user"))).toBe(
+      true,
+    );
+    expect(
+      isChatGone(new TelegramError("sendMessage", 403, "Forbidden: bot was kicked from the group chat")),
+    ).toBe(true);
+  });
+
+  it("nhóm không còn hoặc đã nâng cấp", () => {
+    expect(isChatGone(new TelegramError("sendMessage", 400, "Bad Request: chat not found"))).toBe(true);
+    expect(
+      isChatGone(
+        new TelegramError("sendMessage", 400, "Bad Request: group chat was upgraded to a supergroup"),
+      ),
+    ).toBe(true);
+  });
+
+  it("lỗi tạm thời hay lỗi khác thì không coi là mất chat", () => {
+    expect(isChatGone(new TelegramError("sendMessage", 429, "Too Many Requests: retry after 5"))).toBe(false);
+    expect(isChatGone(new TelegramError("sendMessage", 400, "Bad Request: message text is empty"))).toBe(
+      false,
+    );
+    expect(isChatGone(new Error("mạng hỏng"))).toBe(false);
   });
 });

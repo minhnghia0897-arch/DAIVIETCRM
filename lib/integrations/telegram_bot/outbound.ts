@@ -9,13 +9,36 @@ import {
 } from "../../notify/events.ts";
 import type { Database } from "../../db/types.ts";
 import { integrations } from "../registry.ts";
-import type { InlineButton, TelegramApi } from "./api.ts";
+import { TelegramError, type InlineButton, type TelegramApi } from "./api.ts";
 
 // CRM → Telegram: chọn đúng người nhận, viết tin theo mức chi tiết người đó chọn (lib/notify/events.ts), gửi, rồi ghi
 // lại tin nào gắn với lead hay việc nào để tin trả lời về sau ghi đúng hồ sơ. Không bao giờ có số điện thoại hay nội
 // dung tin nhắn của khách trong tin (CLAUDE.md mục 5, 12).
 
 type Db = SupabaseClient<Database>;
+
+/**
+ * Lỗi cho biết không gửi vào chat này được nữa: người dùng chặn bot, bot bị đưa ra khỏi nhóm, nhóm không còn,
+ * hoặc chat_id đã đổi. Gặp lỗi này thì thôi hẳn chat đó thay vì thử lại mỗi phút.
+ */
+export function isChatGone(e: unknown): boolean {
+  if (!(e instanceof TelegramError)) return false;
+  if (e.code === 403) return true;
+  return e.code === 400 && /chat not found|chat_id is empty|group chat was upgraded/i.test(e.message);
+}
+
+/**
+ * Gửi một tin, hỏng thì ghi lại và đi tiếp. Một người chặn bot hay một nhóm hỏng không được làm chết cả vòng
+ * quét, vì như vậy mọi người ngừng nhận mọi thông báo. Lỗi database vẫn nổi lên vì đó là hỏng thật.
+ */
+async function trySend(what: string, send: () => Promise<unknown>): Promise<void> {
+  try {
+    await send();
+  } catch (e) {
+    if (e instanceof TelegramError) console.error(`Không gửi được ${what}: ${e.message}`);
+    else throw e;
+  }
+}
 
 export const vnTime = (iso: string | Date) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -76,12 +99,26 @@ export async function notifyUser(
   const full: NotifyFacts = { ...facts, to: userId, at: now };
   const { text } = formatNotify(full, prefs.level);
   const keyboard = keyboardFor(full, prefs.level);
-  const sent = await api.call<{ message_id: number }>("sendMessage", {
-    chat_id: link.chat_id,
-    text,
-    disable_notification: inQuietHours(prefs.quiet, now),
-    ...(keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {}),
-  });
+  let sent: { message_id: number };
+  try {
+    sent = await api.call<{ message_id: number }>("sendMessage", {
+      chat_id: link.chat_id,
+      text,
+      disable_notification: inQuietHours(prefs.quiet, now),
+      ...(keyboard.length ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    });
+  } catch (e) {
+    // Người này đã chặn bot hoặc chat không còn: thu hồi liên kết để thôi gửi, họ liên kết lại khi cần.
+    if (isChatGone(e)) {
+      await db
+        .from("telegram_links")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .is("revoked_at", null);
+      return false;
+    }
+    throw e;
+  }
   await db.from("telegram_messages").insert({
     showroom_id: link.showroom_id,
     chat_id: link.chat_id,
@@ -116,7 +153,17 @@ export async function postToGroup(
     .eq("status", "active")
     .maybeSingle();
   if (!group) return false;
-  const sent = await api.call<{ message_id: number }>("sendMessage", { chat_id: group.chat_id, text });
+  let sent: { message_id: number };
+  try {
+    sent = await api.call<{ message_id: number }>("sendMessage", { chat_id: group.chat_id, text });
+  } catch (e) {
+    // Bot đã bị đưa ra khỏi nhóm hoặc nhóm không còn: đánh dấu để màn Nhóm nội bộ thấy và thôi gửi vào đây.
+    if (isChatGone(e)) {
+      await db.from("telegram_groups").update({ status: "lost" }).eq("chat_id", group.chat_id);
+      return false;
+    }
+    throw e;
+  }
   await db.from("telegram_messages").insert({
     showroom_id: showroomId,
     chat_id: group.chat_id,
@@ -213,25 +260,30 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     const contact = Array.isArray(lead.contacts) ? lead.contacts[0] : lead.contacts;
     const payload = (e.payload ?? {}) as { to?: string | null };
     if (e.type === "assignment" && payload.to) {
-      await notifyUser(
-        db,
-        api,
-        payload.to,
-        {
-          event: "lead_assigned",
-          customer: contact?.full_name,
-          market: contact?.country_of_residence,
-          due: lead.sla_due_at ? vnTime(lead.sla_due_at) : undefined,
-          path: `/leads/${lead.id}`,
-        },
-        { leadId: lead.id },
+      const to = payload.to;
+      await trySend("tin lead mới", () =>
+        notifyUser(
+          db,
+          api,
+          to,
+          {
+            event: "lead_assigned",
+            customer: contact?.full_name,
+            market: contact?.country_of_residence,
+            due: lead.sla_due_at ? vnTime(lead.sla_due_at) : undefined,
+            path: `/leads/${lead.id}`,
+          },
+          { leadId: lead.id },
+        ),
       );
     }
     if (e.type === "lead_created") {
-      await postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`, {
-        eventType: "lead_created",
-        leadId: lead.id,
-      });
+      await trySend("tin lead mới vào nhóm", () =>
+        postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`, {
+          eventType: "lead_created",
+          leadId: lead.id,
+        }),
+      );
     }
   }
 
@@ -253,19 +305,21 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
         ? leadRel.contacts[0]
         : leadRel.contacts
       : null;
-    await notifyUser(
-      db,
-      api,
-      t.assigned_to!,
-      {
-        event: "callback_due",
-        customer: contact?.full_name,
-        market: contact?.country_of_residence,
-        due: vnTime(t.due_at),
-        taskId: t.id,
-        path: t.lead_id ? `/leads/${t.lead_id}` : "/tasks",
-      },
-      { leadId: t.lead_id, taskId: t.id },
+    await trySend("tin hẹn gọi lại", () =>
+      notifyUser(
+        db,
+        api,
+        t.assigned_to!,
+        {
+          event: "callback_due",
+          customer: contact?.full_name,
+          market: contact?.country_of_residence,
+          due: vnTime(t.due_at),
+          taskId: t.id,
+          path: t.lead_id ? `/leads/${t.lead_id}` : "/tasks",
+        },
+        { leadId: t.lead_id, taskId: t.id },
+      ),
     );
   }
   next.lastTaskCheck = now;
@@ -283,11 +337,13 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     for (const uid of approvers) {
       // Người đề xuất không tự duyệt được nên không cần báo.
       if (uid === a.requested_by) continue;
-      await notifyUser(db, api, uid, {
-        event: "approval_needed",
-        what: APPROVAL_WHAT[a.type],
-        path: "/approvals",
-      });
+      await trySend("tin chờ duyệt", () =>
+        notifyUser(db, api, uid, {
+          event: "approval_needed",
+          what: APPROVAL_WHAT[a.type],
+          path: "/approvals",
+        }),
+      );
     }
   }
 
@@ -324,18 +380,20 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
       const targets = new Set(lead.assigned_to ? [lead.assigned_to, ...watchers] : watchers);
       for (const uid of targets) {
         if (sent.has(`${lead.id}:${uid}`)) continue;
-        await notifyUser(
-          db,
-          api,
-          uid,
-          {
-            event: "sla_overdue",
-            customer: contact?.full_name,
-            market: contact?.country_of_residence,
-            due: lead.sla_due_at ? vnTime(lead.sla_due_at) : undefined,
-            path: `/leads/${lead.id}`,
-          },
-          { leadId: lead.id },
+        await trySend("tin lead quá hạn", () =>
+          notifyUser(
+            db,
+            api,
+            uid,
+            {
+              event: "sla_overdue",
+              customer: contact?.full_name,
+              market: contact?.country_of_residence,
+              due: lead.sla_due_at ? vnTime(lead.sla_due_at) : undefined,
+              path: `/leads/${lead.id}`,
+            },
+            { leadId: lead.id },
+          ),
         );
       }
     }
@@ -354,12 +412,15 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     if (a.decided_at && a.decided_at > next.lastDecisionAt) next.lastDecisionAt = a.decided_at;
     // Đề xuất do agent AI tạo thì không có người để báo.
     if (!a.requested_by || a.requested_by_type !== "user") continue;
-    await notifyUser(db, api, a.requested_by, {
-      event: "approval_result",
-      what: APPROVAL_WHAT[a.type],
-      ok: a.status === "approved",
-      path: "/approvals",
-    });
+    const requester = a.requested_by;
+    await trySend("tin kết quả duyệt", () =>
+      notifyUser(db, api, requester, {
+        event: "approval_result",
+        what: APPROVAL_WHAT[a.type],
+        ok: a.status === "approved",
+        path: "/approvals",
+      }),
+    );
   }
 
   // 6. Đấu nối bị lỗi: báo người kết nối được, để lead không im lặng ngừng chảy vào CRM.
@@ -377,11 +438,13 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     const owners = await usersWithPerm(db, r.showroom_id, "settings.integrations", permCache);
     const name = integrations.find((d) => d.key === r.key)?.name ?? r.key;
     for (const uid of owners) {
-      await notifyUser(db, api, uid, {
-        event: "integration_error",
-        integration: name,
-        path: "/settings/integrations",
-      });
+      await trySend("tin đấu nối lỗi", () =>
+        notifyUser(db, api, uid, {
+          event: "integration_error",
+          integration: name,
+          path: "/settings/integrations",
+        }),
+      );
     }
   }
 
