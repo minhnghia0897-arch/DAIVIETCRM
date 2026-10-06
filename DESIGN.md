@@ -51,7 +51,9 @@ Phong cách kiểu Slack, giản lược cho dễ nhìn: nền nội dung trắn
 | Token | Giá trị | Nền nhạt | Dùng cho |
 |---|---|---|---|
 | `--brand` | `#1264A3` | `#E8F5FA` | Hành động chính, liên kết |
-| `--brand-strong` | `#0B4C8C` | | Hover nút chính, giai đoạn hiện tại trên path |
+| `--brand-strong` | `#0B4C8C` | | Hover liên kết đậm |
+| `--go` / `--go-strong` | `#007A5A` / `#005E46` | | Nút xác nhận (Duyệt, Lưu, Gửi), nút Gọi, công tắc bật |
+| `--action` / `--action-strong` | `#2F73D1` / `#1E5BB0` | | Nút bắt đầu việc mới (Tạo lead, Tạo báo giá, Kết nối), bước hiện tại trên path |
 | `--ok` | `#007A5A` | `#E3F4EF` | Thành công, đã liên hệ, đúng hạn |
 | `--warn` | `#8A5300` | `#FDF3DD` | Sắp quá hạn, cần chú ý, chờ duyệt, dải thông báo bản demo |
 | `--err` | `#C4184F` | `#FDE8EF` | Quá hạn, lỗi, thất bại |
@@ -85,7 +87,7 @@ Tháng 1 chỉ làm giao diện sáng. Đặt token theo cách thêm giao diện
 | Chỉ số lớn | 24 / 30 | 800 | Ô KPI |
 | Thân | 14 / 21 | 400 | Nội dung chính, ô bảng |
 | Nhãn | 12.5 / 18 | 400, màu `--text-weak` | Nhãn trường, chú thích |
-| Nút | 13.5 / 20 | 700 | Nút: viền xám, chữ màu chữ chính; nút chính nền `--brand` chữ trắng |
+| Nút | 14 / 20 | 700 | Nút: viền xám, chữ màu chữ chính, bo 8px, cao 34px; nút xác nhận nền xanh lá `--go`, nút bắt đầu việc mới nền xanh dương `--action`, chữ trắng |
 | Pill | 12 / 16 | 700 | Trạng thái, bo góc 4px |
 
 Giản lược để dễ nhìn:
@@ -253,7 +255,11 @@ Pill luôn có chữ. Bảng ý nghĩa: `--ok` thành công, đúng hạn; `--wa
 
 ### 5.13 Nút
 
-- Chính: nền `--brand`, chữ trắng. Mỗi vùng tối đa một nút chính.
+- Chính, xác nhận (Duyệt, Lưu, Gửi, Ghi nhận, Chuyển bước): nền xanh lá `--go` `#007A5A`, hover `--go-strong`, chữ trắng, như nút "Upgrade Now" của Slack. Mỗi vùng tối đa một nút chính.
+- Bắt đầu việc mới (Tạo lead, Tạo báo giá, Tạo cơ hội, Kết nối, Tiếp quản): nền xanh dương `--action` `#2F73D1`, hover `--action-strong`, chữ trắng (lớp `is-blue`, biến thể `blue`).
+- Nút màu bị khóa: nền xám `--line-2`, chữ xám, không làm mờ màu gốc.
+- Công tắc bật: xanh lá `--go`.
+- Trang chi tiết: thẻ bo 12px; dải thông tin chính dưới tiêu đề nền xanh nhạt `--brand-soft` bo 10px, nhãn xám nhỏ, giá trị đậm 15px; nhãn trạng thái bo 6px, chữ đậm trên nền nhạt cùng tông.
 - Phụ: nền trắng, viền `--line`, chữ `--brand`.
 - Nguy hiểm (xóa, khóa người dùng): chữ `--err`, luôn có hộp xác nhận ghi rõ hậu quả.
 - Nhóm nút liền nhau cho các hành động cùng loại.

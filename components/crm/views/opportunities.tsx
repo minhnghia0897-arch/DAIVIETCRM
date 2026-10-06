@@ -35,7 +35,7 @@ export function CrmOpportunities() {
           {can("lead.create") ? (
             <button
               type="button"
-              className="c-btn is-brand"
+              className="c-btn is-blue"
               onClick={() => setPanel(panel === "new" ? null : "new")}
             >
               Tạo lead

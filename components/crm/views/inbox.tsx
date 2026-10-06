@@ -85,7 +85,7 @@ export function CrmInbox() {
             {canSend && (c.status === "need" || c.status === "agent") ? (
               <button
                 type="button"
-                className="c-btn is-brand"
+                className="c-btn is-blue"
                 onClick={() => act({ type: "takeOver" }, `Đã tiếp quản hội thoại với ${c.name}`)}
               >
                 Tiếp quản

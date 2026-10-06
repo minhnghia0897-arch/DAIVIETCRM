@@ -23,7 +23,7 @@ export function Switch({
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 items-center rounded-pill transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-        checked ? "bg-brand" : "bg-line",
+        checked ? "bg-go" : "bg-line",
       )}
     >
       <span

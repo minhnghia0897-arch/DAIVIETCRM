@@ -20,6 +20,11 @@
   --brand: #1264a3;
   --brand-soft: #e8f5fa;
   --brand-strong: #0b4c8c;
+  /* Nút hành động kiểu Slack: xanh lá cho xác nhận (Duyệt, Lưu, Gửi), xanh dương cho bắt đầu việc mới. */
+  --go: #007a5a;
+  --go-strong: #005e46;
+  --action: #2f73d1;
+  --action-strong: #1e5bb0;
   --ok: #007a5a;
   --ok-soft: #e3f4ef;
   --warn: #8a5300;
@@ -64,6 +69,10 @@
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-brand-strong: var(--brand-strong);
+  --color-go: var(--go);
+  --color-go-strong: var(--go-strong);
+  --color-action: var(--action);
+  --color-action-strong: var(--action-strong);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);

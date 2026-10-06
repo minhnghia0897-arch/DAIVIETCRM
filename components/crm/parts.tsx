@@ -191,10 +191,12 @@ export function ApprovalList({ items }: { items: QueueItem[] }) {
                   >
                     Từ chối
                   </button>
-                  {self ? <span className="c-lbl">Bạn tự đề xuất; lần duyệt này được ghi riêng.</span> : null}
+                  {self ? (
+                    <span className="c-lbl">Anh chị tự đề xuất; lần duyệt này được ghi riêng.</span>
+                  ) : null}
                 </>
               ) : self ? (
-                <span className="c-lbl">Bạn là người đề xuất, cần người khác duyệt.</span>
+                <span className="c-lbl">Anh chị là người đề xuất, cần người khác duyệt.</span>
               ) : (
                 <span className="c-lbl">Chờ người có quyền duyệt.</span>
               )}

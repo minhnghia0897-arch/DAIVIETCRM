@@ -1846,3 +1846,92 @@ kbd {
   background: var(--err);
   flex: 1;
 }
+
+/*
+ * Màu nút và trang chi tiết kiểu Slack (06/10/2026). Ngoài @layer để thắng các quy tắc cũ.
+ * Nút xác nhận (Duyệt, Lưu, Gửi, Ghi nhận, Chuyển bước) xanh lá như "Upgrade Now"; nút bắt đầu việc mới
+ * (Tạo lead, Tạo báo giá, Kết nối, Tiếp quản) xanh dương như "Pay as you go". Nút bị khóa nền xám, không mờ màu.
+ */
+.c-btn {
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+.c-btn.is-brand,
+.c-btn.is-go {
+  background: var(--go);
+  border-color: var(--go);
+  color: #fff;
+}
+.c-btn.is-brand:hover,
+.c-btn.is-go:hover {
+  background: var(--go-strong);
+  border-color: var(--go-strong);
+}
+.c-btn.is-blue {
+  background: var(--action);
+  border-color: var(--action);
+  color: #fff;
+}
+.c-btn.is-blue:hover {
+  background: var(--action-strong);
+  border-color: var(--action-strong);
+}
+.c-btn:is(.is-brand, .is-go, .is-blue, .is-ai):disabled {
+  background: var(--line-2);
+  border-color: var(--line-2);
+  color: #8a898a;
+  opacity: 1;
+}
+
+/* Trang chi tiết: thẻ bo 12px, tiêu đề phần đậm hơn; dải thông tin chính nền xanh nhạt như khung giới thiệu
+   của Slack, nhãn xám nhỏ, giá trị đậm màu chữ chính để dễ đọc lướt. */
+.c-card {
+  border-radius: 12px;
+}
+.c-ch h2 {
+  font-size: 16px;
+  letter-spacing: -0.005em;
+}
+.c-phd .c-t b {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.c-hl {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  row-gap: 10px;
+}
+.c-hl > div {
+  color: var(--text-weak);
+  font-size: 12.5px;
+}
+.c-hl b {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+/* Nhãn trạng thái: chữ đậm trên nền nhạt cùng tông, bo nhẹ như nhãn "Template" của Slack. */
+.c-pill {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+.c-pill.is-info {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+/* Bước đang ở: gạch chân xanh dương đậm; bước đã qua: xanh lá. */
+.c-steps .is-cur {
+  border-bottom-color: var(--action);
+  color: var(--action);
+}
+/* Khối phụ trong thẻ (người đặt, người nhận…): nền xám nhạt bo tròn như khung "Bring all your tools". */
+.c-card .bg-surface-2 {
+  border-radius: 10px;
+}

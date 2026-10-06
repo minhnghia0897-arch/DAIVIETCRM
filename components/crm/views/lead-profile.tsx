@@ -161,7 +161,7 @@ export function LeadProfile({ opp }: { opp: Opportunity }) {
           {opp.stage >= 1 && opp.stage < 4 && canEdit && can("quote.create") ? (
             <button
               type="button"
-              className="c-btn"
+              className="c-btn is-blue"
               disabled={missing.length > 0}
               title={missing.length ? `Thiếu: ${missing.join(", ")}` : undefined}
               onClick={() => {

@@ -147,7 +147,7 @@ export function CrmHouseholds() {
                   ) : can("lead.create") ? (
                     <button
                       type="button"
-                      className="c-btn is-brand"
+                      className="c-btn is-blue"
                       onClick={() =>
                         act(
                           { type: "createCross", houseId: h.id, index: i },

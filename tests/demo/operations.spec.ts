@@ -168,7 +168,7 @@ test("sale admin không tự xác nhận khoản mình ghi nhận", async ({ pag
     .getByRole("dialog", { name: "Chờ duyệt" })
     .locator(".c-appr")
     .filter({ hasText: "Q4-2610-0015" });
-  await expect(item).toContainText("Bạn là người đề xuất, cần người khác duyệt");
+  await expect(item).toContainText("Anh chị là người đề xuất, cần người khác duyệt");
   await expect(item.getByRole("button", { name: "Duyệt" })).toHaveCount(0);
 });
 

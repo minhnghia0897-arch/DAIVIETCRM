@@ -230,7 +230,7 @@ function IntegrationRow({
         ) : null}
         <span className="flex flex-wrap gap-1">
           {actions.includes("connect") ? (
-            <button type="button" className="c-btn is-brand" aria-expanded={quick} onClick={toggleQuick}>
+            <button type="button" className="c-btn is-blue" aria-expanded={quick} onClick={toggleQuick}>
               {def.connectMode === "enable" ? "Bật" : "Kết nối"}
             </button>
           ) : null}
