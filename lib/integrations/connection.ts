@@ -148,6 +148,9 @@ export const PREREQ_ERRORS: Record<string, string> = {
   domain: "Chưa có tên miền để gửi thư.",
   pancake_api_scope: "Gói Pancake đang dùng không mở API.",
   provider_chosen: "Chưa chọn nhà cung cấp tổng đài.",
+  bot_created: "Chưa có bot Telegram. Tạo bot qua @BotFather rồi dán token vào ô khóa.",
+  https_domain: "Telegram chỉ gọi webhook và mở Mini App qua địa chỉ HTTPS; CRM chưa có tên miền thật.",
+  data_rule: "Chưa chốt quy tắc dữ liệu trong tin Telegram (không số điện thoại, không nội dung tin khách).",
   messaging_permission: "Meta chưa duyệt quyền nhắn tin cho ứng dụng nên chưa nhận được tin của Page.",
   one_reply_place:
     "Page đang được trả lời ở công cụ khác. Đặt kênh đó chỉ đọc hoặc ngắt Page khỏi công cụ đó trước, mỗi kênh chỉ một nơi trả lời.",

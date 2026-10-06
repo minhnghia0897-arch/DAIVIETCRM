@@ -114,6 +114,8 @@ export interface SettingsItem {
 
 // Khu Cài đặt (CLAUDE.md 11.2). Thêm mục khi màn hình được dựng.
 export const SETTINGS_ITEMS: SettingsItem[] = [
+  // Thông báo điện thoại của chính mình: mọi người dùng (perm rỗng).
+  { href: "/settings/notifications", label: "Thông báo Telegram", perm: "" },
   { href: "/settings/users", label: "Người dùng", perm: "settings.users" },
   { href: "/settings/permissions", label: "Phân quyền", perm: "settings.permissions" },
   { href: "/settings/shifts", label: "Ca trực", perm: "settings.assignment" },
@@ -142,5 +144,5 @@ export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
 }
 
 export function visibleSettings(perms: ReadonlySet<string>): SettingsItem[] {
-  return SETTINGS_ITEMS.filter((s) => perms.has(s.perm));
+  return SETTINGS_ITEMS.filter((s) => s.perm === "" || perms.has(s.perm));
 }

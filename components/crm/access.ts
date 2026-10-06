@@ -248,6 +248,10 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       const c = s.chats.find((x) => x.id === str("chatId"));
       return c && c.admins.includes(w.me) ? null : "Chỉ quản trị nhóm ghim tin";
     }
+    case "notifyPrefs":
+      return str("who") === w.me ? null : "Chỉ chỉnh được thông báo của chính mình";
+    case "notifyTest":
+      return str("who") === w.me ? null : NO;
     case "chatTopicCreate": {
       const c = s.chats.find((x) => x.id === str("chatId"));
       if (!c || !c.members.includes(w.me)) return "Anh chị không ở trong nhóm này";

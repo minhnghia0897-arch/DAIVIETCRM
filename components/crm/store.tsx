@@ -23,6 +23,14 @@ import {
 } from "@/lib/demo/ops-data";
 import { POLICIES } from "@/lib/demo/sales-catalog";
 import {
+  NOTIFY_EVENTS,
+  defaultPrefs,
+  formatNotify,
+  type NotifyEvent,
+  type NotifyFacts,
+  type NotifyPrefs,
+} from "@/lib/notify/events";
+import {
   TEAM_CHATS,
   TOPIC_COLORS,
   type ChatAttachment,
@@ -338,6 +346,10 @@ interface State {
   chats: TeamChat[];
   /** Số tin đã xem của từng chủ đề ("nhóm/chủ đề"), để đếm tin chưa đọc. */
   chatSeen: Record<string, number>;
+  /** Tin Telegram sinh từ sự kiện (bản demo: hộp thư đi mô phỏng), mới nhất trước. */
+  tgOutbox: TgNote[];
+  /** Cài đặt thông báo Telegram của từng người (theo tên gọi ngắn). */
+  notifyPrefs: Record<string, NotifyPrefs>;
   convSel: string;
   houseSel: string;
   crossDone: string[];
@@ -538,6 +550,12 @@ export function initialState(): State {
     oppSel: "o1",
     convs: CONVERSATIONS,
     chats: TEAM_CHATS,
+    tgOutbox: [],
+    // Thảo, Minh đã liên kết Telegram để bản demo có tin ngay; Owner tự liên kết ở trang cài đặt.
+    notifyPrefs: {
+      Thảo: { ...defaultPrefs(), linked: true, telegram: "@thao_daiviet", level: "detail" },
+      Minh: { ...defaultPrefs(), linked: true, telegram: "@minh_saleadmin" },
+    },
     // Vài chủ đề có tin chưa đọc để thấy số đếm như Telegram.
     chatSeen: Object.fromEntries(
       TEAM_CHATS.flatMap((c) =>
@@ -791,6 +809,8 @@ export type CrmAction =
   | { type: "chatLike"; chatId: string; topicId: string; msgId: string; actor: string }
   | { type: "chatPin"; chatId: string; topicId: string; msgId: string | null; actor: string }
   | { type: "chatTopicCreate"; chatId: string; name: string; actor: string }
+  | { type: "notifyPrefs"; who: string; patch: Partial<NotifyPrefs>; actor: string }
+  | { type: "notifyTest"; who: string }
   | { type: "createOrderManual"; draft: OrderDraft; result: QuoteResult; actorId: string; actor: string }
   | { type: "editOrder"; orderId: string; draft: OrderDraft; result: QuoteResult; actor: string }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
@@ -2236,6 +2256,27 @@ export function reducer(s: State, a: CrmAction): State {
         chatSeen: { ...s.chatSeen, [`${c.id}/${topic.id}`]: 0 },
       };
     }
+    case "notifyTest": {
+      // Tin thử: lấy lead đầu tiên người này giữ làm ví dụ.
+      const o = s.opps.find((x) => x.owner === a.who) ?? s.opps[0];
+      const seq = s.seq + 1;
+      const note: TgNote = {
+        id: `tg${seq}`,
+        event: "lead_assigned",
+        to: a.who,
+        at: fmtMinutes(s.minutes),
+        customer: o?.name,
+        market: o ? s.leadInfo[o.id]?.market : undefined,
+        product: o?.product.replace("Ghế massage ", "Ghế "),
+        due: fmtMinutes(s.minutes + s.settings.slaMinutes),
+        path: o ? `/m?tab=lead&id=${o.id}` : "/m",
+      };
+      return { ...s, seq, tgOutbox: [note, ...s.tgOutbox] };
+    }
+    case "notifyPrefs": {
+      const cur = s.notifyPrefs[a.who] ?? defaultPrefs();
+      return { ...s, notifyPrefs: { ...s.notifyPrefs, [a.who]: { ...cur, ...a.patch } } };
+    }
     case "createOrderManual": {
       if (!a.result.lines.length) return s;
       const { id, code } = nextOrderRef(s);
@@ -3023,6 +3064,170 @@ function updateConv(s: State, id: string, f: (c: Conversation) => Conversation):
 }
 
 // ---------------------------------------------------------------------------
+// Thông báo Telegram: so trạng thái trước và sau mỗi thao tác để sinh tin cho đúng người (lib/notify/events.ts)
+// ---------------------------------------------------------------------------
+
+export interface TgNote extends NotifyFacts {
+  id: string;
+}
+
+const roleOfShort = (name: string) => STAFF.find((st) => staffShort(st.id) === name)?.roleKey ?? "";
+/** Người trong đội có quyền mặc định này (theo vai trò), để biết ai cần nhận tin duyệt, tin điều phối. */
+const holders = (perm: string) =>
+  STAFF.filter((st) => st.status !== "offboarded" && roleDefaultHas(st.roleKey, perm)).map((st) =>
+    staffShort(st.id),
+  );
+
+function notifyDiff(prev: State, next: State, a: CrmAction): State {
+  if (prev === next || a.type === "restore") return next;
+  const at = fmtMinutes(next.minutes);
+  const out: NotifyFacts[] = [];
+  const add = (to: string | string[], f: Omit<NotifyFacts, "to" | "at">) => {
+    for (const name of new Set(Array.isArray(to) ? to : [to])) if (name) out.push({ ...f, to: name, at });
+  };
+  const leadFacts = (oppId: string) => {
+    const o = next.opps.find((x) => x.id === oppId);
+    return {
+      customer: o?.name,
+      market: next.leadInfo[oppId]?.market,
+      product: o?.product.replace("Ghế massage ", "Ghế "),
+    };
+  };
+
+  // Lead vừa có người giữ (phân vòng tròn, giao tay, chuyển, bàn giao).
+  if (next.opps !== prev.opps)
+    for (const o of next.opps) {
+      const before = prev.opps.find((x) => x.id === o.id);
+      if (o.owner && before?.owner !== o.owner) {
+        const due = next.leadMeta[o.id]?.slaDue;
+        add(o.owner, {
+          event: "lead_assigned",
+          ...leadFacts(o.id),
+          due: due !== undefined && due >= 0 ? fmtMinutes(due) : undefined,
+          path: `/m?tab=lead&id=${o.id}`,
+        });
+      }
+    }
+
+  // Thời gian trôi: lead tới hạn SLA chưa gọi, việc hẹn gọi lại tới giờ.
+  if (next.minutes > prev.minutes) {
+    for (const o of next.opps) {
+      const m = next.leadMeta[o.id];
+      if (!m || m.firstContactAt !== undefined || m.slaDue === undefined) continue;
+      if (m.slaDue > prev.minutes && m.slaDue <= next.minutes)
+        add([o.owner, ...holders("lead.assign")], {
+          event: "sla_overdue",
+          ...leadFacts(o.id),
+          due: fmtMinutes(m.slaDue),
+          path: `/m?tab=lead&id=${o.id}`,
+        });
+    }
+    for (const t of next.tasks)
+      if (t.type === "callback" && t.status === "open" && t.due > prev.minutes && t.due <= next.minutes)
+        add(t.owner, {
+          event: "callback_due",
+          ...(t.oppId ? leadFacts(t.oppId) : {}),
+          due: fmtMinutes(t.due),
+          taskId: t.id,
+          path: t.oppId ? `/m?tab=lead&id=${t.oppId}` : "/m?tab=viec",
+        });
+  }
+
+  // Hàng chờ duyệt: mục mới báo người có quyền duyệt; mục vừa duyệt, từ chối báo người đề xuất.
+  if (next.queue !== prev.queue) {
+    const what = (k: QueueItem["kind"]) =>
+      ({
+        discount: "Giảm giá báo giá",
+        order_discount: "Giảm giá đơn",
+        order_payment: "Xác nhận tiền",
+        stock_count: "Kiểm kê",
+        agent: "Đề xuất agent",
+      })[k];
+    for (const q of next.queue)
+      if (!prev.queue.some((x) => x.id === q.id) && q.kind !== "agent")
+        add(
+          holders(q.perm).filter((n) => n !== q.requestedBy || roleOfShort(n) === "owner"),
+          { event: "approval_needed", what: what(q.kind), path: "/m?tab=duyet" },
+        );
+    if (a.type === "approve")
+      for (const q of prev.queue)
+        if (!next.queue.some((x) => x.id === q.id) && q.requestedBy && q.kind !== "agent")
+          add(q.requestedBy, { event: "approval_result", what: what(q.kind), ok: a.ok, path: "/m?tab=viec" });
+  }
+
+  // Đơn đổi trạng thái: báo người bán.
+  if (next.orders !== prev.orders)
+    for (const o of next.orders) {
+      const before = prev.orders.find((x) => x.id === o.id);
+      if (before && before.status !== o.status)
+        add(staffShort(o.sellerId), {
+          event: "order_status",
+          orderCode: o.code,
+          status: ORDER_STATUS[o.status].label.toLowerCase(),
+          customer: orderPeople(o).buyer,
+          market: o.buyerMarket,
+          path: `/orders/${o.id}`,
+        });
+    }
+
+  // Nhóm nội bộ: @tên báo người được nhắc; mọi tin mới báo thành viên khác (mặc định tắt).
+  if (next.chats !== prev.chats)
+    for (const c of next.chats)
+      for (const t of c.topics) {
+        const old =
+          prev.chats.find((x) => x.id === c.id)?.topics.find((x) => x.id === t.id)?.messages.length ?? 0;
+        for (const m of t.messages.slice(old)) {
+          const mentioned = c.members.filter((n) => n !== m.from && m.text.includes(`@${n}`));
+          add(mentioned, {
+            event: "chat_mention",
+            from: m.from,
+            group: `${c.name} · ${t.name}`,
+            path: "/chat",
+          });
+          add(
+            c.members.filter((n) => n !== m.from && !mentioned.includes(n)),
+            { event: "chat_message", from: m.from, group: `${c.name} · ${t.name}`, path: "/chat" },
+          );
+        }
+      }
+
+  // Đấu nối chuyển sang lỗi: báo người quản lý đấu nối.
+  const ints = next.settings.integrationStates;
+  if (ints !== prev.settings.integrationStates)
+    for (const def of integrations)
+      if (ints[def.key]?.status === "error" && prev.settings.integrationStates[def.key]?.status !== "error")
+        add(holders("settings.integrations"), {
+          event: "integration_error",
+          integration: def.name,
+          path: "/settings/integrations",
+        });
+
+  if (!out.length) return next;
+  const seq = next.seq + out.length;
+  const notes: TgNote[] = out.map((f, i) => ({ ...f, id: `tg${next.seq + i + 1}` }));
+  return { ...next, seq, tgOutbox: [...notes.reverse(), ...next.tgOutbox].slice(0, 80) };
+}
+
+export function reducerWithNotify(s: State, a: CrmAction): State {
+  return notifyDiff(s, reducer(s, a), a);
+}
+
+/** Tin sẽ thật sự gửi tới người này: đã liên kết, bật sự kiện, ngoài giờ im lặng (bản demo không chặn ngược). */
+export function notesFor(
+  s: State,
+  name: string,
+): (TgNote & { text: string; buttons: ReturnType<typeof formatNotify>["buttons"] })[] {
+  const p = s.notifyPrefs[name] ?? defaultPrefs();
+  return s.tgOutbox
+    .filter(
+      (n) => n.to === name && (p.events[n.event] ?? NOTIFY_EVENTS.find((e) => e.key === n.event)?.defaultOn),
+    )
+    .map((n) => ({ ...n, ...formatNotify(n, p.level) }));
+}
+
+export type { NotifyEvent };
+
+// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
@@ -3040,7 +3245,7 @@ interface Ctx {
 const CrmContext = createContext<Ctx | null>(null);
 
 export function CrmProvider({ who, children }: { who: Who; children: React.ReactNode }) {
-  const [state, rawDispatch] = useReducer(reducer, undefined, initialState);
+  const [state, rawDispatch] = useReducer(reducerWithNotify, undefined, initialState);
   const toast = useToast();
   const latest = useRef(state);
   const whoRef = useRef(who);

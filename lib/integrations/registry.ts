@@ -18,7 +18,8 @@ export type Capability =
   | "outbound_invoices"
   | "file_storage"
   | "email"
-  | "ai_processing";
+  | "ai_processing"
+  | "staff_notifications";
 
 export type IntegrationPhase = "month_1" | "month_2" | "month_3" | "when_available" | "optional";
 
@@ -613,6 +614,40 @@ export const integrations = [
     ],
     secretLabels: { einvoice_password: "Mật khẩu API hóa đơn" },
     testLabel: "Hóa đơn nháp thử (không phát hành)",
+  },
+  {
+    key: "telegram_bot",
+    webhookPath: "/api/webhooks/telegram",
+    name: "Thông báo Telegram cho nhân viên",
+    description:
+      "Bot báo lead mới, giờ hẹn, việc chờ duyệt, đơn đổi trạng thái lên Telegram; nút Mở CRM mở Mini App trên điện thoại.",
+    group: "operations",
+    phase: "month_2",
+    implemented: false,
+    capabilities: ["staff_notifications"],
+    prerequisites: [
+      { key: "bot_created", label: "Owner đã tạo bot qua @BotFather và giữ token" },
+      { key: "https_domain", label: "CRM đã có tên miền HTTPS (cho webhook và Mini App)" },
+      {
+        key: "data_rule",
+        label:
+          "Đã chốt: tin chỉ báo có việc hoặc tên gọi ngắn, không số điện thoại, không nội dung tin khách",
+      },
+    ],
+    configSchema: z.object({
+      botUsername: z
+        .string()
+        .regex(/^[A-Za-z0-9_]{2,29}bot$/i, "Tên bot kết thúc bằng bot, ví dụ DaiVietQ4Bot"),
+    }),
+    secrets: ["telegram_bot_token", "telegram_webhook_secret"],
+    connectMode: "api_key",
+    configFields: [{ key: "botUsername", label: "Tên bot", kind: "text", placeholder: "DaiVietQ4Bot" }],
+    secretLabels: {
+      telegram_bot_token: "Token của bot (từ @BotFather)",
+      telegram_webhook_secret: "Mã bí mật webhook (tự đặt, Telegram gửi kèm mỗi lần gọi về)",
+    },
+    testLabel: "Tin thử gửi tới Telegram của Owner",
+    note: "Mỗi nhân viên tự liên kết Telegram ở Cài đặt, Thông báo Telegram. Tin không chứa số điện thoại hay nội dung tin nhắn của khách; muốn xem chi tiết thì bấm Mở CRM.",
   },
   {
     key: "file_storage",
