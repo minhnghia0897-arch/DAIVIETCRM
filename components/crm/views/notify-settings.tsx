@@ -276,6 +276,11 @@ function NotifyBody() {
                   "Chi tiết",
                   "Thêm tên gọi ngắn, sản phẩm: “Lead mới: Thu (Hàn), Ghế DV-X9. Gọi trước 09:17.”",
                 ],
+                [
+                  "full",
+                  "Đầy đủ",
+                  "Thêm tóm tắt hồ sơ để nắm tình huống ngay: nguồn, ngân sách, dịp, tỉnh người nhận, khung gọi tốt, số lần đã liên hệ, thông tin còn thiếu. Vẫn không có số điện thoại.",
+                ],
               ] as const
             ).map(([k, label, ex]) => (
               <label key={k} className="flex items-start gap-2">

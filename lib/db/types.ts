@@ -1837,7 +1837,9 @@ export type Database = {
         Row: {
           created_at: string;
           last_approval_at: string;
+          last_decision_at: string;
           last_event_id: number;
+          last_integration_error_at: string;
           last_task_check: string;
           showroom_id: string;
           updated_at: string;
@@ -1845,7 +1847,9 @@ export type Database = {
         Insert: {
           created_at?: string;
           last_approval_at?: string;
+          last_decision_at?: string;
           last_event_id?: number;
+          last_integration_error_at?: string;
           last_task_check?: string;
           showroom_id: string;
           updated_at?: string;
@@ -1853,7 +1857,9 @@ export type Database = {
         Update: {
           created_at?: string;
           last_approval_at?: string;
+          last_decision_at?: string;
           last_event_id?: number;
+          last_integration_error_at?: string;
           last_task_check?: string;
           showroom_id?: string;
           updated_at?: string;

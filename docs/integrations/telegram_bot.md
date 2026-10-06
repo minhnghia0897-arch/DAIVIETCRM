@@ -71,7 +71,18 @@ Ba đường, dùng chung một bộ xử lý nghiệp vụ nên đổi một ch
 | Đấu nối bị lỗi | `integrations.status = 'error'` | người có `settings.integrations` |
 | Có lead mới | sự kiện `lead_created` | nhóm giữ công dụng *Kênh thông báo chung*, tin rút gọn |
 
-Mỗi người tự chọn mức chi tiết, bật tắt từng loại, đặt giờ im lặng ở `/settings/notifications`.
+Mỗi người tự chọn mức chi tiết, bật tắt từng loại, đặt giờ im lặng ở `/settings/notifications`. Ba mức:
+
+- **Rút gọn** — chỉ báo có việc: *"Anh chị có 1 lead mới, gọi trước 09:17."*
+- **Chi tiết** — thêm tên gọi ngắn và sản phẩm: *"Lead mới: Thu (Hàn). Gọi trước 09:17."*
+- **Đầy đủ** — thêm tóm tắt hồ sơ để nắm tình huống mà không phải mở CRM: nguồn, ngân sách, dịp và ngày, tỉnh
+  người nhận, cờ Giữ bất ngờ, khung gọi tốt theo thị trường của khách, số lần đã liên hệ, và bốn thông tin bắt
+  buộc còn thiếu (mục 6). Tóm tắt chỉ nạp khi người nhận chọn mức này, nên hai mức kia không trả giá truy vấn.
+
+Mức **Đầy đủ vẫn không có số điện thoại, địa chỉ chi tiết hay nội dung tin của khách** (mục 5, 12): Telegram là
+máy chủ bên thứ ba và tin nằm lại trên điện thoại cá nhân nhân viên kể cả sau khi họ nghỉ. Muốn gọi thì bấm mở
+CRM, nơi quyền được kiểm và mỗi lượt xem số có trong nhật ký. `shortCustomer()` bỏ mọi từ có chữ số trong tên
+khách, vì nhân viên hay gõ cả số vào ô tên ("Chị Thu 0912345678").
 Loại tin bản thật chưa sinh được thì khai `notYetLive` trong `lib/notify/events.ts`: trang Cài đặt hiện công tắc
 mờ kèm lý do thay vì để người ta bật rồi chờ vô ích. Hiện có ba loại như vậy: *đơn đổi trạng thái* (chờ phần Đơn
 hàng), *nhắc tôi trong nhóm* và *mọi tin nhóm* (đội trao đổi trên Telegram, CRM không đọc nhóm).

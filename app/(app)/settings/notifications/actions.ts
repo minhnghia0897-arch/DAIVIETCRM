@@ -61,7 +61,7 @@ export async function unlinkTelegram(): Promise<ActionResult> {
 }
 
 const prefsSchema = z.object({
-  level: z.enum(["short", "detail"]).optional(),
+  level: z.enum(["short", "detail", "full"]).optional(),
   // Nhận bản vá một sự kiện hoặc cả bộ; sự kiện lạ bị bỏ (pickKnownEvents).
   events: z.record(z.string(), z.boolean()).optional(),
   quiet: z.object({ on: z.boolean(), from: z.string().regex(HHMM), to: z.string().regex(HHMM) }).optional(),

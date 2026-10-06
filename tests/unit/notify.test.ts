@@ -259,3 +259,62 @@ describe("pickKnownEvents", () => {
     expect(pickKnownEvents([1, 2])).toEqual({});
   });
 });
+
+// Mức "Đầy đủ": đủ để nắm tình huống mà không mở CRM, nhưng vẫn không có số điện thoại hay địa chỉ chi tiết
+// (CLAUDE.md mục 5, 12).
+describe("mức Đầy đủ", () => {
+  const facts = {
+    event: "lead_assigned" as const,
+    to: "Thảo",
+    at: "09:13",
+    customer: "Nguyễn Thị Thu",
+    market: "KR",
+    due: "09:17",
+    path: "/leads/x",
+    source: "Form quảng cáo Facebook",
+    budget: "50–80tr",
+    occasion: "Mừng thọ · 20/10",
+    recipientProvince: "Nghệ An",
+    keepSurprise: true,
+    attempts: 0,
+    callWindow: "19:00–22:30 giờ Hàn Quốc",
+    missing: ["ngân sách"],
+  };
+
+  it("có đủ thứ telesale cần để gọi", () => {
+    const { text } = formatNotify(facts, "full");
+    for (const phần of [
+      "Thu (Hàn)",
+      "Form quảng cáo Facebook",
+      "50–80tr",
+      "Mừng thọ · 20/10",
+      "Nghệ An",
+      "Giữ bất ngờ",
+      "19:00–22:30 giờ Hàn Quốc",
+      "Chưa liên hệ lần nào",
+      "Còn thiếu: ngân sách",
+    ])
+      expect(text).toContain(phần);
+  });
+
+  it("không có số điện thoại", () => {
+    expect(formatNotify({ ...facts, customer: "Thu 0912345678" }, "full").text).not.toMatch(
+      /\d{3}[ .-]?\d{3,}/,
+    );
+  });
+
+  it("mức Rút gọn và Chi tiết không kèm tóm tắt", () => {
+    expect(formatNotify(facts, "short").text).not.toContain("Nguồn:");
+    expect(formatNotify(facts, "detail").text).not.toContain("Nguồn:");
+  });
+
+  it("thiếu dữ liệu thì bỏ dòng đó, không in dòng trống", () => {
+    const { text } = formatNotify(
+      { event: "sla_overdue", to: "Thảo", at: "09:30", due: "09:17", path: "/leads/x", attempts: 2 },
+      "full",
+    );
+    expect(text).toContain("Đã liên hệ 2 lần");
+    expect(text).not.toContain("Nguồn:");
+    expect(text).not.toMatch(/\n\n/);
+  });
+});

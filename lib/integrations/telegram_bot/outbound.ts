@@ -8,6 +8,7 @@ import {
   type NotifyPrefs,
 } from "../../notify/events.ts";
 import type { Database } from "../../db/types.ts";
+import { leadSourceLabel } from "../../leads/labels.ts";
 import { integrations } from "../registry.ts";
 import { TelegramError, type InlineButton, type TelegramApi } from "./api.ts";
 
@@ -77,6 +78,78 @@ async function prefsOf(db: Db, userId: string): Promise<NotifyPrefs> {
   };
 }
 
+/**
+ * Khung gọi tốt của một thị trường, viết thành một dòng đọc là hiểu:
+ * "T2–T6 19:00–22:30 · cuối tuần 09:00–22:30 (giờ Hàn Quốc)".
+ * Ngày trong tuần theo quy ước của bảng markets: 1 = Thứ Hai … 7 = Chủ nhật.
+ */
+function windowText(name: string | null, raw: unknown): string | undefined {
+  if (!Array.isArray(raw) || !name) return undefined;
+  const parts: string[] = [];
+  for (const w of raw as { start?: string; end?: string; days?: number[] }[]) {
+    if (!w?.start || !w?.end) continue;
+    const days = Array.isArray(w.days) ? w.days : [];
+    const weekendOnly = days.length > 0 && days.every((d) => d >= 6);
+    const everyDay = days.length >= 7;
+    const when = everyDay ? "" : weekendOnly ? "cuối tuần " : days.length ? "T2–T6 " : "";
+    parts.push(`${when}${w.start}–${w.end}`);
+  }
+  return parts.length ? `${parts.join(" · ")} (giờ ${name})` : undefined;
+}
+
+/**
+ * Tóm tắt một lead cho mức tin "Đầy đủ". Đọc thêm vài bảng danh mục; chỉ gọi khi người nhận chọn mức này,
+ * để mức Rút gọn và Chi tiết không phải trả giá truy vấn.
+ */
+export async function leadSummary(db: Db, leadId: string): Promise<Partial<NotifyFacts>> {
+  const { data: lead } = await db
+    .from("leads")
+    // Chuỗi select phải là một hằng liền mạch thì Supabase mới suy được kiểu trả về.
+    // prettier-ignore
+    .select(
+      "source, recipient_province, recipient_contact_id, keep_surprise, occasion_date, occasions(label), budget_ranges(label), contacts!leads_contact_id_fkey(country_of_residence)",
+    )
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead) return {};
+
+  const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+  const occasion = one(lead.occasions)?.label;
+  const budget = one(lead.budget_ranges)?.label;
+  const country = one(lead.contacts)?.country_of_residence;
+
+  const { data: market } = country
+    ? await db.from("markets").select("name, call_windows").eq("country_code", country).maybeSingle()
+    : { data: null };
+
+  const { count } = await db
+    .from("events")
+    .select("id", { count: "exact", head: true })
+    .eq("lead_id", leadId)
+    .in("type", ["call", "zalo_out"]);
+
+  // Bốn thông tin bắt buộc ở cuộc gọi đầu (CLAUDE.md mục 6).
+  const missing = [
+    lead.recipient_contact_id ? null : "mua cho ai",
+    lead.recipient_province ? null : "tỉnh người nhận",
+    occasion ? null : "dịp mua",
+    budget ? null : "ngân sách",
+  ].filter((x): x is string => Boolean(x));
+
+  return {
+    source: leadSourceLabel(lead.source),
+    budget: budget ?? undefined,
+    occasion: occasion
+      ? `${occasion}${lead.occasion_date ? ` · ${lead.occasion_date.slice(8, 10)}/${lead.occasion_date.slice(5, 7)}` : ""}`
+      : undefined,
+    recipientProvince: lead.recipient_province ?? undefined,
+    keepSurprise: lead.keep_surprise ?? false,
+    attempts: count ?? 0,
+    callWindow: windowText(market?.name ?? null, market?.call_windows),
+    missing,
+  };
+}
+
 /** Gửi một tin riêng cho một người trong CRM (nếu họ đã liên kết và bật loại tin này). Trả true khi đã gửi. */
 export async function notifyUser(
   db: Db,
@@ -96,7 +169,9 @@ export async function notifyUser(
   if (prefs.events[facts.event] === false) return false;
 
   const now = vnTime(new Date());
-  const full: NotifyFacts = { ...facts, to: userId, at: now };
+  const extra =
+    prefs.level === "full" && ref.leadId ? await leadSummary(db, ref.leadId) : ({} as Partial<NotifyFacts>);
+  const full: NotifyFacts = { ...facts, ...extra, to: userId, at: now };
   const { text } = formatNotify(full, prefs.level);
   const keyboard = keyboardFor(full, prefs.level);
   let sent: { message_id: number };

@@ -16,7 +16,7 @@ export type NotifyEvent =
   | "chat_message"
   | "integration_error";
 
-export type NotifyLevel = "short" | "detail";
+export type NotifyLevel = "short" | "detail" | "full";
 
 export interface NotifyEventDef {
   key: NotifyEvent;
@@ -168,6 +168,23 @@ export interface NotifyFacts {
   status?: string;
   /** Loại việc cần duyệt hoặc kết quả duyệt. */
   what?: string;
+  // --- Phần dưới chỉ dùng cho mức "Đầy đủ": đủ để nắm tình huống mà không cần mở CRM. ---
+  /** Nguồn lead đã dịch sang tiếng Việt, ví dụ "Form quảng cáo Facebook". */
+  source?: string;
+  /** Khoảng ngân sách khách cho biết. */
+  budget?: string;
+  /** Dịp tặng và ngày, ví dụ "Mừng thọ · 20/10". */
+  occasion?: string;
+  /** Tỉnh của người nhận. */
+  recipientProvince?: string;
+  /** Người đặt chưa cho liên hệ người nhận. */
+  keepSurprise?: boolean;
+  /** Số lần đã gọi, nhắn cho lead này. */
+  attempts?: number;
+  /** Khung giờ nên gọi theo thị trường của khách, ví dụ "19:00–22:30 giờ Hàn Quốc". */
+  callWindow?: string;
+  /** Thông tin bắt buộc còn thiếu, để telesale biết cần hỏi gì (CLAUDE.md mục 6). */
+  missing?: string[];
   ok?: boolean;
   from?: string;
   group?: string;
@@ -176,29 +193,56 @@ export interface NotifyFacts {
   taskId?: string;
 }
 
-/** Tên gọi ngắn của khách: tên riêng (từ cuối), không họ, không số. */
+/**
+ * Tên gọi ngắn của khách: tên riêng (từ cuối), không họ, không số.
+ * Nhân viên hay gõ cả số điện thoại vào ô tên ("Chị Thu 0912345678"), nên bỏ mọi từ có chữ số —
+ * tin gửi ra ngoài không được mang số của khách (CLAUDE.md mục 5, 12).
+ */
 export function shortCustomer(full?: string, market?: string): string {
-  if (!full) return "khách";
-  const given = full.trim().split(/\s+/).pop() ?? full;
+  const words = (full ?? "").trim().split(/\s+/).filter(Boolean);
+  const given = words.filter((w) => !/\d/.test(w)).pop();
+  if (!given) return "khách";
   return market === "KR" ? `${given} (Hàn)` : given;
+}
+
+/**
+ * Tóm tắt hồ sơ cho mức "Đầy đủ": đủ để nhân viên nắm tình huống ngay trên điện thoại, không phải mở CRM.
+ * Vẫn không có số điện thoại, địa chỉ chi tiết hay nội dung tin của khách (CLAUDE.md mục 5, 12).
+ */
+function caseSummary(f: NotifyFacts): string {
+  const lines: string[] = [];
+  if (f.source) lines.push(`Nguồn: ${f.source}`);
+  if (f.budget) lines.push(`Ngân sách: ${f.budget}`);
+  if (f.occasion) lines.push(`Dịp: ${f.occasion}`);
+  if (f.recipientProvince)
+    lines.push(`Người nhận ở: ${f.recipientProvince}${f.keepSurprise ? " · Giữ bất ngờ" : ""}`);
+  else if (f.keepSurprise) lines.push("Giữ bất ngờ: chưa được liên hệ người nhận");
+  if (f.callWindow) lines.push(`Khung gọi tốt: ${f.callWindow}`);
+  if (f.attempts !== undefined)
+    lines.push(f.attempts === 0 ? "Chưa liên hệ lần nào" : `Đã liên hệ ${f.attempts} lần`);
+  if (f.missing?.length) lines.push(`Còn thiếu: ${f.missing.join(", ")}`);
+  return lines.length ? `\n${lines.join("\n")}` : "";
 }
 
 /** Viết tin theo mức chi tiết. Không bao giờ ghi số điện thoại hay nội dung tin nhắn của khách. */
 export function formatNotify(f: NotifyFacts, level: NotifyLevel): { text: string; buttons: NotifyButton[] } {
   const c = shortCustomer(f.customer, f.market);
-  const d = level === "detail";
+  const full = level === "full";
+  const d = level === "detail" || full;
+  const more = full ? caseSummary(f) : "";
   const open = (label: string): NotifyButton => ({ kind: "open", label, path: f.path });
   switch (f.event) {
     case "lead_assigned":
       return {
-        text: d
-          ? `Lead mới: ${c}${f.product ? `, ${f.product}` : ""}. Gọi trước ${f.due ?? "hạn SLA"}.`
-          : `Anh chị có 1 lead mới, gọi trước ${f.due ?? "hạn SLA"}.`,
+        text:
+          (d
+            ? `Lead mới: ${c}${f.product ? `, ${f.product}` : ""}. Gọi trước ${f.due ?? "hạn SLA"}.`
+            : `Anh chị có 1 lead mới, gọi trước ${f.due ?? "hạn SLA"}.`) + more,
         buttons: [open("Mở và gọi")],
       };
     case "callback_due":
       return {
-        text: d ? `Đến giờ gọi lại ${c} (${f.due}).` : `Đến giờ hẹn gọi lại (${f.due}).`,
+        text: (d ? `Đến giờ gọi lại ${c} (${f.due}).` : `Đến giờ hẹn gọi lại (${f.due}).`) + more,
         buttons: [
           open("Mở và gọi"),
           ...(f.taskId
@@ -211,7 +255,7 @@ export function formatNotify(f: NotifyFacts, level: NotifyLevel): { text: string
       };
     case "sla_overdue":
       return {
-        text: d ? `Lead ${c} quá hạn gọi (hạn ${f.due}).` : `Có 1 lead quá hạn gọi.`,
+        text: (d ? `Lead ${c} quá hạn gọi (hạn ${f.due}).` : `Có 1 lead quá hạn gọi.`) + more,
         buttons: [open("Mở lead")],
       };
     case "approval_needed":
