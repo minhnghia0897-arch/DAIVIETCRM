@@ -254,7 +254,7 @@ function LeadCard({ oppId, onBack }: { oppId: string; onBack: () => void }) {
       </button>
       <b className="text-[18px]">{o.name}</b>
       <span className="c-lbl">
-        {o.product} · {STAGES[o.stage]} · <SlaPill oppId={o.id} />
+        {o.product} · {STAGES[o.stage]} <SlaPill oppId={o.id} />
       </span>
       <p className="m-0">{o.next}</p>
       {missing.length ? <p className="m-0 text-warn">Còn thiếu: {missing.join(", ")}</p> : null}

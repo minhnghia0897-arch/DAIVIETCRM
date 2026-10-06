@@ -2771,6 +2771,9 @@ section.border-b > .c-back {
   color: var(--text-weak);
   cursor: pointer;
 }
+.ma .tg-badge {
+  background: var(--action);
+}
 .ma-tabs button[aria-selected="true"] {
   background: #fff;
   color: var(--text);
