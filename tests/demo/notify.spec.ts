@@ -41,3 +41,40 @@ test("Mini App: Owner có tab Duyệt", async ({ page }) => {
     page.getByRole("tablist", { name: "Mini App" }).getByRole("tab", { name: /Duyệt/ }),
   ).toBeVisible();
 });
+
+test("trả lời tin bot lưu ghi chú vào hồ sơ; ảnh chuyển khoản vào tin đơn thành khoản chờ xác nhận", async ({
+  page,
+}) => {
+  await as(page, "telesale", "settings/notifications/");
+  await page.getByRole("button", { name: "Gửi tin thử" }).click();
+  const log = page.getByRole("log", { name: "Tin bot gửi" });
+
+  await log
+    .getByRole("button", { name: /Trả lời tin: Lead mới/ })
+    .first()
+    .click();
+  await page.getByLabel("Nhắn cho bot").fill("Khách hẹn 21h gọi lại, số mới 0912 345 678");
+  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(log).toContainText("Đã lưu ghi chú vào hồ sơ");
+  await expect(log).toContainText("091•••678");
+  await expect(log).not.toContainText("345 678");
+
+  await log
+    .getByRole("button", { name: /Trả lời tin: Đơn Q4-/ })
+    .first()
+    .click();
+  await page
+    .getByLabel("Đính kèm ảnh")
+    .locator("input")
+    .setInputFiles({
+      name: "chuyen-khoan.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from([0xff, 0xd8, 0xff]),
+    });
+  await page.getByLabel("Số tiền trên ảnh").fill("5000000");
+  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(log).toContainText("chờ người có quyền xác nhận tiền về");
+
+  await page.getByRole("button", { name: "/viec" }).click();
+  await expect(log).toContainText(/Việc hôm nay|không còn việc/);
+});

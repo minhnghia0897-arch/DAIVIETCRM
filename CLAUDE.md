@@ -688,7 +688,7 @@ Bảng `integrations` (mỗi showroom một dòng cho mỗi `key`):
 | `tiktok_events` | Gửi chuyển đổi về TikTok | Đo lường | Tháng 2 | TikTok Events API | Ra: sự kiện chuyển đổi | Như trên |
 | `bank_webhook` | Báo tiền về tài khoản | Tài chính | Tháng 2 | Dịch vụ báo biến động số dư (ví dụ SePay, Casso) | Vào: giao dịch, tự khớp đơn theo nội dung chuyển khoản | Tài khoản đứng tên pháp nhân; tiền từ Hàn chỉ nhận qua ngân hàng hoặc kênh kiều hối hợp pháp |
 | `einvoice` | Hóa đơn điện tử | Tài chính | Tháng 2–3 | API nhà cung cấp hóa đơn (MISA, Viettel, VNPT…) | Ra: hóa đơn khi đơn hoàn tất | Chọn nhà cung cấp theo pháp nhân xuất hóa đơn |
-| `telegram_bot` | Thông báo Telegram cho nhân viên | Vận hành | Tháng 2 | Telegram Bot API, webhook, Mini App | Ra: thông báo việc cho nhân viên (rút gọn hoặc chi tiết theo lựa chọn từng người). Vào: nút thao tác nhanh | Bot tạo qua BotFather, token trong Vault; tên miền HTTPS; không gửi số điện thoại, nội dung tin của khách; chỉ nhân viên đã tự liên kết |
+| `telegram_bot` | Thông báo Telegram cho nhân viên | Vận hành | Tháng 2 | Telegram Bot API, webhook, Mini App | Ra: thông báo việc cho nhân viên (rút gọn hoặc chi tiết theo lựa chọn từng người). Vào: nút thao tác nhanh, trả lời tin thành ghi chú trên hồ sơ, ảnh chuyển khoản thành khoản chờ xác nhận | Bot tạo qua BotFather, token trong Vault; tên miền HTTPS; không gửi số điện thoại, nội dung tin của khách; chỉ nhân viên đã tự liên kết |
 | `file_storage` | Lưu video bàn giao | Vận hành | Tháng 2 | Supabase Storage (mặc định) hoặc Google Drive | Lưu video, ảnh lắp đặt | Bucket riêng tư, link ký ngắn hạn |
 | `ai_speech` | Chuyển ghi âm thành văn bản | AI | Tháng 3 | API chuyển giọng nói tiếng Việt | Vào: ghi âm. Ra: bản chép | Cần tổng đài có ghi âm; bật tắt được |
 | `ai_llm` | Trợ lý AI | AI | Tháng 3 | API mô hình ngôn ngữ | Tóm tắt, chấm lead, soạn tin, gộp hộ | Không gửi số điện thoại đầy đủ hay giấy tờ tùy thân sang mô hình; mọi kết quả AI là đề xuất có người xác nhận; bật tắt từng chức năng |
@@ -991,6 +991,7 @@ pnpm db:types       # sinh type
 | Lead chờ khung gọi | Chưa giao cho tới đầu khung gọi của thị trường khách, không tính vào giới hạn N | Mục 7 |
 | Nhận lead | Theo quyền `lead.receive`, không theo tên vai trò | Mục 5, 7 |
 | MCP và AI | Tháng 2 MCP server bản chỉ đọc; tháng 3 trợ lý AI và tool ghi | Mục 10.7 |
+| Telegram | Nơi làm việc nội bộ của đội thay nhóm Zalo; không nhắn khách trên Telegram (khách vẫn qua Zalo OA, điện thoại). Việc gắn với khách, đơn phải về hồ sơ CRM | `telegram_bot` (mục 10.3), `docs/integrations/telegram_bot.md` |
 
 ### Còn mở
 

@@ -68,3 +68,13 @@ export function maskPhone(e164: string): string {
   }
   return `+${parsed.countryCallingCode} ${national.slice(0, 2)}${DOTS.repeat(4)}${national.slice(-4)}`;
 }
+
+/** Che số điện thoại gõ trong một đoạn chữ (tin nội bộ, ghi chú qua Telegram) trước khi lưu. */
+export function maskPhonesInText(text: string): string {
+  // Không che mã đơn kiểu Q4-2610-0012: số phải đứng riêng, không dính chữ hay gạch phía trước.
+  return text.replace(/(?<![\p{L}\d-])\+?\d[\d .-]{7,}\d/gu, (m) => {
+    const digits = m.replace(/\D/g, "");
+    if (digits.length < 9 || digits.length > 15) return m;
+    return `${m.startsWith("+") ? "+" : ""}${digits.slice(0, 3)}•••${digits.slice(-3)}`;
+  });
+}

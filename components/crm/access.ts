@@ -1,6 +1,7 @@
 import { HOUSES } from "@/lib/demo/crm-data";
 import { missingInfo, newLeadInfo } from "@/lib/demo/ops-data";
 import type { CrmAction, CrmState, OrderRec, QueueItem } from "./store";
+import { planTgReply } from "./telegram-in";
 
 // Phạm vi xem và kiểm quyền cho mọi thao tác của bản demo, đóng vai server (CLAUDE.md mục 5, nguyên tắc 3):
 // giao diện ẩn nút chỉ để dễ dùng, còn thao tác gửi lên vẫn bị kiểm lại ở đây trước khi đổi dữ liệu.
@@ -252,6 +253,12 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       return str("who") === w.me ? null : "Chỉ chỉnh được thông báo của chính mình";
     case "notifyTest":
       return str("who") === w.me ? null : NO;
+    case "tgReply": {
+      // Tin từ Telegram chạy đúng thao tác CRM tương ứng, nên kiểm như khi bấm trên màn CRM.
+      if (action.type !== "tgReply" || action.who !== w.me) return NO;
+      const plan = planTgReply(s, action);
+      return plan.action ? deniedReason(s, plan.action, w) : null;
+    }
     case "chatTopicCreate": {
       const c = s.chats.find((x) => x.id === str("chatId"));
       if (!c || !c.members.includes(w.me)) return "Anh chị không ở trong nhóm này";

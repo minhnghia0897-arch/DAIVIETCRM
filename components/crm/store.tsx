@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { useToast } from "@/components/ui/toast";
 import { roleDefaultHas } from "@/lib/auth/permissions";
 import { deniedReason, type Who } from "./access";
+import { planTgReply, type TgReplyInput } from "./telegram-in";
 import {
   CATALOGS,
   LEAD_INFO,
@@ -42,7 +43,9 @@ import { routeLead, type Receiver } from "@/lib/leads/assign";
 import { decideIntake, type IntakeDecision, type KnownContact, type KnownLead } from "@/lib/leads/dedupe";
 import type { ImportRow } from "@/lib/leads/import";
 import { weeklyWindows, type MarketWindows } from "@/lib/leads/windows";
-import { maskPhone, normalizePhone } from "@/lib/phone";
+import { maskPhone, maskPhonesInText, normalizePhone } from "@/lib/phone";
+
+export { maskPhonesInText };
 import {
   connectBlockers,
   healthCheck,
@@ -348,6 +351,8 @@ interface State {
   chatSeen: Record<string, number>;
   /** Tin Telegram sinh từ sự kiện (bản demo: hộp thư đi mô phỏng), mới nhất trước. */
   tgOutbox: TgNote[];
+  /** Tin nhân viên gõ cho bot và bot trả lời (chiều ghi ngược vào CRM), mới nhất trước. */
+  tgChat: TgChatMsg[];
   /** Cài đặt thông báo Telegram của từng người (theo tên gọi ngắn). */
   notifyPrefs: Record<string, NotifyPrefs>;
   convSel: string;
@@ -551,6 +556,7 @@ export function initialState(): State {
     convs: CONVERSATIONS,
     chats: TEAM_CHATS,
     tgOutbox: [],
+    tgChat: [],
     // Thảo, Minh đã liên kết Telegram để bản demo có tin ngay; Owner tự liên kết ở trang cài đặt.
     notifyPrefs: {
       Thảo: { ...defaultPrefs(), linked: true, telegram: "@thao_daiviet", level: "detail" },
@@ -811,6 +817,7 @@ export type CrmAction =
   | { type: "chatTopicCreate"; chatId: string; name: string; actor: string }
   | { type: "notifyPrefs"; who: string; patch: Partial<NotifyPrefs>; actor: string }
   | { type: "notifyTest"; who: string }
+  | ({ type: "tgReply"; actor: string } & TgReplyInput)
   | { type: "createOrderManual"; draft: OrderDraft; result: QuoteResult; actorId: string; actor: string }
   | { type: "editOrder"; orderId: string; draft: OrderDraft; result: QuoteResult; actor: string }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
@@ -2257,21 +2264,57 @@ export function reducer(s: State, a: CrmAction): State {
       };
     }
     case "notifyTest": {
-      // Tin thử: lấy lead đầu tiên người này giữ làm ví dụ.
+      // Tin thử: một tin lead mới (lead đầu tiên người này giữ) và, nếu có, một tin về đơn đang chạy của họ
+      // để thử gửi ảnh chuyển khoản vào tin đơn.
       const o = s.opps.find((x) => x.owner === a.who) ?? s.opps[0];
-      const seq = s.seq + 1;
-      const note: TgNote = {
-        id: `tg${seq}`,
+      const ord = s.orders.find(
+        (x) => staffShort(x.sellerId) === a.who && !["completed", "cancelled"].includes(x.status),
+      );
+      const at = fmtMinutes(s.minutes);
+      const lead: Omit<TgNote, "id"> = {
         event: "lead_assigned",
         to: a.who,
-        at: fmtMinutes(s.minutes),
+        at,
         customer: o?.name,
         market: o ? s.leadInfo[o.id]?.market : undefined,
         product: o?.product.replace("Ghế massage ", "Ghế "),
         due: fmtMinutes(s.minutes + s.settings.slaMinutes),
         path: o ? `/m?tab=lead&id=${o.id}` : "/m",
       };
-      return { ...s, seq, tgOutbox: [note, ...s.tgOutbox] };
+      const order: Omit<TgNote, "id">[] = ord
+        ? [
+            {
+              event: "order_status",
+              to: a.who,
+              at,
+              orderCode: ord.code,
+              status: ORDER_STATUS[ord.status].label.toLowerCase(),
+              customer: orderPeople(ord).buyer,
+              market: ord.buyerMarket,
+              path: `/orders/${ord.id}`,
+            },
+          ]
+        : [];
+      const list = [lead, ...order];
+      const notes: TgNote[] = list.map((n, i) => ({ ...n, id: `tg${s.seq + i + 1}` }));
+      return { ...s, seq: s.seq + list.length, tgOutbox: [...notes.reverse(), ...s.tgOutbox] };
+    }
+    case "tgReply": {
+      const plan = planTgReply(s, a);
+      const done = plan.action ? reducer(s, plan.action) : s;
+      const seq = done.seq + 2;
+      const at = fmtMinutes(s.minutes);
+      const mine: TgChatMsg = {
+        id: `tg${seq - 1}`,
+        to: a.who,
+        from: "user",
+        text: maskPhonesInText(a.text.trim()),
+        at,
+        replyTo: a.replyTo,
+        photo: a.photo,
+      };
+      const bot: TgChatMsg = { id: `tg${seq}`, to: a.who, from: "bot", text: plan.bot, at };
+      return { ...done, seq, tgChat: [bot, mine, ...done.tgChat].slice(0, 120) };
     }
     case "notifyPrefs": {
       const cur = s.notifyPrefs[a.who] ?? defaultPrefs();
@@ -2904,15 +2947,6 @@ function updateTopic(s: State, chatId: string, topicId: string, f: (t: ChatTopic
   };
 }
 
-export function maskPhonesInText(text: string): string {
-  // Không che mã đơn kiểu Q4-2610-0012: số phải đứng riêng, không dính chữ hay gạch phía trước.
-  return text.replace(/(?<![\p{L}\d-])\+?\d[\d .-]{7,}\d/gu, (m) => {
-    const digits = m.replace(/\D/g, "");
-    if (digits.length < 9 || digits.length > 15) return m;
-    return `${m.startsWith("+") ? "+" : ""}${digits.slice(0, 3)}•••${digits.slice(-3)}`;
-  });
-}
-
 /** Trường đơn sinh từ form tạo, sửa đơn: mọi con số lấy từ kết quả hàm định giá, không từ trình duyệt. */
 function orderFieldsFromDraft(d: OrderDraft, r: QuoteResult) {
   const self = d.buyFor === "self";
@@ -3069,6 +3103,17 @@ function updateConv(s: State, id: string, f: (c: Conversation) => Conversation):
 
 export interface TgNote extends NotifyFacts {
   id: string;
+}
+
+/** Một tin trong khung chat với bot do người gõ hoặc bot trả lời (không phải tin báo sự kiện). */
+export interface TgChatMsg {
+  id: string;
+  to: string;
+  from: "user" | "bot";
+  text: string;
+  at: string;
+  replyTo?: string;
+  photo?: string;
 }
 
 const roleOfShort = (name: string) => STAFF.find((st) => staffShort(st.id) === name)?.roleKey ?? "";

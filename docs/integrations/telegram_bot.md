@@ -10,6 +10,25 @@ Bấm nút dưới tin để mở **Mini App** (CRM gọn cho điện thoại) h
 
 Đây là kênh **nội bộ cho nhân viên**, không nhắn khách. Không thay Zalo OA.
 
+**Đã chốt (06/10/2026):** Telegram là nơi đội làm việc **thay nhóm Zalo nội bộ**. Khách vẫn liên lạc qua Zalo OA và
+điện thoại. CRM là nơi lưu chính: mọi thứ gắn với một khách hay một đơn phải về hồ sơ trong CRM, Telegram chỉ là nơi
+báo việc, làm nhanh và trao đổi.
+
+## Hai chiều
+
+| Chiều | Việc | Kết quả trong CRM |
+|---|---|---|
+| CRM → Telegram | Báo việc theo sự kiện (lead mới, hẹn gọi lại, quá hạn, chờ duyệt, kết quả duyệt, đơn đổi trạng thái, nhắc tên trong nhóm, đấu nối lỗi) | Không đổi dữ liệu |
+| Telegram → CRM | Bấm nút Xong, Hẹn lại 1 giờ dưới tin | Việc trong `tasks` đổi trạng thái, ghi `task_done` |
+| Telegram → CRM | Trả lời (reply) vào tin báo về lead hoặc đơn | Ghi chú trên hồ sơ lead ("Qua Telegram: …"), số điện thoại gõ vào bị che |
+| Telegram → CRM | Gửi ảnh chuyển khoản kèm số tiền vào tin của một đơn | Khoản thanh toán `recorded` kèm ảnh chứng từ, vào hàng chờ xác nhận; người ghi không tự xác nhận |
+| Telegram → CRM | Lệnh `/viec` | Bot trả danh sách việc đang mở của chính người đó |
+| Mini App | Việc, lead (gọi, ghi kết quả), đơn, duyệt, tìm | Như thao tác trên CRM |
+
+Tin không gắn với khách hay đơn (trò chuyện chung) **không** lưu vào hồ sơ. Mọi thao tác từ Telegram đi qua đúng hàm
+nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `lib/tasks`, `lib/sales` ở bản thật), nên quyền,
+đồng ý, giữ bất ngờ, nhật ký kiểm toán áp như nhau, kèm nguồn `telegram`.
+
 ## Nguyên tắc dữ liệu (CLAUDE.md mục 5, 12)
 
 - Tin **không bao giờ** chứa số điện thoại hay nội dung tin nhắn của khách, ở cả hai mức.
@@ -28,6 +47,7 @@ Bấm nút dưới tin để mở **Mini App** (CRM gọn cho điện thoại) h
 | Sinh tin từ thay đổi dữ liệu (demo) | `components/crm/store.tsx`, `notifyDiff` |
 | Cài đặt của từng người | `/settings/notifications` (`components/crm/views/notify-settings.tsx`) |
 | Mini App | `/m` (`components/crm/views/mini-app.tsx`) |
+| Ghi ngược từ Telegram (trả lời, ảnh, lệnh) | `components/crm/telegram-in.ts`, thao tác `tgReply` |
 | Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` (Sắp có) |
 
 ## Điểm cần kiểm theo tài liệu chính thức trước khi viết bộ nối thật

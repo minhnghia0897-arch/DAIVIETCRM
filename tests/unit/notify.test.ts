@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deniedReason, type Who } from "@/components/crm/access";
+import { planTgReply, tgTarget } from "@/components/crm/telegram-in";
 import { initialState, notesFor, reducerWithNotify, type CrmState } from "@/components/crm/store";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { defaultPrefs, eventsFor, formatNotify, inQuietHours, shortCustomer } from "@/lib/notify/events";
@@ -150,5 +151,80 @@ describe("quyền chỉnh thông báo", () => {
     expect(deniedReason(s, a, w("Thảo"))).toBeNull();
     expect(deniedReason(s, a, w("An"))).toBeTruthy();
     expect(deniedReason(s, { type: "notifyTest", who: "Thảo" }, w("An"))).toBeTruthy();
+  });
+});
+
+describe("ghi ngược từ Telegram vào CRM", () => {
+  const tele: Who = {
+    perms: new Set(PERMISSIONS.filter((p) => p.defaults.includes("telesale")).map((p) => p.key)),
+    me: "Thảo",
+    userId: "11111111-1111-4111-8111-000000000003",
+    isOwner: false,
+    readOnly: false,
+  };
+  const withTest = () => reducerWithNotify(initialState(), { type: "notifyTest", who: "Thảo" });
+  const noteOf = (s: CrmState, ev: string) => s.tgOutbox.find((n) => n.to === "Thảo" && n.event === ev)!;
+  const reply = (s: CrmState, extra: Partial<Parameters<typeof planTgReply>[1]>) =>
+    ({
+      type: "tgReply" as const,
+      who: "Thảo",
+      actor: "Thảo",
+      actorId: tele.userId,
+      text: "",
+      ...extra,
+    }) as const;
+
+  it("trả lời tin lead thành ghi chú trên hồ sơ, số điện thoại bị che", () => {
+    const s0 = withTest();
+    const n = noteOf(s0, "lead_assigned");
+    const a = reply(s0, { replyTo: n.id, text: "Khách hẹn 21h gọi lại, số mới 0912 345 678" });
+    expect(deniedReason(s0, a, tele)).toBeNull();
+    const s1 = reducerWithNotify(s0, a);
+    const oppId = tgTarget(n.path).oppId!;
+    const act = s1.activities.find((x) => x.oppId === oppId && x.kind === "note")!;
+    expect(act.text).toContain("Qua Telegram");
+    expect(act.text).toContain("091•••678");
+    expect(act.text).not.toContain("345 678");
+    expect(s1.tgChat[0]).toMatchObject({ from: "bot", to: "Thảo" });
+    expect(s1.tgChat[0].text).toContain("Đã lưu ghi chú");
+  });
+
+  it("ảnh chuyển khoản kèm số tiền vào tin đơn thành khoản chờ xác nhận, báo người duyệt", () => {
+    const s0 = withTest();
+    const n = noteOf(s0, "order_status");
+    const orderId = tgTarget(n.path).orderId!;
+    const before = s0.orders.find((o) => o.id === orderId)!.payments.length;
+    const a = reply(s0, { replyTo: n.id, photo: "ck.jpg", amount: 5_000_000, text: "" });
+    expect(deniedReason(s0, a, tele)).toBeNull();
+    const s1 = reducerWithNotify(s0, a);
+    const pays = s1.orders.find((o) => o.id === orderId)!.payments;
+    expect(pays).toHaveLength(before + 1);
+    expect(pays.at(-1)).toMatchObject({ amount: 5_000_000, status: "recorded" });
+    expect(s1.tgOutbox.some((x) => x.event === "approval_needed" && x.to === "Hà")).toBe(true);
+  });
+
+  it("ảnh không kèm số tiền thì bot hỏi lại, không ghi gì", () => {
+    const s0 = withTest();
+    const n = noteOf(s0, "order_status");
+    const plan = planTgReply(s0, reply(s0, { replyTo: n.id, photo: "ck.jpg" }));
+    expect(plan.action).toBeUndefined();
+    expect(plan.bot).toContain("số tiền");
+  });
+
+  it("người khác không trả lời thay được; tin không gắn hồ sơ thì không lưu", () => {
+    const s0 = withTest();
+    const n = noteOf(s0, "lead_assigned");
+    expect(deniedReason(s0, { ...reply(s0, { replyTo: n.id, text: "x" }), who: "An" }, tele)).toBeTruthy();
+    const plan = planTgReply(s0, reply(s0, { text: "chào bot" }));
+    expect(plan.action).toBeUndefined();
+  });
+
+  it("/viec liệt kê việc đang mở của chính mình", () => {
+    const plan = planTgReply(initialState(), {
+      who: "Thảo",
+      actorId: tele.userId,
+      text: "/viec",
+    });
+    expect(plan.bot).toMatch(/Việc hôm nay|không còn việc/);
   });
 });
