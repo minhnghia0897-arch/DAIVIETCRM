@@ -296,19 +296,24 @@ function NotifyBody() {
 
         <Card title="Báo cho tôi khi">
           <ul className="m-0 list-none space-y-2 p-0">
-            {events.map((e) => (
-              <li key={e.key} className="flex items-center gap-3">
-                <span className="flex-1">
-                  {e.label}
-                  <span className="c-lbl block">{e.hint}</span>
-                </span>
-                <Switch
-                  label={e.label}
-                  checked={p.events[e.key] ?? e.defaultOn}
-                  onCheckedChange={(v) => save({ events: { ...p.events, [e.key]: v } })}
-                />
-              </li>
-            ))}
+            {events.map((e) => {
+              // Bản thật chưa sinh được loại tin này: khóa công tắc và nói lý do, đừng để bật rồi chờ vô ích.
+              const pendingWhy = live ? e.notYetLive : undefined;
+              return (
+                <li key={e.key} className="flex items-center gap-3">
+                  <span className="flex-1">
+                    {e.label}
+                    <span className="c-lbl block">{pendingWhy ? `Sắp có: ${pendingWhy}` : e.hint}</span>
+                  </span>
+                  <Switch
+                    label={e.label}
+                    disabled={Boolean(pendingWhy)}
+                    checked={pendingWhy ? false : (p.events[e.key] ?? e.defaultOn)}
+                    onCheckedChange={(v) => save({ events: { ...p.events, [e.key]: v } })}
+                  />
+                </li>
+              );
+            })}
           </ul>
         </Card>
 

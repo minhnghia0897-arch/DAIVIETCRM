@@ -29,7 +29,7 @@ Deno.serve(async () => {
   // Lần đầu: bắt đầu từ hiện tại, không gửi lại dồn dữ liệu cũ.
   const { data: saved } = await db
     .from("telegram_outbound_state")
-    .select("last_event_id, last_task_check, last_approval_at")
+    .select("last_event_id, last_task_check, last_approval_at, last_decision_at, last_integration_error_at")
     .eq("showroom_id", cfg.showroomId)
     .maybeSingle();
   const cursor = saved
@@ -37,6 +37,8 @@ Deno.serve(async () => {
         lastEventId: Number(saved.last_event_id),
         lastTaskCheck: saved.last_task_check,
         lastApprovalAt: saved.last_approval_at,
+        lastDecisionAt: saved.last_decision_at,
+        lastIntegrationErrorAt: saved.last_integration_error_at,
       }
     : await initialCursor(db);
 
@@ -48,6 +50,8 @@ Deno.serve(async () => {
       last_event_id: next.lastEventId,
       last_task_check: next.lastTaskCheck,
       last_approval_at: next.lastApprovalAt,
+      last_decision_at: next.lastDecisionAt,
+      last_integration_error_at: next.lastIntegrationErrorAt,
     },
     { onConflict: "showroom_id" },
   );

@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { telegramApi } from "@/lib/integrations/telegram_bot/api";
 import { parseCommand, PURPOSES, reasonVi } from "@/lib/integrations/telegram_bot/inbound";
 import { keyboardFor } from "@/lib/integrations/telegram_bot/outbound";
+import { formatNotify, NOTIFY_EVENTS } from "@/lib/notify/events";
 
 // Bộ nối Telegram thật (lib/integrations/telegram_bot): phần thuần, không gọi mạng.
 
@@ -52,5 +55,60 @@ describe("tin gửi đi", () => {
 
   it("không nhận token sai định dạng", () => {
     expect(() => telegramApi("khong-phai-token")).toThrow();
+  });
+});
+
+// Giữ trang Cài đặt khớp với thực tế: công tắc nào không ghi "Sắp có" thì phải có chỗ sinh tin thật. Trước đây
+// 6 trong 9 loại tin có công tắc mà không ai gửi, bật lên cũng chờ vô ích.
+describe("danh mục tin khớp với bộ gửi", () => {
+  const outbound = readFileSync(
+    new URL("../../lib/integrations/telegram_bot/outbound.ts", import.meta.url),
+    "utf8",
+  );
+
+  for (const e of NOTIFY_EVENTS) {
+    it(`${e.key}: ${e.notYetLive ? "chưa chạy thì không được gửi" : "đã bật thì phải có chỗ gửi"}`, () => {
+      expect(outbound.includes(`event: "${e.key}"`)).toBe(!e.notYetLive);
+    });
+  }
+});
+
+describe("lời tin của các loại mới", () => {
+  it("lead quá hạn: mức Chi tiết có tên gọi ngắn, không có số điện thoại", () => {
+    const { text } = formatNotify(
+      {
+        event: "sla_overdue",
+        to: "u",
+        at: "09:20",
+        customer: "Nguyễn Thị Thu",
+        market: "KR",
+        due: "09:15",
+        path: "/leads/x",
+      },
+      "detail",
+    );
+    expect(text).toContain("Thu (Hàn)");
+    expect(text).not.toMatch(/\d{3}[ .]?\d{3,}/);
+  });
+
+  it("kết quả duyệt: nói rõ được duyệt hay bị từ chối", () => {
+    const facts = { event: "approval_result", to: "u", at: "09:20", what: "Giảm giá", path: "/approvals" };
+    expect(formatNotify({ ...facts, ok: true } as never, "detail").text).toContain("được duyệt");
+    expect(formatNotify({ ...facts, ok: false } as never, "detail").text).toContain("từ chối");
+  });
+
+  it("đấu nối lỗi: nói rõ lead có thể chưa vào CRM", () => {
+    const { text } = formatNotify(
+      {
+        event: "integration_error",
+        to: "u",
+        at: "09:20",
+        integration: "Zalo OA",
+        path: "/settings/integrations",
+      },
+      "short",
+    );
+    expect(text).toContain("Zalo OA");
+    expect(text).toContain("lead có thể chưa vào CRM");
   });
 });

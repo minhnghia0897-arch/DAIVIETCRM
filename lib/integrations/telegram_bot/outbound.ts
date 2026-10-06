@@ -8,6 +8,7 @@ import {
   type NotifyPrefs,
 } from "../../notify/events.ts";
 import type { Database } from "../../db/types.ts";
+import { integrations } from "../registry.ts";
 import type { InlineButton, TelegramApi } from "./api.ts";
 
 // CRM → Telegram: chọn đúng người nhận, viết tin theo mức chi tiết người đó chọn (lib/notify/events.ts), gửi, rồi ghi
@@ -134,6 +135,8 @@ export interface OutboundCursor {
   lastEventId: number;
   lastTaskCheck: string;
   lastApprovalAt: string;
+  lastDecisionAt: string;
+  lastIntegrationErrorAt: string;
 }
 
 const APPROVAL_PERM: Record<string, string> = {
@@ -149,14 +152,46 @@ const APPROVAL_WHAT: Record<string, string> = {
   ai_proposal: "Đề xuất AI",
 };
 
+/** Người đang hoạt động trong showroom có một quyền, hỏi database một lần cho mỗi showroom và quyền. */
+async function usersWithPerm(
+  db: Db,
+  showroomId: string,
+  perm: string,
+  cache: Map<string, string[]>,
+): Promise<string[]> {
+  const key = `${showroomId}:${perm}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const { data: people } = await db
+    .from("profiles")
+    .select("id")
+    .eq("showroom_id", showroomId)
+    .eq("is_active", true);
+  const out: string[] = [];
+  for (const p of people ?? []) {
+    const { data: allowed } = await db.rpc("has_perm_for", { uid: p.id, perm });
+    if (allowed) out.push(p.id);
+  }
+  cache.set(key, out);
+  return out;
+}
+
 export async function initialCursor(db: Db): Promise<OutboundCursor> {
   const { data } = await db.from("events").select("id").order("id", { ascending: false }).limit(1);
   const now = new Date().toISOString();
-  return { lastEventId: data?.[0]?.id ?? 0, lastTaskCheck: now, lastApprovalAt: now };
+  return {
+    lastEventId: data?.[0]?.id ?? 0,
+    lastTaskCheck: now,
+    lastApprovalAt: now,
+    lastDecisionAt: now,
+    lastIntegrationErrorAt: now,
+  };
 }
 
 export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor): Promise<OutboundCursor> {
   const next = { ...cur };
+  // Danh sách người theo quyền dùng lại trong cả vòng quét, tránh hỏi database lặp.
+  const permCache = new Map<string, string[]>();
 
   // 1. Lead được giao, lead mới.
   const { data: events } = await db
@@ -244,23 +279,109 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     .order("created_at");
   for (const a of approvals ?? []) {
     next.lastApprovalAt = a.created_at > next.lastApprovalAt ? a.created_at : next.lastApprovalAt;
-    const { data: people } = await db
-      .from("profiles")
-      .select("id")
-      .eq("showroom_id", a.showroom_id)
-      .eq("is_active", true);
-    for (const p of people ?? []) {
-      if (p.id === a.requested_by) continue;
-      const { data: allowed } = await db.rpc("has_perm_for", {
-        uid: p.id,
-        perm: APPROVAL_PERM[a.type] ?? "",
+    const approvers = await usersWithPerm(db, a.showroom_id, APPROVAL_PERM[a.type] ?? "", permCache);
+    for (const uid of approvers) {
+      // Người đề xuất không tự duyệt được nên không cần báo.
+      if (uid === a.requested_by) continue;
+      await notifyUser(db, api, uid, {
+        event: "approval_needed",
+        what: APPROVAL_WHAT[a.type],
+        path: "/approvals",
       });
-      if (allowed)
-        await notifyUser(db, api, p.id, {
-          event: "approval_needed",
-          what: APPROVAL_WHAT[a.type],
-          path: "/approvals",
-        });
+    }
+  }
+
+  // 4. Lead quá hạn gọi: báo người giữ lead và người điều phối (CLAUDE.md mục 7).
+  //    Mỗi lead chỉ báo một lần cho mỗi người; nhận ra qua tin đã gửi, nên không cần mốc thời gian.
+  const slaFrom = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+  const { data: overdue } = await db
+    .from("leads")
+    .select(
+      "id, showroom_id, sla_due_at, assigned_to, contacts!leads_contact_id_fkey(full_name, country_of_residence)",
+    )
+    .is("first_contact_at", null)
+    .is("deleted_at", null)
+    .not("sla_due_at", "is", null)
+    .not("stage", "in", "(won,lost)")
+    .lte("sla_due_at", now)
+    .gte("sla_due_at", slaFrom)
+    .limit(200);
+
+  if (overdue?.length) {
+    const { data: already } = await db
+      .from("telegram_messages")
+      .select("lead_id, user_id")
+      .eq("event_type", "sla_overdue")
+      .in(
+        "lead_id",
+        overdue.map((l) => l.id),
+      );
+    const sent = new Set((already ?? []).map((r) => `${r.lead_id}:${r.user_id}`));
+
+    for (const lead of overdue) {
+      const contact = Array.isArray(lead.contacts) ? lead.contacts[0] : lead.contacts;
+      const watchers = await usersWithPerm(db, lead.showroom_id, "lead.view_all", permCache);
+      const targets = new Set(lead.assigned_to ? [lead.assigned_to, ...watchers] : watchers);
+      for (const uid of targets) {
+        if (sent.has(`${lead.id}:${uid}`)) continue;
+        await notifyUser(
+          db,
+          api,
+          uid,
+          {
+            event: "sla_overdue",
+            customer: contact?.full_name,
+            market: contact?.country_of_residence,
+            due: lead.sla_due_at ? vnTime(lead.sla_due_at) : undefined,
+            path: `/leads/${lead.id}`,
+          },
+          { leadId: lead.id },
+        );
+      }
+    }
+  }
+
+  // 5. Đề xuất của tôi đã được duyệt hay bị từ chối.
+  const { data: decided } = await db
+    .from("approvals")
+    .select("type, status, requested_by, requested_by_type, decided_at")
+    .in("status", ["approved", "rejected"])
+    .not("decided_at", "is", null)
+    .gt("decided_at", cur.lastDecisionAt)
+    .order("decided_at")
+    .limit(100);
+  for (const a of decided ?? []) {
+    if (a.decided_at && a.decided_at > next.lastDecisionAt) next.lastDecisionAt = a.decided_at;
+    // Đề xuất do agent AI tạo thì không có người để báo.
+    if (!a.requested_by || a.requested_by_type !== "user") continue;
+    await notifyUser(db, api, a.requested_by, {
+      event: "approval_result",
+      what: APPROVAL_WHAT[a.type],
+      ok: a.status === "approved",
+      path: "/approvals",
+    });
+  }
+
+  // 6. Đấu nối bị lỗi: báo người kết nối được, để lead không im lặng ngừng chảy vào CRM.
+  const { data: broken } = await db
+    .from("integrations")
+    .select("key, showroom_id, last_error_at")
+    .eq("status", "error")
+    .not("last_error_at", "is", null)
+    .gt("last_error_at", cur.lastIntegrationErrorAt)
+    .order("last_error_at")
+    .limit(50);
+  for (const r of broken ?? []) {
+    if (r.last_error_at && r.last_error_at > next.lastIntegrationErrorAt)
+      next.lastIntegrationErrorAt = r.last_error_at;
+    const owners = await usersWithPerm(db, r.showroom_id, "settings.integrations", permCache);
+    const name = integrations.find((d) => d.key === r.key)?.name ?? r.key;
+    for (const uid of owners) {
+      await notifyUser(db, api, uid, {
+        event: "integration_error",
+        integration: name,
+        path: "/settings/integrations",
+      });
     }
   }
 

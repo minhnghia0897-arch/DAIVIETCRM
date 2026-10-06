@@ -26,6 +26,11 @@ export interface NotifyEventDef {
   /** Quyền cần có để sự kiện hiện trong cài đặt (người không có quyền không bao giờ nhận). */
   anyOf: string[];
   defaultOn: boolean;
+  /**
+   * Bản thật chưa sinh được loại tin này: lý do, viết cho người dùng đọc. Trang Cài đặt bản thật hiện công tắc
+   * mờ kèm lý do thay vì để người ta bật rồi chờ tin không bao giờ tới. Bản demo vẫn chạy đủ mọi loại.
+   */
+  notYetLive?: string;
 }
 
 export const NOTIFY_EVENTS: NotifyEventDef[] = [
@@ -70,6 +75,7 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     hint: "Đã cọc, đang giao, đã lắp, hoàn tất",
     anyOf: ["order.view_own", "order.view_all"],
     defaultOn: true,
+    notYetLive: "Có khi dựng xong phần Đơn hàng",
   },
   {
     key: "chat_mention",
@@ -77,6 +83,7 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     hint: "Khi có @tên của tôi",
     anyOf: [],
     defaultOn: true,
+    notYetLive: "Đội trao đổi trên Telegram, CRM không đọc nhóm",
   },
   {
     key: "chat_message",
@@ -84,6 +91,7 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     hint: "Nhiều tin, mặc định tắt",
     anyOf: [],
     defaultOn: false,
+    notYetLive: "Đội trao đổi trên Telegram, CRM không đọc nhóm",
   },
   {
     key: "integration_error",

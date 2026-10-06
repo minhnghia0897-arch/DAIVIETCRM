@@ -59,6 +59,24 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 
 Ba đường, dùng chung một bộ xử lý nghiệp vụ nên đổi một chỗ là cả ba đổi theo.
 
+### CRM báo những tin gì
+
+| Tin | Khi nào | Gửi cho ai |
+|---|---|---|
+| Lead mới giao cho tôi | sự kiện `assignment` | người được giao |
+| Đến giờ hẹn gọi lại | việc `callback` tới hạn | người giữ việc, kèm nút Xong và Hẹn lại 1 giờ |
+| Lead quá hạn gọi | quá `sla_due_at` mà chưa có `first_contact_at` | người giữ lead và người có `lead.view_all` (mục 7); mỗi lead một lần cho mỗi người, nhận ra qua `telegram_messages` |
+| Có việc chờ tôi duyệt | `approvals` mới | người có quyền duyệt loại đó, trừ người đề xuất |
+| Đề xuất của tôi được duyệt hay từ chối | `approvals.decided_at` | người đề xuất (bỏ qua khi đề xuất do agent AI tạo) |
+| Đấu nối bị lỗi | `integrations.status = 'error'` | người có `settings.integrations` |
+| Có lead mới | sự kiện `lead_created` | nhóm giữ công dụng *Kênh thông báo chung*, tin rút gọn |
+
+Mỗi người tự chọn mức chi tiết, bật tắt từng loại, đặt giờ im lặng ở `/settings/notifications`.
+Loại tin bản thật chưa sinh được thì khai `notYetLive` trong `lib/notify/events.ts`: trang Cài đặt hiện công tắc
+mờ kèm lý do thay vì để người ta bật rồi chờ vô ích. Hiện có ba loại như vậy: *đơn đổi trạng thái* (chờ phần Đơn
+hàng), *nhắc tôi trong nhóm* và *mọi tin nhóm* (đội trao đổi trên Telegram, CRM không đọc nhóm).
+`tests/unit/telegram-bot.test.ts` bắt buộc danh mục và bộ gửi khớp nhau.
+
 **1. Nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.** Bấm **Tạo link liên kết**: database sinh mã ngẫu nhiên
 (hàm `create_telegram_link_code`, chỉ giữ bản băm, một lần, 10 phút), trang dựng link `https://t.me/<bot>?start=<mã>`.
 Bấm Start trong Telegram là xong. Mức chi tiết, sự kiện muốn nhận, giờ im lặng lưu vào `notification_prefs` (RLS: mỗi
