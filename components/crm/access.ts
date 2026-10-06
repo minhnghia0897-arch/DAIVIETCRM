@@ -230,6 +230,10 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       if (!has(w, "payment.record") || !orderEditable(o, w)) return NO;
       return Number(a.amount) > 0 ? null : "Số tiền phải lớn hơn 0";
     }
+    case "createOrderManual":
+      return has(w, "order.create") ? null : NO;
+    case "editOrder":
+      return orderEditable(order(), w) ? null : NO;
     case "orderRefund":
       return has(w, "payment.refund") ? null : NO;
     case "orderAdvance":

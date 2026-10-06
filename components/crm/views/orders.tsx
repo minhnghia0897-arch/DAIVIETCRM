@@ -9,6 +9,7 @@ import { PRODUCTS, STAFF, VARIANTS, type OrderStatus } from "@/lib/demo/data";
 import { ORDER_PATH, ORDER_STATUS } from "@/lib/demo/labels";
 import { NEXT_STATUS, transitionBlockers } from "@/lib/sales/orders";
 import { LocTag, PageHead } from "../parts";
+import { OrderForm } from "./order-form";
 import { useShell } from "../shell-context";
 import {
   issueBlockers,
@@ -20,6 +21,7 @@ import {
   useCrm,
   visibleOrders,
   vnd,
+  ORDER_INFO_EDITABLE,
   type OrderRec,
 } from "../store";
 import { WAREHOUSES } from "@/lib/demo/data";
@@ -55,6 +57,7 @@ export function CrmOrders() {
   const { can } = useShell();
   const all = useVisibleOrders();
   const [f, setF] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const filter = FILTERS.find((x) => x.key === f);
   const rows = all
     .filter((o) => !filter || filter.statuses.includes(o.status))
@@ -69,6 +72,16 @@ export function CrmOrders() {
           title={can("order.view_all") ? "Đơn hàng" : "Đơn của tôi"}
         >
           <span className="c-lbl">{rows.length} đơn, mới nhất trước</span>
+          {can("order.create") ? (
+            <button
+              type="button"
+              className="c-btn is-blue"
+              aria-expanded={creating}
+              onClick={() => setCreating((v) => !v)}
+            >
+              Tạo đơn
+            </button>
+          ) : null}
         </PageHead>
         <div className="c-ftabs mx-4" role="tablist" aria-label="Lọc đơn">
           <button type="button" role="tab" aria-selected={!f} className="c-ftab" onClick={() => setF(null)}>
@@ -88,6 +101,7 @@ export function CrmOrders() {
           ))}
         </div>
       </section>
+      {creating ? <OrderForm onDone={() => setCreating(false)} /> : null}
       <section className="c-card">
         <div className="c-tw">
           <table className="c-table">
@@ -164,6 +178,7 @@ export function CrmOrder({ id }: { id: string }) {
   const { state, act } = useCrm();
   const { can, me, userId, isOwner } = useShell();
   const router = useRouter();
+  const [editing, setEditing] = useState(false);
   const o = useVisibleOrders().find((x) => x.id === id);
   if (!o) notFound();
   const m = orderMoney(o);
@@ -205,6 +220,16 @@ export function CrmOrder({ id }: { id: string }) {
           <span className={`c-pill ${TONE[ORDER_STATUS[o.status].tone]}`}>
             {ORDER_STATUS[o.status].label}
           </span>
+          {canEdit && ORDER_INFO_EDITABLE.includes(o.status) ? (
+            <button
+              type="button"
+              className="c-btn"
+              aria-expanded={editing}
+              onClick={() => setEditing((v) => !v)}
+            >
+              Sửa đơn
+            </button>
+          ) : null}
         </PageHead>
         <div className="c-hl">
           <div>
@@ -229,10 +254,10 @@ export function CrmOrder({ id }: { id: string }) {
           </div>
           {o.oppId ? (
             <div>
-              <span className="c-lbl">Từ báo giá</span>
+              <span className="c-lbl">{o.quoteId ? "Từ báo giá" : "Lead"}</span>
               <b>
                 <button type="button" className="c-link" onClick={openLead}>
-                  {o.quoteId} · mở hồ sơ lead
+                  {o.quoteId ? `${o.quoteId} · ` : ""}mở hồ sơ lead
                 </button>
               </b>
             </div>
@@ -240,13 +265,17 @@ export function CrmOrder({ id }: { id: string }) {
         </div>
       </section>
 
+      {editing ? <OrderForm order={o} onDone={() => setEditing(false)} /> : null}
+
       {o.status === "cancelled" ? (
         <p className="c-card c-cb m-0 text-err" style={{ paddingTop: 12 }}>
           Đơn đã hủy{o.cancelReason ? `: ${o.cancelReason}` : ""}. Hàng đang giữ đã được nhả.
         </p>
       ) : o.status === "pending_approval" ? (
         <p className="c-card c-cb m-0 text-warn" style={{ paddingTop: 12 }}>
-          Đơn giảm vượt giới hạn của người bán, đang chờ Owner duyệt. Chưa giữ hàng.
+          {o.approvalRejected
+            ? "Owner không duyệt mức giảm này. Bấm Sửa đơn để giảm lại trong giới hạn rồi gửi lại."
+            : "Đơn giảm vượt giới hạn của người bán, đang chờ Owner duyệt. Chưa giữ hàng."}
         </p>
       ) : (
         <ol aria-label="Các bước đơn hàng" className="c-steps m-0 list-none p-0">

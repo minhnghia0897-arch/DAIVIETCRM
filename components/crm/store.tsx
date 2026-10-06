@@ -99,7 +99,7 @@ export interface FeedItem {
 export interface QueueItem {
   id: string;
   /** agent: đề xuất của agent AI; discount: báo giá giảm vượt mức; order_payment: xác nhận tiền đã về. */
-  kind: "agent" | "discount" | "stock_count" | "order_payment";
+  kind: "agent" | "discount" | "stock_count" | "order_payment" | "order_discount";
   agent: AgentId;
   text: string;
   why: string;
@@ -215,6 +215,47 @@ export interface OrderRec extends Order {
   cancelReason?: string;
   /** Số ngày giữ hàng theo chính sách đặt cọc đã áp ở báo giá (CLAUDE.md 8.3). */
   holdDays?: number;
+  /** Đơn tạo tay trên màn Đơn hàng (không qua báo giá). */
+  manual?: boolean;
+  /** Dữ liệu form tạo, sửa đơn: để mở lại form sửa đúng như đã nhập. */
+  form?: OrderDraft;
+  /** Owner từ chối mức giảm: đơn giữ ở Chờ duyệt cho tới khi sửa lại mức giảm. */
+  approvalRejected?: boolean;
+}
+
+/** Dữ liệu nhập khi tạo hoặc sửa đơn tay (CLAUDE.md 8.7): người đặt, người nhận, địa chỉ đủ 4 cấp, các dòng. */
+export interface OrderDraft {
+  oppId?: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerMarket: "VN" | "KR";
+  buyFor: "self" | "other";
+  recipientName: string;
+  recipientRelation: string;
+  keepSurprise: boolean;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  channel: string;
+  giftMessage: string;
+  lines: QuoteInput["lines"];
+}
+
+/** Trạng thái còn sửa được các dòng hàng (chưa cọc, chưa giữ hàng); thông tin giao còn sửa được tới trước khi giao. */
+export const ORDER_LINES_EDITABLE = ["draft", "pending_approval", "confirmed"];
+export const ORDER_INFO_EDITABLE = [
+  "draft",
+  "pending_approval",
+  "confirmed",
+  "deposit_paid",
+  "ready_to_ship",
+];
+
+/** Mã, id của đơn kế tiếp sinh trong phiên (từ báo giá hoặc tạo tay); bản demo tĩnh dựng sẵn trang cho các id này. */
+export function nextOrderRef(s: { orders: OrderRec[] }) {
+  const n = s.orders.filter((x) => x.quoteId || x.manual).length + 1;
+  return { id: NEW_ORDER_IDS[n - 1] ?? `o-q${n}`, code: `Q4-2610-${String(14 + n).padStart(4, "0")}` };
 }
 
 /** Thay đổi trên hồ sơ khách trong phiên mô phỏng: đồng ý, ẩn danh hóa, sự kiện mới. */
@@ -714,6 +755,8 @@ export type CrmAction =
     }
   | { type: "markQuote"; id: string; status: "viewed" | "accepted" | "rejected"; actor: string }
   | { type: "orderHandover"; orderId: string; actor: string }
+  | { type: "createOrderManual"; draft: OrderDraft; result: QuoteResult; actorId: string; actor: string }
+  | { type: "editOrder"; orderId: string; draft: OrderDraft; result: QuoteResult; actor: string }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
   | { type: "setSettings"; patch: Partial<Settings>; actor: string; label: string; detail?: string }
   | { type: "audit"; actor: string; action: string; entity: string; detail: string }
@@ -1222,9 +1265,24 @@ export function reducer(s: State, a: CrmAction): State {
             ? `Thanh toán đơn ${q.ref?.split("#")[0]}`
             : q.kind === "discount"
               ? `Báo giá ${q.ref}`
-              : "Đề xuất agent",
+              : q.kind === "order_discount"
+                ? `Đơn ${ns.orders.find((o) => o.id === q.ref)?.code ?? q.ref}`
+                : "Đề xuất agent",
         q.text,
       );
+      if (q.kind === "order_discount") {
+        // Duyệt: đơn về Nháp, xác nhận được; từ chối: giữ Chờ duyệt, người bán sửa lại mức giảm.
+        return {
+          ...ns,
+          orders: ns.orders.map((o) =>
+            o.id === q.ref && o.status === "pending_approval"
+              ? a.ok
+                ? { ...o, status: "draft", approvalRejected: false }
+                : { ...o, approvalRejected: true }
+              : o,
+          ),
+        };
+      }
       if (q.kind === "stock_count") {
         const doc = ns.stockDocs.find((d) => d.id === q.ref);
         if (!doc) return ns;
@@ -2081,6 +2139,80 @@ export function reducer(s: State, a: CrmAction): State {
       };
       return addAudit(ns, a.actor, "Ghi hoàn tiền", o.code, vnd(a.amount));
     }
+    case "createOrderManual": {
+      if (!a.result.lines.length) return s;
+      const { id, code } = nextOrderRef(s);
+      const opp = a.draft.oppId ? s.opps.find((x) => x.id === a.draft.oppId) : undefined;
+      const needs = a.result.approvalsNeeded;
+      const order: OrderRec = {
+        id,
+        code,
+        buyerId: "",
+        recipientId: "",
+        ...orderFieldsFromDraft(a.draft, a.result),
+        sellerId: (opp && staffIdByShort(opp.owner)) || a.actorId,
+        status: needs.length ? "pending_approval" : "draft",
+        createdAt: simDate(s.minutes).toISOString(),
+        deliveryDate: null,
+        payments: [],
+        holdUntil: null,
+        oppId: opp?.id,
+        warehouseId: "wh-q4",
+        stockIssued: false,
+        codApproved: false,
+        manual: true,
+      };
+      let ns: State = { ...s, orders: [order, ...s.orders] };
+      if (needs.length) ns = queueOrderDiscount(ns, order, needs, a.actor);
+      if (opp) ns = addActivity(ns, opp.id, "delivery", `Tạo tay đơn ${code} từ hồ sơ lead`, a.actor);
+      return addAudit(ns, a.actor, "Tạo đơn", code, `${a.draft.channel} · ${vnd(a.result.totals.total)}`);
+    }
+    case "editOrder": {
+      const o = s.orders.find((x) => x.id === a.orderId);
+      if (!o || !ORDER_INFO_EDITABLE.includes(o.status)) return s;
+      // Đơn đã cọc, giữ hàng: chỉ sửa thông tin giao, dòng hàng giữ nguyên.
+      const linesChanged =
+        ORDER_LINES_EDITABLE.includes(o.status) &&
+        JSON.stringify(o.form?.lines ?? null) !== JSON.stringify(a.draft.lines);
+      const fields = orderFieldsFromDraft(a.draft, a.result);
+      const needs = linesChanged ? a.result.approvalsNeeded : [];
+      const status: OrderRec["status"] = !linesChanged
+        ? o.status
+        : needs.length
+          ? "pending_approval"
+          : o.status === "pending_approval"
+            ? "draft"
+            : o.status;
+      const next: OrderRec = linesChanged
+        ? { ...o, ...fields, status, approvalRejected: false }
+        : {
+            ...o,
+            ...fields,
+            lines: o.lines,
+            fees: o.fees,
+            policies: o.policies,
+            depositMin: o.depositMin,
+            holdDays: o.holdDays,
+            form: { ...a.draft, lines: o.form?.lines ?? a.draft.lines },
+          };
+      // Mức giảm cũ đang chờ duyệt bị thay bằng đề xuất mới.
+      let ns: State = {
+        ...s,
+        orders: s.orders.map((x) => (x.id === o.id ? next : x)),
+        queue: linesChanged
+          ? s.queue.filter((q) => !(q.kind === "order_discount" && q.ref === o.id))
+          : s.queue,
+      };
+      if (needs.length) ns = queueOrderDiscount(ns, next, needs, a.actor);
+      if (o.oppId) ns = addActivity(ns, o.oppId, "delivery", `Sửa đơn ${o.code}`, a.actor);
+      return addAudit(
+        ns,
+        a.actor,
+        "Sửa đơn",
+        o.code,
+        linesChanged ? `Đổi hàng, tổng ${vnd(a.result.totals.total)}` : "Đổi thông tin người nhận, giao hàng",
+      );
+    }
     case "importLeads": {
       let ns = s;
       let created = 0;
@@ -2621,13 +2753,73 @@ function staffIdByShort(short: string): string | undefined {
   return STAFF.find((st) => staffShort(st.id) === short)?.id;
 }
 
+/** Trường đơn sinh từ form tạo, sửa đơn: mọi con số lấy từ kết quả hàm định giá, không từ trình duyệt. */
+function orderFieldsFromDraft(d: OrderDraft, r: QuoteResult) {
+  const self = d.buyFor === "self";
+  return {
+    buyerName: d.buyerName.trim(),
+    buyerMarket: d.buyerMarket,
+    recipientName: self
+      ? d.buyerName.trim()
+      : d.recipientName.trim()
+        ? `${d.recipientName.trim()}${d.recipientRelation ? ` (${d.recipientRelation.toLowerCase()})` : ""}`
+        : "",
+    address: [d.street, d.ward, d.district, d.province]
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join(", "),
+    isGift: !self,
+    giftMessage: self ? "" : d.giftMessage.trim(),
+    keepSurprise: !self && d.keepSurprise,
+    channel: d.channel,
+    lines: r.lines.map((l) => ({
+      variantId: l.variantId,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      discount: l.discount,
+      isGift: l.isGift,
+    })),
+    fees: r.fees,
+    policies: r.appliedPolicies.map((p) => `${p.name} (v${p.version})`),
+    depositMin: r.deposit.minimum,
+    holdDays: r.deposit.holdDays,
+    form: d,
+  };
+}
+
+function queueOrderDiscount(
+  s: State,
+  o: OrderRec,
+  needs: QuoteResult["approvalsNeeded"],
+  actor: string,
+): State {
+  const seq = s.seq + 1;
+  return {
+    ...s,
+    seq,
+    queue: [
+      {
+        id: `qd${seq}`,
+        kind: "order_discount",
+        agent: "tele",
+        text: `Đơn ${o.code} cho ${o.buyerName}: ${vnd(orderMoney(o).total)}`,
+        why: needs.map((n) => n.reason).join("; "),
+        okText: `Đã duyệt giảm giá đơn ${o.code}`,
+        time: fmtMinutes(s.minutes),
+        perm: "order.discount_approve",
+        requestedBy: actor,
+        ref: o.id,
+      },
+      ...s.queue,
+    ],
+  };
+}
+
 function createOrder(s: State, q: QuoteRec, actor: string): State {
   // Khách đồng ý báo giá thì sinh đơn hàng chuẩn (CLAUDE.md 8.6, 8.7): sao giá, chính sách, người đặt, người nhận.
   const o = s.opps.find((x) => x.id === q.oppId)!;
   const info = s.leadInfo[o.id] ?? newLeadInfo("VN");
-  const n = s.orders.filter((x) => x.quoteId).length + 1;
-  const id = NEW_ORDER_IDS[n - 1] ?? `o-q${n}`;
-  const code = `Q4-2610-${String(14 + n).padStart(4, "0")}`;
+  const { id, code } = nextOrderRef(s);
   const self = info.buyFor === "self";
   const recipientName = self
     ? o.name

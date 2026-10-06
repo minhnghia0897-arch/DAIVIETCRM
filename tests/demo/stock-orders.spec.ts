@@ -157,3 +157,28 @@ test("telesale chỉ thấy đơn của mình, ghi tiền được nhưng không
   await page.goto("orders/o-0014/");
   await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
 });
+
+test("tạo đơn tay cho khách đến showroom, rồi sửa đơn", async ({ page }) => {
+  await as(page, "telesale", "orders/");
+  await page.getByRole("button", { name: "Tạo đơn", exact: true }).click();
+  const form = page.getByRole("form", { name: "Tạo đơn" });
+  await form.getByLabel("Họ tên người đặt").fill("Khách thử showroom");
+  await form.getByLabel("Số điện thoại người đặt").fill("0901234567");
+  // Thiếu địa chỉ thì báo, không tạo.
+  await form.getByRole("button", { name: "Tạo đơn", exact: true }).click();
+  await expect(form.getByText("Chưa nhập số nhà, đường")).toBeVisible();
+  await form.getByLabel("Quận, huyện").fill("Quận 4");
+  await form.getByLabel("Phường, xã").fill("Phường 6");
+  await form.getByLabel("Số nhà, đường").fill("12 Hoàng Diệu");
+  await expect(form.getByRole("group", { name: "Kết quả định giá" })).toContainText("Tổng");
+  await form.getByRole("button", { name: "Tạo đơn", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: /^Đơn Q4-2610-00/ })).toBeVisible();
+  await expect(page.getByText("12 Hoàng Diệu, Phường 6, Quận 4, TP.HCM")).toBeVisible();
+
+  await page.getByRole("button", { name: "Sửa đơn" }).click();
+  const edit = page.getByRole("form", { name: /^Sửa đơn/ });
+  await edit.getByLabel("Số nhà, đường").fill("99 Khánh Hội");
+  await edit.getByRole("button", { name: "Lưu đơn" }).click();
+  await expect(page.getByText("99 Khánh Hội, Phường 6, Quận 4, TP.HCM")).toBeVisible();
+});

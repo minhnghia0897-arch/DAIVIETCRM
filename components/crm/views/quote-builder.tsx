@@ -10,7 +10,7 @@ import { priceQuote, type QuoteInput, type QuoteResult } from "@/lib/sales/prici
 import { useShell } from "../shell-context";
 import { simDate, useCrm, vnd, type QuoteRec } from "../store";
 
-interface Row {
+export interface Row {
   key: number;
   ref: string;
   qty: number;
@@ -33,7 +33,7 @@ const OPTIONS = [
   ...Object.values(COMBOS).map((c) => ({ value: `c:${c.id}`, label: `Combo: ${c.name}` })),
 ];
 
-function toLines(rows: Row[]): QuoteInput["lines"] {
+export function toLines(rows: Row[]): QuoteInput["lines"] {
   return rows.map((r) => {
     const [kind, id] = r.ref.split(":");
     return {
@@ -75,9 +75,6 @@ export function QuoteBuilder({ opp, onDone }: { opp: Opportunity; onDone: () => 
   );
 
   const missing = info ? missingInfo(info) : ["Mua cho ai", "Tỉnh người nhận", "Dịp mua", "Ngân sách"];
-  const update = (key: number, patch: Partial<Row>) =>
-    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-
   return (
     <div className="c-nba" style={{ marginTop: 0 }}>
       <h3>Báo giá mới cho {opp.name}</h3>
@@ -87,72 +84,8 @@ export function QuoteBuilder({ opp, onDone }: { opp: Opportunity; onDone: () => 
         </p>
       ) : null}
       <div className="mt-2 space-y-2">
-        {rows.map((r, i) => (
-          <div key={r.key} className="flex flex-wrap items-center gap-2">
-            <select
-              aria-label={`Sản phẩm dòng ${i + 1}`}
-              value={r.ref}
-              onChange={(e) => update(r.key, { ref: e.target.value })}
-              className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
-            >
-              {OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1 c-lbl">
-              SL
-              <input
-                aria-label={`Số lượng dòng ${i + 1}`}
-                type="number"
-                min={1}
-                value={r.qty}
-                onChange={(e) => update(r.key, { qty: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
-                className="w-14 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
-              />
-            </label>
-            <label className="flex items-center gap-1 c-lbl">
-              Giảm %
-              <input
-                aria-label={`Giảm tay dòng ${i + 1}`}
-                type="number"
-                min={0}
-                max={50}
-                step={0.5}
-                value={r.discount}
-                onChange={(e) =>
-                  update(r.key, { discount: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })
-                }
-                className="w-16 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
-              />
-            </label>
-            {rows.length > 1 ? (
-              <button
-                type="button"
-                className="c-ib"
-                aria-label={`Xóa dòng ${i + 1}`}
-                onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-              >
-                <Trash2 size={15} />
-              </button>
-            ) : null}
-          </div>
-        ))}
+        <LineEditor rows={rows} setRows={setRows} />
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="c-btn"
-            onClick={() =>
-              setRows((rs) => [
-                ...rs,
-                { key: (rs.at(-1)?.key ?? 0) + 1, ref: "v:v-pillow", qty: 1, discount: 0 },
-              ])
-            }
-          >
-            <Plus size={13} className="mr-1 inline" aria-hidden />
-            Thêm dòng
-          </button>
           <label className="ml-auto flex items-center gap-1.5 c-lbl">
             Giao tới
             <select
@@ -191,6 +124,89 @@ export function QuoteBuilder({ opp, onDone }: { opp: Opportunity; onDone: () => 
         </button>
         <button type="button" className="c-btn" onClick={onDone}>
           Hủy
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Các dòng sản phẩm hoặc combo kèm số lượng, giảm tay; dùng chung cho báo giá và tạo, sửa đơn. */
+export function LineEditor({
+  rows,
+  setRows,
+}: {
+  rows: Row[];
+  setRows: React.Dispatch<React.SetStateAction<Row[]>>;
+}) {
+  const update = (key: number, patch: Partial<Row>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  return (
+    <div className="space-y-2">
+      {rows.map((r, i) => (
+        <div key={r.key} className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label={`Sản phẩm dòng ${i + 1}`}
+            value={r.ref}
+            onChange={(e) => update(r.key, { ref: e.target.value })}
+            className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
+          >
+            {OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-1 c-lbl">
+            SL
+            <input
+              aria-label={`Số lượng dòng ${i + 1}`}
+              type="number"
+              min={1}
+              value={r.qty}
+              onChange={(e) => update(r.key, { qty: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+              className="w-14 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+            />
+          </label>
+          <label className="flex items-center gap-1 c-lbl">
+            Giảm %
+            <input
+              aria-label={`Giảm tay dòng ${i + 1}`}
+              type="number"
+              min={0}
+              max={50}
+              step={0.5}
+              value={r.discount}
+              onChange={(e) =>
+                update(r.key, { discount: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })
+              }
+              className="w-16 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+            />
+          </label>
+          {rows.length > 1 ? (
+            <button
+              type="button"
+              className="c-ib"
+              aria-label={`Xóa dòng ${i + 1}`}
+              onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+            >
+              <Trash2 size={15} />
+            </button>
+          ) : null}
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="c-btn"
+          onClick={() =>
+            setRows((rs) => [
+              ...rs,
+              { key: (rs.at(-1)?.key ?? 0) + 1, ref: "v:v-pillow", qty: 1, discount: 0 },
+            ])
+          }
+        >
+          <Plus size={13} className="mr-1 inline" aria-hidden />
+          Thêm dòng
         </button>
       </div>
     </div>
