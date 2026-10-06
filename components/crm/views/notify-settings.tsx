@@ -78,11 +78,19 @@ function DemoLinkCard({
   save: (patch: Partial<NotifyPrefs>, msg?: string) => void;
 }) {
   const { me } = useShell();
+  const { act } = useCrm();
   return (
     <Card title="Liên kết Telegram" note={prefs.linked ? `Đã liên kết ${prefs.telegram}` : "Chưa liên kết"}>
       {prefs.linked ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="c-pill is-ok">Đang nhận thông báo qua @{DEMO_BOT}</span>
+          <button
+            type="button"
+            className="c-btn"
+            onClick={() => act({ type: "notifyTest", who: me }, "Đã gửi tin thử")}
+          >
+            Gửi tin thử
+          </button>
           <button
             type="button"
             className="c-btn is-ghost is-danger"
