@@ -623,7 +623,7 @@ export const integrations = [
       "Bot báo lead mới, giờ hẹn, việc chờ duyệt, đơn đổi trạng thái lên Telegram; nút Mở CRM mở Mini App trên điện thoại.",
     group: "operations",
     phase: "month_2",
-    implemented: false,
+    implemented: true,
     capabilities: ["staff_notifications"],
     prerequisites: [
       { key: "bot_created", label: "Owner đã tạo bot qua @BotFather và giữ token" },

@@ -2,8 +2,12 @@
 // Dùng cho đợt chạy thử (kế hoạch đã duyệt 07/10/2026); bản thật dùng webhook /api/webhooks/telegram với cùng bộ xử lý.
 //
 //   node scripts/telegram-bot.mts run                  # chạy bot (nhận tin, gửi việc)
+//   node scripts/telegram-bot.mts run-inbound          # chỉ nhận tin; dùng khi pg_cron đã lo phần gửi
 //   node scripts/telegram-bot.mts link <email>         # in link liên kết một lần cho một tài khoản CRM
 //   node scripts/telegram-bot.mts demo-lead <email>    # tạo lead thử giao cho người đó + hẹn gọi lại sau 2 phút
+//   node scripts/telegram-bot.mts setup                # khai tên bot vào Cài đặt → Tích hợp (cho trang Thông báo)
+//   node scripts/telegram-bot.mts webhook-set <url>    # chuyển sang nhận tin bằng webhook của CRM (cần HTTPS thật)
+//   node scripts/telegram-bot.mts webhook-off          # bỏ webhook, quay lại getUpdates
 //
 // Đọc TELEGRAM_BOT_TOKEN từ biến môi trường; địa chỉ và khóa Supabase từ .env.local. Không in token.
 
@@ -14,6 +18,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "../lib/db/types.ts";
 import { telegramApi } from "../lib/integrations/telegram_bot/api.ts";
+import { telegramConfig } from "../lib/integrations/telegram_bot/config.ts";
 import { handleUpdate } from "../lib/integrations/telegram_bot/inbound.ts";
 import { initialCursor, pollOutbound } from "../lib/integrations/telegram_bot/outbound.ts";
 
@@ -88,21 +93,67 @@ if (cmd === "link") {
   });
   if (te) throw te;
   console.log(`Đã tạo lead thử ${lead.id} giao cho ${p.full_name}, hẹn gọi lại sau 2 phút.`);
-} else if (cmd === "run") {
+} else if (cmd === "setup") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  const me = await telegramApi(token).call<{ username: string }>("getMe");
+  const { data: showroom } = await db
+    .from("showrooms")
+    .select("id, name")
+    .order("created_at")
+    .limit(1)
+    .single();
+  const { error } = await db
+    .from("integrations")
+    .upsert(
+      { showroom_id: showroom!.id, key: "telegram_bot", config: { botUsername: me.username } },
+      { onConflict: "showroom_id,key" },
+    );
+  if (error) throw error;
+  console.log(`Đã khai bot @${me.username} cho showroom ${showroom!.name}.`);
+  console.log("Trang Cài đặt → Thông báo Telegram giờ tạo được link liên kết thật.");
+} else if (cmd === "webhook-set") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  if (!arg?.startsWith("https://")) throw new Error("Cần địa chỉ HTTPS, ví dụ https://crm.example.vn");
+  const cfg = await telegramConfig(db);
+  if (!cfg?.webhookSecret)
+    throw new Error(
+      "Chưa có mã bí mật webhook. Owner đặt ở Cài đặt → Tích hợp, hoặc đặt biến TELEGRAM_WEBHOOK_SECRET.",
+    );
+  const url = `${arg.replace(/\/$/, "")}/api/webhooks/telegram`;
+  await telegramApi(token).call("setWebhook", {
+    url,
+    secret_token: cfg.webhookSecret,
+    allowed_updates: ["message", "callback_query", "my_chat_member"],
+    drop_pending_updates: false,
+  });
+  console.log(`Telegram sẽ gửi tin về ${url}. Dừng lệnh run, CRM tự nhận tin từ giờ.`);
+} else if (cmd === "webhook-off") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  await telegramApi(token).call("deleteWebhook", { drop_pending_updates: false });
+  console.log("Đã bỏ webhook. Chạy lại lệnh run để nhận tin bằng getUpdates.");
+} else if (cmd === "run" || cmd === "run-inbound") {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
   const api = telegramApi(token);
   const me = await api.call<{ username: string }>("getMe");
   console.log(`Bot @${me.username} đang chạy, nối với database ${process.env.NEXT_PUBLIC_SUPABASE_URL}`);
 
-  let cursor = await initialCursor(db);
-  setInterval(async () => {
-    try {
-      cursor = await pollOutbound(db, api, cursor);
-    } catch (e) {
-      console.error("Gửi tin lỗi:", e instanceof Error ? e.message : e);
-    }
-  }, 5_000);
+  // Khi Edge Function telegram-outbound đã chạy theo lịch pg_cron thì dùng run-inbound, tránh gửi trùng tin.
+  if (cmd === "run") {
+    let cursor = await initialCursor(db);
+    setInterval(async () => {
+      try {
+        cursor = await pollOutbound(db, api, cursor);
+      } catch (e) {
+        console.error("Gửi tin lỗi:", e instanceof Error ? e.message : e);
+      }
+    }, 5_000);
+  } else {
+    console.log("Chế độ chỉ nhận tin: phần gửi do Edge Function telegram-outbound lo.");
+  }
 
   let offset = 0;
   for (;;) {
@@ -123,5 +174,7 @@ if (cmd === "link") {
     }
   }
 } else {
-  console.log("Lệnh: run | link <email> | demo-lead <email>");
+  console.log(
+    "Lệnh: run | run-inbound | link <email> | demo-lead <email> | setup | webhook-set <https-url> | webhook-off",
+  );
 }

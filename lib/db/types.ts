@@ -1116,6 +1116,7 @@ export type Database = {
           events: NonNullable<Json>;
           level: string;
           quiet_from: string | null;
+          quiet_on: boolean;
           quiet_to: string | null;
           showroom_id: string;
           updated_at: string;
@@ -1127,6 +1128,7 @@ export type Database = {
           events?: NonNullable<Json>;
           level?: string;
           quiet_from?: string | null;
+          quiet_on?: boolean;
           quiet_to?: string | null;
           showroom_id: string;
           updated_at?: string;
@@ -1138,6 +1140,7 @@ export type Database = {
           events?: NonNullable<Json>;
           level?: string;
           quiet_from?: string | null;
+          quiet_on?: boolean;
           quiet_to?: string | null;
           showroom_id?: string;
           updated_at?: string;
@@ -1830,6 +1833,41 @@ export type Database = {
           },
         ];
       };
+      telegram_outbound_state: {
+        Row: {
+          created_at: string;
+          last_approval_at: string;
+          last_event_id: number;
+          last_task_check: string;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          last_approval_at?: string;
+          last_event_id?: number;
+          last_task_check?: string;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          last_approval_at?: string;
+          last_event_id?: number;
+          last_task_check?: string;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_outbound_state_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: true;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_permission_overrides: {
         Row: {
           effect: string;
@@ -2120,6 +2158,7 @@ export type Database = {
       create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
+      dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       get_integration_secret: {
         Args: { p_key: string; p_name: string; p_showroom: string };

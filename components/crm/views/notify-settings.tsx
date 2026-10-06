@@ -1,15 +1,17 @@
 "use client";
 
-import { Paperclip, Reply, Send, X } from "lucide-react";
+import { Copy, Paperclip, Reply, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/toast";
 import {
   defaultPrefs,
   eventsFor,
   inQuietHours,
   type NotifyButton,
+  type NotifyEvent,
   type NotifyPrefs,
 } from "@/lib/notify/events";
 import { useShell } from "../shell-context";
@@ -23,7 +25,37 @@ const HOURS = Array.from(
   { length: 48 },
   (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`,
 );
-const BOT = "DAIVIETS4BOT";
+/** Tên bot khi chạy bản demo; bản thật lấy từ Cài đặt → Tích hợp. */
+const DEMO_BOT = "DaiVietQ4Bot";
+
+type Result = { ok: boolean; message: string };
+
+/** Nhóm Telegram Owner đã gán công dụng (chỉ người có settings.integrations thấy). */
+export interface LiveTelegramGroup {
+  title: string;
+  purpose: string;
+  status: string;
+}
+
+/**
+ * Bản thật: liên kết, thiết lập, nhóm đọc từ database qua server action (RLS và nhật ký ở database).
+ * Không có thì màn chạy mô phỏng trong trình duyệt như bản demo.
+ */
+export interface LiveNotify {
+  botUsername: string | null;
+  prefs: NotifyPrefs;
+  groups: LiveTelegramGroup[];
+  canSeeGroups: boolean;
+  createLink: () => Promise<{ ok: true; url: string; minutes: number } | { ok: false; message: string }>;
+  unlink: () => Promise<Result>;
+  savePrefs: (input: {
+    level?: NotifyPrefs["level"];
+    events?: Partial<Record<NotifyEvent, boolean>>;
+    quiet?: { on: boolean; from: string; to: string };
+  }) => Promise<Result>;
+}
+
+const LiveContext = createContext<LiveNotify | null>(null);
 
 function Card({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
@@ -37,68 +69,194 @@ function Card({ title, note, children }: { title: string; note?: string; childre
   );
 }
 
-export function NotifySettings() {
+/** Bản demo: bấm "Mô phỏng: đã bấm Start" để xem màn sau khi liên kết, không gọi Telegram thật. */
+function DemoLinkCard({
+  prefs,
+  save,
+}: {
+  prefs: NotifyPrefs;
+  save: (patch: Partial<NotifyPrefs>, msg?: string) => void;
+}) {
+  const { me } = useShell();
+  return (
+    <Card title="Liên kết Telegram" note={prefs.linked ? `Đã liên kết ${prefs.telegram}` : "Chưa liên kết"}>
+      {prefs.linked ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="c-pill is-ok">Đang nhận thông báo qua @{DEMO_BOT}</span>
+          <button
+            type="button"
+            className="c-btn is-ghost is-danger"
+            onClick={() => save({ linked: false, telegram: undefined }, "Đã gỡ liên kết Telegram")}
+          >
+            Gỡ liên kết
+          </button>
+        </div>
+      ) : (
+        <ol className="m-0 space-y-2 pl-5">
+          <li>
+            Bấm nút dưới để mở bot <b>@{DEMO_BOT}</b> trên Telegram (điện thoại hoặc máy tính).
+          </li>
+          <li>
+            Trong Telegram bấm <b>Start</b>. Link chỉ dùng được một lần, hết hạn sau 10 phút.
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className="c-btn mt-1"
+              onClick={() =>
+                save({ linked: true, telegram: `@${me.toLowerCase()}_daiviet` }, "Đã liên kết Telegram")
+              }
+            >
+              Mô phỏng: đã bấm Start
+            </button>
+          </li>
+        </ol>
+      )}
+    </Card>
+  );
+}
+
+/** Bản thật: link liên kết do database sinh (một lần, 10 phút), chỉ hiện cho chính chủ, không ghi ra nhật ký. */
+function LiveLinkCard({ live, pending }: { live: LiveNotify; pending: boolean }) {
+  const toast = useToast();
+  const [busy, start] = useTransition();
+  const [link, setLink] = useState<{ url: string; minutes: number }>();
+  const p = live.prefs;
+  const busyAll = busy || pending;
+
+  const make = () =>
+    start(async () => {
+      try {
+        const r = await live.createLink();
+        if (!r.ok) {
+          toast(r.message, "err");
+          return;
+        }
+        setLink({ url: r.url, minutes: r.minutes });
+      } catch {
+        toast("Chưa tạo được link liên kết, thử lại sau ít phút.", "err");
+      }
+    });
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link.url);
+      toast("Đã chép link", "ok");
+    } catch {
+      toast("Trình duyệt không cho chép, anh chị bấm giữ để chép tay.", "err");
+    }
+  };
+
+  return (
+    <Card
+      title="Liên kết Telegram"
+      note={p.linked ? `Đã liên kết ${p.telegram ?? ""}`.trim() : "Chưa liên kết"}
+    >
+      {p.linked ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="c-pill is-ok">
+            Đang nhận thông báo{live.botUsername ? ` qua @${live.botUsername}` : ""}
+          </span>
+          <button
+            type="button"
+            className="c-btn is-ghost is-danger"
+            disabled={busyAll}
+            onClick={() =>
+              start(async () => {
+                try {
+                  const r = await live.unlink();
+                  toast(r.message, r.ok ? "ok" : "err");
+                } catch {
+                  toast("Chưa gỡ được liên kết, thử lại sau ít phút.", "err");
+                }
+              })
+            }
+          >
+            Gỡ liên kết
+          </button>
+        </div>
+      ) : !live.botUsername ? (
+        <p className="c-lbl m-0">
+          Chưa khai tên bot. Owner điền ở <b>Cài đặt → Tích hợp → Thông báo Telegram cho nhân viên</b>, sau đó
+          anh chị quay lại trang này để liên kết.
+        </p>
+      ) : (
+        <ol className="m-0 space-y-2 pl-5">
+          <li>
+            Bấm <b>Tạo link liên kết</b>. Link chỉ dùng được một lần, hết hạn sau 10 phút.
+          </li>
+          <li>
+            Mở link bằng Telegram (điện thoại hoặc máy tính) rồi bấm <b>Start</b>.
+          </li>
+          <li className="list-none">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <button type="button" className="c-btn is-blue" disabled={busyAll} onClick={make}>
+                {link ? "Tạo link khác" : "Tạo link liên kết"}
+              </button>
+              {link ? (
+                <>
+                  <a className="c-btn" href={link.url} target="_blank" rel="noreferrer">
+                    Mở Telegram
+                  </a>
+                  <button type="button" className="c-btn is-ghost" onClick={copy}>
+                    <Copy size={14} className="mr-1 inline" aria-hidden />
+                    Chép link
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {link ? (
+              <p className="c-lbl mt-1.5 mb-0 break-all">
+                {link.url}
+                <span className="block">
+                  Hết hạn sau {link.minutes} phút, dùng một lần. Tạo link khác thì link cũ hết hiệu lực.
+                </span>
+              </p>
+            ) : null}
+          </li>
+        </ol>
+      )}
+    </Card>
+  );
+}
+
+export function NotifySettings({ live }: { live?: LiveNotify }) {
+  return (
+    <LiveContext.Provider value={live ?? null}>
+      <NotifyBody />
+    </LiveContext.Provider>
+  );
+}
+
+function NotifyBody() {
+  const live = useContext(LiveContext);
   const { state, act } = useCrm();
   const { me, perms } = useShell();
-  const p: NotifyPrefs = state.notifyPrefs[me] ?? defaultPrefs();
-  const save = (patch: Partial<NotifyPrefs>, msg?: string) =>
-    act({ type: "notifyPrefs", who: me, patch, actor: me }, msg);
+  const toast = useToast();
+  const [pending, start] = useTransition();
+  const p: NotifyPrefs = live ? live.prefs : (state.notifyPrefs[me] ?? defaultPrefs());
+  // Bản thật: lưu xuống database rồi trang tải lại; bản demo: đổi ngay trong bộ nhớ trình duyệt.
+  const save = (patch: Partial<NotifyPrefs>, msg?: string) => {
+    if (!live) {
+      act({ type: "notifyPrefs", who: me, patch, actor: me }, msg);
+      return;
+    }
+    start(async () => {
+      try {
+        const r = await live.savePrefs({ level: patch.level, events: patch.events, quiet: patch.quiet });
+        toast(msg && r.ok ? msg : r.message, r.ok ? "ok" : "err");
+      } catch {
+        toast("Chưa lưu được thiết lập, thử lại sau ít phút.", "err");
+      }
+    });
+  };
   const events = eventsFor(perms);
 
   return (
     <div className="tgset">
       <div className="c-stack">
-        <Card title="Liên kết Telegram" note={p.linked ? `Đã liên kết ${p.telegram}` : "Chưa liên kết"}>
-          {p.linked ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="c-pill is-ok">Đang nhận thông báo qua @{BOT}</span>
-              <button
-                type="button"
-                className="c-btn"
-                onClick={() => act({ type: "notifyTest", who: me }, "Đã gửi tin thử")}
-              >
-                Gửi tin thử
-              </button>
-              <button
-                type="button"
-                className="c-btn is-ghost is-danger"
-                onClick={() => save({ linked: false, telegram: undefined }, "Đã gỡ liên kết Telegram")}
-              >
-                Gỡ liên kết
-              </button>
-            </div>
-          ) : (
-            <ol className="m-0 space-y-2 pl-5">
-              <li>
-                Bấm nút dưới để mở bot <b>@{BOT}</b> trên Telegram (điện thoại hoặc máy tính).
-              </li>
-              <li>
-                Trong Telegram bấm <b>Start</b>. Link chỉ dùng được một lần, hết hạn sau 10 phút.
-              </li>
-              <li className="list-none">
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  <a
-                    className="c-btn is-blue"
-                    href={`https://t.me/${BOT}?start=link_demo`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Mở Telegram để liên kết
-                  </a>
-                  <button
-                    type="button"
-                    className="c-btn"
-                    onClick={() =>
-                      save({ linked: true, telegram: `@${me.toLowerCase()}_daiviet` }, "Đã liên kết Telegram")
-                    }
-                  >
-                    Mô phỏng: đã bấm Start
-                  </button>
-                </div>
-              </li>
-            </ol>
-          )}
-        </Card>
+        {live ? <LiveLinkCard live={live} pending={pending} /> : <DemoLinkCard prefs={p} save={save} />}
 
         <Card title="Mức chi tiết của tin" note="Không bao giờ có số điện thoại, nội dung tin của khách">
           <div className="space-y-2" role="radiogroup" aria-label="Mức chi tiết">
@@ -179,6 +337,8 @@ export function NotifySettings() {
             </select>
           </div>
         </Card>
+
+        {live?.canSeeGroups ? <GroupsCard groups={live.groups} /> : null}
       </div>
 
       <TelegramPhone prefs={p} />
@@ -186,9 +346,53 @@ export function NotifySettings() {
   );
 }
 
+const PURPOSE_LABEL: Record<string, string> = {
+  general: "Nhóm chung",
+  delivery: "Nhóm giao hàng",
+  care: "Nhóm chăm sóc khách hàng",
+  announce: "Kênh thông báo chung",
+  unused: "Chưa gán",
+};
+const GROUP_STATUS: Record<string, string> = {
+  pending: "Chờ gán",
+  active: "Đang dùng",
+  inactive: "Tạm ngưng",
+  lost: "Bot đã rời nhóm",
+};
+
+/** Nhóm Telegram bot đang ở. Owner gán công dụng bằng lệnh /gan ngay trong nhóm. */
+function GroupsCard({ groups }: { groups: LiveTelegramGroup[] }) {
+  return (
+    <Card title="Nhóm Telegram của đội" note="Gán bằng lệnh /gan ngay trong nhóm">
+      {groups.length === 0 ? (
+        <p className="c-lbl m-0">
+          Chưa có nhóm nào. Thêm bot vào nhóm của đội, rồi gõ trong nhóm: <b>/gan chung</b>,{" "}
+          <b>/gan giaohang</b>, <b>/gan cskh</b> hoặc <b>/gan thongbao</b>.
+        </p>
+      ) : (
+        <ul className="m-0 list-none space-y-2 p-0">
+          {groups.map((g, i) => (
+            <li key={`${g.title}-${i}`} className="flex items-center gap-2">
+              <span className="flex-1">
+                {g.title || "(nhóm chưa đặt tên)"}
+                <span className="c-lbl block">{PURPOSE_LABEL[g.purpose] ?? g.purpose}</span>
+              </span>
+              <span className={`c-pill ${g.status === "active" ? "is-ok" : ""}`}>
+                {GROUP_STATUS[g.status] ?? g.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 /** Điện thoại xem trước: khung chat với bot, tin mới nhất ở dưới, nút nhanh dưới từng tin như Telegram.
  *  Trả lời (reply) vào tin báo về lead, đơn thì nội dung về hồ sơ trong CRM (components/crm/telegram-in.ts). */
 function TelegramPhone({ prefs }: { prefs: NotifyPrefs }) {
+  const live = useContext(LiveContext);
+  const bot = live?.botUsername ?? DEMO_BOT;
   const { state, act, dispatch } = useCrm();
   const { me, userId } = useShell();
   const router = useRouter();
@@ -252,13 +456,17 @@ function TelegramPhone({ prefs }: { prefs: NotifyPrefs }) {
           </span>
           <span>
             <b>Đại Việt CRM</b>
-            <span className="tg-sub">bot · @{BOT}</span>
+            <span className="tg-sub">bot · @{bot}</span>
           </span>
         </div>
         <div className="tgp-msgs" ref={box} role="log" aria-label="Tin bot gửi">
           {!prefs.linked ? (
             <p className="tg-day">
               <span>Chưa liên kết: tin dưới đây là xem trước, chưa gửi tới điện thoại.</span>
+            </p>
+          ) : live ? (
+            <p className="tg-day">
+              <span>Khung này là xem trước cách bot viết tin; tin thật nằm trong Telegram của anh chị.</span>
             </p>
           ) : null}
           {items.length === 0 ? (

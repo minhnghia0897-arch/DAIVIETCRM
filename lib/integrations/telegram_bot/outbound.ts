@@ -45,10 +45,11 @@ async function prefsOf(db: Db, userId: string): Promise<NotifyPrefs> {
     linked: true,
     level: data.level as NotifyPrefs["level"],
     events: { ...base.events, ...((data.events as Record<string, boolean>) ?? {}) },
-    quiet:
-      data.quiet_from && data.quiet_to
-        ? { on: true, from: data.quiet_from.slice(0, 5), to: data.quiet_to.slice(0, 5) }
-        : base.quiet,
+    quiet: {
+      on: data.quiet_on,
+      from: data.quiet_from?.slice(0, 5) ?? base.quiet.from,
+      to: data.quiet_to?.slice(0, 5) ?? base.quiet.to,
+    },
   };
 }
 

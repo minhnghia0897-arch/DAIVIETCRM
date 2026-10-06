@@ -94,6 +94,20 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
   },
 ];
 
+/**
+ * Lọc một bản vá "bật tắt sự kiện" về đúng các sự kiện có thật.
+ * Nhận cả bản vá một sự kiện lẫn cả bộ, nên giao diện gửi kiểu nào server cũng hiểu.
+ */
+export function pickKnownEvents(input: unknown): Partial<Record<NotifyEvent, boolean>> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const known = new Set<string>(NOTIFY_EVENTS.map((e) => e.key));
+  const out: Partial<Record<NotifyEvent, boolean>> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (known.has(key) && typeof value === "boolean") out[key as NotifyEvent] = value;
+  }
+  return out;
+}
+
 export interface NotifyPrefs {
   /** Đã liên kết Telegram (bấm link mở bot, Start). */
   linked: boolean;

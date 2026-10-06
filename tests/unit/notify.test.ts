@@ -4,7 +4,14 @@ import { deniedReason, type Who } from "@/components/crm/access";
 import { planTgReply, tgTarget } from "@/components/crm/telegram-in";
 import { initialState, notesFor, reducerWithNotify, type CrmState } from "@/components/crm/store";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { defaultPrefs, eventsFor, formatNotify, inQuietHours, shortCustomer } from "@/lib/notify/events";
+import {
+  defaultPrefs,
+  eventsFor,
+  formatNotify,
+  inQuietHours,
+  pickKnownEvents,
+  shortCustomer,
+} from "@/lib/notify/events";
 
 // Thông báo Telegram (lib/notify/events.ts, store notifyDiff): không lộ số, đúng người nhận, tự chọn mức chi tiết.
 
@@ -226,5 +233,29 @@ describe("ghi ngược từ Telegram vào CRM", () => {
       text: "/viec",
     });
     expect(plan.bot).toMatch(/Việc hôm nay|không còn việc/);
+  });
+});
+
+// Bản vá bật tắt sự kiện gửi từ trang Cài đặt: nhận một sự kiện hay cả bộ đều phải hiểu, và không để lọt khóa lạ
+// vào cột `events` của notification_prefs.
+describe("pickKnownEvents", () => {
+  it("giữ bản vá một sự kiện", () => {
+    expect(pickKnownEvents({ sla_overdue: false })).toEqual({ sla_overdue: false });
+  });
+
+  it("giữ cả bộ", () => {
+    const all = defaultPrefs().events;
+    expect(pickKnownEvents(all)).toEqual(all);
+  });
+
+  it("bỏ khóa lạ và giá trị không phải bật tắt", () => {
+    expect(pickKnownEvents({ sla_overdue: true, khong_co_that: true, chat_message: "x" })).toEqual({
+      sla_overdue: true,
+    });
+  });
+
+  it("đầu vào không phải đối tượng thì trả bộ rỗng", () => {
+    expect(pickKnownEvents(null)).toEqual({});
+    expect(pickKnownEvents([1, 2])).toEqual({});
   });
 });

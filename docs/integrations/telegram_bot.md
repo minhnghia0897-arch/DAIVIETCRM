@@ -48,10 +48,36 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 | Cài đặt của từng người | `/settings/notifications` (`components/crm/views/notify-settings.tsx`) |
 | Mini App | `/m` (`components/crm/views/mini-app.tsx`) |
 | Ghi ngược từ Telegram (trả lời, ảnh, lệnh) | `components/crm/telegram-in.ts`, thao tác `tgReply` |
-| Bộ nối thật | `lib/integrations/telegram_bot/` (`api.ts`, `inbound.ts`, `outbound.ts`) |
-| Database | `supabase/migrations/20261007000100_telegram.sql`: `telegram_links`, `telegram_link_codes`, `telegram_groups`, `telegram_messages`, `notification_prefs`, hàm `telegram_*`, bucket `telegram-attachments` |
-| Chạy thử | `node scripts/telegram-bot.mts run \| link <email> \| demo-lead <email>` |
-| Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` (Sắp có) |
+| Bộ nối thật | `lib/integrations/telegram_bot/` (`api.ts`, `config.ts`, `inbound.ts`, `outbound.ts`) |
+| Nhận tin (bản thật) | `app/api/webhooks/telegram/route.ts` |
+| Đẩy tin (bản thật) | `supabase/functions/telegram-outbound/`, chạy theo lịch `pg_cron` |
+| Database | `supabase/migrations/20261007000100_telegram.sql`: `telegram_links`, `telegram_link_codes`, `telegram_groups`, `telegram_messages`, `notification_prefs`, hàm `telegram_*`, bucket `telegram-attachments`. `20261007000200_telegram_live.sql`: cột `quiet_on`, bảng `telegram_outbound_state`, hàm `dispatch_telegram_outbound`, lịch cron |
+| Chạy thử | `node scripts/telegram-bot.mts run \| run-inbound \| link <email> \| demo-lead <email> \| setup \| webhook-set <url> \| webhook-off` |
+| Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` |
+
+## Nối vào CRM thật
+
+Ba đường, dùng chung một bộ xử lý nghiệp vụ nên đổi một chỗ là cả ba đổi theo.
+
+**1. Nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.** Bấm **Tạo link liên kết**: database sinh mã ngẫu nhiên
+(hàm `create_telegram_link_code`, chỉ giữ bản băm, một lần, 10 phút), trang dựng link `https://t.me/<bot>?start=<mã>`.
+Bấm Start trong Telegram là xong. Mức chi tiết, sự kiện muốn nhận, giờ im lặng lưu vào `notification_prefs` (RLS: mỗi
+người chỉ sửa được của mình). Người có `settings.integrations` thấy thêm danh sách nhóm Telegram của đội.
+Tên bot đọc từ `integrations.config.botUsername`; chưa khai thì trang chỉ chỗ cho Owner điền ở Tích hợp.
+
+**2. Nhận tin bằng webhook.** Owner dán token và mã bí mật webhook ở Cài đặt → Tích hợp (vào Supabase Vault), rồi
+`node scripts/telegram-bot.mts webhook-set https://<tên miền>`. Route kiểm `X-Telegram-Bot-Api-Secret-Token` bằng so
+sánh thời gian không đổi; sai mã trả 401 và không đọc nội dung. Chưa có tên miền HTTPS thì vẫn chạy `getUpdates` bằng
+lệnh `run`. Lưu ý: `proxy.ts` phải cho `/api/webhooks/` đi qua, vì Telegram gọi vào không có phiên đăng nhập.
+
+**3. Đẩy tin bằng việc nền.** `pg_cron` gọi `public.dispatch_telegram_outbound()` mỗi phút; hàm này đọc hai khóa
+trong Vault (`edge_functions_base_url`, `edge_functions_service_key`) rồi gọi Edge Function `telegram-outbound`.
+Thiếu một trong hai khóa thì hàm im lặng, cron không báo lỗi. Con trỏ quét nằm ở `telegram_outbound_state` nên lần
+chạy sau tiếp đúng chỗ lần trước dừng. Khi lịch này đã chạy, script chạy thử phải dùng `run-inbound` để không gửi
+trùng tin.
+
+Thứ tự cài một môi trường mới: đặt hai khóa Vault cho việc nền → Owner dán token, mã bí mật webhook và tên bot ở
+Tích hợp → `webhook-set` → nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.
 
 ## Đã kiểm theo tài liệu chính thức (07/10/2026)
 

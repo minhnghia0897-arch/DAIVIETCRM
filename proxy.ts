@@ -32,7 +32,10 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/login") ||
     path.startsWith("/invite") ||
     path.startsWith("/auth/") ||
-    path.startsWith("/q/");
+    path.startsWith("/q/") ||
+    // Webhook của nhà cung cấp gọi vào không có phiên đăng nhập; mỗi route tự kiểm chữ ký hoặc mã bí mật
+    // (CLAUDE.md mục 10.1). Đẩy về /login sẽ làm mất tin.
+    path.startsWith("/api/webhooks/");
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

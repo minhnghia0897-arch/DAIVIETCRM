@@ -738,7 +738,7 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
         return {
           ok: true,
           message: def.implemented
-            ? `Đã lưu khóa và cấu hình ${def.name}, đang kiểm tra kết nối`
+            ? `Đã lưu khóa và cấu hình ${def.name} vào kho bí mật. Trạng thái "Đã kết nối" chỉ bật khi bộ nối nhận được dữ liệu thật.`
             : `Đã lưu khóa và cấu hình ${def.name} vào kho bí mật. Bộ nối ${def.name} chưa được viết nên chưa kiểm tra được kết nối thật.`,
         };
       },
