@@ -22,6 +22,14 @@ import {
   type TaskRule,
 } from "@/lib/demo/ops-data";
 import { POLICIES } from "@/lib/demo/sales-catalog";
+import {
+  TEAM_CHATS,
+  TOPIC_COLORS,
+  type ChatAttachment,
+  type ChatMessage,
+  type ChatTopic,
+  type TeamChat,
+} from "@/lib/demo/team-chat";
 import { routeLead, type Receiver } from "@/lib/leads/assign";
 import { decideIntake, type IntakeDecision, type KnownContact, type KnownLead } from "@/lib/leads/dedupe";
 import type { ImportRow } from "@/lib/leads/import";
@@ -326,6 +334,10 @@ interface State {
   opps: Opportunity[];
   oppSel: string;
   convs: Conversation[];
+  /** Nhóm trao đổi nội bộ của đội (kiểu Telegram). */
+  chats: TeamChat[];
+  /** Số tin đã xem của từng chủ đề ("nhóm/chủ đề"), để đếm tin chưa đọc. */
+  chatSeen: Record<string, number>;
   convSel: string;
   houseSel: string;
   crossDone: string[];
@@ -525,6 +537,17 @@ export function initialState(): State {
     opps: OPPORTUNITIES,
     oppSel: "o1",
     convs: CONVERSATIONS,
+    chats: TEAM_CHATS,
+    // Vài chủ đề có tin chưa đọc để thấy số đếm như Telegram.
+    chatSeen: Object.fromEntries(
+      TEAM_CHATS.flatMap((c) =>
+        c.topics.map((t) => {
+          const key = `${c.id}/${t.id}`;
+          const unread = { "c-all/campaign-2010": 2, "c-tele/korea": 1 }[key] ?? 0;
+          return [key, t.messages.length - unread];
+        }),
+      ),
+    ),
     convSel: "v1",
     houseSel: "h1",
     crossDone: [],
@@ -755,6 +778,19 @@ export type CrmAction =
     }
   | { type: "markQuote"; id: string; status: "viewed" | "accepted" | "rejected"; actor: string }
   | { type: "orderHandover"; orderId: string; actor: string }
+  | {
+      type: "chatSend";
+      chatId: string;
+      topicId: string;
+      text: string;
+      replyTo?: string;
+      attachment?: ChatAttachment;
+      actor: string;
+    }
+  | { type: "chatSeen"; chatId: string; topicId: string }
+  | { type: "chatLike"; chatId: string; topicId: string; msgId: string; actor: string }
+  | { type: "chatPin"; chatId: string; topicId: string; msgId: string | null; actor: string }
+  | { type: "chatTopicCreate"; chatId: string; name: string; actor: string }
   | { type: "createOrderManual"; draft: OrderDraft; result: QuoteResult; actorId: string; actor: string }
   | { type: "editOrder"; orderId: string; draft: OrderDraft; result: QuoteResult; actor: string }
   | { type: "approve"; id: string; ok: boolean; actor: string; isOwner: boolean }
@@ -2139,6 +2175,67 @@ export function reducer(s: State, a: CrmAction): State {
       };
       return addAudit(ns, a.actor, "Ghi hoàn tiền", o.code, vnd(a.amount));
     }
+    case "chatSend": {
+      const c = s.chats.find((x) => x.id === a.chatId);
+      const t = c?.topics.find((x) => x.id === a.topicId);
+      const text = maskPhonesInText(a.text.trim());
+      if (!c || !t || (!text && !a.attachment)) return s;
+      const seq = s.seq + 1;
+      const msg: ChatMessage = {
+        id: `cm${seq}`,
+        from: a.actor,
+        text,
+        day: "Hôm nay",
+        time: fmtMinutes(s.minutes),
+        replyTo: a.replyTo,
+        attachment: a.attachment,
+      };
+      return {
+        ...updateTopic({ ...s, seq }, c.id, t.id, (x) => ({ ...x, messages: [...x.messages, msg] })),
+        chatSeen: { ...s.chatSeen, [`${c.id}/${t.id}`]: t.messages.length + 1 },
+      };
+    }
+    case "chatSeen": {
+      const t = s.chats.find((x) => x.id === a.chatId)?.topics.find((x) => x.id === a.topicId);
+      const key = `${a.chatId}/${a.topicId}`;
+      if (!t || s.chatSeen[key] === t.messages.length) return s;
+      return { ...s, chatSeen: { ...s.chatSeen, [key]: t.messages.length } };
+    }
+    case "chatLike":
+      return updateTopic(s, a.chatId, a.topicId, (t) => ({
+        ...t,
+        messages: t.messages.map((m) =>
+          m.id !== a.msgId
+            ? m
+            : {
+                ...m,
+                likes: m.likes?.includes(a.actor)
+                  ? m.likes.filter((x) => x !== a.actor)
+                  : [...(m.likes ?? []), a.actor],
+              },
+        ),
+      }));
+    case "chatPin":
+      return updateTopic(s, a.chatId, a.topicId, (t) => ({ ...t, pinned: a.msgId ?? undefined }));
+    case "chatTopicCreate": {
+      const c = s.chats.find((x) => x.id === a.chatId);
+      const name = a.name.trim().slice(0, 60);
+      if (!c || !name || c.kind === "channel") return s;
+      const seq = s.seq + 1;
+      const topic = {
+        id: `tp${seq}`,
+        name,
+        color: TOPIC_COLORS[c.topics.length % TOPIC_COLORS.length],
+        createdBy: a.actor,
+        messages: [],
+      };
+      return {
+        ...s,
+        seq,
+        chats: s.chats.map((x) => (x.id === c.id ? { ...x, topics: [...x.topics, topic] } : x)),
+        chatSeen: { ...s.chatSeen, [`${c.id}/${topic.id}`]: 0 },
+      };
+    }
     case "createOrderManual": {
       if (!a.result.lines.length) return s;
       const { id, code } = nextOrderRef(s);
@@ -2751,6 +2848,28 @@ function markSent(s: State, quoteId: string, actor: string): State {
 /** Mã nhân sự theo tên ngắn (cột người phụ trách của dữ liệu mô phỏng). */
 function staffIdByShort(short: string): string | undefined {
   return STAFF.find((st) => staffShort(st.id) === short)?.id;
+}
+
+/**
+ * Không để số điện thoại khách lọt vào nhóm chat (CLAUDE.md mục 5, bảo vệ dữ liệu khách): số từ 9 chữ số trở lên
+ * được che, chỉ giữ 3 số cuối. Cần số thì mở hồ sơ lead.
+ */
+function updateTopic(s: State, chatId: string, topicId: string, f: (t: ChatTopic) => ChatTopic): State {
+  return {
+    ...s,
+    chats: s.chats.map((c) =>
+      c.id !== chatId ? c : { ...c, topics: c.topics.map((t) => (t.id === topicId ? f(t) : t)) },
+    ),
+  };
+}
+
+export function maskPhonesInText(text: string): string {
+  // Không che mã đơn kiểu Q4-2610-0012: số phải đứng riêng, không dính chữ hay gạch phía trước.
+  return text.replace(/(?<![\p{L}\d-])\+?\d[\d .-]{7,}\d/gu, (m) => {
+    const digits = m.replace(/\D/g, "");
+    if (digits.length < 9 || digits.length > 15) return m;
+    return `${m.startsWith("+") ? "+" : ""}${digits.slice(0, 3)}•••${digits.slice(-3)}`;
+  });
 }
 
 /** Trường đơn sinh từ form tạo, sửa đơn: mọi con số lấy từ kết quả hàm định giá, không từ trình duyệt. */

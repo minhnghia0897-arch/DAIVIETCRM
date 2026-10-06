@@ -40,6 +40,11 @@ export function visibleConvs(s: CrmState, w: Who) {
   return s.convs.filter((c) => c.houseId && houses.has(c.houseId));
 }
 
+/** Nhóm nội bộ mình là thành viên (Owner cũng chỉ thấy nhóm mình tham gia, như Telegram). */
+export function visibleChats(s: CrmState, w: Who) {
+  return s.chats.filter((c) => c.members.includes(w.me));
+}
+
 /** Hàng chờ duyệt: mục mình có quyền duyệt, cộng các đề xuất của chính mình (để theo dõi). */
 export function visibleQueue(s: CrmState, w: Who): QueueItem[] {
   return s.queue.filter((q) => has(w, q.perm) || (q.requestedBy !== undefined && q.requestedBy === w.me));
@@ -116,6 +121,7 @@ const VIEW_ONLY = new Set([
   "selectConv",
   "selectTrace",
   "customerFollowUp",
+  "chatSeen",
 ]);
 
 type AnyAction = { type: string } & Record<string, unknown>;
@@ -229,6 +235,23 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       const o = order();
       if (!has(w, "payment.record") || !orderEditable(o, w)) return NO;
       return Number(a.amount) > 0 ? null : "Số tiền phải lớn hơn 0";
+    }
+    case "chatSend":
+    case "chatLike": {
+      const c = s.chats.find((x) => x.id === str("chatId"));
+      if (!c || !c.members.includes(w.me)) return "Anh chị không ở trong nhóm này";
+      if (a.type === "chatSend" && c.kind === "channel" && !c.admins.includes(w.me))
+        return "Kênh thông báo chỉ quản trị kênh đăng tin";
+      return null;
+    }
+    case "chatPin": {
+      const c = s.chats.find((x) => x.id === str("chatId"));
+      return c && c.admins.includes(w.me) ? null : "Chỉ quản trị nhóm ghim tin";
+    }
+    case "chatTopicCreate": {
+      const c = s.chats.find((x) => x.id === str("chatId"));
+      if (!c || !c.members.includes(w.me)) return "Anh chị không ở trong nhóm này";
+      return c.kind === "channel" ? "Kênh thông báo không tạo chủ đề" : null;
     }
     case "createOrderManual":
       return has(w, "order.create") ? null : NO;

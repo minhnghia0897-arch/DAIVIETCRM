@@ -639,3 +639,12 @@ Phím tắt không hoạt động khi con trỏ đang ở trong ô nhập.
 - Không viết hoa toàn bộ chữ, không gắn nhãn phụ phía trên mọi tiêu đề, không nối thông tin bằng dấu chấm giữa.
 - Không chia trang thành hàng loạt thẻ giống hệt nhau cùng bóng cùng bo góc.
 - Không để chữ tiếng Anh, mã lỗi kỹ thuật hay tên bảng dữ liệu lọt ra giao diện người dùng.
+
+## Nhóm nội bộ (kiểu Telegram)
+
+- Màn `/chat` theo bố cục Telegram: cột trái nền xám nhạt `#F4F4F5`, ô tìm bo tròn, mỗi nhóm một dòng (ảnh đại diện tròn chữ cái đầu, tên, giờ tin cuối, xem trước "Người gửi: nội dung", số chưa đọc xanh `#3390EC`); nhóm đang mở nền xanh `#4A8FD8` chữ trắng; chủ đề của nhóm lùi vào dưới nhóm với biểu tượng `#` tròn màu.
+- Khung chat nền xanh lá có họa tiết chấm vẽ bằng CSS; thanh tiêu đề và ô soạn dạng viên bo tròn nổi trên nền; mốc ngày là viên nhãn mờ ở giữa.
+- Bong bóng tin bo 16px, góc đuôi 4px; tin người khác nền trắng có tên người gửi theo màu riêng từng người; tin của mình nền xanh nhạt `#EFFDDE`, giờ và dấu đã gửi màu xanh lá. Trả lời trích dẫn là khối có vạch trái cùng màu người được trích. Rê chuột lên tin hiện Trả lời, Thích, Ghim (quản trị).
+- Ô soạn: nút đính kèm tròn (Ảnh, Tệp), ô nhập bo tròn, nút gửi tròn xanh. Gõ số điện thoại thì báo trước sẽ bị che.
+- Màn hẹp: danh sách nhóm và khung chat thay nhau như Telegram điện thoại; thông tin nhóm phủ toàn màn.
+

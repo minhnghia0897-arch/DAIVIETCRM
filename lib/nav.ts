@@ -72,6 +72,8 @@ export const NAV_TABS: NavTab[] = [
     anyOf: ["order.view_own", "order.view_all"],
     ready: true,
   },
+  // Nhóm nội bộ: mọi người dùng đang hoạt động (anyOf rỗng); quyền riêng chờ duyệt (open-questions mục 28).
+  { href: "/chat", label: "Nhóm nội bộ", section: "work", anyOf: [], ready: true },
   {
     href: "/inbox",
     label: "Hội thoại",
@@ -126,7 +128,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 ];
 
 export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
-  return NAV_TABS.filter((t) => t.ready && t.anyOf.some((p) => perms.has(p)))
+  return NAV_TABS.filter((t) => t.ready && (t.anyOf.length === 0 || t.anyOf.some((p) => perms.has(p))))
     .map((t) => {
       if (!t.children) return t;
       // Tab gom: chỉ giữ tab con có quyền, tab chính trỏ tới tab con đầu tiên được xem.

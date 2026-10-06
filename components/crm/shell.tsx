@@ -45,7 +45,7 @@ import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
 import { ORDER_STATUS } from "@/lib/demo/labels";
-import { visibleConvs, visibleHouses, visibleOpps, visibleQueue } from "./access";
+import { visibleChats, visibleConvs, visibleHouses, visibleOpps, visibleQueue } from "./access";
 import { CrmProvider, fmtMinutes, orderPeople, orderRisks, useCrm, visibleOrders } from "./store";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
@@ -117,6 +117,7 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/households": House,
   "/orders": ShoppingCart,
   "/inbox": MessageCircle,
+  "/chat": Send,
   "/channels": Megaphone,
   "/reports": BarChart3,
   "/agents": Bot,
@@ -317,6 +318,16 @@ function ShellInner({
   const navCounts: Record<string, number> = {
     "/tasks": state.tasks.filter((t) => t.status === "open" && t.owner === me).length,
     "/inbox": visibleConvs(state, who).filter((c) => c.status === "need").length,
+    // Tin chưa đọc trong các nhóm nội bộ mình tham gia.
+    "/chat": visibleChats(state, who).reduce(
+      (n, c) =>
+        n +
+        c.topics.reduce(
+          (k, t) => k + Math.max(0, t.messages.length - (state.chatSeen[`${c.id}/${t.id}`] ?? 0)),
+          0,
+        ),
+      0,
+    ),
   };
   // Mục "chưa đọc" kiểu Slack: in đậm khi có việc mới so với lần cuối rời trang đó (đang mở thì không đậm).
   const activity: Record<string, number> = {

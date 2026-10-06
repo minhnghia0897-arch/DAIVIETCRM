@@ -1970,3 +1970,665 @@ section.border-b > .c-back {
   opacity: 0.35;
   cursor: default;
 }
+
+/*
+ * Nhóm nội bộ kiểu Telegram (06/10/2026): danh sách nhóm nền xám nhạt, nhóm đang mở nền xanh Telegram chữ trắng;
+ * chủ đề lùi vào dưới nhóm; khung chat nền xanh có họa tiết; thanh tiêu đề, ô soạn dạng viên thuốc nổi; bong bóng
+ * trắng bo 16px có đuôi, tin của mình xanh lá nhạt; tên người gửi theo màu từng người.
+ */
+.tg {
+  --tg-blue: #3390ec;
+  --tg-sel: #4a8fd8;
+  --tg-out: #effdde;
+  --tg-time: #8a9aa6;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  height: calc(100vh - 150px);
+  min-height: 560px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.tg.has-info {
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
+}
+.tg-av {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+}
+.tg-ib {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #707579;
+  cursor: pointer;
+}
+.tg-ib:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.tg-ib[aria-pressed="true"] {
+  color: var(--tg-blue);
+}
+.tg-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #f4f4f5;
+  border-right: 1px solid #e3e3e5;
+}
+.tg-side-h {
+  padding: 14px 16px 8px;
+  text-align: center;
+  font-size: 17px;
+}
+.tg-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 8px 14px;
+  border-radius: 22px;
+  background: #fff;
+  color: #9aa0a6;
+}
+.tg-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+}
+.tg-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 6px 8px;
+  list-style: none;
+}
+.tg-item {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.tg-item:hover {
+  background: #e9e9eb;
+}
+.tg-item.is-on {
+  background: var(--tg-sel);
+  color: #fff;
+}
+.tg-item-b {
+  flex: 1;
+  min-width: 0;
+}
+.tg-item-r1,
+.tg-item-r2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tg-item-r1 b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.tg-time {
+  font-size: 12px;
+  color: var(--tg-time);
+  white-space: nowrap;
+}
+.tg-item.is-on .tg-time,
+.tg-item.is-on .tg-prev,
+.tg-item.is-on .tg-prev-from {
+  color: rgba(255, 255, 255, 0.92);
+}
+.tg-prev {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #707579;
+  font-size: 14px;
+}
+.tg-prev-from {
+  color: var(--text);
+}
+.tg-badge {
+  flex: none;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 11px;
+  background: var(--tg-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.tg-item.is-on .tg-badge {
+  background: #fff;
+  color: var(--tg-sel);
+}
+.tg-topics {
+  margin: 4px 0 6px 30px;
+  padding: 0 0 0 10px;
+  list-style: none;
+  border-left: 2px solid #dfe3e7;
+}
+.tg-topic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.tg-topic:hover {
+  background: #e9e9eb;
+}
+.tg-topic.is-on {
+  background: #dbe9f8;
+  font-weight: 700;
+}
+.tg-topic-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  flex: none;
+}
+.tg-topic-n {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-topic-add {
+  color: var(--tg-blue);
+  font-weight: 600;
+}
+.tg-topic-new {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 8px;
+}
+.tg-topic-new input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #cfd6dd;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 14px;
+}
+.tg-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* Nền xanh kiểu Telegram, họa tiết chấm mờ vẽ bằng CSS (không tải ảnh ngoài). */
+  background-color: #a8c991;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.18) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.14) 0 3px, transparent 4px),
+    radial-gradient(circle at 40% 80%, rgba(80, 120, 60, 0.12) 0 2px, transparent 3px),
+    linear-gradient(160deg, #d1e2b1 0%, #a9cb93 45%, #87b48a 100%);
+  background-size:
+    46px 46px,
+    70px 70px,
+    58px 58px,
+    100% 100%;
+}
+.tg-head {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.tg-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-head-l {
+  flex: 1;
+  min-width: 0;
+}
+.tg-title {
+  display: block;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-topic-name {
+  color: #707579;
+  font-weight: 600;
+}
+.tg-topic-name svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.tg-sub {
+  display: block;
+  font-size: 12.5px;
+  color: #707579;
+}
+.tg-mback {
+  display: none;
+}
+.tg-pinned {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 4px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--tg-blue);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--tg-blue);
+  font-size: 13px;
+}
+.tg-pinned b {
+  display: block;
+}
+.tg-pinned-t {
+  display: block;
+  color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tg-msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 10px;
+}
+.tg-day {
+  margin: 10px 0;
+  text-align: center;
+}
+.tg-day span {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(70, 110, 60, 0.45);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 3px 0;
+}
+.tg-row.has-tail {
+  margin-bottom: 8px;
+}
+.tg-row.is-out {
+  justify-content: flex-end;
+}
+.tg-row-av {
+  width: 34px;
+  flex: none;
+}
+.tg-bubble {
+  position: relative;
+  max-width: min(560px, 78%);
+  padding: 6px 10px 6px 12px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
+  line-height: 1.38;
+}
+.is-out .tg-bubble {
+  background: var(--tg-out);
+}
+.has-tail.is-in .tg-bubble {
+  border-bottom-left-radius: 4px;
+}
+.has-tail.is-out .tg-bubble {
+  border-bottom-right-radius: 4px;
+}
+.tg-from {
+  display: block;
+  font-size: 14px;
+}
+.tg-quote {
+  display: block;
+  margin: 3px 0 4px;
+  padding: 3px 8px;
+  border-left: 3px solid var(--q, #4fae4e);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--q, #4fae4e) 12%, transparent);
+  font-size: 13.5px;
+}
+.tg-quote b {
+  display: block;
+  color: var(--q, #4fae4e);
+}
+.tg-quote span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tg-img {
+  display: block;
+  margin: 4px -6px 4px -8px;
+}
+.tg-img img {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 12px;
+}
+.tg-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.tg-file-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tg-blue);
+  color: #fff;
+  font-weight: 700;
+}
+.tg-file-ic.is-link {
+  background: #4fae4e;
+}
+.tg-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tg-link {
+  color: var(--tg-blue);
+}
+.tg-mention {
+  color: var(--tg-blue);
+  font-weight: 600;
+}
+.tg-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 2px;
+}
+.is-out .tg-time,
+.tg-read {
+  color: #4fae4e;
+}
+.tg-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: auto;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8f1fb;
+  color: #e53935;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Nút thao tác trên tin hiện khi rê chuột, như Telegram. */
+.tg-acts {
+  position: absolute;
+  top: -14px;
+  right: 6px;
+  display: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.tg-bubble:hover .tg-acts,
+.tg-bubble:focus-within .tg-acts {
+  display: flex;
+}
+.tg-compose {
+  padding: 6px 10px 10px;
+}
+.tg-compose-ctx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 56px 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+.tg-compose-ctx .tg-quote {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.tg-compose-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tg-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #707579;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-send {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.tg-send:disabled {
+  background: rgba(255, 255, 255, 0.95);
+  color: #a9b3bb;
+  cursor: default;
+}
+.tg-input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 23px;
+  background: rgba(255, 255, 255, 0.95);
+  font: inherit;
+  font-size: 15px;
+  outline: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-attach-menu {
+  position: absolute;
+  bottom: 54px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-pop);
+  z-index: 5;
+}
+.tg-attach-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tg-attach-menu button:hover {
+  background: #f1f1f2;
+}
+.tg-warn,
+.tg-readonly {
+  margin: 6px 56px 0;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--warn);
+  font-size: 13px;
+}
+.tg-readonly {
+  margin: 8px 10px 10px;
+  padding: 12px;
+  text-align: center;
+  color: #707579;
+}
+.tg-info {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid #e3e3e5;
+  background: #fff;
+}
+.tg-info-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 4px 16px;
+  font-size: 16px;
+}
+.tg-info-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px 12px;
+  text-align: center;
+}
+.tg-info-b {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+.tg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.tg-grid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.tg-flist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tg-flist li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+.tg-flist .tg-link {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Màn hẹp: như Telegram điện thoại, danh sách và khung chat thay nhau; thông tin nhóm phủ lên. */
+@media (max-width: 900px) {
+  .tg,
+  .tg.has-info {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 170px);
+  }
+  .tg.is-list .tg-main,
+  .tg.is-chat .tg-side {
+    display: none;
+  }
+  .tg-mback {
+    display: inline-flex;
+  }
+  .tg-info {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+  }
+  .tg {
+    position: relative;
+  }
+  .tg-bubble {
+    max-width: 88%;
+  }
+}
+.tg > * {
+  min-width: 0;
+}
