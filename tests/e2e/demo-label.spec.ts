@@ -10,11 +10,18 @@ test("nhãn Dữ liệu mô phỏng chỉ hiện ở màn còn mô phỏng", asy
   await login(page, USERS.owner);
   const label = page.getByRole("contentinfo", { name: "Tiện ích" }).getByText("Dữ liệu mô phỏng");
 
-  for (const path of ["/home", "/chat", "/settings/notifications", "/settings/integrations"]) {
+  for (const path of [
+    "/home",
+    "/tasks",
+    "/leads/33333333-3333-4333-8333-000000000002",
+    "/chat",
+    "/settings/notifications",
+    "/settings/integrations",
+  ]) {
     await page.goto(path);
     await expect(label, `${path} đã nối database, không được nhắc mô phỏng`).toHaveCount(0);
   }
-  for (const path of ["/tasks", "/inbox", "/products"]) {
+  for (const path of ["/opportunities", "/inbox", "/products"]) {
     await page.goto(path);
     await expect(label, `${path} còn mô phỏng, phải nhắc`).toBeVisible();
   }

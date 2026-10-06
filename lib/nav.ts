@@ -42,6 +42,8 @@ export const TEAM_VIEW = [
  */
 export const LIVE_SCREENS = [
   "/home",
+  "/tasks",
+  "/leads",
   "/chat",
   "/settings/users",
   "/settings/permissions",

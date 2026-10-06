@@ -430,7 +430,7 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
         notifyUser(db, api, uid, {
           event: "approval_needed",
           what: APPROVAL_WHAT[a.type],
-          path: "/approvals",
+          path: "/tasks",
         }),
       );
     }
@@ -507,7 +507,7 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
         event: "approval_result",
         what: APPROVAL_WHAT[a.type],
         ok: a.status === "approved",
-        path: "/approvals",
+        path: "/tasks",
       }),
     );
   }

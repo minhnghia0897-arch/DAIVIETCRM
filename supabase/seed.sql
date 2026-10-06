@@ -60,6 +60,23 @@ insert into public.leads (id, showroom_id, contact_id, recipient_contact_id, kee
    '22222222-2222-4222-8222-000000000004', null, false,
    'meta_lead_ads', null, null);
 
+-- Việc và đề xuất giả cho màn Việc cần làm: việc gọi đầu của Thảo, hẹn gọi lại của An, một việc ở hàng chung, và
+-- một đề xuất giảm giá của An chờ Owner duyệt.
+insert into public.tasks (id, showroom_id, type, title, contact_id, lead_id, assigned_to, due_at, priority, source) values
+  ('44444444-4444-4444-8444-000000000001', '4a000000-0000-4000-8000-000000000004', 'first_contact',
+   'Gọi lead mới từ Form Facebook', '22222222-2222-4222-8222-000000000001', '33333333-3333-4333-8333-000000000001',
+   '11111111-1111-4111-8111-000000000003', now() + interval '5 minutes', 1, 'rule'),
+  ('44444444-4444-4444-8444-000000000002', '4a000000-0000-4000-8000-000000000004', 'callback',
+   'Gọi lại theo hẹn', '22222222-2222-4222-8222-000000000003', '33333333-3333-4333-8333-000000000002',
+   '11111111-1111-4111-8111-000000000004', now() + interval '2 hours', 2, 'user'),
+  ('44444444-4444-4444-8444-000000000003', '4a000000-0000-4000-8000-000000000004', 'data_fix',
+   'Kiểm tra số khách ở Hàn', '22222222-2222-4222-8222-000000000004', '33333333-3333-4333-8333-000000000003',
+   null, now() + interval '1 day', 2, 'rule');
+
+insert into public.approvals (showroom_id, type, entity, entity_id, requested_by, reason) values
+  ('4a000000-0000-4000-8000-000000000004', 'discount', 'lead', '33333333-3333-4333-8333-000000000002',
+   '11111111-1111-4111-8111-000000000004', 'Giảm 7% cho khách quen, vượt mức 5% của telesale');
+
 -- Nhóm Telegram giả cho màn Nhóm nội bộ: một nhóm đang dùng, một nhóm bot vừa vào chưa gán, một nhóm bot đã rời.
 -- chat_id âm là nhóm, đúng như Telegram đánh số.
 insert into public.telegram_groups (showroom_id, chat_id, title, purpose, status, assigned_by, assigned_at) values

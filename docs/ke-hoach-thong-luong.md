@@ -17,7 +17,8 @@ trò mới.
 | Đăng nhập, mời người dùng, phân quyền bật tắt, "Xem như" | Xong |
 | Nền CDP: khách, định danh, đồng ý, sự kiện, hộ gia đình | Bảng và RLS xong |
 | Lead: bảng, RLS, trang chủ theo vai trò (SLA, quá hạn) | Xong |
-| Việc và hàng chờ duyệt: bảng, RLS | Bảng xong, màn còn mô phỏng |
+| Việc và hàng chờ duyệt: bảng, RLS, màn Việc cần làm | Xong (lát 0) |
+| Hồ sơ lead `/leads/<id>`: Gọi, ghi kết quả, hẹn gọi lại, ghi chú, 4 thông tin, thất bại | Xong (lát 0) |
 | Cài đặt: Người dùng, Phân quyền, Tích hợp, Nhật ký kiểm toán | Xong |
 | Thông báo Telegram hai chiều | Xong, đã chạy thật |
 | Nhóm Telegram của đội | Xong |
@@ -39,13 +40,15 @@ trò mới.
 
 ### Chỗ đứt hôm nay, nói thẳng
 
-Telesale **chưa làm việc được trên CRM**: Telegram đã đẩy việc về điện thoại họ, nhưng bấm vào thì rơi vào màn
-chạy dữ liệu mô phỏng. Hồ sơ lead, ghi kết quả gọi, việc cần làm, hộp thư Zalo đều chưa thật. Đây là chỗ phải vá
-trước mọi thứ khác.
+~~Telesale chưa làm việc được trên CRM.~~ Đã vá ở lát 0: tin Telegram mở thẳng vào hồ sơ lead và màn Việc cần làm
+thật. Còn lại: lead chưa **tự chảy vào** (webhook Meta, Zalo — lát 1) và chưa **bán được** (báo giá, đơn — lát 3).
 
 ---
 
 ## 2. Luồng đích và ai làm gì
+
+Bản đầy đủ từng giai đoạn, ai làm gì, AI và Telegram xuất hiện ở đâu, kèm sơ đồ:
+[`hanh-trinh-khach.md`](hanh-trinh-khach.md).
 
 ```
 Lead vào ──► Sale admin điều phối ──► Telesale gọi, chốt ──► Báo giá ──► Đơn
@@ -97,6 +100,18 @@ Vá chỗ đứt nặng nhất: Telegram đẩy việc về nhưng bấm vào l�
 
 **Nghiệm thu:** telesale nhận tin Telegram → bấm mở → hồ sơ thật → ghi kết quả gọi dưới 30 giây → việc đóng →
 trang chủ và chỉ số đổi theo. Ghi chú gửi từ Telegram nằm đúng trên dòng hoạt động của khách đó.
+
+**Trạng thái (06/10/2026): xong phần chính.**
+
+- Database (`supabase/migrations/20261007000600_lat0_work.sql`): bảng `calls`; `log_call()` ghi cuộc gọi, dừng SLA,
+  đóng việc gọi, sinh việc hẹn gọi lại trong một giao dịch; `task_action()` dùng chung cho nút CRM và nút Telegram;
+  `add_lead_note()`, `set_lead_recipient()`, `mark_lead_lost()`; chặn sang `demo` khi thiếu 4 thông tin ngay ở
+  database. Kiểm thử: `supabase/tests/work.test.sql`.
+- Màn: `/tasks` (việc và hàng chờ duyệt thật), `/leads/<id>` (hồ sơ lead thật); tên khách ở Trang chủ mở hồ sơ.
+  Tin Telegram về duyệt trỏ sang `/tasks`.
+- Kiểm thử đầu cuối: `tests/e2e/telesale-day.spec.ts`.
+- **Còn lại trong lát 0:** hồ sơ khách 360 `/customers/<id>` và Mini App `/m` vẫn chạy mô phỏng; chạy thật một lần
+  trên Telegram với database thật (bấm Xong trên Telegram → `/tasks` thấy đóng).
 
 ### Lát 1 — Lead tự chảy vào và tự phân (3–4 ngày)
 

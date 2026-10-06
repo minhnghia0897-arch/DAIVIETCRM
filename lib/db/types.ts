@@ -227,6 +227,108 @@ export type Database = {
           },
         ];
       };
+      calls: {
+        Row: {
+          agent_id: string | null;
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          direction: string;
+          duration_sec: number | null;
+          from_e164: string | null;
+          id: string;
+          lead_id: string | null;
+          outcome_id: string | null;
+          provider: string;
+          provider_call_id: string | null;
+          recording_path: string | null;
+          showroom_id: string;
+          started_at: string;
+          status: string;
+          to_e164: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          agent_id?: string | null;
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          direction?: string;
+          duration_sec?: number | null;
+          from_e164?: string | null;
+          id?: string;
+          lead_id?: string | null;
+          outcome_id?: string | null;
+          provider?: string;
+          provider_call_id?: string | null;
+          recording_path?: string | null;
+          showroom_id: string;
+          started_at?: string;
+          status: string;
+          to_e164?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          agent_id?: string | null;
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          direction?: string;
+          duration_sec?: number | null;
+          from_e164?: string | null;
+          id?: string;
+          lead_id?: string | null;
+          outcome_id?: string | null;
+          provider?: string;
+          provider_call_id?: string | null;
+          recording_path?: string | null;
+          showroom_id?: string;
+          started_at?: string;
+          status?: string;
+          to_e164?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calls_agent_id_fkey";
+            columns: ["agent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_outcome_id_fkey";
+            columns: ["outcome_id"];
+            isOneToOne: false;
+            referencedRelation: "call_outcomes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       consents: {
         Row: {
           channel: string;
@@ -902,6 +1004,7 @@ export type Database = {
           stage: string;
           updated_at: string;
           window_wait_until: string | null;
+          assert_lead_editor: string | null;
         };
         Insert: {
           assigned_at?: string | null;
@@ -2156,8 +2259,14 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      add_lead_note: { Args: { p_lead_id: string; p_text: string }; Returns: number };
+      apply_task_action: {
+        Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string; p_user: string };
+        Returns: string;
+      };
       approval_permission: { Args: { p_type: string }; Returns: string };
       assert_integration_writer: { Args: { p_key: string }; Returns: string };
+      assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
@@ -2174,6 +2283,17 @@ export type Database = {
       has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
       has_real_perm: { Args: { perm: string }; Returns: boolean };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
+      log_call: {
+        Args: {
+          p_callback_at?: string;
+          p_channel: string;
+          p_lead_id: string;
+          p_note?: string;
+          p_outcome_key: string;
+        };
+        Returns: string;
+      };
+      mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
       record_event: {
         Args: {
@@ -2193,8 +2313,16 @@ export type Database = {
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
+      set_lead_recipient: {
+        Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };
+        Returns: string;
+      };
       set_telegram_group: {
         Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
+        Returns: string;
+      };
+      task_action: {
+        Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string };
         Returns: string;
       };
       telegram_act_as: { Args: { p_user: string }; Returns: undefined };

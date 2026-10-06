@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { MarketTag, type MarketInfo } from "@/components/market-tag";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
@@ -71,7 +73,9 @@ export function HomeView({
                 key={l.id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line-2 px-[14px] py-2 last:border-0"
               >
-                <span className="font-semibold">{l.contactName}</span>
+                <Link href={`/leads/${l.id}`} className="font-semibold hover:underline">
+                  {l.contactName}
+                </Link>
                 <MarketTag code={l.market} markets={markets} />
                 <Pill>{STAGE_LABEL[l.stage] ?? l.stage}</Pill>
                 {teamView ? (

@@ -93,7 +93,7 @@ describe("lời tin của các loại mới", () => {
   });
 
   it("kết quả duyệt: nói rõ được duyệt hay bị từ chối", () => {
-    const facts = { event: "approval_result", to: "u", at: "09:20", what: "Giảm giá", path: "/approvals" };
+    const facts = { event: "approval_result", to: "u", at: "09:20", what: "Giảm giá", path: "/tasks" };
     expect(formatNotify({ ...facts, ok: true } as never, "detail").text).toContain("được duyệt");
     expect(formatNotify({ ...facts, ok: false } as never, "detail").text).toContain("từ chối");
   });
