@@ -92,6 +92,50 @@ export type Database = {
           },
         ];
       };
+      assignment_rules: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          max_uncontacted_per_person: number;
+          mode: string;
+          showroom_id: string;
+          sla_minutes: number;
+          updated_at: string;
+          working_hours: NonNullable<Json>;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          max_uncontacted_per_person?: number;
+          mode?: string;
+          showroom_id: string;
+          sla_minutes?: number;
+          updated_at?: string;
+          working_hours?: NonNullable<Json>;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          max_uncontacted_per_person?: number;
+          mode?: string;
+          showroom_id?: string;
+          sla_minutes?: number;
+          updated_at?: string;
+          working_hours?: NonNullable<Json>;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "assignment_rules_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: true;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       audit_logs: {
         Row: {
           action: string;
@@ -2267,6 +2311,10 @@ export type Database = {
       approval_permission: { Args: { p_type: string }; Returns: string };
       assert_integration_writer: { Args: { p_key: string }; Returns: string };
       assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
+      assign_leads: {
+        Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
+        Returns: number;
+      };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
@@ -2282,7 +2330,25 @@ export type Database = {
       has_perm: { Args: { perm: string }; Returns: boolean };
       has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
       has_real_perm: { Args: { perm: string }; Returns: boolean };
+      ingest_lead: { Args: { p: Json }; Returns: Json };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
+      lead_assignees: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          full_name: string;
+          id: string;
+          receives: boolean;
+          uncontacted: number;
+        }[];
+      };
+      lead_receivers: {
+        Args: { p_showroom_id: string };
+        Returns: {
+          full_name: string;
+          id: string;
+          uncontacted: number;
+        }[];
+      };
       log_call: {
         Args: {
           p_callback_at?: string;
@@ -2294,7 +2360,12 @@ export type Database = {
         Returns: string;
       };
       mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
+      market_wait_until: { Args: { p_at: string; p_market: string; p_showroom_id: string }; Returns: string };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
+      notify_lead_assigners: {
+        Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
+        Returns: undefined;
+      };
       record_event: {
         Args: {
           p_actor_type?: string;
@@ -2312,6 +2383,8 @@ export type Database = {
       };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
+      route_lead: { Args: { p_lead_id: string }; Returns: string };
+      route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
       set_lead_recipient: {
         Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };

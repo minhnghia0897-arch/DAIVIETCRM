@@ -366,7 +366,8 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
         ),
       );
     }
-    if (e.type === "lead_created") {
+    // Khách cũ quay lại được nối vào lead đang mở (payload.attached): không phải lead mới.
+    if (e.type === "lead_created" && !(e.payload as { attached?: boolean } | null)?.attached) {
       await trySend("tin lead mới vào nhóm", () =>
         postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`, {
           eventType: "lead_created",

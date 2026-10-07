@@ -74,6 +74,13 @@ export const NAV_TABS: NavTab[] = [
     ready: true,
   },
   {
+    href: "/leads",
+    label: "Lead",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
     href: "/opportunities",
     label: "Cơ hội",
     section: "sales",

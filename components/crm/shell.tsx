@@ -26,6 +26,7 @@ import {
   ShoppingCart,
   Sparkles,
   Target,
+  UserPlus,
   UsersRound,
   X,
   type LucideIcon,
@@ -115,6 +116,7 @@ const VIEW_BY_PATH: [string, AiView][] = [
 const NAV_ICON: Record<string, LucideIcon> = {
   "/home": LayoutDashboard,
   "/tasks": ListChecks,
+  "/leads": UserPlus,
   "/opportunities": Target,
   "/households": House,
   "/orders": ShoppingCart,
