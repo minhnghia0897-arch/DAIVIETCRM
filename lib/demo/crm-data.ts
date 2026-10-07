@@ -729,6 +729,10 @@ export interface Conversation {
   summary: string;
   messages: [MsgFrom, string, string][];
   suggestions: string[];
+  /** Nhân viên phụ trách hội thoại (tên gọi ngắn); trống là chưa giao. */
+  assignee?: string;
+  /** Thẻ gắn cho khách trong hội thoại (nhãn trong CONV_TAGS hoặc thẻ tự tạo). */
+  tags: string[];
   /** Khi nhân viên trả lời, khách phản hồi lại câu này (mô phỏng), cơ hội chuyển bước. */
   followUp?: string;
   moveOpportunity?: string;
@@ -748,9 +752,23 @@ export const CONV_STATUS: Record<ConvStatus, { label: string; tone: "err" | "ai"
   done: { label: "Đã xong", tone: "ok" },
 };
 
+/** Thẻ mặc định cho hội thoại, kiểu Pancake. Nhân viên tạo thêm thẻ ngay trên màn Hội thoại. */
+export const CONV_TAGS: { label: string; color: string }[] = [
+  { label: "Khách Hàn", color: "#2a7bd4" },
+  { label: "Quan tâm ghế", color: "#7c4dff" },
+  { label: "Quan tâm máy lọc", color: "#00897b" },
+  { label: "Hỏi giá", color: "#ef6c00" },
+  { label: "Lo ngại uy tín", color: "#e53935" },
+  { label: "Khách cũ", color: "#6d4c41" },
+  { label: "Đã chốt", color: "#43a047" },
+  { label: "Ưu đãi 20/10", color: "#d81b60" },
+];
+
 export const CONVERSATIONS: Conversation[] = [
   {
     id: "v1",
+    assignee: "Thảo",
+    tags: ["Khách Hàn", "Quan tâm ghế", "Lo ngại uy tín"],
     name: "Nguyễn Thị Thu",
     houseId: "h2",
     channel: "Zalo",
@@ -785,6 +803,7 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "v2",
+    tags: ["Hỏi giá", "Quan tâm ghế"],
     name: "phuong.kr92",
     channel: "TikTok Live",
     location: "Không rõ",
@@ -807,6 +826,8 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "v3",
+    assignee: "My",
+    tags: ["Khách Hàn", "Đã chốt"],
     name: "Võ Thanh Tùng",
     houseId: "h5",
     channel: "Facebook",
@@ -830,6 +851,7 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "v4",
+    tags: ["Khách cũ", "Quan tâm máy lọc"],
     name: "Phạm Ngọc Lan",
     houseId: "h3",
     channel: "Hotline",
@@ -851,6 +873,8 @@ export const CONVERSATIONS: Conversation[] = [
   },
   {
     id: "v5",
+    assignee: "Thảo",
+    tags: ["Khách Hàn", "Khách cũ", "Ưu đãi 20/10"],
     name: "Lê Hoàng Phúc",
     houseId: "h4",
     channel: "Zalo",

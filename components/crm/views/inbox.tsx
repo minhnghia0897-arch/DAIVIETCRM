@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, Bot, Pin, Search, SendHorizontal } from "lucide-react";
+import { ArrowLeft, Bot, Pin, Search, SendHorizontal, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { CONV_STATUS, houseById } from "@/lib/demo/crm-data";
 import { fold } from "@/lib/inbox/extract";
 import { replyBlocker, visibleConvs } from "../access";
+import { useShell } from "../shell-context";
 import { useCrm } from "../store";
 import { ConvAvatar } from "./conv-avatar";
 import { ConvSidePanel } from "./inbox-side";
@@ -22,6 +23,11 @@ export function CrmInbox() {
   const router = useRouter();
   const [text, setText] = useState("");
   const [q, setQ] = useState("");
+  const { me, can } = useShell();
+  // Lọc khách: nhanh theo trạng thái, theo nhân viên phụ trách, theo thẻ.
+  const [view, setView] = useState<"all" | "need" | "mine" | "unassigned">("all");
+  const [staff, setStaff] = useState("");
+  const [tag, setTag] = useState("");
   // Điện thoại: mở danh sách trước, chạm vào khách mới vào khung chat (như Telegram). Màn rộng không dùng cờ này.
   const [mobileList, setMobileList] = useState(true);
   const msgs = useRef<HTMLDivElement>(null);
@@ -46,7 +52,21 @@ export function CrmInbox() {
   const pinned = (state.convNotes[c.id] ?? []).filter((n) => n.pinned);
   const list = [...convs]
     .filter((x) => !q.trim() || fold(x.name).includes(fold(q.trim())))
+    .filter((x) =>
+      view === "need"
+        ? x.status === "need"
+        : view === "mine"
+          ? x.assignee === me
+          : view === "unassigned"
+            ? !x.assignee
+            : true,
+    )
+    .filter((x) => !staff || x.assignee === staff)
+    .filter((x) => !tag || x.tags.includes(tag))
     .sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+  const tagColor = (t: string) => state.convTags.find((x) => x.label === t)?.color ?? "#8e99a4";
+  const staffNames = [...new Set([...state.receivers.filter((r) => r.active).map((r) => r.name), "My"])];
+  const canAssign = can("lead.assign");
   const status = CONV_STATUS[c.status];
 
   return (
@@ -68,6 +88,46 @@ export function CrmInbox() {
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
+        <div className="cv-filters" role="group" aria-label="Lọc khách">
+          {(
+            [
+              ["all", "Tất cả"],
+              ["need", "Cần người"],
+              ["mine", "Của tôi"],
+              ["unassigned", "Chưa giao"],
+            ] as const
+          ).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)}>
+              {l}
+              <span className="cv-fn">
+                {
+                  convs.filter((x) =>
+                    k === "need"
+                      ? x.status === "need"
+                      : k === "mine"
+                        ? x.assignee === me
+                        : k === "unassigned"
+                          ? !x.assignee
+                          : true,
+                  ).length
+                }
+              </span>
+            </button>
+          ))}
+          <select aria-label="Lọc theo nhân viên" value={staff} onChange={(e) => setStaff(e.target.value)}>
+            <option value="">Mọi nhân viên</option>
+            {staffNames.map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+          <select aria-label="Lọc theo thẻ" value={tag} onChange={(e) => setTag(e.target.value)}>
+            <option value="">Mọi thẻ</option>
+            {state.convTags.map((t) => (
+              <option key={t.label}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+        {list.length === 0 ? <p className="cv-empty">Không có khách nào khớp bộ lọc.</p> : null}
         <ul className="tg-list" aria-label="Danh sách hội thoại">
           {list.map((x) => {
             const last = x.messages.filter(([f]) => f !== "sys").at(-1);
@@ -109,6 +169,24 @@ export function CrmInbox() {
                       {x.channel} · {x.location}
                       {x.status !== "need" ? ` · ${st.label}` : ""}
                     </span>
+                    <span className="cv-chips">
+                      <span className={`cv-staff ${x.assignee ? "" : "is-none"}`}>
+                        <UserRound size={11} aria-hidden />
+                        {x.assignee ?? "Chưa giao"}
+                      </span>
+                      {x.tags.slice(0, 2).map((t) => (
+                        <span
+                          key={t}
+                          className="cv-tag"
+                          style={{ "--t": tagColor(t) } as React.CSSProperties}
+                        >
+                          {t}
+                        </span>
+                      ))}
+                      {x.tags.length > 2 ? (
+                        <span className="cv-tag is-more">+{x.tags.length - 2}</span>
+                      ) : null}
+                    </span>
                   </span>
                 </button>
               </li>
@@ -137,6 +215,41 @@ export function CrmInbox() {
               </span>
             </span>
           </div>
+          {canAssign ? (
+            <label className="tg-pill cv-assign">
+              <UserRound size={15} aria-hidden />
+              <select
+                aria-label="Nhân viên phụ trách"
+                value={c.assignee ?? ""}
+                onChange={(e) => {
+                  const to = e.target.value;
+                  act(
+                    { type: "assignConv", convId: c.id, to, actor: me },
+                    to ? `Đã giao hội thoại cho ${to}` : "Đã trả hội thoại về Chưa giao",
+                  );
+                }}
+              >
+                <option value="">Chưa giao</option>
+                {[...new Set([...staffNames, ...(c.assignee ? [c.assignee] : [])])].map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          ) : c.assignee ? (
+            <span className="tg-pill cv-assign">
+              <UserRound size={15} aria-hidden /> {c.assignee} phụ trách
+            </span>
+          ) : canSend ? (
+            <button
+              type="button"
+              className="tg-pill cv-hbtn"
+              onClick={() =>
+                act({ type: "assignConv", convId: c.id, to: me, actor: me }, "Đã nhận hội thoại")
+              }
+            >
+              Nhận hội thoại
+            </button>
+          ) : null}
           {canSend && (c.status === "need" || c.status === "agent") ? (
             <button
               type="button"

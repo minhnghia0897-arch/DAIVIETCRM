@@ -9,8 +9,10 @@ import {
   Phone,
   Pin,
   PinOff,
+  Plus,
   ShoppingCart,
   Sparkles,
+  Tag,
   StickyNote,
   type LucideIcon,
 } from "lucide-react";
@@ -148,6 +150,7 @@ export function ConvSidePanel({
       <div className="tg-info-b">
         {tab === "assist" ? (
           <div className="space-y-2.5">
+            <TagsCard conv={c} />
             <Findings findings={findings} />
             {canOrder ? (
               <button type="button" className="cv-cta" onClick={() => setTab("order")}>
@@ -219,6 +222,66 @@ const KIND_LABEL: Record<Finding["kind"], string> = {
   product: "Sản phẩm",
   occasion: "Dịp",
 };
+
+/** Thẻ của khách: bấm để gắn hoặc gỡ, gõ để tạo thẻ mới (như Pancake). */
+function TagsCard({ conv: c }: { conv: Conversation }) {
+  const { state, act } = useCrm();
+  const { me } = useShell();
+  const [adding, setAdding] = useState("");
+  const all = [
+    ...state.convTags,
+    ...c.tags
+      .filter((t) => !state.convTags.some((x) => x.label === t))
+      .map((label) => ({ label, color: "#8e99a4" })),
+  ];
+  return (
+    <div className="cv-card">
+      <h3>
+        <Tag size={15} aria-hidden /> Thẻ khách
+      </h3>
+      <div className="cv-tagpick" role="group" aria-label="Thẻ khách">
+        {all.map((t) => {
+          const on = c.tags.includes(t.label);
+          return (
+            <button
+              key={t.label}
+              type="button"
+              aria-pressed={on}
+              className={`cv-tag ${on ? "is-on" : "is-off"}`}
+              style={{ "--t": t.color } as React.CSSProperties}
+              onClick={() => act({ type: "toggleConvTag", convId: c.id, tag: t.label, actor: me })}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      <form
+        className="cv-tagnew"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!adding.trim()) return;
+          act(
+            { type: "createConvTag", convId: c.id, label: adding, actor: me },
+            `Đã gắn thẻ ${adding.trim()}`,
+          );
+          setAdding("");
+        }}
+      >
+        <input
+          aria-label="Tạo thẻ mới"
+          placeholder="Tạo thẻ mới…"
+          maxLength={30}
+          value={adding}
+          onChange={(e) => setAdding(e.target.value)}
+        />
+        <button type="submit" className="tg-ib" aria-label="Thêm thẻ" disabled={!adding.trim()}>
+          <Plus size={16} />
+        </button>
+      </form>
+    </div>
+  );
+}
 
 const KIND_ICON: Record<Finding["kind"], LucideIcon> = {
   phone: Phone,

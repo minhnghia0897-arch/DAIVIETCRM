@@ -89,6 +89,7 @@ import {
   AGENTS,
   CHAIRS,
   CONVERSATIONS,
+  CONV_TAGS,
   HOUSES,
   KR_CITIES,
   KR_NAMES,
@@ -366,6 +367,8 @@ interface State {
   convSel: string;
   /** Ghi chú về khách lưu từ màn Hội thoại, theo hội thoại; ghim thì hiện đầu khung chat. */
   convNotes: Record<string, ConvNote[]>;
+  /** Danh mục thẻ hội thoại (mặc định + thẻ nhân viên tạo thêm). */
+  convTags: { label: string; color: string }[];
   houseSel: string;
   crossDone: string[];
   occasionsDone: string[];
@@ -565,6 +568,7 @@ export function initialState(): State {
     oppSel: "o1",
     convs: CONVERSATIONS,
     convNotes: {},
+    convTags: CONV_TAGS,
     chats: TEAM_CHATS,
     tgOutbox: [],
     tgChat: [],
@@ -785,6 +789,9 @@ export type CrmAction =
   | { type: "customerFollowUp"; convId: string }
   | { type: "addConvNote"; convId: string; text: string; pinned: boolean; actor: string }
   | { type: "toggleConvNotePin"; convId: string; noteId: string }
+  | { type: "assignConv"; convId: string; to: string; actor: string }
+  | { type: "toggleConvTag"; convId: string; tag: string; actor: string }
+  | { type: "createConvTag"; convId: string; label: string; actor: string }
   | { type: "convOrderCreated"; convId: string; code: string; total: number; actor: string }
   | { type: "selectTrace"; id: string }
   | { type: "updateLeadInfo"; oppId: string; patch: Partial<LeadInfo>; actor: string }
@@ -1086,6 +1093,44 @@ export function reducer(s: State, a: CrmAction): State {
       return c.moveOpportunity
         ? addActivity(ns, c.moveOpportunity, "note", `Từ hội thoại: ${note.text}`, a.actor)
         : ns;
+    }
+    case "assignConv": {
+      const c = s.convs.find((x) => x.id === a.convId);
+      if (!c || (c.assignee ?? "") === a.to) return s;
+      const ns = updateConv(s, a.convId, (x) => ({
+        ...x,
+        assignee: a.to || undefined,
+        messages: [
+          ...x.messages,
+          [
+            "sys",
+            a.to
+              ? a.to === a.actor
+                ? `${a.actor} đã nhận hội thoại`
+                : `${a.actor} giao hội thoại cho ${a.to}`
+              : `${a.actor} trả hội thoại về Chưa giao`,
+            fmtMinutes(s.minutes),
+          ],
+        ],
+      }));
+      return addAudit(ns, a.actor, "Giao hội thoại", c.name, a.to || "Chưa giao");
+    }
+    case "toggleConvTag":
+      return updateConv(s, a.convId, (x) => ({
+        ...x,
+        tags: x.tags.includes(a.tag) ? x.tags.filter((t) => t !== a.tag) : [...x.tags, a.tag],
+      }));
+    case "createConvTag": {
+      const label = a.label.trim().slice(0, 30);
+      if (!label) return s;
+      const exists = s.convTags.some((t) => t.label.toLowerCase() === label.toLowerCase());
+      const palette = ["#3949ab", "#00acc1", "#8e24aa", "#f4511e", "#7cb342", "#5e35b1"];
+      const ns = exists
+        ? s
+        : { ...s, convTags: [...s.convTags, { label, color: palette[s.convTags.length % palette.length] }] };
+      return updateConv(ns, a.convId, (x) =>
+        x.tags.includes(label) ? x : { ...x, tags: [...x.tags, label] },
+      );
     }
     case "toggleConvNotePin":
       return {

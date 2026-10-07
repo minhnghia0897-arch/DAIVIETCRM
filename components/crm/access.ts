@@ -38,7 +38,8 @@ export function visibleConvs(s: CrmState, w: Who) {
   if (has(w, "message.view_all")) return s.convs;
   if (!has(w, "message.zalo_send")) return [];
   const houses = new Set(visibleHouses(s, w).map((h) => h.id));
-  return s.convs.filter((c) => c.houseId && houses.has(c.houseId));
+  // Hội thoại gắn khách mình được xem, hoặc đang giao cho mình.
+  return s.convs.filter((c) => (c.houseId && houses.has(c.houseId)) || c.assignee === w.me);
 }
 
 /** Nhóm nội bộ mình là thành viên (Owner cũng chỉ thấy nhóm mình tham gia, như Telegram). */
@@ -196,6 +197,15 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       return a.type === "closeConv" ? null : replyBlocker(s, w, c.channel);
     }
     // Ghi chú, lên đơn từ hội thoại: chỉ trên hội thoại người đó được xem; lên đơn cần thêm quyền tạo đơn.
+    // Giao hội thoại cho người khác cần lead.assign; tự nhận hội thoại chưa giao thì ai trả lời được cũng nhận được.
+    case "assignConv": {
+      const c = visibleConvs(s, w).find((x) => x.id === str("convId"));
+      if (!c) return NO;
+      if (has(w, "lead.assign")) return null;
+      return !c.assignee && str("to") === w.me && has(w, "message.zalo_send") ? null : NO;
+    }
+    case "toggleConvTag":
+    case "createConvTag":
     case "addConvNote":
     case "toggleConvNotePin":
       return visibleConvs(s, w).some((x) => x.id === str("convId")) ? null : NO;

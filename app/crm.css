@@ -3237,11 +3237,19 @@ section.border-b > .c-back {
   }
 }
 /* Đầu khung chat: một hàng gọn, chữ phụ cắt bằng dấu ba chấm; màn hẹp thì nút xuống hàng dưới. */
+/* Đầu khung chat hai hàng: viên tên khách chiếm cả hàng, nút (phụ trách, tiếp quản, xong) ở hàng dưới. */
 .tg.cv .tg-head {
+  flex-wrap: wrap;
   align-items: center;
+  gap: 6px;
 }
 .tg.cv .tg-head-l {
-  flex: 1 1 0;
+  flex: 1 1 100%;
+}
+.tg.cv .tg-head .cv-hbtn,
+.tg.cv .tg-head .cv-assign {
+  height: 34px;
+  font-size: 13.5px;
 }
 .cv-hbtn {
   white-space: nowrap;
@@ -3277,14 +3285,141 @@ section.border-b > .c-back {
 .cv-order .c-pill {
   white-space: normal;
 }
-@media (max-width: 900px) {
-  .tg.cv .tg-head {
-    flex-wrap: wrap;
-  }
-  .tg.cv .tg-head-l {
-    flex-basis: 100%;
-  }
-  .tg.cv .cv-hbtn {
-    flex: 1;
-  }
+
+/* Hội thoại: lọc khách, thẻ nhân viên phụ trách, thẻ khách. Màu thẻ đặt qua biến --t. */
+.cv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 12px 8px;
+}
+.cv-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #4d5560;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-filters button[aria-pressed="true"] {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.cv-fn {
+  font-size: 11.5px;
+  opacity: 0.75;
+}
+.cv-filters select {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: #4d5560;
+}
+.cv-empty {
+  margin: 8px 16px;
+  color: #707579;
+  font-size: 14px;
+}
+.cv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.cv-staff {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #e3effc;
+  color: #2a6fb5;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.cv-staff.is-none {
+  background: #fdecea;
+  color: #c62828;
+}
+.cv-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--t, #8e99a4) 14%, #fff);
+  color: var(--t, #8e99a4);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cv-tag.is-more {
+  background: #eceff1;
+  color: #607d8b;
+}
+.tg-item.is-on .cv-staff,
+.tg-item.is-on .cv-tag {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.cv-tagpick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cv-tagpick .cv-tag {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.cv-tagpick .cv-tag.is-on {
+  background: var(--t);
+  color: #fff;
+}
+.cv-tagpick .cv-tag.is-off {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t) 45%, #fff);
+}
+.cv-tagnew {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.cv-tagnew input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 1px solid #dfe3e7;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 13px;
+}
+.cv-assign {
+  flex: none;
+  height: 40px;
+  padding: 0 6px 0 12px;
+  color: #2a6fb5;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cv-assign select {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
