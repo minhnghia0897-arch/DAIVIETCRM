@@ -195,6 +195,12 @@ export function deniedReason(s: CrmState, action: CrmAction, w: Who): string | n
       if (!c) return NO;
       return a.type === "closeConv" ? null : replyBlocker(s, w, c.channel);
     }
+    // Ghi chú, lên đơn từ hội thoại: chỉ trên hội thoại người đó được xem; lên đơn cần thêm quyền tạo đơn.
+    case "addConvNote":
+    case "toggleConvNotePin":
+      return visibleConvs(s, w).some((x) => x.id === str("convId")) ? null : NO;
+    case "convOrderCreated":
+      return has(w, "order.create") && visibleConvs(s, w).some((x) => x.id === str("convId")) ? null : NO;
     case "sendQuote": {
       const o = opp();
       if (!has(w, "quote.create") || !o) return NO;

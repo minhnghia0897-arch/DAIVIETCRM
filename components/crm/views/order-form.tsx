@@ -74,14 +74,30 @@ function draftOf(o?: OrderRec): OrderDraft {
   };
 }
 
-export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => void }) {
+export function OrderForm({
+  order,
+  initial,
+  compact,
+  onCreated,
+  onDone,
+}: {
+  order?: OrderRec;
+  /** Giá trị điền sẵn cho đơn mới (ví dụ lên đơn từ hội thoại). */
+  initial?: Partial<OrderDraft>;
+  /** Khung hẹp (cột bên phải màn Hội thoại): các ô xếp một cột. */
+  compact?: boolean;
+  /** Có thì tạo đơn xong ở lại màn hiện tại thay vì mở hồ sơ đơn. */
+  onCreated?: (o: { id: string; code: string; total: number }) => void;
+  onDone: () => void;
+}) {
   const { state, act, who } = useCrm();
   const { me, userId, roleKey } = useShell();
   const router = useRouter();
-  const [d, setD] = useState<OrderDraft>(() => draftOf(order));
-  const [rows, setRows] = useState<Row[]>(() => rowsFrom(draftOf(order).lines));
+  const [d, setD] = useState<OrderDraft>(() => ({ ...draftOf(order), ...initial }));
+  const [rows, setRows] = useState<Row[]>(() => rowsFrom({ ...draftOf(order), ...initial }.lines));
   const [tried, setTried] = useState(false);
   const set = (patch: Partial<OrderDraft>) => setD((x) => ({ ...x, ...patch }));
+  const span = compact ? "" : "sm:col-span-2";
   const linesLocked = order ? !ORDER_LINES_EDITABLE.includes(order.status) : false;
   const leads = visibleOpps(state, who).filter((o) => o.stage < 5);
 
@@ -163,25 +179,28 @@ export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => v
       needs ? `Đã tạo đơn ${next.code}, mức giảm chờ Owner duyệt` : `Đã tạo đơn ${next.code}`,
     );
     onDone();
-    router.push(`/orders/${next.id}`);
+    if (onCreated) onCreated({ id: next.id, code: next.code, total: result.totals.total });
+    else router.push(`/orders/${next.id}`);
   }
 
   return (
     <form
-      className="c-card c-cb space-y-5"
-      style={{ paddingTop: 14 }}
+      className={compact ? "space-y-4" : "c-card c-cb space-y-5"}
+      style={compact ? undefined : { paddingTop: 14 }}
       aria-label={order ? `Sửa đơn ${order.code}` : "Tạo đơn"}
       onSubmit={(e) => {
         e.preventDefault();
         submit();
       }}
     >
-      <h2 className="m-0 text-[16px] font-extrabold">{order ? `Sửa đơn ${order.code}` : "Tạo đơn mới"}</h2>
+      {compact ? null : (
+        <h2 className="m-0 text-[16px] font-extrabold">{order ? `Sửa đơn ${order.code}` : "Tạo đơn mới"}</h2>
+      )}
 
-      <fieldset className="m-0 grid gap-3 border-0 p-0 sm:grid-cols-2">
+      <fieldset className={`m-0 grid gap-3 border-0 p-0 ${compact ? "" : "sm:grid-cols-2"}`}>
         <legend className="mb-1 font-bold">Người đặt</legend>
         {!order ? (
-          <label className="c-lbl sm:col-span-2">
+          <label className={`c-lbl ${span}`}>
             Từ lead đang mở
             <select
               className={FIELD}
@@ -234,9 +253,9 @@ export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => v
         </label>
       </fieldset>
 
-      <fieldset className="m-0 grid gap-3 border-0 p-0 sm:grid-cols-2">
+      <fieldset className={`m-0 grid gap-3 border-0 p-0 ${compact ? "" : "sm:grid-cols-2"}`}>
         <legend className="mb-1 font-bold">Người nhận</legend>
-        <div className="flex flex-wrap gap-4 sm:col-span-2" role="radiogroup" aria-label="Mua cho ai">
+        <div className={`flex flex-wrap gap-4 ${span}`} role="radiogroup" aria-label="Mua cho ai">
           <label className="flex items-center gap-1.5">
             <input type="radio" checked={d.buyFor === "self"} onChange={() => set({ buyFor: "self" })} />
             Mua cho chính mình
@@ -265,7 +284,7 @@ export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => v
                 onChange={(e) => set({ recipientRelation: e.target.value })}
               />
             </label>
-            <label className="c-lbl sm:col-span-2">
+            <label className={`c-lbl ${span}`}>
               Lời nhắn quà
               <input
                 className={FIELD}
@@ -273,7 +292,7 @@ export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => v
                 onChange={(e) => set({ giftMessage: e.target.value })}
               />
             </label>
-            <label className="flex items-center gap-2 sm:col-span-2">
+            <label className={`flex items-center gap-2 ${span}`}>
               <input
                 type="checkbox"
                 checked={d.keepSurprise}
@@ -285,7 +304,7 @@ export function OrderForm({ order, onDone }: { order?: OrderRec; onDone: () => v
         ) : null}
       </fieldset>
 
-      <fieldset className="m-0 grid gap-3 border-0 p-0 sm:grid-cols-4">
+      <fieldset className={`m-0 grid gap-3 border-0 p-0 ${compact ? "grid-cols-2" : "sm:grid-cols-4"}`}>
         <legend className="mb-1 font-bold">Địa chỉ giao</legend>
         <label className="c-lbl">
           Tỉnh, thành

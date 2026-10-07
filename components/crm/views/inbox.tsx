@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { CHANNEL_COLOR, CONV_STATUS, houseById } from "@/lib/demo/crm-data";
 import { replyBlocker, visibleConvs } from "../access";
 import { useCrm } from "../store";
+import { ConvSidePanel } from "./inbox-side";
 
 const WHO = { cu: "Khách", ag: "Agent", hu: "Nhân viên" } as const;
 
@@ -35,6 +36,7 @@ export function CrmInbox() {
     );
 
   const order = { need: 0, human: 1, agent: 2, done: 3 } as const;
+  const pinned = (state.convNotes[c.id] ?? []).filter((n) => n.pinned);
   const list = [...convs].sort((a, b) => order[a.status] - order[b.status]);
 
   return (
@@ -102,6 +104,18 @@ export function CrmInbox() {
             ) : null}
           </span>
         </div>
+        {pinned.length ? (
+          <ul
+            className="m-0 list-none border-b border-line-2 bg-warn-soft px-[14px] py-1.5"
+            aria-label="Ghi chú đã ghim"
+          >
+            {pinned.map((n) => (
+              <li key={n.id} className="text-[13px]">
+                <b>Ghi chú:</b> {n.text} <span className="c-lbl">· {n.actor}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="c-trs" ref={trs}>
           {c.messages.map(([from, body, time], i) =>
             from === "sys" ? (
@@ -149,24 +163,13 @@ export function CrmInbox() {
         )}
       </div>
 
-      <aside className="c-cop" aria-label="Trợ lý hội thoại">
+      <ConvSidePanel key={c.id} conv={c} canSend={canSend} onPickReply={setText}>
         <h3>Ý định</h3>
         <p className="m-0">{c.intent}</p>
         <h3>AI tóm tắt</h3>
         <div className="c-aisum" style={{ marginTop: 0 }}>
           {c.summary}
         </div>
-        {c.suggestions.length && canSend && c.status !== "done" ? (
-          <>
-            <h3>Câu trả lời gợi ý</h3>
-            {c.suggestions.map((s) => (
-              <button key={s} type="button" className="c-sr" onClick={() => setText(s)}>
-                {s}
-              </button>
-            ))}
-            <p className="c-lbl m-0">Bấm để đưa vào ô soạn, sửa rồi gửi.</p>
-          </>
-        ) : null}
         {c.houseId ? (
           <>
             <h3>Hồ sơ</h3>
@@ -182,7 +185,7 @@ export function CrmInbox() {
             </button>
           </>
         ) : null}
-      </aside>
+      </ConvSidePanel>
     </section>
   );
 }

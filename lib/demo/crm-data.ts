@@ -768,6 +768,11 @@ export const CONVERSATIONS: Conversation[] = [
         "Dạ có ạ. Đại Việt giao và lắp tận nhà tại Nghệ An, kỹ thuật viên hướng dẫn bố mẹ chị dùng, sau đó gửi chị video bàn giao.",
         "09:58",
       ],
+      [
+        "cu",
+        "Chị định mua X9 tặng bố mẹ dịp Tết. Giao về xóm 5, xã Diễn Thành, Diễn Châu, Nghệ An nha em.",
+        "10:01",
+      ],
       ["cu", "Chị ở bên Hàn, mua online sợ lắm. Có cách nào xem ghế thật không?", "10:03"],
       ["sys", "Agent chuyển cho người: khách cần xác minh niềm tin, đề xuất video call", "10:04"],
     ],

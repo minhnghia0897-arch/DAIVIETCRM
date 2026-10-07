@@ -277,6 +277,14 @@ export function nextOrderRef(s: { orders: OrderRec[] }) {
   return { id: NEW_ORDER_IDS[n - 1] ?? `o-q${n}`, code: `Q4-2610-${String(14 + n).padStart(4, "0")}` };
 }
 
+export interface ConvNote {
+  id: string;
+  text: string;
+  actor: string;
+  time: string;
+  pinned: boolean;
+}
+
 /** Thay đổi trên hồ sơ khách trong phiên mô phỏng: đồng ý, ẩn danh hóa, sự kiện mới. */
 export interface CustomerCare {
   consents: Consent[];
@@ -356,6 +364,8 @@ interface State {
   /** Cài đặt thông báo Telegram của từng người (theo tên gọi ngắn). */
   notifyPrefs: Record<string, NotifyPrefs>;
   convSel: string;
+  /** Ghi chú về khách lưu từ màn Hội thoại, theo hội thoại; ghim thì hiện đầu khung chat. */
+  convNotes: Record<string, ConvNote[]>;
   houseSel: string;
   crossDone: string[];
   occasionsDone: string[];
@@ -554,6 +564,7 @@ export function initialState(): State {
     opps: OPPORTUNITIES,
     oppSel: "o1",
     convs: CONVERSATIONS,
+    convNotes: {},
     chats: TEAM_CHATS,
     tgOutbox: [],
     tgChat: [],
@@ -772,6 +783,9 @@ export type CrmAction =
   | { type: "closeConv" }
   | { type: "reply"; text: string }
   | { type: "customerFollowUp"; convId: string }
+  | { type: "addConvNote"; convId: string; text: string; pinned: boolean; actor: string }
+  | { type: "toggleConvNotePin"; convId: string; noteId: string }
+  | { type: "convOrderCreated"; convId: string; code: string; total: number; actor: string }
   | { type: "selectTrace"; id: string }
   | { type: "updateLeadInfo"; oppId: string; patch: Partial<LeadInfo>; actor: string }
   | { type: "revealPhone"; oppId: string; who: "buyer" | "recipient"; actor: string }
@@ -1056,6 +1070,41 @@ export function reducer(s: State, a: CrmAction): State {
       }));
     case "closeConv":
       return updateConv(s, s.convSel, (c) => ({ ...c, status: "done" }));
+    case "addConvNote": {
+      const c = s.convs.find((x) => x.id === a.convId);
+      if (!c || !a.text.trim()) return s;
+      const seq = s.seq + 1;
+      const note: ConvNote = {
+        id: `cn${seq}`,
+        text: a.text.trim(),
+        actor: a.actor,
+        time: fmtMinutes(s.minutes),
+        pinned: a.pinned,
+      };
+      const ns = { ...s, seq, convNotes: { ...s.convNotes, [c.id]: [note, ...(s.convNotes[c.id] ?? [])] } };
+      // Hội thoại gắn lead thì ghi chú cũng nằm trên dòng hoạt động của lead.
+      return c.moveOpportunity
+        ? addActivity(ns, c.moveOpportunity, "note", `Từ hội thoại: ${note.text}`, a.actor)
+        : ns;
+    }
+    case "toggleConvNotePin":
+      return {
+        ...s,
+        convNotes: {
+          ...s.convNotes,
+          [a.convId]: (s.convNotes[a.convId] ?? []).map((n) =>
+            n.id === a.noteId ? { ...n, pinned: !n.pinned } : n,
+          ),
+        },
+      };
+    case "convOrderCreated":
+      return updateConv(s, a.convId, (c) => ({
+        ...c,
+        messages: [
+          ...c.messages,
+          ["sys", `${a.actor} đã lên đơn ${a.code} từ hội thoại · ${vnd(a.total)}`, fmtMinutes(s.minutes)],
+        ],
+      }));
     case "reply": {
       const minutes = s.minutes + 1;
       return {
