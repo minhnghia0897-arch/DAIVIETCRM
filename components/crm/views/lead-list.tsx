@@ -11,6 +11,7 @@ import { PROVINCES_ALL } from "@/lib/demo/sales-catalog";
 import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import { PageHead } from "../parts";
 import { useShell } from "../shell-context";
+import { LeadImport, type ImportActions } from "./lead-import";
 
 // Danh sách lead bản thật (route /leads): dữ liệu do server page đọc từ database dưới RLS, thao tác gọi server action.
 // Bố cục theo DESIGN.md 5.10: bộ lọc nhanh dạng pill giữ trên URL, chọn nhiều hàng thì hiện thanh giao hàng loạt.
@@ -39,7 +40,7 @@ interface Assignee {
 
 type Result = { ok: boolean; message: string };
 
-export interface LeadListActions {
+export interface LeadListActions extends ImportActions {
   createLead(i: {
     fullName: string;
     phone: string;
@@ -81,7 +82,7 @@ export function LeadList(props: {
   const params = useSearchParams();
   const toast = useToast();
   const [pending, start] = useTransition();
-  const [creating, setCreating] = useState(false);
+  const [panel, setPanel] = useState<"create" | "import" | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [assignee, setAssignee] = useState("");
   const [search, setSearch] = useState(filters.q);
@@ -173,8 +174,21 @@ export function LeadList(props: {
               className={SELECT}
             />
           </form>
+          {can("lead.import") ? (
+            <button
+              type="button"
+              className="c-btn"
+              onClick={() => setPanel((v) => (v === "import" ? null : "import"))}
+            >
+              Nhập file
+            </button>
+          ) : null}
           {can("lead.create") ? (
-            <button type="button" className="c-btn is-blue" onClick={() => setCreating((v) => !v)}>
+            <button
+              type="button"
+              className="c-btn is-blue"
+              onClick={() => setPanel((v) => (v === "create" ? null : "create"))}
+            >
               Tạo lead
             </button>
           ) : null}
@@ -248,12 +262,20 @@ export function LeadList(props: {
         </div>
       </section>
 
-      {creating ? (
+      {panel === "create" ? (
         <QuickLeadForm
           markets={markets}
           sources={sources}
           create={actions.createLead}
-          onClose={() => setCreating(false)}
+          onClose={() => setPanel(null)}
+        />
+      ) : null}
+      {panel === "import" ? (
+        <LeadImport
+          markets={markets.map((m) => m.country_code)}
+          canAssign={can("lead.assign")}
+          actions={actions}
+          onClose={() => setPanel(null)}
         />
       ) : null}
 

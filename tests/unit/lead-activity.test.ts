@@ -40,4 +40,14 @@ describe("dòng hoạt động của lead", () => {
       "Mới → Đã liên hệ",
     );
   });
+
+  it("chống trùng nêu lý do gộp, lead cũ ghi là khách liên hệ lại", () => {
+    expect(describeEvent("merge", { reason: "open_lead", matched_by: "phone" }, ctx)).toEqual({
+      kind: "Chống trùng",
+      text: "Khách đã có lead đang mở, ghi vào lead này thay vì tạo lead mới",
+    });
+    expect(describeEvent("lead_created", { source: "import", attached: true }, ctx).text).toMatch(
+      /^Khách liên hệ lại từ /,
+    );
+  });
 });

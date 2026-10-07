@@ -1,6 +1,4 @@
-import type { CountryCode } from "libphonenumber-js";
-
-import { normalizePhone } from "@/lib/phone";
+import { parseLeadPhone } from "./intake.ts";
 
 // Nhập dữ liệu thủ công cũ từ CSV (CLAUDE.md mục 6, nguồn `import`): xem trước, báo dòng lỗi, dòng trùng.
 
@@ -73,6 +71,8 @@ export function parseCsv(text: string): string[][] {
 export function validateImport(
   text: string,
   existingPhones: ReadonlySet<string>,
+  /** Thị trường đang bật; quốc gia trống hoặc lạ thì suy từ đầu số (như nhập tay). */
+  markets: string[] = ["VN", "KR"],
 ): { rows: ImportRow[]; headerError?: string } {
   const table = parseCsv(text);
   if (!table.length) return { rows: [], headerError: "Tệp trống" };
@@ -84,14 +84,13 @@ export function validateImport(
   const seen = new Map<string, number>();
   const rows = table.slice(1).map((r, i): ImportRow => {
     const line = i + 2;
-    const country = (col(r, "quoc_gia") || "VN").toUpperCase();
     const phoneRaw = col(r, "so_dien_thoai");
     const errors: string[] = [];
     const name = col(r, "ho_ten");
     if (!name) errors.push("Thiếu họ tên");
-    const parsed = phoneRaw
-      ? normalizePhone(phoneRaw, (country === "KR" ? "KR" : "VN") as CountryCode)
-      : null;
+    const resolved = phoneRaw ? parseLeadPhone(phoneRaw, col(r, "quoc_gia").toUpperCase(), markets) : null;
+    const parsed = resolved?.phone ?? null;
+    const country = resolved?.country ?? "unknown";
     if (!phoneRaw) errors.push("Thiếu số điện thoại");
     else if (!parsed?.valid) errors.push("Số điện thoại không hợp lệ");
     const lastContact = col(r, "ngay_lien_he_gan_nhat");

@@ -25,6 +25,13 @@ const KIND: Record<string, string> = {
   note: "Ghi chú",
   task_done: "Việc",
   task_missed: "Việc",
+  merge: "Chống trùng",
+};
+
+const MERGE_REASON: Record<string, string> = {
+  open_lead: "Khách đã có lead đang mở, ghi vào lead này thay vì tạo lead mới",
+  recent_lost_lead: "Khách có lead thất bại chưa quá 30 ngày, ghi vào lead này thay vì tạo lead mới",
+  returning_customer: "Khách cũ quay lại, tạo lead mới trên cùng hồ sơ khách",
 };
 
 const ASSIGN_REASON: Record<string, string> = {
@@ -50,7 +57,12 @@ export function describeEvent(
   const who = (id: unknown) => ctx.names.get(str(id)) ?? "người khác";
   switch (type) {
     case "lead_created":
-      return { kind, text: `Lead vào từ ${leadSourceLabel(str(payload.source))}` };
+      return {
+        kind,
+        text: `${payload.attached ? "Khách liên hệ lại" : "Lead vào"} từ ${leadSourceLabel(str(payload.source))}`,
+      };
+    case "merge":
+      return { kind, text: MERGE_REASON[str(payload.reason)] ?? "Gộp theo số điện thoại trùng" };
     case "assignment": {
       const reason = ASSIGN_REASON[str(payload.reason)];
       const base = payload.to ? `Giao cho ${who(payload.to)}` : "Trả về hàng Chưa phân";

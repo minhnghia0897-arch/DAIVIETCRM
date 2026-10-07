@@ -2330,6 +2330,13 @@ export type Database = {
       has_perm: { Args: { perm: string }; Returns: boolean };
       has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
       has_real_perm: { Args: { perm: string }; Returns: boolean };
+      import_check_phones: {
+        Args: { p_phones: string[] };
+        Returns: {
+          e164: string;
+          has_open_lead: boolean;
+        }[];
+      };
       ingest_lead: { Args: { p: Json }; Returns: Json };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
       lead_assignees: {

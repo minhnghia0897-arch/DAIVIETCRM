@@ -8,6 +8,7 @@ import { localTime } from "@/lib/leads/windows";
 import { LEAD_VIEW } from "@/lib/nav";
 
 import { assignLeads, createLead } from "./actions";
+import { checkImportPhones, importLeads } from "./import-actions";
 
 export const metadata: Metadata = { title: "Lead · Đại Việt CRM" };
 
@@ -150,7 +151,7 @@ export default async function Page({ searchParams }: PageProps<"/leads">) {
           uncontacted: Number(a.uncontacted),
         }),
       )}
-      actions={{ createLead, assignLeads }}
+      actions={{ createLead, assignLeads, checkImportPhones, importLeads }}
     />
   );
 }

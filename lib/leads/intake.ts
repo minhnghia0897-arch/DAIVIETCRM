@@ -44,30 +44,37 @@ export interface IngestPayload {
 }
 
 /**
- * Dựng tham số cho ingest_lead. `activeMarkets` là các mã thị trường đang bật: thị trường "Chưa rõ" thì suy từ đầu
- * số nếu đầu số thuộc một thị trường đang bật (nhân viên sửa được sau khi khách cho biết khác, CLAUDE.md mục 6).
+ * Chuẩn hóa số và xác định thị trường của khách, dùng chung cho nhập tay và nhập file. Thử theo thị trường nhân viên
+ * chọn trước, rồi các thị trường khác: khách sống ở Hàn vẫn hay dùng số VN, và số Hàn gõ kiểu trong nước ("010-…")
+ * không hợp lệ khi phân tích như số VN. Thị trường "Chưa rõ" thì suy từ đầu số nếu thuộc một thị trường đang bật.
  */
-export function buildIngestPayload(input: IntakeInput, activeMarkets: string[]): IngestPayload {
-  // Thử theo thị trường nhân viên chọn trước, rồi các thị trường khác: khách sống ở Hàn vẫn hay dùng số VN, và
-  // số Hàn gõ kiểu trong nước ("010-…") không hợp lệ khi phân tích như số VN.
+export function parseLeadPhone(raw: string, chosenCountry: string, activeMarkets: string[]) {
   // "010-xxxx-xxxx" (11 số) là di động Hàn; thư viện số vẫn coi là số VN cũ nên phải thử Hàn trước.
-  const krMobile = /^010\d{8}$/.test(input.phone.replace(/\D/g, "")) && activeMarkets.includes("KR");
+  const krMobile = /^010\d{8}$/.test(raw.replace(/\D/g, "")) && activeMarkets.includes("KR");
   const hints = [
     ...new Set([
-      ...(activeMarkets.includes(input.country) ? [input.country] : []),
+      ...(activeMarkets.includes(chosenCountry) ? [chosenCountry] : []),
       ...(krMobile ? ["KR"] : []),
       "VN",
       ...activeMarkets,
     ]),
   ] as CountryCode[];
-  const p =
-    hints.map((h) => normalizePhone(input.phone, h)).find((r) => r.valid) ??
-    normalizePhone(input.phone, hints[0]);
-  let country = activeMarkets.includes(input.country) ? input.country : "unknown";
-  if (country === "unknown" && p.valid) {
-    const inferred = countryFromE164(p.e164);
+  const phone =
+    hints.map((h) => normalizePhone(raw, h)).find((r) => r.valid) ?? normalizePhone(raw, hints[0]);
+  let country = activeMarkets.includes(chosenCountry) ? chosenCountry : "unknown";
+  if (country === "unknown" && phone.valid) {
+    const inferred = countryFromE164(phone.e164);
     if (inferred && activeMarkets.includes(inferred)) country = inferred;
   }
+  return { phone, country };
+}
+
+/**
+ * Dựng tham số cho ingest_lead. `activeMarkets` là các mã thị trường đang bật: thị trường "Chưa rõ" thì suy từ đầu
+ * số nếu đầu số thuộc một thị trường đang bật (nhân viên sửa được sau khi khách cho biết khác, CLAUDE.md mục 6).
+ */
+export function buildIngestPayload(input: IntakeInput, activeMarkets: string[]): IngestPayload {
+  const { phone: p, country } = parseLeadPhone(input.phone, input.country, activeMarkets);
   const detail: Record<string, string> = {};
   if (input.productInterest?.trim()) detail.product_interest = input.productInterest.trim().slice(0, 200);
   return {
