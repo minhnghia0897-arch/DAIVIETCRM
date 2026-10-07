@@ -51,6 +51,16 @@ describe("extractFindings", () => {
     expect(f.find((x) => x.kind === "occasion")?.value.occasion).toBe("Tết");
   });
 
+  it("không lấy câu hỏi giá làm số nhà hay huyện", () => {
+    const a = run("Ghế X9 giá nhiu, ship Bình Định đc ko shop").find((x) => x.kind === "address")?.value;
+    expect(a).toEqual({ province: "Bình Định", district: undefined, ward: undefined, street: undefined });
+  });
+
+  it("số nhà mở đầu bằng số, quận viết tắt", () => {
+    const a = run("Giao 45/3 Trần Hưng Đạo, Quận 1, TP.HCM").find((x) => x.kind === "address")?.value;
+    expect(a).toMatchObject({ province: "TP.HCM", district: "Quận 1", street: "45/3 Trần Hưng Đạo" });
+  });
+
   it("khách đổi địa chỉ thì lấy địa chỉ sau cùng", () => {
     const f = run("Giao Đồng Nai nha", "À thôi giao về Hà Nội em");
     expect(f.filter((x) => x.kind === "address")).toHaveLength(1);

@@ -67,7 +67,12 @@ const OCCASIONS: [RegExp, string][] = [
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const ADDRESS_WORDS = /\b(so|duong|xom|thon|ap|ngo|hem|kiet|khu|to|lo|kp|khom)\b|\d/;
+// Số nhà, đường: có từ chỉ địa chỉ, hoặc mở đầu bằng số nhà ("12 Lê Lợi", "45/3 Trần Hưng Đạo").
+const ADDRESS_WORDS = /\b(so|duong|xom|thon|ap|ngo|hem|kiet|khu|to|lo|kp|khom)\b|^\d+[a-z]?(\/\d+)?\s/;
+const DISTRICT_WORDS = /^(quan|huyen|thi xa|tp|thanh pho|q\.?)\s?\S/;
+/** Tên huyện viết hoa từng chữ ("Diễn Châu", "Q1"), không có số lẫn trong chữ: tránh lấy nhầm câu hỏi như "Ghế X9 giá nhiu". */
+const looksLikePlace = (text: string) =>
+  text.split(/\s+/).length <= 4 && text.split(/\s+/).every((w) => /^\p{Lu}[\p{L}]*$/u.test(w));
 const WARD_WORDS = /^(phuong|xa|thi tran|p\.?|x\.?)\s/;
 
 /** Số điện thoại trong một câu: đủ 9–15 chữ số, hoặc số đã che (có dấu •). */
@@ -108,7 +113,12 @@ function addressIn(text: string, provinces: string[]) {
     const streetParts: string[] = [];
     for (const b of before.reverse()) {
       const fb = fold(b);
-      if (!district && !ADDRESS_WORDS.test(fb) && !WARD_WORDS.test(fb) && fb.split(" ").length <= 4)
+      if (
+        !district &&
+        !ADDRESS_WORDS.test(fb) &&
+        !WARD_WORDS.test(fb) &&
+        (DISTRICT_WORDS.test(fb) || looksLikePlace(b))
+      )
         district = b;
       else if (!ward && WARD_WORDS.test(fb)) ward = b;
       else if (ADDRESS_WORDS.test(fb) || streetParts.length) streetParts.unshift(b);

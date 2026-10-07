@@ -937,6 +937,9 @@
     font-size: 12.5px;
     font-weight: 600;
     white-space: nowrap;
+    /* Thanh ngắn trên điện thoại vẫn đủ rộng cho chữ, không để chữ tràn ra ngoài nền thanh. */
+    min-width: max-content;
+    max-width: 100%;
   }
   .c-bar-stack {
     display: flex;
@@ -3146,7 +3149,12 @@ section.border-b > .c-back {
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
+/* Tiêu đề nhóm nằm trong thẻ (mặc định legend nằm đè lên mép trên của fieldset). */
 .cv-order legend {
+  float: left;
+  width: 100%;
+  grid-column: 1 / -1;
+  padding: 0;
   margin-bottom: 6px;
   font-size: 13px;
   color: var(--tg-blue);
@@ -3253,6 +3261,9 @@ section.border-b > .c-back {
 }
 .cv-hbtn {
   white-space: nowrap;
+}
+.cv-order fieldset > :not(legend) {
+  clear: both;
 }
 /* Cột hẹp: ô chọn sản phẩm chiếm cả hàng, số lượng và giảm xuống dưới. */
 .cv-order select[aria-label^="Sản phẩm dòng"] {
@@ -3422,4 +3433,21 @@ section.border-b > .c-back {
   font: inherit;
   color: inherit;
   cursor: pointer;
+}
+
+/*
+ * Ô chọn dùng mũi tên tự vẽ và chừa chỗ bên phải: chữ dài cắt bằng dấu ba chấm, không chạy đè lên mũi tên (Safari
+ * vẽ mũi tên đè lên chữ khi ô có nền và viền riêng). Đặt ngoài @layer để thắng tiện ích padding của Tailwind.
+ */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23707579' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
