@@ -3454,24 +3454,9 @@ select:not([multiple]):not([size]) {
 }
 
 /*
- * Phong cách Telegram (xem thử 07/10/2026 trên Trang chủ; bọc nội dung trong .tgx): giữ nguyên bố cục, đổi kiểu chữ
+ * Phong cách Telegram (07/10/2026, đang áp cho Trang chủ; bọc nội dung trong .tgx): giữ nguyên bố cục, đổi kiểu chữ
  * Roboto, nền xám nhạt, thẻ trắng bo 16px đổ bóng nhẹ, tiêu đề mục chữ xanh Telegram, nút viên thuốc, nhãn bo tròn.
  */
-.tgx-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  background: #e3effc;
-  color: #2a6fb5;
-  font-size: 13px;
-}
-.tgx-bar span {
-  flex: 1;
-  min-width: 0;
-}
 .tgx {
   --tgx-blue: #3390ec;
   --tgx-bg: #f1f2f5;
@@ -3585,11 +3570,12 @@ select:not([multiple]):not([size]) {
 .tgx .c-btn:hover {
   background: #d5e7fb;
 }
-.tgx .c-btn.is-brand,
+/* Nút chốt (Duyệt, Lưu) giữ màu xanh lá để nhìn là biết nút quan trọng; nút bắt đầu việc mới xanh Telegram. */
 .tgx .c-btn.is-blue {
   background: var(--tgx-blue);
   color: #fff;
 }
+.tgx .c-btn.is-brand,
 .tgx .c-btn.is-go {
   background: #4fae4e;
   color: #fff;
@@ -3620,4 +3606,32 @@ select:not([multiple]):not([size]) {
 .tgx .c-table td,
 .tgx .c-table th {
   border-color: var(--tgx-sep);
+}
+/* Trang chủ bản thật theo phong cách Telegram: ô số liệu bấm được, dòng lead có avatar tròn. */
+.tgx .tgx-metric {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--tgx-bg);
+  color: inherit;
+  text-decoration: none;
+}
+.tgx .tgx-metric:hover {
+  background: #e7e9ee;
+}
+.tgx .tgx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.tgx .tgx-row:hover {
+  background: #f4f4f5;
+}
+.tgx .c-oi {
+  background: color-mix(in srgb, var(--c) 14%, #fff);
+  color: var(--c);
 }

@@ -312,6 +312,8 @@ Việc tiếp theo
 
 Thẻ "Gọi tiếp theo" là điểm nhấn của trang: một khách, đủ bối cảnh, một nút gọi. Phím `N` chuyển sang khách kế tiếp. Thứ tự ưu tiên của thẻ: lead mới trong SLA, lead vừa tới khung gọi, hẹn gọi lại đến giờ, rồi việc hậu bán đến hạn.
 
+**Phong cách Telegram cho Trang chủ (chốt 07/10/2026):** giữ bố cục 6.1, 6.2, đổi phong cách (lớp `.tgx` trong `app/crm.css`): kiểu chữ Roboto, nền xám nhạt `#f1f2f5`, thẻ trắng bo 16px đổ bóng nhẹ không viền, tiêu đề mục chữ xanh `#3390ec`, ô số liệu nền xám bo 14px bấm được (mở danh sách tương ứng), nút viên thuốc (bắt đầu việc mới xanh `#3390ec`, chốt như Duyệt, Lưu xanh lá `#4fae4e`, nút phụ nền xanh nhạt), nhãn bo tròn, dòng lead có avatar tròn chữ cái đầu. Các màn khác chuyển dần sang phong cách này khi anh duyệt.
+
 ### 6.2 Trang chủ sale admin
 
 ```
