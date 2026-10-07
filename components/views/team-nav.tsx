@@ -1,9 +1,10 @@
 import { FilterTabs } from "@/components/filter-tabs";
+import { DemoBadgeAuto } from "@/components/demo-badge-auto";
 import { DemoBadge } from "@/components/record";
 import type { SessionUser } from "@/lib/auth/types";
 
 // Tab con của Đội ngũ (DESIGN.md 6.14): chỉ hiện khi có quyền.
-export function TeamNav({ user }: { user: SessionUser }) {
+export function TeamNav({ user, allDemo }: { user: SessionUser; allDemo?: boolean }) {
   const tabs = [
     user.permissions.has("kpi.team")
       ? { href: "/team", label: "Tổng quan đội" }
@@ -20,7 +21,7 @@ export function TeamNav({ user }: { user: SessionUser }) {
   ];
   return (
     <FilterTabs label="Đội ngũ" tabs={tabs}>
-      <DemoBadge />
+      {allDemo ? <DemoBadge /> : <DemoBadgeAuto />}
     </FilterTabs>
   );
 }

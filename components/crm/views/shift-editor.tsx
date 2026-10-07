@@ -89,7 +89,11 @@ export function ShiftEditor({
         />
       ) : readOnly ? null : (
         <div>
-          <button type="button" className="c-btn" onClick={() => setAdding(true)}>
+          <button
+            type="button"
+            className="c-btn inline-flex items-center gap-1"
+            onClick={() => setAdding(true)}
+          >
             <Plus size={15} aria-hidden /> Thêm ca
           </button>
         </div>

@@ -9,7 +9,7 @@ export default function TeamLayout({ children }: { children: React.ReactNode }) 
     <DemoPage anyOf={TEAM_VIEW}>
       {(user) => (
         <div className="mx-auto max-w-7xl space-y-4">
-          <TeamNav user={user} />
+          <TeamNav user={user} allDemo />
           {children}
         </div>
       )}
