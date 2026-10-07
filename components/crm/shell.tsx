@@ -31,7 +31,16 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 
 import { AccountMenu } from "@/components/shell/account-menu";
 import { Switch } from "@/components/ui/switch";
@@ -78,6 +87,8 @@ export function CrmShell(props: {
   shortcuts?: { label: string; count: number }[];
   /** Bản demo tĩnh: mọi màn đều là dữ liệu mô phỏng. */
   allDemo?: boolean;
+  /** Bản thật: trạng thái Trực đọc từ duty_sessions và công tắc gọi server (bản demo dùng dữ liệu mô phỏng). */
+  liveDuty?: { on: boolean; set: (on: boolean) => Promise<{ ok: boolean; message: string }> } | null;
   children: React.ReactNode;
 }) {
   const { user } = props;
@@ -208,6 +219,7 @@ function ShellInner({
   banner,
   shortcuts,
   allDemo,
+  liveDuty,
   children,
 }: Parameters<typeof CrmShell>[0]) {
   const { state, act, who } = useCrm();
@@ -351,9 +363,30 @@ function ShellInner({
     setSeen((m) => ({ ...m, [left]: activity[left] ?? 0 }));
   }
   const unread = (href: string) => hrefOf(pathname) !== href && (activity[href] ?? 0) > (seen[href] ?? 0);
-  const duty = state.receivers.some((r) => r.name === me)
-    ? Boolean(state.receivers.find((r) => r.name === me)?.onDuty)
-    : null;
+  const [dutyPending, startDuty] = useTransition();
+  const [dutyOptimistic, setDutyOptimistic] = useOptimistic(liveDuty?.on ?? false);
+  const duty =
+    liveDuty !== undefined
+      ? liveDuty
+        ? dutyOptimistic
+        : null
+      : state.receivers.some((r) => r.name === me)
+        ? Boolean(state.receivers.find((r) => r.name === me)?.onDuty)
+        : null;
+  function toggleDuty(v: boolean) {
+    if (liveDuty) {
+      startDuty(async () => {
+        setDutyOptimistic(v);
+        const res = await liveDuty.set(v);
+        toast(res.message, res.ok ? "ok" : "err");
+        router.refresh();
+      });
+    } else
+      act(
+        { type: "toggleDuty", name: me, actor: me },
+        v ? "Đã bật trực, bắt đầu nhận lead" : "Đã tắt trực, không nhận lead mới",
+      );
+  }
   const sla = slaStats(state);
   const group = tabs.find((t) =>
     t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
@@ -541,17 +574,13 @@ function ShellInner({
           <span className="c-tz ml-auto" aria-label="Giờ mô phỏng">
             VN <b>{fmtMinutes(state.minutes)}</b> · Hàn <b>{fmtMinutes(state.minutes + 120)}</b>
           </span>
-          {can("lead.receive") && state.receivers.some((r) => r.name === me) ? (
+          {can("lead.receive") && duty !== null ? (
             <label className="flex items-center gap-1.5 text-label whitespace-nowrap">
               <Switch
                 label="Đang trực"
-                checked={Boolean(state.receivers.find((r) => r.name === me)?.onDuty)}
-                onCheckedChange={(v) =>
-                  act(
-                    { type: "toggleDuty", name: me, actor: me },
-                    v ? "Đã bật trực, bắt đầu nhận lead" : "Đã tắt trực, không nhận lead mới",
-                  )
-                }
+                checked={duty}
+                disabled={dutyPending || Boolean(user.readOnly)}
+                onCheckedChange={toggleDuty}
               />
               <span className="hidden sm:inline">Trực</span>
             </label>

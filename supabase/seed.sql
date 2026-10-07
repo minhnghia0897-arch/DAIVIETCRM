@@ -99,3 +99,9 @@ insert into public.telegram_messages (showroom_id, chat_id, message_id, event_ty
 insert into public.integrations (showroom_id, key, config) values
   ('4a000000-0000-4000-8000-000000000004', 'telegram_bot', '{"botUsername": "DaiVietQ4Bot"}'::jsonb)
 on conflict (showroom_id, key) do update set config = excluded.config;
+
+-- Phiên trực giả: Thảo và An đang bật Trực để lead mới được phân tự động khi chạy thử.
+-- Không xếp ai vào ca để job tự tắt Trực theo giờ ca không tắt phiên khi chạy e2e ngoài giờ.
+insert into public.duty_sessions (showroom_id, user_id, started_at) values
+  ('4a000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-000000000003', now()),
+  ('4a000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-000000000004', now());

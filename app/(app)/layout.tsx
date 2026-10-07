@@ -1,5 +1,6 @@
 import { CrmShell } from "@/components/crm/shell";
 import { signOut } from "../(auth)/login/actions";
+import { setMyDuty } from "./team/duty-actions";
 import { endViewAs } from "./view-as/actions";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
@@ -8,7 +9,10 @@ import { visibleSettings } from "@/lib/nav";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const shortcuts = await loadShortcuts(user.id, user.permissions);
+  const [shortcuts, onDuty] = await Promise.all([
+    loadShortcuts(user.id, user.permissions),
+    user.permissions.has("lead.receive") ? loadOnDuty(user.id) : Promise.resolve(null),
+  ]);
 
   return (
     <CrmShell
@@ -25,6 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       settings={visibleSettings(user.permissions)}
       signOutAction={signOut}
       shortcuts={shortcuts}
+      liveDuty={onDuty === null ? null : { on: onDuty, set: setMyDuty }}
       banner={
         user.viewAs ? (
           <form
@@ -44,6 +49,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {children}
     </CrmShell>
   );
+}
+
+// Đang bật Trực: có phiên trực đang mở (CLAUDE.md mục 9.2).
+async function loadOnDuty(userId: string) {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("duty_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("ended_at", null);
+  return Boolean(count);
 }
 
 // Lối tắt theo quyền (DESIGN.md 4, utility bar).

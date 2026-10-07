@@ -50,6 +50,8 @@ export const LIVE_SCREENS = [
   "/settings/audit",
   "/settings/notifications",
   "/settings/integrations",
+  "/settings/shifts",
+  "/team/absences",
 ];
 
 /** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */
