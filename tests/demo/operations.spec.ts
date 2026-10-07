@@ -203,6 +203,10 @@ test("Cài đặt: kênh trả lời ở công cụ khác thì hộp thư chỉ 
     .getByLabel("Trả lời ở công cụ khác, CRM chỉ đọc")
     .check();
   await tab(page, "Hội thoại").click();
+  await page
+    .getByLabel("Danh sách hội thoại")
+    .getByRole("button", { name: /Nguyễn Thị Thu/ })
+    .click();
   await expect(page.getByText("Kênh này đang được trả lời trên Pancake, CRM chỉ đọc.")).toBeVisible();
   await expect(page.getByLabel("Nội dung trả lời")).toHaveCount(0);
 

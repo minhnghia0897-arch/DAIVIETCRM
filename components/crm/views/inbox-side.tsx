@@ -1,6 +1,19 @@
 "use client";
 
-import { Pin, PinOff } from "lucide-react";
+import {
+  Bot,
+  CalendarHeart,
+  Gift,
+  MapPin,
+  Package,
+  Phone,
+  Pin,
+  PinOff,
+  ShoppingCart,
+  Sparkles,
+  StickyNote,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -11,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { visibleOpps } from "../access";
 import { useShell } from "../shell-context";
 import { useCrm, type OrderDraft } from "../store";
+import { ConvAvatar } from "./conv-avatar";
 import { OrderForm } from "./order-form";
 
 // Lên đơn và ghi chú ngay trong hội thoại, kiểu Pancake: đọc tin của khách để điền sẵn địa chỉ, người nhận, sản
@@ -60,6 +74,7 @@ export function ConvSidePanel({
   const [tab, setTab] = useState<Tab>("assist");
   const [formKey, setFormKey] = useState(0);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
+  const notesCount = (state.convNotes[c.id] ?? []).length;
 
   const findings = useMemo(
     () =>
@@ -106,85 +121,93 @@ export function ConvSidePanel({
   }, [findings, opp, info, c]);
 
   return (
-    <aside className="c-cop" aria-label="Trợ lý hội thoại">
-      <nav className="c-ftabs" aria-label="Khung bên phải">
+    <aside className="tg-info cv-info" aria-label="Trợ lý hội thoại">
+      <div className="cv-info-top">
+        <ConvAvatar c={c} size={56} />
+        <b className="text-[16px]">{c.name}</b>
+        <span className="tg-sub">
+          {c.channel} · {c.location}
+        </span>
+      </div>
+      <div className="cv-tabs" role="tablist" aria-label="Khung bên phải">
         {(
           [
-            ["assist", "Trợ lý"],
-            ...(canOrder ? [["order", "Lên đơn"]] : []),
-            [
-              "notes",
-              `Ghi chú${(state.convNotes[c.id] ?? []).length ? ` ${(state.convNotes[c.id] ?? []).length}` : ""}`,
-            ],
-          ] as [Tab, string][]
-        ).map(([k, l]) => (
-          <button
-            key={k}
-            type="button"
-            className="c-ftab"
-            aria-current={tab === k ? "page" : undefined}
-            onClick={() => setTab(k)}
-          >
+            ["assist", "Trợ lý", Sparkles],
+            ...(canOrder ? [["order", "Lên đơn", ShoppingCart]] : []),
+            ["notes", "Ghi chú", StickyNote],
+          ] as [Tab, string, LucideIcon][]
+        ).map(([k, l, Icon]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+            <Icon size={15} aria-hidden />
             {l}
+            {k === "notes" && notesCount ? <span className="cv-count">{notesCount}</span> : null}
           </button>
         ))}
-      </nav>
+      </div>
 
-      {tab === "assist" ? (
-        <>
-          <Findings findings={findings} />
-          {children}
-          {c.suggestions.length && canSend && c.status !== "done" ? (
-            <>
-              <h3>Câu trả lời gợi ý</h3>
-              {c.suggestions.map((s) => (
-                <button key={s} type="button" className="c-sr" onClick={() => onPickReply(s)}>
-                  {s}
-                </button>
-              ))}
-              <p className="c-lbl m-0">Bấm để đưa vào ô soạn, sửa rồi gửi.</p>
-            </>
-          ) : null}
-          {canOrder ? (
-            <button type="button" className="c-btn is-blue mt-3 w-full" onClick={() => setTab("order")}>
-              Lên đơn cho {c.name}
-            </button>
-          ) : null}
-        </>
-      ) : null}
+      <div className="tg-info-b">
+        {tab === "assist" ? (
+          <div className="space-y-2.5">
+            <Findings findings={findings} />
+            {canOrder ? (
+              <button type="button" className="cv-cta" onClick={() => setTab("order")}>
+                <ShoppingCart size={17} aria-hidden />
+                Lên đơn cho {c.name}
+              </button>
+            ) : null}
+            {children}
+            {c.suggestions.length && canSend && c.status !== "done" ? (
+              <div className="cv-card">
+                <h3>
+                  <Bot size={15} aria-hidden /> AI gợi ý trả lời
+                </h3>
+                <div className="space-y-1.5">
+                  {c.suggestions.map((s) => (
+                    <button key={s} type="button" className="cv-sugg" onClick={() => onPickReply(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <p className="c-lbl mb-0 mt-1.5">Bấm để đưa vào ô soạn, sửa rồi gửi.</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
-      {tab === "order" && canOrder ? (
-        <div className="mt-2" aria-label="Lên đơn từ hội thoại" role="region">
-          {created ? (
-            <p role="status" className="mb-2 rounded-control bg-ok-soft px-2.5 py-1.5 text-ok">
-              Đã lên đơn {created.code}.{" "}
-              <Link href={`/orders/${created.id}`} className="font-semibold underline">
-                Mở đơn
-              </Link>
+        {tab === "order" && canOrder ? (
+          <div className="cv-order" aria-label="Lên đơn từ hội thoại" role="region">
+            {created ? (
+              <p role="status" className="cv-done">
+                Đã lên đơn {created.code}.{" "}
+                <Link href={`/orders/${created.id}`} className="font-semibold underline">
+                  Mở đơn
+                </Link>
+              </p>
+            ) : null}
+            <p className="cv-hint">
+              <Sparkles size={14} aria-hidden />
+              {findings.length
+                ? "Đã điền sẵn từ tin của khách và hồ sơ lead. Kiểm lại trước khi tạo."
+                : "Chưa thấy địa chỉ, sản phẩm trong tin của khách: điền tay."}
             </p>
-          ) : null}
-          <p className="c-lbl mt-0">
-            {findings.length
-              ? "Đã điền sẵn từ tin của khách và hồ sơ lead. Kiểm lại trước khi tạo."
-              : "Chưa thấy địa chỉ, sản phẩm trong tin của khách: điền tay."}
-          </p>
-          <OrderForm
-            key={`${c.id}:${formKey}`}
-            compact
-            initial={initial}
-            onCreated={(o) => {
-              act({ type: "convOrderCreated", convId: c.id, code: o.code, total: o.total, actor: me });
-              setCreated(o);
-              setFormKey((k) => k + 1);
-              // OrderForm gọi onDone trước (đóng form); ở lại tab Lên đơn để thấy đơn vừa tạo.
-              setTab("order");
-            }}
-            onDone={() => setTab("assist")}
-          />
-        </div>
-      ) : null}
+            <OrderForm
+              key={`${c.id}:${formKey}`}
+              compact
+              initial={initial}
+              onCreated={(o) => {
+                act({ type: "convOrderCreated", convId: c.id, code: o.code, total: o.total, actor: me });
+                setCreated(o);
+                setFormKey((k) => k + 1);
+                // OrderForm gọi onDone trước (đóng form); ở lại tab Lên đơn để thấy đơn vừa tạo.
+                setTab("order");
+              }}
+              onDone={() => setTab("assist")}
+            />
+          </div>
+        ) : null}
 
-      {tab === "notes" ? <Notes convId={c.id} summary={c.summary} onSaved={(m) => toast(m, "ok")} /> : null}
+        {tab === "notes" ? <Notes convId={c.id} summary={c.summary} onSaved={(m) => toast(m, "ok")} /> : null}
+      </div>
     </aside>
   );
 }
@@ -197,22 +220,40 @@ const KIND_LABEL: Record<Finding["kind"], string> = {
   occasion: "Dịp",
 };
 
+const KIND_ICON: Record<Finding["kind"], LucideIcon> = {
+  phone: Phone,
+  address: MapPin,
+  recipient: Gift,
+  product: Package,
+  occasion: CalendarHeart,
+};
+
 /** Thông tin tìm thấy trong tin của khách, để nhân viên nhìn là biết, không phải đọc lại cả hội thoại. */
 function Findings({ findings }: { findings: Finding[] }) {
   if (!findings.length) return null;
   return (
-    <>
-      <h3>Khách đã cho biết</h3>
-      <ul className="m-0 list-none space-y-1 p-0" aria-label="Khách đã cho biết">
-        {findings.map((f, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="c-lbl w-24 flex-none">{KIND_LABEL[f.kind]}</span>
-            <span className="min-w-0 flex-1">{f.label}</span>
-            <span className="c-lbl tabular">{f.at}</span>
-          </li>
-        ))}
+    <div className="cv-card">
+      <h3>
+        <Sparkles size={15} aria-hidden /> Khách đã cho biết
+      </h3>
+      <ul className="cv-facts" aria-label="Khách đã cho biết">
+        {findings.map((f, i) => {
+          const Icon = KIND_ICON[f.kind];
+          return (
+            <li key={i}>
+              <span className="cv-fact-ic">
+                <Icon size={15} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <small>{KIND_LABEL[f.kind]}</small>
+                {f.label}
+              </span>
+              <span className="tg-time">{f.at}</span>
+            </li>
+          );
+        })}
       </ul>
-    </>
+    </div>
   );
 }
 
@@ -234,8 +275,9 @@ function Notes({
     onSaved(pinned ? "Đã ghim ghi chú lên đầu hội thoại" : "Đã lưu ghi chú");
   };
   return (
-    <div className="mt-2">
+    <div className="space-y-2.5">
       <form
+        className="cv-card"
         aria-label="Thêm ghi chú"
         onSubmit={(e) => {
           e.preventDefault();
@@ -261,9 +303,9 @@ function Notes({
         </div>
       </form>
       {notes.length ? (
-        <ul className="m-0 mt-3 list-none space-y-2 p-0" aria-label="Ghi chú đã lưu">
+        <ul className="m-0 list-none space-y-2 p-0" aria-label="Ghi chú đã lưu">
           {notes.map((n) => (
-            <li key={n.id} className="rounded-control border border-line-2 p-2">
+            <li key={n.id} className={`cv-note ${n.pinned ? "is-pinned" : ""}`}>
               <p className="m-0 whitespace-pre-wrap">{n.text}</p>
               <div className="c-lbl mt-1 flex items-center gap-2">
                 <span className="flex-1">
@@ -282,7 +324,7 @@ function Notes({
           ))}
         </ul>
       ) : (
-        <p className="c-lbl mt-3">
+        <p className="c-lbl m-0">
           Chưa có ghi chú. Ghi chú được ghim hiện ở đầu khung chat cho mọi người trả lời khách này; hội thoại
           gắn lead thì ghi chú cũng lưu vào dòng hoạt động của lead.
         </p>

@@ -348,6 +348,13 @@ Dưới 900px: một cột, thứ tự Page header → Người đặt → Cần
 
 Ba cột: danh sách hội thoại (tên, tin cuối, thời gian, tag quốc gia, trạng thái chưa đọc) | nội dung hội thoại có ô trả lời và đồng hồ khung nhắn | tóm tắt khách và lead liên quan, nút mở hồ sơ. Hội thoại từ người chưa có hồ sơ có nút "Tạo lead từ hội thoại này".
 
+Giao diện kiểu Telegram (chốt 07/10/2026), dùng chung bộ `.tg-*` với Nhóm nội bộ:
+
+- **Danh sách:** nền xám nhạt, avatar tròn chữ cái đầu có chấm màu kênh (Zalo, Facebook…) ở góc, dòng tên và giờ, tin cuối, nhãn đỏ "Cần người"; hội thoại đang mở nền xanh Telegram chữ trắng. Ô tìm dạng viên thuốc.
+- **Khung chat:** nền xanh có họa tiết; đầu khung là viên thuốc nổi (avatar, tên, kênh, nơi ở, trạng thái) cùng nút Tiếp quản (xanh), Đánh dấu xong; tin của khách bong bóng trắng bên trái kèm avatar, tin của nhân viên xanh lá nhạt bên phải có ✓✓, tin của agent AI tím nhạt có nhãn "Agent AI"; tin hệ thống là viên mờ giữa khung; ghi chú ghim là thanh trắng viền xanh dưới đầu khung; ô soạn và nút gửi tròn nổi.
+- **Cột phải:** avatar lớn và tên khách, ba tab dạng viên thuốc có biểu tượng: **Trợ lý** (thẻ "Khách đã cho biết" có biểu tượng từng loại, nút lớn "Lên đơn cho …", thẻ Ý định, thẻ AI tóm tắt nền tím nhạt, gợi ý trả lời dạng bong bóng xanh lá bấm để đưa vào ô soạn), **Lên đơn** (mỗi nhóm ô là một thẻ trắng, tổng "Khách trả" và nút Tạo đơn dính đáy cột), **Ghi chú** (ghim, lưu tóm tắt hội thoại).
+- **Điện thoại:** như Telegram, mở danh sách trước, chạm vào khách mới vào khung chat (nút lùi ở đầu khung); cột phải xếp dưới khung chat.
+
 ### 6.5 Cài đặt, phân quyền
 
 Đây là màn hình riêng của Owner, phải dễ dùng nhất trong phần cài đặt.

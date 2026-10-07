@@ -10,11 +10,16 @@ async function as(page: Page, role: "owner" | "sale_admin" | "telesale", path: s
 
 test("trả lời khách Zalo thì khách đồng ý video call và cơ hội sang Demo", async ({ page }) => {
   await as(page, "owner", "inbox/");
+  await page
+    .getByLabel("Danh sách hội thoại")
+    .getByRole("button", { name: /Nguyễn Thị Thu/ })
+    .click();
   await page.getByRole("button", { name: "Tiếp quản" }).click();
-  await expect(page.locator(".c-sys").getByText("Nhân viên đã tiếp quản từ agent")).toBeVisible();
-  await page.locator(".c-sr").first().click();
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  await expect(log.getByText("Nhân viên đã tiếp quản từ agent")).toBeVisible();
+  await page.locator(".cv-sugg").first().click();
   await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(page.locator(".c-bb").getByText("Ok em, 21h tối nay chị gọi nha")).toBeVisible({
+  await expect(log.getByText("Ok em, 21h tối nay chị gọi nha")).toBeVisible({
     timeout: 6000,
   });
 

@@ -13,6 +13,7 @@ import {
   orderPeople,
   simDate,
   useCrm,
+  vnd,
   type OrderDraft,
   type OrderRec,
 } from "../store";
@@ -357,7 +358,13 @@ export function OrderForm({
           ))}
         </ul>
       ) : null}
-      <div className="flex flex-wrap gap-1.5">
+      <div className={compact ? "cv-order-foot" : "flex flex-wrap gap-1.5"}>
+        {compact ? (
+          <span className="cv-total">
+            <small>Khách trả</small>
+            <b className="tabular">{vnd(result.totals.total)}</b>
+          </span>
+        ) : null}
         <button type="submit" className="c-btn is-brand">
           {order ? "Lưu đơn" : result.approvalsNeeded.length ? "Tạo đơn, gửi duyệt giảm giá" : "Tạo đơn"}
         </button>
@@ -365,7 +372,7 @@ export function OrderForm({
           Hủy
         </button>
       </div>
-      <p className="c-lbl m-0">
+      <p className={`c-lbl m-0 ${compact ? "hidden" : ""}`}>
         Tiền tính bằng hàm định giá dùng chung theo chính sách đang chạy; đơn mới ở bước Nháp, bấm Xác nhận
         đơn khi đủ người nhận và địa chỉ.
       </p>

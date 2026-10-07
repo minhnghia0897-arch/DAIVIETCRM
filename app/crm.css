@@ -2910,3 +2910,381 @@ section.border-b > .c-back {
   margin: 0 0 10px;
   border: 1px solid var(--line);
 }
+
+/*
+ * Hội thoại với khách kiểu Telegram (07/10/2026): dùng lại bộ .tg-* của Nhóm nội bộ. Ba cột: danh sách, khung chat,
+ * cột phải (Trợ lý, Lên đơn, Ghi chú) dạng thẻ bo tròn, tab kiểu nút viên thuốc.
+ */
+.tg.cv {
+  grid-template-columns: 320px minmax(0, 1fr) 360px;
+}
+.cv-av-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.cv-chan {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+.cv-meta {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--tg-time);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-item.is-on .cv-meta {
+  color: rgba(255, 255, 255, 0.85);
+}
+.tg-badge.cv-need {
+  background: #e53935;
+}
+.tg-item.is-on .tg-badge.cv-need {
+  background: #fff;
+  color: #e53935;
+}
+.cv-st.is-err {
+  color: #e53935;
+  font-weight: 600;
+}
+.cv-st.is-ai {
+  color: #7c4dff;
+}
+.cv-st.is-warn {
+  color: #c77700;
+}
+.cv-st.is-ok {
+  color: #4fae4e;
+}
+.cv-hbtn {
+  flex: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 16px;
+}
+.cv-hbtn.is-blue {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.cv-sys span {
+  max-width: 90%;
+  font-weight: 500;
+}
+.cv-msg.is-agent {
+  background: #f3efff;
+}
+.cv-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #7c4dff;
+  font-size: 13px;
+}
+.cv-input {
+  height: auto;
+  min-height: 46px;
+  max-height: 140px;
+  padding: 12px 18px;
+  resize: none;
+  line-height: 1.4;
+}
+/* Cột phải */
+.cv-info {
+  background: #f4f4f5;
+}
+.cv-info-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 16px 10px;
+  background: #fff;
+  text-align: center;
+}
+.cv-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #fff;
+  border-bottom: 1px solid #e3e3e5;
+}
+.cv-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 18px;
+  background: none;
+  color: #707579;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-tabs button:hover {
+  background: #f1f1f2;
+}
+.cv-tabs button[aria-selected="true"] {
+  background: #e3effc;
+  color: var(--tg-blue);
+}
+.cv-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--tg-blue);
+  color: #fff;
+  font-size: 11px;
+}
+.cv-card {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cv-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #707579;
+  text-transform: none;
+}
+.cv-card.is-ai {
+  background: linear-gradient(135deg, #f3efff, #ece6ff);
+}
+.cv-card.is-ai h3 {
+  color: #7c4dff;
+}
+.cv-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cv-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid #f0f0f1;
+}
+.cv-facts li:first-child {
+  border-top: 0;
+}
+.cv-facts small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tg-time);
+}
+.cv-fact-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: #e3effc;
+  color: var(--tg-blue);
+}
+.cv-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3390ec, #2a7bd4);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(51, 144, 236, 0.35);
+}
+.cv-cta:hover {
+  filter: brightness(1.05);
+}
+.cv-sugg {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--tg-out);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+.cv-sugg:hover {
+  background: #e2f7c9;
+}
+/* Lên đơn: mỗi nhóm ô là một thẻ, tổng tiền và nút tạo dính đáy cột. */
+.cv-order fieldset {
+  padding: 10px 12px !important;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cv-order legend {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--tg-blue);
+}
+.cv-order .c-rl {
+  width: 100%;
+}
+.cv-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #e3effc;
+  color: #2a6fb5;
+  font-size: 13px;
+}
+.cv-done {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--tg-out);
+  color: #2e7d32;
+  font-weight: 600;
+}
+.cv-order-foot {
+  position: sticky;
+  bottom: -10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -12px -10px;
+  padding: 10px 12px;
+  background: #fff;
+  border-top: 1px solid #e3e3e5;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+.cv-total {
+  flex: 1;
+  min-width: 0;
+}
+.cv-total small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tg-time);
+}
+.cv-total b {
+  font-size: 18px;
+  color: var(--text);
+}
+.cv-note {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cv-note.is-pinned {
+  border-left: 3px solid var(--tg-blue);
+}
+.cv-card textarea {
+  border-radius: 12px;
+}
+@media (max-width: 1250px) {
+  .tg.cv {
+    grid-template-columns: 280px minmax(0, 1fr);
+    height: auto;
+  }
+  .tg.cv .tg-main {
+    height: calc(100vh - 170px);
+    min-height: 520px;
+  }
+  .tg.cv .cv-info {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid #e3e3e5;
+  }
+}
+@media (max-width: 900px) {
+  .tg.cv {
+    grid-template-columns: 1fr;
+  }
+  .tg.cv.is-list .cv-info {
+    display: none;
+  }
+  .tg.cv .cv-info {
+    position: static;
+  }
+}
+/* Đầu khung chat: một hàng gọn, chữ phụ cắt bằng dấu ba chấm; màn hẹp thì nút xuống hàng dưới. */
+.tg.cv .tg-head {
+  align-items: center;
+}
+.tg.cv .tg-head-l {
+  flex: 1 1 0;
+}
+.cv-hbtn {
+  white-space: nowrap;
+}
+/* Cột hẹp: ô chọn sản phẩm chiếm cả hàng, số lượng và giảm xuống dưới. */
+.cv-order select[aria-label^="Sản phẩm dòng"] {
+  flex-basis: 100%;
+}
+/* fieldset mặc định rộng theo nội dung nên bảng tiền tràn ra ngoài cột hẹp. */
+.cv-order fieldset {
+  min-width: 0;
+}
+.tg.cv .tg-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-hbtn {
+  height: 40px;
+}
+.cv-order .c-rl {
+  width: 100%;
+  table-layout: fixed;
+}
+.cv-order .c-rl td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cv-order .c-rl td:last-child {
+  width: 112px;
+  text-align: right;
+}
+.cv-order .c-pill {
+  white-space: normal;
+}
+@media (max-width: 900px) {
+  .tg.cv .tg-head {
+    flex-wrap: wrap;
+  }
+  .tg.cv .tg-head-l {
+    flex-basis: 100%;
+  }
+  .tg.cv .cv-hbtn {
+    flex: 1;
+  }
+}
