@@ -33,7 +33,7 @@ export function CustomersView({ user, searchParams }: { user: SessionUser; searc
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
-      <section>
+      <section className="ui-card overflow-hidden bg-surface pb-2">
         <ListHeader
           kind="contact"
           title={user.permissions.has("lead.view_all") ? "Khách của showroom" : "Khách của tôi"}

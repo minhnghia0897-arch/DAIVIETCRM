@@ -3454,7 +3454,7 @@ select:not([multiple]):not([size]) {
 }
 
 /*
- * Phong cách Telegram (07/10/2026, đang áp cho Trang chủ; bọc nội dung trong .tgx): giữ nguyên bố cục, đổi kiểu chữ
+ * Phong cách Telegram (07/10/2026, áp cho toàn bộ vùng nội dung: lớp .tgx trên khung trang trong shell.tsx): giữ nguyên bố cục, đổi kiểu chữ
  * Roboto, nền xám nhạt, thẻ trắng bo 16px đổ bóng nhẹ, tiêu đề mục chữ xanh Telegram, nút viên thuốc, nhãn bo tròn.
  */
 .tgx {
@@ -3469,9 +3469,6 @@ select:not([multiple]):not([size]) {
     "Segoe UI",
     Roboto,
     sans-serif;
-  margin: 0 -8px;
-  padding: 12px;
-  border-radius: 20px;
   background: var(--tgx-bg);
   color: #000;
   letter-spacing: 0.1px;
@@ -3634,4 +3631,118 @@ select:not([multiple]):not([size]) {
 .tgx .c-oi {
   background: color-mix(in srgb, var(--c) 14%, #fff);
   color: var(--c);
+}
+
+/* Phong cách Telegram cho thành phần dùng chung của bản thật (components/ui) và các phần còn lại của bản demo. */
+.tgx .ui-card {
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 35, 47, 0.08);
+}
+.tgx .ui-card-h {
+  border-bottom: 0;
+  padding: 14px 16px 6px;
+}
+.tgx .ui-card-t {
+  color: var(--tgx-blue);
+  font-size: 15px;
+  font-weight: 500;
+}
+.tgx .ui-btn {
+  border-radius: 18px;
+  font-weight: 500;
+}
+.tgx .ui-btn-secondary,
+.tgx .ui-btn-danger {
+  border: 0;
+  background: #e3effc;
+  color: var(--tgx-blue);
+}
+.tgx .ui-btn-secondary:hover {
+  background: #d5e7fb;
+}
+.tgx .ui-btn-danger {
+  background: #fdecea;
+  color: #e53935;
+}
+.tgx .ui-btn-blue {
+  background: var(--tgx-blue);
+}
+.tgx .ui-btn-primary {
+  background: #4fae4e;
+}
+.tgx .ui-input,
+.tgx input[type="text"],
+.tgx input[type="search"],
+.tgx input[type="email"],
+.tgx input[type="tel"],
+.tgx input[type="number"],
+.tgx input[type="date"],
+.tgx input[type="datetime-local"],
+.tgx input:not([type]),
+.tgx select,
+.tgx textarea {
+  border-radius: 10px;
+}
+.tgx .ui-input:focus,
+.tgx input:focus,
+.tgx select:focus,
+.tgx textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--tgx-blue) 35%, transparent);
+  outline-offset: 0;
+  border-color: var(--tgx-blue);
+}
+/* Tab con (Cài đặt, Đội ngũ, Sản phẩm…): gạch chân và chữ xanh Telegram. */
+.tgx .c-ftab[aria-current="page"],
+.tgx .c-ftab[aria-current="true"],
+.tgx .c-ftab[aria-selected="true"] {
+  color: var(--tgx-blue);
+  border-color: var(--tgx-blue);
+}
+.tgx .c-phd small {
+  color: var(--tgx-weak);
+}
+.tgx .c-empty {
+  border-radius: 16px;
+}
+.tgx .c-rl td {
+  border-color: var(--tgx-sep);
+}
+/* Cài đặt theo phong cách Telegram: mỗi phần là một thẻ trắng, tiêu đề xanh; mục menu đang mở xanh Telegram. */
+.tgx .c-setbody .c-card,
+.tgx .c-setbody section.rounded-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 35, 47, 0.08);
+  overflow: hidden;
+}
+.tgx .c-setbody .c-card > .c-ch:first-child,
+.tgx .c-setbody section.rounded-card > div:first-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding: 14px 16px 8px;
+}
+.tgx .c-setbody .c-card > .c-ch:first-child h2,
+.tgx .c-setbody section.rounded-card > div:first-child h2 {
+  color: var(--tgx-blue);
+  font-size: 18px;
+  font-weight: 500;
+}
+.tgx .c-setbody .c-card + .c-card,
+.tgx .c-setbody section.rounded-card + section.rounded-card {
+  margin-top: 12px;
+}
+.tgx nav[aria-label="Cài đặt"] a {
+  border-radius: 10px;
+}
+.tgx nav[aria-label="Cài đặt"] a[aria-current="page"] {
+  background: var(--tgx-blue);
+  font-weight: 500;
+}
+/* Đầu danh sách (Sản phẩm, Khách) nằm trong thẻ: chừa lề như các thẻ khác. */
+.tgx .ui-card > .list-head {
+  padding: 12px 16px 0;
+}
+.tgx .ui-card > .list-head h1 {
+  font-weight: 700;
 }

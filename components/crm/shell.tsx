@@ -654,7 +654,7 @@ function ShellInner({
               <span className="c-navtxt">Thu gọn</span>
             </button>
           </nav>
-          <div className="min-w-0 flex-1 bg-page">
+          <div className="min-w-0 flex-1 bg-page tgx">
             <div className="c-shell">
               <div className="c-main">
                 {group && group.children!.length > 1 ? (

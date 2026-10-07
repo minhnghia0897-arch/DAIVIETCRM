@@ -107,7 +107,7 @@ export function ListHeader({
   demo?: boolean;
 }) {
   return (
-    <div className="space-y-1 pt-1">
+    <div className="list-head space-y-1 pt-1">
       <div className="flex flex-wrap items-center gap-3">
         <ObjectIcon kind={kind} />
         <h1 className="text-page-title font-extrabold">{title}</h1>

@@ -57,7 +57,7 @@ export function HomeView({
   const fresh = rows.filter((l) => l.stage === "new").length;
 
   return (
-    <div className="tgx c-stack mx-auto max-w-6xl">
+    <div className="c-stack mx-auto max-w-6xl">
       <section className="c-card">
         <div className="c-phd px-4 pt-3">
           <span

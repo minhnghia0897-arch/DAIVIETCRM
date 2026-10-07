@@ -19,7 +19,7 @@ export function ProductsView({ user, searchParams }: { user: SessionUser; search
 
   return (
     <div className="mx-auto max-w-7xl">
-      <section>
+      <section className="ui-card overflow-hidden bg-surface pb-2">
         <ListHeader
           kind="product"
           title="Sản phẩm"
