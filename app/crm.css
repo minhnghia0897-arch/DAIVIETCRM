@@ -1196,7 +1196,7 @@
     --nav-weak: rgba(255, 255, 255, 0.64);
     --nav-hover: rgba(255, 255, 255, 0.08);
     --nav-line: rgba(255, 255, 255, 0.12);
-    --nav-active: #1d6fd8;
+    --nav-active: #3390ec;
     --nav-badge: #e01e5a;
     background: var(--nav-bg);
     color: var(--nav-text);
@@ -1978,7 +1978,7 @@ section.border-b > .c-back {
  */
 .tg {
   --tg-blue: #3390ec;
-  --tg-sel: #4a8fd8;
+  --tg-sel: #3390ec;
   --tg-out: #effdde;
   --tg-time: #8a9aa6;
   display: grid;
