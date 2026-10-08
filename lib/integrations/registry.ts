@@ -283,12 +283,18 @@ export const integrations = [
     capabilities: ["inbound_messages", "outbound_messages"],
     prerequisites: [
       { key: "messaging_permission", label: "Ứng dụng Meta đã được duyệt quyền nhắn tin" },
+      {
+        key: "page_tasks",
+        label: "Người bấm kết nối có quyền Nhắn tin và Kiểm duyệt trên Page",
+        helpUrl: "docs/integrations/meta_messenger.md",
+      },
       { key: "one_reply_place", label: "Page này không còn được trả lời ở Pancake hoặc công cụ khác" },
     ],
     configSchema: z.object({ pageId: digits("ID Page là dãy số") }),
     secrets: ["messenger_app_secret", "messenger_page_access_token"],
     connectMode: "oauth",
-    oauthScopes: "Facebook: pages_messaging, pages_manage_metadata, pages_show_list",
+    oauthScopes:
+      "Facebook: pages_messaging, pages_manage_metadata, pages_show_list, pages_read_engagement, business_management",
     configFields: [
       {
         key: "pageId",

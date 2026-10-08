@@ -152,6 +152,8 @@ export const PREREQ_ERRORS: Record<string, string> = {
   https_domain: "Telegram chỉ gọi webhook và mở Mini App qua địa chỉ HTTPS; CRM chưa có tên miền thật.",
   data_rule: "Chưa chốt quy tắc dữ liệu trong tin Telegram (không số điện thoại, không nội dung tin khách).",
   messaging_permission: "Meta chưa duyệt quyền nhắn tin cho ứng dụng nên chưa nhận được tin của Page.",
+  page_tasks:
+    "Tài khoản bấm kết nối chưa có quyền Nhắn tin và Kiểm duyệt trên Page nên Meta không cấp mã truy cập Page. Thêm quyền trong cài đặt Page rồi kết nối lại.",
   one_reply_place:
     "Page đang được trả lời ở công cụ khác. Đặt kênh đó chỉ đọc hoặc ngắt Page khỏi công cụ đó trước, mỗi kênh chỉ một nơi trả lời.",
   tiktok_ads_app: "TikTok từ chối đọc lead vì tài khoản quảng cáo chưa ủy quyền cho ứng dụng.",
