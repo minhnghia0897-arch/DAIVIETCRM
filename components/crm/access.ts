@@ -55,7 +55,7 @@ export function visibleQueue(s: CrmState, w: Who): QueueItem[] {
 /** Kênh của hội thoại sang đấu nối và quyền gửi; Hotline là cuộc gọi, không trả lời bằng tin. */
 export const CHANNEL_SEND: Record<string, { key: string; perm: string } | null> = {
   Zalo: { key: "zalo_oa", perm: "message.zalo_send" },
-  Facebook: { key: "meta_messenger", perm: "message.zalo_send" },
+  Facebook: { key: "meta_messenger", perm: "message.messenger_send" },
   "TikTok Live": { key: "tiktok_messaging", perm: "message.zalo_send" },
   Hotline: null,
 };

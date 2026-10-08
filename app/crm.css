@@ -2922,6 +2922,12 @@ section.border-b > .c-back {
 .tg.cv {
   grid-template-columns: 320px minmax(0, 1fr) 360px;
 }
+/* Hội thoại bản thật chưa có cột phải: hai cột. */
+@media (min-width: 901px) {
+  .tg.cv.cv-2 {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
 .cv-av-wrap {
   position: relative;
   display: inline-flex;

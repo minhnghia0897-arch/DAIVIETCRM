@@ -5,7 +5,12 @@ import { requirePermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import type { IntegrationStatus } from "@/lib/integrations/connection";
 
-import { removeIntegrationSecret, saveIntegrationSecrets, saveIntegrationSettings } from "./actions";
+import {
+  checkIntegration,
+  removeIntegrationSecret,
+  saveIntegrationSecrets,
+  saveIntegrationSettings,
+} from "./actions";
 
 export const metadata: Metadata = { title: "Tích hợp · Đại Việt CRM" };
 
@@ -44,6 +49,7 @@ export default async function Page() {
         saveSecrets: saveIntegrationSecrets,
         removeSecret: removeIntegrationSecret,
         saveSettings: saveIntegrationSettings,
+        check: checkIntegration,
       }}
     />
   );

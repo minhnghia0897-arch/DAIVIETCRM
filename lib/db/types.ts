@@ -649,6 +649,80 @@ export type Database = {
           },
         ];
       };
+      conversations: {
+        Row: {
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_name: string | null;
+          external_user_id: string;
+          id: string;
+          last_inbound_at: string | null;
+          last_message_at: string | null;
+          lead_id: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count: number;
+          updated_at: string;
+          can_see_conversation: boolean | null;
+        };
+        Insert: {
+          channel: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_name?: string | null;
+          external_user_id: string;
+          id?: string;
+          last_inbound_at?: string | null;
+          last_message_at?: string | null;
+          lead_id?: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_name?: string | null;
+          external_user_id?: string;
+          id?: string;
+          last_inbound_at?: string | null;
+          last_message_at?: string | null;
+          lead_id?: string | null;
+          page_id?: string;
+          showroom_id?: string;
+          unread_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversations_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       customer_lifecycle: {
         Row: {
           contact_id: string;
@@ -1370,6 +1444,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "markets_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      messages: {
+        Row: {
+          attachments: NonNullable<Json>;
+          conversation_id: string;
+          created_at: string;
+          direction: string;
+          error: string | null;
+          external_message_id: string | null;
+          id: string;
+          occurred_at: string;
+          sent_by: string | null;
+          sent_via: string | null;
+          showroom_id: string;
+          status: string;
+          tag: string | null;
+          text: string | null;
+        };
+        Insert: {
+          attachments?: NonNullable<Json>;
+          conversation_id: string;
+          created_at?: string;
+          direction: string;
+          error?: string | null;
+          external_message_id?: string | null;
+          id?: string;
+          occurred_at?: string;
+          sent_by?: string | null;
+          sent_via?: string | null;
+          showroom_id: string;
+          status?: string;
+          tag?: string | null;
+          text?: string | null;
+        };
+        Update: {
+          attachments?: NonNullable<Json>;
+          conversation_id?: string;
+          created_at?: string;
+          direction?: string;
+          error?: string | null;
+          external_message_id?: string | null;
+          id?: string;
+          occurred_at?: string;
+          sent_by?: string | null;
+          sent_via?: string | null;
+          showroom_id?: string;
+          status?: string;
+          tag?: string | null;
+          text?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
             referencedRelation: "showrooms";
@@ -2533,16 +2673,28 @@ export type Database = {
         Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
         Returns: number;
       };
+      can_see_conversation: {
+        Args: { p_conversation: Database["public"]["Tables"]["conversations"]["Row"] };
+        Returns: boolean;
+      };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
       close_stale_duty_sessions: { Args: Record<PropertyKey, never>; Returns: number };
+      contact_blocked: {
+        Args: { p_channel: string; p_contact: string; p_purpose: string };
+        Returns: boolean;
+      };
       create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
+      finish_messenger_reply: {
+        Args: { p_error?: string; p_message: string; p_mid: string };
+        Returns: undefined;
+      };
       get_integration_secret: {
         Args: { p_key: string; p_name: string; p_showroom: string };
         Returns: string;
@@ -2587,12 +2739,19 @@ export type Database = {
         };
         Returns: string;
       };
+      mark_conversation_read: { Args: { p_conversation: string }; Returns: undefined };
       mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
       market_wait_until: { Args: { p_at: string; p_market: string; p_showroom_id: string }; Returns: string };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
       notify_lead_assigners: {
         Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
         Returns: undefined;
+      };
+      process_messenger_backlog: { Args: Record<PropertyKey, never>; Returns: number };
+      process_messenger_event: { Args: { p_display_name?: string; p_event_id: number }; Returns: string };
+      queue_messenger_reply: {
+        Args: { p_conversation: string; p_human_agent?: boolean; p_text: string };
+        Returns: Json;
       };
       record_event: {
         Args: {
@@ -2609,6 +2768,7 @@ export type Database = {
         Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
         Returns: string;
       };
+      reusable_lead_for: { Args: { p_contact: string }; Returns: string };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
       route_lead: { Args: { p_lead_id: string }; Returns: string };

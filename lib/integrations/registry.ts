@@ -73,6 +73,8 @@ export interface IntegrationDefinition {
   note?: string;
   /** Đường dẫn webhook Owner dán vào trang quản trị của nhà cung cấp (đấu nối có dữ liệu đẩy về). */
   webhookPath?: string;
+  /** Bản thật có bước kiểm tra kết nối ở server (checkIntegration); chỉ bước này chuyển sang "Đã kết nối". */
+  liveCheck?: boolean;
 }
 
 /** Trường lead mà câu hỏi của form quảng cáo được ánh xạ sang (CLAUDE.md 10.4). */
@@ -279,7 +281,7 @@ export const integrations = [
     description: "Nhận và trả lời tin nhắn Facebook trong 24 giờ sau tin cuối của khách.",
     group: "channels",
     phase: "month_2",
-    implemented: false,
+    implemented: true,
     capabilities: ["inbound_messages", "outbound_messages"],
     prerequisites: [
       { key: "messaging_permission", label: "Ứng dụng Meta đã được duyệt quyền nhắn tin" },
@@ -291,24 +293,20 @@ export const integrations = [
       { key: "one_reply_place", label: "Page này không còn được trả lời ở Pancake hoặc công cụ khác" },
     ],
     configSchema: z.object({ pageId: digits("ID Page là dãy số") }),
-    secrets: ["messenger_app_secret", "messenger_page_access_token"],
-    connectMode: "oauth",
-    oauthScopes:
-      "Facebook: pages_messaging, pages_manage_metadata, pages_show_list, pages_read_engagement, business_management",
+    secrets: ["messenger_app_secret", "messenger_page_access_token", "messenger_verify_token"],
+    // Chưa có ứng dụng đăng nhập Facebook đứng tên showroom (câu hỏi mở 6): Owner dán Page access token lấy trong
+    // ứng dụng Meta. Khi có Facebook Login for Business thì đổi sang "oauth".
+    connectMode: "api_key",
     configFields: [
-      {
-        key: "pageId",
-        label: "Page Facebook",
-        kind: "select",
-        fromLogin: true,
-        options: [{ value: "104857300000001", label: "Đại Việt Showroom Quận 4" }],
-      },
+      { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
     ],
     secretLabels: {
       messenger_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",
-      messenger_page_access_token: "Page access token (lấy qua đăng nhập Facebook)",
+      messenger_page_access_token: "Page access token (ứng dụng Meta › Messenger › Tạo token cho Page)",
+      messenger_verify_token: "Mã xác minh webhook (anh tự đặt, dán giống hệt vào ứng dụng Meta)",
     },
-    testLabel: "Tin nhắn thử từ Messenger",
+    testLabel: "Kiểm tra token và đăng ký nhận tin của Page",
+    liveCheck: true,
     supportsReplyMode: true,
   },
   {

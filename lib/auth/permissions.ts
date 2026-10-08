@@ -59,6 +59,7 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("call.recording_own", "Cuộc gọi", "Nghe ghi âm cuộc gọi của mình", [O, S, T]),
   p("call.recording_all", "Cuộc gọi", "Nghe ghi âm của mọi người", [O, S], { sensitive: true }),
   p("message.zalo_send", "Tin nhắn", "Gửi tin Zalo OA", [O, S, T]),
+  p("message.messenger_send", "Tin nhắn", "Gửi tin Messenger", [O, S, T]),
   p("message.view_all", "Tin nhắn", "Xem mọi hội thoại", [O, S]),
   p("catalog.view", "Danh mục", "Xem danh mục tra cứu", [O, S, T]),
   p("catalog.manage", "Danh mục", "Sửa danh mục tra cứu", [O, S]),

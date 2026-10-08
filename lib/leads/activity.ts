@@ -27,6 +27,8 @@ const KIND: Record<string, string> = {
   task_missed: "Việc",
   merge: "Chống trùng",
   sla_breached: "Quá hạn gọi",
+  messenger_in: "Messenger",
+  messenger_out: "Messenger",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -69,8 +71,25 @@ export function describeEvent(
         : "";
       return { kind, text: `Chưa gọi khi hết hạn${late ? `, trễ ${late} phút` : ""}${who}` };
     }
+    case "messenger_in":
+      return { kind, text: "Khách nhắn tin qua Messenger" };
+    case "messenger_out":
+      return {
+        kind,
+        text:
+          payload.via === "page"
+            ? "Trả lời khách trên Page Facebook"
+            : `Trả lời khách qua Messenger${payload.tag === "HUMAN_AGENT" ? " (trả lời tay ngoài 24 giờ)" : ""}`,
+      };
     case "merge":
-      return { kind, text: MERGE_REASON[str(payload.reason)] ?? "Gộp theo số điện thoại trùng" };
+      return {
+        kind,
+        text:
+          MERGE_REASON[str(payload.reason)] ??
+          (payload.matched_by === "fb_psid"
+            ? "Gộp theo tài khoản Facebook trùng"
+            : "Gộp theo số điện thoại trùng"),
+      };
     case "assignment": {
       const reason = ASSIGN_REASON[str(payload.reason)];
       const base = payload.to ? `Giao cho ${who(payload.to)}` : "Trả về hàng Chưa phân";

@@ -15,7 +15,7 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase() || "?";
 
-export function ConvAvatar({ c, size = 46 }: { c: Conversation; size?: number }) {
+export function ConvAvatar({ c, size = 46 }: { c: Pick<Conversation, "name" | "channel">; size?: number }) {
   return (
     <span className="cv-av-wrap" style={{ width: size, height: size }} aria-hidden>
       <span

@@ -5,7 +5,10 @@ import { z } from "zod";
 
 import { requireWritable } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
+import { createAdminClient } from "@/lib/db/admin";
 import { configErrors } from "@/lib/integrations/connection";
+import { graphErrorMessage, pageOfToken, subscribePage } from "@/lib/integrations/meta_messenger/api";
+import { MESSENGER_KEY, messengerConfigForShowroom } from "@/lib/integrations/meta_messenger/config";
 import { integrations, type IntegrationDefinition } from "@/lib/integrations/registry";
 
 import type { ActionResult } from "../types";
@@ -13,6 +16,12 @@ import type { ActionResult } from "../types";
 // Lưu khóa và cấu hình đấu nối thật (CLAUDE.md 10.1, 10.2). Giá trị khóa đi thẳng vào Supabase Vault qua hàm
 // set_integration_secret (kiểm settings.integrations, chặn khi "Xem như", ghi nhật ký); không bao giờ trả về trình duyệt.
 // Không ghi giá trị khóa vào log ứng dụng.
+
+const SECRET_FIELD: Record<string, "appSecret" | "pageToken" | "verifyToken"> = {
+  messenger_app_secret: "appSecret",
+  messenger_page_access_token: "pageToken",
+  messenger_verify_token: "verifyToken",
+};
 
 const def = (key: string): IntegrationDefinition | undefined => integrations.find((d) => d.key === key);
 
@@ -109,4 +118,59 @@ export async function saveIntegrationSettings(input: z.infer<typeof settingsSche
   if (error) return { ok: false, message: "Không lưu được cấu hình đấu nối." };
   revalidatePath("/settings/integrations");
   return { ok: true, message: `Đã lưu cấu hình ${d.name}` };
+}
+
+/**
+ * Kiểm tra kết nối thật bằng bộ nối của nhà cung cấp; chỉ đường này mới chuyển đấu nối sang "Đã kết nối".
+ * Messenger: token phải thuộc đúng Page đã khai, rồi đăng ký Page gửi tin về webhook của CRM.
+ */
+export async function checkIntegration(input: { key: string }): Promise<ActionResult> {
+  const user = await requireWritable("settings.integrations");
+  const { key } = z.object({ key: z.string() }).parse(input);
+  const d = def(key);
+  if (!d) return { ok: false, message: "Không có đấu nối này trong sổ đăng ký." };
+  if (key !== MESSENGER_KEY)
+    return { ok: false, message: `Bộ nối ${d.name} chưa được viết, chưa kiểm tra được kết nối thật.` };
+
+  const cfg = await messengerConfigForShowroom(createAdminClient(), user.showroomId);
+  const missing = d.secrets.filter((n) => !cfg?.[SECRET_FIELD[n]]);
+  if (!cfg?.pageId || missing.length)
+    return {
+      ok: false,
+      message: `Chưa đủ để kết nối: ${[...(cfg?.pageId ? [] : ["ID Page Facebook"]), ...missing.map((n) => (d.secretLabels?.[n] ?? n).replace(/\s*\(.*\)$/, ""))].join(", ")}.`,
+    };
+
+  let error: string | null = null;
+  try {
+    const page = await pageOfToken(cfg.pageToken!);
+    if (page.id !== cfg.pageId)
+      error = `Token này thuộc Page khác (${page.name ?? "không rõ tên"}), không phải Page có ID đã khai. Lấy token của đúng Page rồi kết nối lại.`;
+    else await subscribePage(cfg.pageId, cfg.pageToken!);
+  } catch (e) {
+    error = graphErrorMessage(e);
+  }
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  await supabase
+    .from("integrations")
+    .update(
+      error
+        ? { status: "error", enabled: false, last_error: error, last_error_at: now }
+        : {
+            status: "connected",
+            enabled: true,
+            connected_by: user.id,
+            connected_at: now,
+            last_success_at: now,
+            last_error: null,
+            reply_mode: cfg.replyMode ?? "crm",
+          },
+    )
+    .eq("showroom_id", user.showroomId)
+    .eq("key", key);
+  revalidatePath("/settings/integrations");
+  return error
+    ? { ok: false, message: error }
+    : { ok: true, message: `${d.name} đã kết nối: token đúng Page, Page đã đăng ký gửi tin về CRM` };
 }

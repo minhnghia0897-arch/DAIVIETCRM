@@ -4,6 +4,7 @@
 export const LEAD_SOURCE_LABEL: Record<string, string> = {
   meta_lead_ads: "Form quảng cáo Facebook",
   zalo_oa: "Zalo OA",
+  meta_messenger: "Tin nhắn Facebook",
   hotline: "Hotline",
   walk_in: "Khách đến showroom",
   tiktok_live: "Live TikTok",

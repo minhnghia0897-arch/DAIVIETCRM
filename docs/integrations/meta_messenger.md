@@ -1,8 +1,9 @@
 # Tin nhắn Facebook (Messenger) — `meta_messenger`
 
-Hướng dẫn cho Owner kết nối Facebook Page của showroom với CRM để nhận và trả lời tin nhắn Messenger ngay trên hồ sơ
-khách. Theo `CLAUDE.md` mục 10.3, đấu nối này thuộc **tháng 2**; bộ nối trong CRM chưa viết (màn Tích hợp đang hiện
-"Sắp có"). Phần A làm được ngay, phần B làm khi CRM có bộ nối và tên miền HTTPS.
+Hướng dẫn cho Owner kết nối Facebook Page của showroom với CRM để nhận và trả lời tin nhắn Messenger ngay trên CRM.
+Theo `CLAUDE.md` mục 10.3, đấu nối này thuộc **tháng 2**; bộ nối đã viết từ 08/10/2026 (migration
+`20261008000200_messenger.sql`, webhook `/api/webhooks/meta`, màn Hội thoại). Phần A làm được ngay, phần B làm khi CRM
+chạy trên tên miền HTTPS thật.
 
 Các điểm dưới đây kiểm lại ngày 08/10/2026 từ tài liệu Messenger Platform của Meta (xem Nguồn). Trang
 developers.facebook.com bị chặn từ môi trường làm việc nên chưa đọc trực tiếp được; **phải mở lại tài liệu gốc khi
@@ -29,6 +30,8 @@ viết bộ nối** (mục 10.1 điều 1). Điểm nào chưa kiểm được g
 
 ## Chưa kiểm
 
+- Mã lỗi Send API: `10/2018278` (ngoài khung), `551` (khách không nhận được tin), `190` (token hỏng), `4`, `32`, `613`
+  (gửi quá nhanh) lấy theo trí nhớ và hướng dẫn bên thứ ba; kiểm lại trên tài liệu gốc trước khi chạy thật.
 - Human Agent có cần xin quyền riêng (Advanced Access, mô tả cách dùng) hay không. Hướng dẫn của bên thứ ba ghi là
   có; chờ đọc tài liệu gốc.
 - Messenger có yêu cầu xác minh doanh nghiệp (Business Verification) cho trường hợp Page của chính mình hay không.
@@ -53,27 +56,52 @@ viết bộ nối** (mục 10.1 điều 1). Điểm nào chưa kiểm được g
 
 Không gửi app secret, token qua chat hay email; anh tự dán vào CRM ở phần B.
 
-## Phần B. Khi CRM có bộ nối (tháng 2)
+## Phần B. Kết nối trên CRM
 
-Điều kiện: CRM đã chạy trên tên miền HTTPS thật (Vercel, câu hỏi mở 1) và bộ nối `meta_messenger` đã viết.
+Điều kiện: CRM đã chạy trên tên miền HTTPS thật (Vercel, câu hỏi mở 1). Chưa có ứng dụng đăng nhập Facebook đứng tên
+showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook Login for Business thì đổi sang nút đăng nhập.
 
-1. Cài đặt › Tích hợp › Tin nhắn Facebook › **Kết nối**: đăng nhập Facebook, chọn Page showroom, đồng ý các quyền ở
-   trên. CRM lưu Page access token và app secret vào Supabase Vault, không hiện lại.
-2. Trong ứng dụng Meta › Messenger › Webhooks: callback URL là `https://<tên miền CRM>/api/webhooks/meta`, verify token
-   lấy ở tab Cấu hình của CRM; bấm xác minh, rồi đăng ký Page với trường `messages`, `messaging_postbacks`.
-3. Bấm **Gửi dữ liệu thử** trên CRM; nhắn thử vào Page bằng tài khoản có vai trò trên ứng dụng; tin phải hiện ở Hội
-   thoại trong vài giây.
-4. Chọn **chế độ trả lời**: Trả lời trên CRM, hoặc Trả lời ở công cụ khác (CRM chỉ đọc), hoặc Tắt.
+1. **Lấy khóa trong ứng dụng Meta:**
+   - App Secret: Cài đặt ứng dụng › Thông tin cơ bản › Khóa bí mật của ứng dụng.
+   - Page access token: Messenger › Cài đặt API › Tạo token cho Page của showroom.
+   - ID Page: trang Giới thiệu của Page, hoặc ở cùng chỗ tạo token.
+   - Mã xác minh webhook: anh tự đặt một chuỗi khó đoán, dùng ở cả hai bước 2 và 3.
+2. Cài đặt › Tích hợp › Tin nhắn Facebook › **Kết nối**: dán App Secret, Page access token, mã xác minh, ID Page, đánh
+   dấu đã chuẩn bị xong, bấm **Lưu khóa và cấu hình**. CRM lưu khóa vào Supabase Vault (không hiện lại), rồi tự kiểm
+   tra: token phải thuộc đúng Page đã khai, sau đó đăng ký Page gửi tin (`messages`, `messaging_postbacks`,
+   `message_echoes`) về CRM. Đạt thì chuyển sang **Đã kết nối**; không đạt thì hiện lỗi kèm cách xử lý.
+3. Trong ứng dụng Meta › Messenger › Webhooks: callback URL `https://<tên miền CRM>/api/webhooks/meta`, verify token là
+   mã ở bước 1, bấm xác minh.
+4. Nhắn thử vào Page bằng tài khoản có vai trò trên ứng dụng: tin phải hiện ở **Hội thoại** trong khoảng 10 giây, kèm
+   một lead mới nguồn "Tin nhắn Facebook" được phân cho người đang trực.
+5. Chọn **chế độ trả lời** ở tab Cấu hình: Trả lời trên CRM, hoặc Trả lời ở công cụ khác (CRM chỉ đọc), hoặc Tắt.
+   Nút **Gửi dữ liệu thử** chạy lại bước kiểm tra token và đăng ký Page.
 
-## Việc CRM sẽ làm khi viết bộ nối
+## CRM làm gì (đã viết)
 
-- Webhook vào `webhook_events` trước, kiểm chữ ký, trả `200` ngay, xử lý bằng job; chống trùng theo mã tin.
-- Tin đầu từ người lạ tạo lead nguồn "Tin nhắn Facebook", chống trùng theo `fb_psid` trong `contact_identities`.
-- Ô soạn trên hồ sơ hiện đồng hồ còn bao lâu trong khung 24 giờ; hết khung thì chỉ cho trả lời tay bằng Human Agent
-  trong 7 ngày (nếu được cấp), không gửi tin tự động, tin khuyến mãi.
-- Gửi tin kiểm `consents` theo mục đích và kênh ở server; không ghi nội dung tin vào nhật ký.
-- Job đối soát lấy lại hội thoại gần đây phòng webhook bị lỡ; cảnh báo Owner khi token sắp hết hạn hoặc lỗi quá 30
-  phút.
+- **Nhận tin:** webhook kiểm `X-Hub-Signature-256` bằng App Secret trên đúng chuỗi byte nhận được; sai chữ ký thì chỉ
+  ghi dấu vết (không lưu nội dung) và trả `401`. Đúng thì ghi từng tin vào `webhook_events` (chống trùng theo mã tin),
+  trả `200`, xử lý ngay sau khi trả lời; job mỗi phút (`messenger-backlog`) xử lý lại tin còn sót.
+- **Khách và lead:** tin đầu từ người lạ tạo khách với định danh `fb_psid`, căn cứ đồng ý chăm sóc trên kênh Messenger
+  (khách tự nhắn), và lead nguồn "Tin nhắn Facebook" rồi phân như mọi lead. Khách đã có lead mở (hoặc thất bại chưa quá
+  30 ngày) thì nối vào lead đó. Tên khách lấy từ Graph API nếu Meta cho; không được thì để "Khách Messenger" kèm 4 số cuối.
+- **Ai xem:** người có `message.view_all` thấy mọi hội thoại; người khác chỉ thấy hội thoại của lead mình đang giữ.
+  Chuyển lead đi thì mất quyền xem ngay.
+- **Trả lời:** cần quyền `message.messenger_send` (mặc định Owner, Sale admin, Telesale). Database kiểm: khung 24 giờ
+  (gửi dạng trả lời), từ 24 giờ tới 7 ngày chỉ khi nhân viên đánh dấu tự trả lời đúng việc khách hỏi (thẻ
+  `HUMAN_AGENT`), quá 7 ngày không gửi; chế độ trả lời (chỉ đọc khi trả lời ở công cụ khác); đồng ý chưa bị rút; khách
+  không phải người nhận của lead đang giữ bất ngờ. Tin đi đầu tiên dừng đồng hồ SLA và đưa lead sang "Đã liên hệ".
+- **Trả lời thẳng trên Page** (hộp thư Meta Business Suite): Meta gửi bản sao (echo), CRM ghi lại là tin đi "Trên Page".
+- **Không lộ dữ liệu:** nội dung tin chỉ nằm ở bảng `messages` (và hộp nhận thô); sự kiện, thông báo, nhật ký kiểm toán
+  không chứa nội dung tin hay PSID. Token không bao giờ nằm trong log hay thông báo lỗi.
+- **Chạy thử trên máy:** đặt `META_GRAPH_BASE=http://127.0.0.1:4010/v25.0` cho server để gọi máy chủ Meta giả;
+  `tests/e2e/messenger.spec.ts` dựng sẵn máy chủ giả (chạy với `E2E_GRAPH_MOCK=1`).
+
+## Còn thiếu
+
+- Tệp đính kèm (ảnh, video) mới hiện số tệp, chưa tải về kho riêng; xem trên Messenger.
+- Job đối soát lấy lại hội thoại gần đây (Conversations API) phòng webhook bị lỡ; cảnh báo Owner khi token hết hạn.
+- Gửi ảnh, mẫu tin nhanh từ CRM.
 
 ## Nguồn
 

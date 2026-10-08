@@ -100,6 +100,8 @@ export interface LiveIntegrations {
     replyMode?: ReplyMode;
     status?: "paused" | "not_connected";
   }) => Promise<Result>;
+  /** Kiểm tra kết nối bằng bộ nối thật; chỉ đường này chuyển sang "Đã kết nối". */
+  check: (input: { key: string }) => Promise<Result>;
 }
 
 const LiveContext = createContext<LiveIntegrations | null>(null);
@@ -240,7 +242,9 @@ function IntegrationRow({
               className="c-btn"
               onClick={() =>
                 live
-                  ? toast(`Bộ nối ${def.name} chưa được viết, chưa gửi được dữ liệu thử thật`, "err")
+                  ? def.liveCheck
+                    ? run((l) => l.check({ key: def.key }))
+                    : toast(`Bộ nối ${def.name} chưa được viết, chưa gửi được dữ liệu thử thật`, "err")
                   : act({ type: "intTest", key: def.key, actor: me }, `Đã gửi dữ liệu thử qua ${def.name}`)
               }
             >
@@ -268,7 +272,12 @@ function IntegrationRow({
               type="button"
               className="c-btn"
               onClick={() =>
-                act({ type: "intPause", key: def.key, paused: false, actor: me }, `Đã chạy lại ${def.name}`)
+                live && def.liveCheck
+                  ? run((l) => l.check({ key: def.key }))
+                  : act(
+                      { type: "intPause", key: def.key, paused: false, actor: me },
+                      `Đã chạy lại ${def.name}`,
+                    )
               }
             >
               Chạy lại
@@ -735,6 +744,8 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
           prerequisitesDone: prereqs,
         });
         if (!r.ok) return r;
+        // Bộ nối đã viết: kiểm tra thật ngay (đúng Page, đăng ký nhận tin…).
+        if (def.liveCheck) return l.check({ key: def.key });
         return {
           ok: true,
           message: def.implemented
