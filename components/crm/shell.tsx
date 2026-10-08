@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BarChart3,
+  Clapperboard,
   Bell,
   Bot,
   ClipboardCheck,
@@ -141,6 +142,7 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/policies": Package,
   "/team": UsersRound,
   "/customers": Contact,
+  "/kol": Clapperboard,
 };
 
 interface TrailStep {

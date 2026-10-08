@@ -10,6 +10,11 @@ const OWNER_SCREENS: [string, string][] = [
   ["/households", "Hộ gia đình"],
   ["/inbox", "Hội thoại"],
   ["/channels", "Kênh & nội dung"],
+  ["/kol", "KOL, KOC"],
+  ["/kol/koc-ansan", "Vợ chồng Ansan"],
+  ["/kol/bookings", "Booking"],
+  ["/kol/calendar", "Lịch đăng"],
+  ["/kol/performance", "Hiệu quả"],
   ["/reports", "Báo cáo"],
   ["/agents", "Agent"],
   ["/policies", "Chính sách"],
@@ -52,6 +57,7 @@ test("telesale bị chặn ở màn ngoài quyền", async ({ page }) => {
     "/settings/integrations",
     "/settings/audit",
     "/settings/markets",
+    "/kol",
   ]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" }), path).toBeVisible();

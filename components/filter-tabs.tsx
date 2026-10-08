@@ -10,7 +10,7 @@ export function FilterTabs({
   children,
 }: {
   label: string;
-  tabs: { href: string; label: string }[];
+  tabs: { href: string; label: string; exact?: boolean }[];
   children?: React.ReactNode;
 }) {
   // Bản demo tĩnh có dấu "/" cuối đường dẫn; bỏ đi để so khớp.
@@ -18,7 +18,8 @@ export function FilterTabs({
   return (
     <nav aria-label={label} className="c-ftabs">
       {tabs.map((t) => {
-        const on = pathname === t.href || (t.href !== "/team" && pathname.startsWith(t.href + "/"));
+        const on =
+          pathname === t.href || (!t.exact && t.href !== "/team" && pathname.startsWith(t.href + "/"));
         return (
           <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className="c-ftab">
             {t.label}

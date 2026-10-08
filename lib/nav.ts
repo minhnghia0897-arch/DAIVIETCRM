@@ -113,6 +113,8 @@ export const NAV_TABS: NavTab[] = [
     ready: true,
   },
   { href: "/channels", label: "Kênh & nội dung", section: "insight", anyOf: ["report.team"], ready: true },
+  // KOL, KOC: dữ liệu mô phỏng, quyền tạm theo report.team (chờ duyệt koc.view, koc.manage; open-questions 35).
+  { href: "/kol", label: "KOL, KOC", section: "insight", anyOf: ["report.team"], ready: true },
   {
     href: "/reports",
     label: "Báo cáo",
