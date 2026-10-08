@@ -1160,6 +1160,7 @@ export type Database = {
           recipient_province: string | null;
           score: number;
           showroom_id: string;
+          sla_alerted_at: string | null;
           sla_due_at: string | null;
           source: string;
           source_detail: NonNullable<Json>;
@@ -1188,6 +1189,7 @@ export type Database = {
           recipient_province?: string | null;
           score?: number;
           showroom_id: string;
+          sla_alerted_at?: string | null;
           sla_due_at?: string | null;
           source: string;
           source_detail?: NonNullable<Json>;
@@ -1215,6 +1217,7 @@ export type Database = {
           recipient_province?: string | null;
           score?: number;
           showroom_id?: string;
+          sla_alerted_at?: string | null;
           sla_due_at?: string | null;
           source?: string;
           source_detail?: NonNullable<Json>;
@@ -2518,6 +2521,7 @@ export type Database = {
         };
       };
       add_lead_note: { Args: { p_lead_id: string; p_text: string }; Returns: number };
+      alert_sla_overdue: { Args: Record<PropertyKey, never>; Returns: number };
       apply_task_action: {
         Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string; p_user: string };
         Returns: string;

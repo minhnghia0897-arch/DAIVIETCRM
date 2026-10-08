@@ -1,28 +1,13 @@
 import type { Metadata } from "next";
 
 import { AuditLogView } from "@/components/crm/views/settings";
+import { auditActionLabel, auditDetail } from "@/lib/audit/describe";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { integrations } from "@/lib/integrations/registry";
 import { requirePermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 
 export const metadata: Metadata = { title: "Nhật ký kiểm toán · Đại Việt CRM" };
-
-const ACTION_LABEL: Record<string, string> = {
-  "role_permission.grant": "Bật quyền cho vai trò",
-  "role_permission.revoke": "Tắt quyền của vai trò",
-  "user_permission.insert": "Đặt quyền riêng cho người dùng",
-  "user_permission.update": "Đổi quyền riêng của người dùng",
-  "user_permission.delete": "Bỏ quyền riêng của người dùng",
-  "profile.invite": "Mời người dùng",
-  "profile.lock": "Khóa người dùng",
-  "profile.unlock": "Mở khóa người dùng",
-  "profile.role_change": "Đổi vai trò",
-  "view_as.start": "Bắt đầu xem như người dùng",
-  "view_as.end": "Kết thúc xem như người dùng",
-  "integration.secret_set": "Lưu khóa đấu nối",
-  "integration.secret_replace": "Thay khóa đấu nối",
-  "integration.secret_delete": "Xóa khóa đấu nối",
-  "integration.update": "Đổi cấu hình đấu nối",
-};
 
 const fmt = new Intl.DateTimeFormat("vi-VN", {
   timeZone: "Asia/Ho_Chi_Minh",
@@ -30,13 +15,8 @@ const fmt = new Intl.DateTimeFormat("vi-VN", {
   timeStyle: "short",
 });
 
-/** Chi tiết đọc được từ metadata; không bao giờ chứa số điện thoại hay nội dung tin nhắn (CLAUDE.md mục 4). */
-function detail(meta: unknown): string {
-  if (!meta || typeof meta !== "object") return "";
-  return Object.entries(meta as Record<string, unknown>)
-    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-    .join(" · ");
-}
+const permLabel = (key: string) => PERMISSIONS.find((p) => p.key === key)?.label ?? "Quyền khác";
+const integrationLabel = (key: string) => integrations.find((i) => i.key === key)?.name ?? "Đấu nối khác";
 
 // Nhật ký thật đọc từ bảng audit_logs (RLS chỉ cho người có audit.view); bên dưới là nhật ký của các màn
 // đang chạy dữ liệu mô phỏng trong trình duyệt (components/crm/store.tsx).
@@ -59,7 +39,7 @@ export default async function Page() {
     <div className="c-stack">
       <section className="c-card" aria-label="Nhật ký kiểm toán phân quyền và người dùng">
         <div className="c-ch">
-          <h2>Phân quyền, người dùng, đấu nối</h2>
+          <h2>Thao tác đã ghi</h2>
           <span className="c-r c-lbl">200 thao tác gần nhất · không sửa, không xóa được</span>
         </div>
         <div className="c-tw">
@@ -84,8 +64,10 @@ export default async function Page() {
                 <tr key={r.id}>
                   <td className="tabular">{fmt.format(new Date(r.at))}</td>
                   <td>{name(r.actor_id, r.actor_type)}</td>
-                  <td>{ACTION_LABEL[r.action] ?? r.action}</td>
-                  <td className="whitespace-normal c-lbl">{detail(r.metadata)}</td>
+                  <td>{auditActionLabel(r.action)}</td>
+                  <td className="whitespace-normal c-lbl">
+                    {auditDetail(r.metadata, { permission: permLabel, integration: integrationLabel })}
+                  </td>
                 </tr>
               ))}
             </tbody>

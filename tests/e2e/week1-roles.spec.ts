@@ -43,9 +43,10 @@ test("Owner bật quyền nhạy cảm phải xác nhận và thấy toast", asy
   // Thay đổi quyền nằm trong nhật ký kiểm toán thật (bảng audit_logs), kèm trạng thái trước và sau.
   await page.goto("/settings/audit");
   const real = page.getByRole("region", { name: "Nhật ký kiểm toán phân quyền và người dùng" });
-  await expect(real.getByRole("row").filter({ hasText: "Bật quyền cho vai trò" }).first()).toContainText(
-    "lead.export",
-  );
+  const row = real.getByRole("row").filter({ hasText: "Bật quyền cho vai trò" }).first();
+  // Nhật ký ghi tên quyền tiếng Việt, kèm trạng thái trước và sau.
+  await expect(row).toContainText("quyền: Xuất danh sách khách ra file");
+  await expect(row).toContainText("trước: không; sau: có");
 });
 
 test("telesale xem được danh mục tra cứu nhưng không sửa", async ({ page }) => {

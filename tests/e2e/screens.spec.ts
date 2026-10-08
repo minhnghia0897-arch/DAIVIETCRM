@@ -37,6 +37,8 @@ const OWNER_SCREENS: [string, string][] = [
 ];
 
 test("Owner mở được mọi màn hình", async ({ page }) => {
+  // Mở gần 30 màn liên tiếp: cần nhiều thời gian hơn mức mặc định 30 giây khi chạy cùng các bài khác.
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page, USERS.owner);

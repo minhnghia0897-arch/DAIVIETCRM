@@ -50,4 +50,11 @@ describe("dòng hoạt động của lead", () => {
       /^Khách liên hệ lại từ /,
     );
   });
+
+  it("quá hạn gọi nêu số phút trễ và người đang giữ", () => {
+    expect(describeEvent("sla_breached", { late_minutes: 4, assigned_to: "u1" }, ctx)).toEqual({
+      kind: "Quá hạn gọi",
+      text: "Chưa gọi khi hết hạn, trễ 4 phút (Thảo đang giữ)",
+    });
+  });
 });

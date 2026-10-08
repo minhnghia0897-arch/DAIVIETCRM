@@ -26,6 +26,7 @@ const KIND: Record<string, string> = {
   task_done: "Việc",
   task_missed: "Việc",
   merge: "Chống trùng",
+  sla_breached: "Quá hạn gọi",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -61,6 +62,13 @@ export function describeEvent(
         kind,
         text: `${payload.attached ? "Khách liên hệ lại" : "Lead vào"} từ ${leadSourceLabel(str(payload.source))}`,
       };
+    case "sla_breached": {
+      const late = Number(payload.late_minutes) || 0;
+      const who = payload.assigned_to
+        ? ` (${ctx.names.get(str(payload.assigned_to)) ?? "người khác"} đang giữ)`
+        : "";
+      return { kind, text: `Chưa gọi khi hết hạn${late ? `, trễ ${late} phút` : ""}${who}` };
+    }
     case "merge":
       return { kind, text: MERGE_REASON[str(payload.reason)] ?? "Gộp theo số điện thoại trùng" };
     case "assignment": {

@@ -51,6 +51,9 @@ export const LIVE_SCREENS = [
   "/settings/notifications",
   "/settings/integrations",
   "/settings/shifts",
+  "/settings/assignment",
+  "/settings/markets",
+  "/settings/catalog",
   "/team/absences",
 ];
 

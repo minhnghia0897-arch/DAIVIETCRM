@@ -51,6 +51,8 @@ import { STAGES, houseById } from "@/lib/demo/crm-data";
 import { visibleCustomers } from "@/lib/demo/repo";
 import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
 import { CUSTOMERS } from "@/lib/demo/data";
+import type { NoticeFeed } from "@/lib/notify/notice";
+import { NoticeList } from "./notices";
 import { ApprovalList, FeedList } from "./parts";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
@@ -90,6 +92,12 @@ export function CrmShell(props: {
   allDemo?: boolean;
   /** Bản thật: trạng thái Trực đọc từ duty_sessions và công tắc gọi server (bản demo dùng dữ liệu mô phỏng). */
   liveDuty?: { on: boolean; set: (on: boolean) => Promise<{ ok: boolean; message: string }> } | null;
+  /** Bản thật: chuông đọc bảng notifications của chính mình (bản demo dùng hàng chờ duyệt mô phỏng). */
+  liveNotices?: {
+    initial: NoticeFeed;
+    load: () => Promise<NoticeFeed>;
+    markRead: (ids?: string[]) => Promise<void>;
+  } | null;
   children: React.ReactNode;
 }) {
   const { user } = props;
@@ -222,6 +230,7 @@ function ShellInner({
   shortcuts,
   allDemo,
   liveDuty,
+  liveNotices,
   children,
 }: Parameters<typeof CrmShell>[0]) {
   const { state, act, who } = useCrm();
@@ -241,7 +250,45 @@ function ShellInner({
   const setAiOpen = (v: boolean | ((o: boolean) => boolean)) =>
     setAiPref(typeof v === "function" ? v(aiOpen) : v);
   const [messages, setMessages] = useState<AiMessage[]>([]);
-  const [pop, setPop] = useState<"appr" | "feed" | null>(null);
+  const [pop, setPop] = useState<"appr" | "feed" | "notices" | null>(null);
+  const [notices, setNotices] = useState<NoticeFeed | null>(liveNotices?.initial ?? null);
+  // Trang tải lại từ server (đổi trang, router.refresh) mang số mới nhất: dùng luôn, khỏi chờ lần hỏi tiếp.
+  const [seenInitial, setSeenInitial] = useState(liveNotices?.initial);
+  if (liveNotices && liveNotices.initial !== seenInitial) {
+    setSeenInitial(liveNotices.initial);
+    setNotices(liveNotices.initial);
+  }
+  // Thông báo mới: hỏi lại server mỗi 30 giây và khi quay lại tab (không cần tải lại trang).
+  useEffect(() => {
+    if (!liveNotices) return;
+    let alive = true;
+    const pull = () =>
+      liveNotices
+        .load()
+        .then((f) => alive && setNotices(f))
+        .catch(() => undefined);
+    const id = setInterval(pull, 30_000);
+    window.addEventListener("focus", pull);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("focus", pull);
+    };
+  }, [liveNotices]);
+  function readNotices(ids?: string[]) {
+    if (!liveNotices || user.readOnly) return;
+    setNotices((f) =>
+      f
+        ? {
+            items: f.items.map((n) => (!ids || ids.includes(n.id) ? { ...n, read: true } : n)),
+            unread: ids
+              ? Math.max(0, f.unread - f.items.filter((n) => ids.includes(n.id) && !n.read).length)
+              : 0,
+          }
+        : f,
+    );
+    void liveNotices.markRead(ids);
+  }
   const [q, setQ] = useState("");
   // Ô tìm nhanh Ctrl/⌘ K và phím tắt kiểu Slack.
   const [quick, setQuick] = useState<"search" | "help" | null>(null);
@@ -596,15 +643,29 @@ function ShellInner({
           >
             <Sparkles size={18} />
           </button>
-          <button
-            type="button"
-            className="c-ib"
-            aria-label={`Chờ duyệt: ${queue.length}`}
-            onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}
-          >
-            <Bell size={18} />
-            {queue.length ? <span className="c-badge">{queue.length}</span> : null}
-          </button>
+          {notices ? (
+            <button
+              type="button"
+              className="c-ib"
+              aria-label={`Thông báo: ${notices.unread} chưa đọc`}
+              onClick={() => setPop((p) => (p === "notices" ? null : "notices"))}
+            >
+              <Bell size={18} />
+              {notices.unread ? (
+                <span className="c-badge">{notices.unread > 99 ? "99+" : notices.unread}</span>
+              ) : null}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="c-ib"
+              aria-label={`Chờ duyệt: ${queue.length}`}
+              onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}
+            >
+              <Bell size={18} />
+              {queue.length ? <span className="c-badge">{queue.length}</span> : null}
+            </button>
+          )}
           <AccountMenu
             fullName={user.fullName}
             roleName={user.roleName}
@@ -798,17 +859,36 @@ function ShellInner({
           <div
             className="c-card c-pop"
             role="dialog"
-            aria-label={pop === "appr" ? "Chờ duyệt" : "Nhật ký agent"}
+            aria-label={pop === "appr" ? "Chờ duyệt" : pop === "notices" ? "Thông báo" : "Nhật ký agent"}
           >
             <div className="c-ch">
-              <h2>{pop === "appr" ? `Chờ duyệt (${queue.length})` : "Nhật ký agent"}</h2>
+              <h2>
+                {pop === "appr"
+                  ? `Chờ duyệt (${queue.length})`
+                  : pop === "notices"
+                    ? `Thông báo${notices?.unread ? ` (${notices.unread} chưa đọc)` : ""}`
+                    : "Nhật ký agent"}
+              </h2>
               <span className="c-r">
                 <button type="button" className="c-ib" aria-label="Đóng" onClick={() => setPop(null)}>
                   <X size={16} />
                 </button>
               </span>
             </div>
-            {pop === "appr" ? <ApprovalList items={queue} /> : <FeedList items={state.feed} limit={20} />}
+            {pop === "appr" ? (
+              <ApprovalList items={queue} />
+            ) : pop === "notices" && notices ? (
+              <NoticeList
+                items={notices.items}
+                onOpen={(n) => {
+                  if (!n.read) readNotices([n.id]);
+                  setPop(null);
+                }}
+                onReadAll={() => readNotices()}
+              />
+            ) : (
+              <FeedList items={state.feed} limit={20} />
+            )}
           </div>
         ) : null}
 

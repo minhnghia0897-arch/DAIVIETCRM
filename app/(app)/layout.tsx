@@ -1,5 +1,6 @@
 import { CrmShell } from "@/components/crm/shell";
 import { signOut } from "../(auth)/login/actions";
+import { loadNotices, markNoticesRead } from "./notify-actions";
 import { setMyDuty } from "./team/duty-actions";
 import { endViewAs } from "./view-as/actions";
 import { requireUser } from "@/lib/auth/session";
@@ -9,9 +10,10 @@ import { visibleSettings } from "@/lib/nav";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [shortcuts, onDuty] = await Promise.all([
+  const [shortcuts, onDuty, notices] = await Promise.all([
     loadShortcuts(user.id, user.permissions),
     user.permissions.has("lead.receive") ? loadOnDuty(user.id) : Promise.resolve(null),
+    loadNotices(),
   ]);
 
   return (
@@ -30,6 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       signOutAction={signOut}
       shortcuts={shortcuts}
       liveDuty={onDuty === null ? null : { on: onDuty, set: setMyDuty }}
+      liveNotices={{ initial: notices, load: loadNotices, markRead: markNoticesRead }}
       banner={
         user.viewAs ? (
           <form

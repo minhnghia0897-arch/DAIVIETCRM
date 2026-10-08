@@ -31,7 +31,7 @@ test("Owner dán khóa SMTP: lưu vào kho bí mật, không hiện lại, có n
   await page.goto("/settings/audit");
   const audit = page.getByRole("region", { name: "Nhật ký kiểm toán phân quyền và người dùng" });
   await expect(audit.getByRole("row").filter({ hasText: "Lưu khóa đấu nối" }).first()).toContainText(
-    "smtp_password",
+    "đấu nối: Email gửi lời mời",
   );
   expect(await page.content()).not.toContain(secret);
 });
