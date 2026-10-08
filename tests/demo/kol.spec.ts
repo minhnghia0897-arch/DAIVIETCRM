@@ -123,6 +123,53 @@ test("thêm KOC mới rồi mở hồ sơ; không đặt booking cho người đ
   await expect(page.getByRole("button", { name: "Đặt booking" })).toHaveCount(0);
 });
 
+test("tải tệp hợp đồng lên hồ sơ, gỡ tệp; tạo hợp đồng cho người chưa có", async ({ page }) => {
+  await as(page, "sale_admin", "kol/koc-hanh/");
+  const files = page.getByRole("group", { name: "Tệp hợp đồng" });
+  await expect(files).toContainText("hop-dong-chi-hanh.pdf");
+  await files.getByLabel("Loại tệp").selectOption({ label: "Phụ lục" });
+  await files.getByLabel("Chọn tệp hợp đồng").setInputFiles({
+    name: "phu-luc-chi-hanh.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 phu luc"),
+  });
+  await expect(page.getByRole("status").last()).toContainText("Đã tải lên phu-luc-chi-hanh.pdf");
+  await expect(files.getByRole("link", { name: "phu-luc-chi-hanh.pdf", exact: true })).toBeVisible();
+  await expect(files).toContainText("Phụ lục, PDF");
+
+  // Tệp không đúng loại bị chặn.
+  await files.getByLabel("Chọn tệp hợp đồng").setInputFiles({
+    name: "anh.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from("GIF89a"),
+  });
+  await expect(page.getByRole("status").last()).toContainText("Chỉ nhận tệp PDF");
+
+  await files.getByRole("button", { name: "Gỡ phu-luc-chi-hanh.pdf" }).click();
+  await files.getByRole("button", { name: "Gỡ tệp" }).click();
+  await expect(files.getByRole("link", { name: "phu-luc-chi-hanh.pdf", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Dòng hoạt động" })).toContainText(
+    "Gỡ tệp hợp đồng phu-luc-chi-hanh.pdf",
+  );
+
+  // Người chưa có hợp đồng: tạo hợp đồng rồi mới tải tệp.
+  await page.goto("kol/kol-seoul/");
+  await page.getByRole("button", { name: "Tạo hợp đồng" }).click();
+  const form = page.getByRole("form", { name: "Tạo hợp đồng" });
+  await form.getByLabel("Số hợp đồng").fill("HĐ-KOL-2610-01");
+  await form.getByRole("button", { name: "Lưu hợp đồng" }).click();
+  await expect(page.getByRole("status").last()).toContainText("Đã tạo hợp đồng");
+  await page
+    .getByRole("group", { name: "Tệp hợp đồng" })
+    .getByLabel("Chọn tệp hợp đồng")
+    .setInputFiles({
+      name: "hop-dong-seoul.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4"),
+    });
+  await expect(page.getByRole("link", { name: "hop-dong-seoul.pdf", exact: true })).toBeVisible();
+});
+
 test("telesale không thấy menu KOL, KOC", async ({ page }) => {
   await as(page, "telesale", "home/");
   await expect(

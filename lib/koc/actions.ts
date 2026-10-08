@@ -1,5 +1,16 @@
 import { BUDGET_LIMIT, FORMAT_LABEL, STATUS_LABEL, nextStatus, stepBlocker } from "./logic";
-import type { Booking, Creator, KocData, PartnerStatus, Payout, Post, Rating, Sample } from "./types";
+import type {
+  Booking,
+  Contract,
+  ContractFile,
+  Creator,
+  KocData,
+  PartnerStatus,
+  Payout,
+  Post,
+  Rating,
+  Sample,
+} from "./types";
 
 // Thao tác trên dữ liệu KOL, KOC: kiểm quyền và điều kiện (kocDenied) rồi mới đổi dữ liệu (kocReducer). Hàm thuần,
 // thời điểm truyền từ ngoài. Khi có bảng thật, kocDenied chuyển thành RLS và hàm database, giao diện giữ nguyên.
@@ -40,7 +51,23 @@ export type KocAction =
   | ({ type: "addPost"; bookingId: string; post: Post } & Meta)
   | ({ type: "sendSample"; bookingId: string; product: string; serial: string | null } & Meta)
   | ({ type: "sampleStatus"; id: string; status: Sample["status"] } & Meta)
-  | ({ type: "recordPayout"; payout: Omit<Payout, "id" | "paidAt" | "recordedBy"> } & Meta);
+  | ({ type: "recordPayout"; payout: Omit<Payout, "id" | "paidAt" | "recordedBy"> } & Meta)
+  | ({ type: "setContract"; id: string; contract: Omit<Contract, "files"> } & Meta)
+  | ({
+      type: "addContractFile";
+      id: string;
+      file: Omit<ContractFile, "id" | "uploadedAt" | "uploadedBy">;
+    } & Meta)
+  | ({ type: "removeContractFile"; id: string; fileId: string } & Meta);
+
+/** Tệp hợp đồng nhận: PDF, ảnh chụp, Word; tối đa 10MB mỗi tệp. */
+export const CONTRACT_FILE_TYPES: Record<string, string> = {
+  "application/pdf": "PDF",
+  "image/jpeg": "Ảnh JPG",
+  "image/png": "Ảnh PNG",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+};
+export const CONTRACT_FILE_MAX = 10 * 1024 * 1024;
 
 const READ_ONLY = "Đang xem như người dùng khác, chỉ đọc.";
 
@@ -111,6 +138,28 @@ export function kocDenied(data: KocData, a: KocAction, who: KocWho): string | nu
       if (!a.payout.reference.trim()) return "Cần ghi mã giao dịch hoặc nội dung chuyển khoản.";
       return null;
     }
+    case "setContract": {
+      if (!creator(a.id)) return "Không tìm thấy KOL, KOC này.";
+      const k = a.contract;
+      if (!k.code.trim()) return "Cần nhập số hợp đồng.";
+      if (!k.startsOn || !k.endsOn || k.endsOn < k.startsOn)
+        return "Ngày kết thúc phải từ ngày bắt đầu trở đi.";
+      if (!(k.commissionRate >= 0 && k.commissionRate <= 30)) return "Hoa hồng từ 0 đến 30%.";
+      if (!(k.usageRightsMonths >= 0 && k.usageRightsMonths <= 36))
+        return "Quyền dùng lại nội dung từ 0 đến 36 tháng.";
+      return null;
+    }
+    case "addContractFile": {
+      const c = creator(a.id);
+      if (!c) return "Không tìm thấy KOL, KOC này.";
+      if (!c.contract) return "Tạo hợp đồng trước rồi mới tải tệp lên.";
+      if (!CONTRACT_FILE_TYPES[a.file.mime]) return "Chỉ nhận tệp PDF, ảnh JPG, PNG hoặc Word.";
+      if (a.file.size > CONTRACT_FILE_MAX) return "Tệp lớn hơn 10MB. Nén lại hoặc chụp thành PDF nhỏ hơn.";
+      if (!a.file.name.trim()) return "Tệp chưa có tên.";
+      return null;
+    }
+    case "removeContractFile":
+      return creator(a.id)?.contract?.files.some((f) => f.id === a.fileId) ? null : "Không tìm thấy tệp này.";
   }
 }
 
@@ -123,7 +172,49 @@ const nextId = (prefix: string, xs: { id: string }[]) =>
 
 /** Đổi dữ liệu theo thao tác. Gọi sau khi kocDenied trả null. */
 export function kocReducer(data: KocData, a: KocAction): KocData {
+  const withContract = (id: string, f: (k: Contract) => Contract) => ({
+    ...data,
+    creators: data.creators.map((c) => (c.id === id && c.contract ? { ...c, contract: f(c.contract) } : c)),
+  });
   switch (a.type) {
+    case "setContract": {
+      const prev = data.creators.find((c) => c.id === a.id)?.contract;
+      const next = {
+        ...data,
+        creators: data.creators.map((c) =>
+          c.id === a.id
+            ? { ...c, contract: { ...a.contract, code: a.contract.code.trim(), files: prev?.files ?? [] } }
+            : c,
+        ),
+      };
+      return log(next, a.id, a, `${prev ? "Sửa" : "Tạo"} hợp đồng ${a.contract.code.trim()}`);
+    }
+    case "addContractFile": {
+      const all = data.creators.flatMap((c) => c.contract?.files ?? []);
+      const file: ContractFile = {
+        ...a.file,
+        id: `cf-${String(all.length + 1).padStart(2, "0")}-${a.at.slice(11, 19).replace(/:/g, "")}`,
+        uploadedAt: a.at.slice(0, 10),
+        uploadedBy: a.actor,
+      };
+      return log(
+        withContract(a.id, (k) => ({ ...k, files: [file, ...k.files] })),
+        a.id,
+        a,
+        `Tải lên tệp hợp đồng ${file.name}`,
+      );
+    }
+    case "removeContractFile": {
+      const name = data.creators
+        .find((c) => c.id === a.id)
+        ?.contract?.files.find((f) => f.id === a.fileId)?.name;
+      return log(
+        withContract(a.id, (k) => ({ ...k, files: k.files.filter((f) => f.id !== a.fileId) })),
+        a.id,
+        a,
+        `Gỡ tệp hợp đồng ${name ?? ""}`.trim(),
+      );
+    }
     case "addCreator": {
       const id = `kc-${data.creators.length + 1}`;
       const c: Creator = {

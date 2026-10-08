@@ -37,7 +37,21 @@ export interface Contract {
   /** Số tháng showroom được dùng lại nội dung (chạy quảng cáo, đăng lại). */
   usageRightsMonths: number;
   status: "draft" | "signed" | "expired";
-  fileName: string | null;
+  /** Tệp hợp đồng, phụ lục (bản scan, PDF). Bản thật lưu ở Storage riêng tư, mở bằng link ký ngắn hạn. */
+  files: ContractFile[];
+}
+
+export interface ContractFile {
+  id: string;
+  name: string;
+  /** Loại tệp: hợp đồng chính, phụ lục, biên bản nghiệm thu. */
+  kind: "contract" | "appendix" | "acceptance";
+  size: number;
+  mime: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  /** Link mở tệp trong phiên (bản demo: link tạm của trình duyệt); null khi chỉ có tên tệp mẫu. */
+  url: string | null;
 }
 
 export interface Rating {

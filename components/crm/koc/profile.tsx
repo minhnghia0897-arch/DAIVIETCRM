@@ -24,6 +24,7 @@ import type { Creator, PartnerStatus } from "@/lib/koc/types";
 
 import { PageHead } from "../parts";
 import { BookingForm, BookingList } from "./bookings";
+import { ContractBlock } from "./contract";
 import { Field } from "./list";
 import { useKoc } from "./provider";
 
@@ -31,7 +32,6 @@ import { useKoc } from "./provider";
 // mẫu, tiền đã trả và còn nợ, đánh giá, dòng hoạt động.
 
 const input = "rounded-control border border-line bg-surface px-2 py-1";
-const CONTRACT_LABEL = { draft: "Bản nháp", signed: "Đã ký", expired: "Hết hạn" } as const;
 const SAMPLE_LABEL = { with_creator: "Đang giữ", returned: "Đã thu hồi", gifted: "Tặng luôn" } as const;
 
 export function KocProfile({ id }: { id: string }) {
@@ -283,39 +283,7 @@ export function KocProfile({ id }: { id: string }) {
               ) : (
                 <p className="m-0 text-text-weak">Không nhận phí cố định, chỉ hoa hồng.</p>
               )}
-              {c.contract ? (
-                <dl className="m-0 space-y-1">
-                  <div>
-                    <dt className="c-lbl">Hợp đồng {c.contract.code}</dt>
-                    <dd className="m-0">
-                      <span className={`c-pill ${c.contract.status === "signed" ? "is-ok" : "is-warn"}`}>
-                        {CONTRACT_LABEL[c.contract.status]}
-                      </span>{" "}
-                      {formatDate(c.contract.startsOn)} đến {formatDate(c.contract.endsOn)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="c-lbl">Hoa hồng trên đơn hoàn tất</dt>
-                    <dd className="m-0">{c.contract.commissionRate}%</dd>
-                  </div>
-                  <div>
-                    <dt className="c-lbl">Quyền dùng lại nội dung</dt>
-                    <dd className="m-0">
-                      {c.contract.usageRightsMonths ? `${c.contract.usageRightsMonths} tháng` : "Không có"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="c-lbl">Độc quyền</dt>
-                    <dd className="m-0">{c.contract.exclusivity ?? "Không"}</dd>
-                  </div>
-                  <div>
-                    <dt className="c-lbl">Tệp hợp đồng</dt>
-                    <dd className="m-0">{c.contract.fileName ?? "Chưa tải lên"}</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p className="m-0 text-text-weak">Chưa ký hợp đồng.</p>
-              )}
+              <ContractBlock c={c} />
             </div>
           </section>
 

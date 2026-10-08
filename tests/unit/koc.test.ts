@@ -153,3 +153,86 @@ describe("quyền", () => {
     expect(kocDenied(kocSeed(), a("MOI2026"), admin)).toBeNull();
   });
 });
+
+describe("hợp đồng và tệp hợp đồng", () => {
+  const file = {
+    name: "phu-luc.pdf",
+    kind: "appendix" as const,
+    size: 200_000,
+    mime: "application/pdf",
+    url: null,
+  };
+
+  it("tải lên tệp PDF, gỡ được; chặn tệp lạ, tệp quá 10MB", () => {
+    const up = run(undefined, { type: "addContractFile", id: "koc-ansan", file, ...meta });
+    expect(up.why).toBeNull();
+    const files = up.data.creators.find((c) => c.id === "koc-ansan")!.contract!.files;
+    expect(files.map((f) => f.name)).toEqual(["phu-luc.pdf", "hop-dong-vo-chong-ansan.pdf"]);
+    expect(files[0].uploadedBy).toBe("u-admin");
+
+    expect(
+      run(undefined, {
+        type: "addContractFile",
+        id: "koc-ansan",
+        file: { ...file, mime: "application/zip" },
+        ...meta,
+      }).why,
+    ).toMatch(/PDF/);
+    expect(
+      run(undefined, {
+        type: "addContractFile",
+        id: "koc-ansan",
+        file: { ...file, size: 11 * 1024 * 1024 },
+        ...meta,
+      }).why,
+    ).toMatch(/10MB/);
+
+    const gone = run(up.data, {
+      type: "removeContractFile",
+      id: "koc-ansan",
+      fileId: files[0].id,
+      ...meta,
+    }).data;
+    expect(gone.creators.find((c) => c.id === "koc-ansan")!.contract!.files).toHaveLength(1);
+  });
+
+  it("chưa có hợp đồng thì tạo trước rồi mới tải tệp; giữ tệp khi sửa hợp đồng", () => {
+    expect(run(undefined, { type: "addContractFile", id: "kol-seoul", file, ...meta }).why).toMatch(
+      /Tạo hợp đồng trước/,
+    );
+    const contract = {
+      code: "HĐ-KOL-2610-01",
+      status: "draft" as const,
+      startsOn: "2026-10-04",
+      endsOn: "2027-04-04",
+      commissionRate: 2,
+      usageRightsMonths: 6,
+      exclusivity: null,
+    };
+    expect(
+      run(undefined, {
+        type: "setContract",
+        id: "kol-seoul",
+        contract: { ...contract, endsOn: "2026-01-01" },
+        ...meta,
+      }).why,
+    ).toMatch(/Ngày kết thúc/);
+    const made = run(undefined, { type: "setContract", id: "kol-seoul", contract, ...meta }).data;
+    const withFile = run(made, { type: "addContractFile", id: "kol-seoul", file, ...meta }).data;
+    const edited = run(withFile, {
+      type: "setContract",
+      id: "kol-seoul",
+      contract: { ...contract, status: "signed" },
+      ...meta,
+    }).data;
+    const k = edited.creators.find((c) => c.id === "kol-seoul")!.contract!;
+    expect(k.status).toBe("signed");
+    expect(k.files).toHaveLength(1);
+  });
+
+  it("người không có quyền quản lý không tải lên được", () => {
+    expect(
+      kocDenied(kocSeed(), { type: "addContractFile", id: "koc-ansan", file, ...meta }, telesale),
+    ).toMatch(/chưa được cấp quyền/);
+  });
+});
