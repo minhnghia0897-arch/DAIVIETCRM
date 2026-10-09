@@ -1065,6 +1065,7 @@ export type Database = {
           last_event_at: string | null;
           last_success_at: string | null;
           prerequisites_done: NonNullable<Json>;
+          refresh_lock_until: string | null;
           reply_mode: string | null;
           secret_ref: string | null;
           showroom_id: string;
@@ -1085,6 +1086,7 @@ export type Database = {
           last_event_at?: string | null;
           last_success_at?: string | null;
           prerequisites_done?: NonNullable<Json>;
+          refresh_lock_until?: string | null;
           reply_mode?: string | null;
           secret_ref?: string | null;
           showroom_id: string;
@@ -1105,6 +1107,7 @@ export type Database = {
           last_event_at?: string | null;
           last_success_at?: string | null;
           prerequisites_done?: NonNullable<Json>;
+          refresh_lock_until?: string | null;
           reply_mode?: string | null;
           secret_ref?: string | null;
           showroom_id?: string;
@@ -2667,6 +2670,38 @@ export type Database = {
         Returns: string;
       };
       approval_permission: { Args: { p_type: string }; Returns: string };
+      assert_channel_reply: {
+        Args: {
+          p_channel: string;
+          p_consent_channel: string;
+          p_conversation: string;
+          p_integration: string;
+          p_perm: string;
+          p_text: string;
+        };
+        Returns: {
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_name: string | null;
+          external_user_id: string;
+          id: string;
+          last_inbound_at: string | null;
+          last_message_at: string | null;
+          lead_id: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count: number;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "conversations";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       assert_integration_writer: { Args: { p_key: string }; Returns: string };
       assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
       assign_leads: {
@@ -2691,6 +2726,10 @@ export type Database = {
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
+      finish_channel_reply: {
+        Args: { p_error?: string; p_message: string; p_mid: string };
+        Returns: undefined;
+      };
       finish_messenger_reply: {
         Args: { p_error?: string; p_message: string; p_mid: string };
         Returns: undefined;
@@ -2709,6 +2748,7 @@ export type Database = {
           has_open_lead: boolean;
         }[];
       };
+      ingest_channel_message: { Args: { p: Json }; Returns: string };
       ingest_lead: { Args: { p: Json }; Returns: Json };
       is_absent_today: { Args: { p_user: string }; Returns: boolean };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
@@ -2729,6 +2769,10 @@ export type Database = {
           uncontacted: number;
         }[];
       };
+      lease_token_refresh: {
+        Args: { p_key: string; p_seconds?: number; p_showroom: string };
+        Returns: boolean;
+      };
       log_call: {
         Args: {
           p_callback_at?: string;
@@ -2740,6 +2784,10 @@ export type Database = {
         Returns: string;
       };
       mark_conversation_read: { Args: { p_conversation: string }; Returns: undefined };
+      mark_integration_error: {
+        Args: { p_key: string; p_message: string; p_showroom: string };
+        Returns: undefined;
+      };
       mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
       market_wait_until: { Args: { p_at: string; p_market: string; p_showroom_id: string }; Returns: string };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
@@ -2749,8 +2797,17 @@ export type Database = {
       };
       process_messenger_backlog: { Args: Record<PropertyKey, never>; Returns: number };
       process_messenger_event: { Args: { p_display_name?: string; p_event_id: number }; Returns: string };
+      process_zalo_backlog: { Args: Record<PropertyKey, never>; Returns: number };
+      process_zalo_event: {
+        Args: { p_display_name?: string; p_event_id: number; p_phone?: Json };
+        Returns: string;
+      };
       queue_messenger_reply: {
         Args: { p_conversation: string; p_human_agent?: boolean; p_text: string };
+        Returns: Json;
+      };
+      queue_zalo_reply: {
+        Args: { p_confirm_paid?: boolean; p_conversation: string; p_text: string };
         Returns: Json;
       };
       record_event: {
@@ -2783,6 +2840,10 @@ export type Database = {
       set_telegram_group: {
         Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
         Returns: string;
+      };
+      store_integration_token: {
+        Args: { p_expires_at?: string; p_key: string; p_name: string; p_showroom: string; p_value: string };
+        Returns: undefined;
       };
       task_action: {
         Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string };

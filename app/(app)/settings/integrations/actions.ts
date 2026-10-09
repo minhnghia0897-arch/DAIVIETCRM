@@ -9,6 +9,9 @@ import { createAdminClient } from "@/lib/db/admin";
 import { configErrors } from "@/lib/integrations/connection";
 import { graphErrorMessage, pageOfToken, subscribePage } from "@/lib/integrations/meta_messenger/api";
 import { MESSENGER_KEY, messengerConfigForShowroom } from "@/lib/integrations/meta_messenger/config";
+import { oaOfToken, zaloErrorMessage } from "@/lib/integrations/zalo_oa/api";
+import { ZALO_KEY, zaloConfigForShowroom } from "@/lib/integrations/zalo_oa/config";
+import { ensureZaloToken } from "@/lib/integrations/zalo_oa/token";
 import { integrations, type IntegrationDefinition } from "@/lib/integrations/registry";
 
 import type { ActionResult } from "../types";
@@ -129,34 +132,18 @@ export async function checkIntegration(input: { key: string }): Promise<ActionRe
   const { key } = z.object({ key: z.string() }).parse(input);
   const d = def(key);
   if (!d) return { ok: false, message: "Không có đấu nối này trong sổ đăng ký." };
-  if (key !== MESSENGER_KEY)
+  const probe = PROBES[key];
+  if (!probe)
     return { ok: false, message: `Bộ nối ${d.name} chưa được viết, chưa kiểm tra được kết nối thật.` };
 
-  const cfg = await messengerConfigForShowroom(createAdminClient(), user.showroomId);
-  const missing = d.secrets.filter((n) => !cfg?.[SECRET_FIELD[n]]);
-  if (!cfg?.pageId || missing.length)
-    return {
-      ok: false,
-      message: `Chưa đủ để kết nối: ${[...(cfg?.pageId ? [] : ["ID Page Facebook"]), ...missing.map((n) => (d.secretLabels?.[n] ?? n).replace(/\s*\(.*\)$/, ""))].join(", ")}.`,
-    };
-
-  let error: string | null = null;
-  try {
-    const page = await pageOfToken(cfg.pageToken!);
-    if (page.id !== cfg.pageId)
-      error = `Token này thuộc Page khác (${page.name ?? "không rõ tên"}), không phải Page có ID đã khai. Lấy token của đúng Page rồi kết nối lại.`;
-    else await subscribePage(cfg.pageId, cfg.pageToken!);
-  } catch (e) {
-    error = graphErrorMessage(e);
-  }
-
+  const r = await probe(d, user.showroomId);
   const supabase = await createClient();
   const now = new Date().toISOString();
   await supabase
     .from("integrations")
     .update(
-      error
-        ? { status: "error", enabled: false, last_error: error, last_error_at: now }
+      "error" in r
+        ? { status: "error", enabled: false, last_error: r.error, last_error_at: now }
         : {
             status: "connected",
             enabled: true,
@@ -164,13 +151,76 @@ export async function checkIntegration(input: { key: string }): Promise<ActionRe
             connected_at: now,
             last_success_at: now,
             last_error: null,
-            reply_mode: cfg.replyMode ?? "crm",
+            reply_mode: r.replyMode ?? "crm",
           },
     )
     .eq("showroom_id", user.showroomId)
     .eq("key", key);
   revalidatePath("/settings/integrations");
-  return error
-    ? { ok: false, message: error }
-    : { ok: true, message: `${d.name} đã kết nối: token đúng Page, Page đã đăng ký gửi tin về CRM` };
+  return "error" in r
+    ? { ok: false, message: r.error }
+    : { ok: true, message: `${d.name} đã kết nối: ${r.done}` };
 }
+
+type Probe = (
+  d: IntegrationDefinition,
+  showroomId: string,
+) => Promise<{ error: string } | { done: string; replyMode: string | null }>;
+
+const short = (d: IntegrationDefinition, n: string) => (d.secretLabels?.[n] ?? n).replace(/\s*\(.*\)$/, "");
+const missingMessage = (items: string[]) => ({ error: `Chưa đủ để kết nối: ${items.join(", ")}.` });
+
+const PROBES: Record<string, Probe> = {
+  // Token phải thuộc đúng Page đã khai, rồi đăng ký Page gửi tin về webhook của CRM.
+  [MESSENGER_KEY]: async (d, showroomId) => {
+    const cfg = await messengerConfigForShowroom(createAdminClient(), showroomId);
+    const missing = d.secrets.filter((n) => !cfg?.[SECRET_FIELD[n]]);
+    if (!cfg?.pageId || missing.length)
+      return missingMessage([
+        ...(cfg?.pageId ? [] : ["ID Page Facebook"]),
+        ...missing.map((n) => short(d, n)),
+      ]);
+    try {
+      const page = await pageOfToken(cfg.pageToken!);
+      if (page.id !== cfg.pageId)
+        return {
+          error: `Token này thuộc Page khác (${page.name ?? "không rõ tên"}), không phải Page có ID đã khai. Lấy token của đúng Page rồi kết nối lại.`,
+        };
+      await subscribePage(cfg.pageId, cfg.pageToken!);
+    } catch (e) {
+      return { error: graphErrorMessage(e) };
+    }
+    return { done: "token đúng Page, Page đã đăng ký gửi tin về CRM", replyMode: cfg.replyMode };
+  },
+  // Làm mới token ngay (kiểm App Secret và refresh token), rồi kiểm token thuộc đúng OA đã khai.
+  [ZALO_KEY]: async (d, showroomId) => {
+    const admin = createAdminClient();
+    const cfg = await zaloConfigForShowroom(admin, showroomId);
+    const has: Record<string, string | null | undefined> = {
+      zalo_app_secret: cfg?.appSecret,
+      zalo_oa_secret_key: cfg?.oaSecretKey,
+      zalo_refresh_token: cfg?.refreshToken,
+    };
+    const missing = [
+      ...(cfg?.appId ? [] : ["App ID ứng dụng Zalo"]),
+      ...(cfg?.oaId ? [] : ["ID Zalo OA"]),
+      ...d.secrets.filter((n) => !has[n]).map((n) => short(d, n)),
+    ];
+    if (!cfg || missing.length) return missingMessage(missing);
+    const t = await ensureZaloToken(admin, cfg, { force: true });
+    if (!t.ok) return { error: t.message };
+    try {
+      const oa = await oaOfToken(t.accessToken);
+      if (oa.oaId !== cfg.oaId)
+        return {
+          error: `Token này thuộc OA khác (${oa.name ?? "không rõ tên"}), không phải OA có ID đã khai. Lấy refresh token của đúng OA rồi kết nối lại.`,
+        };
+    } catch (e) {
+      return { error: zaloErrorMessage(e) };
+    }
+    return {
+      done: "token làm mới được và thuộc đúng OA; CRM tự làm mới token từ nay",
+      replyMode: cfg.replyMode,
+    };
+  },
+};

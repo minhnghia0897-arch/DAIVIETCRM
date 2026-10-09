@@ -8,17 +8,26 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast";
 import { fold } from "@/lib/inbox/extract";
 import { replyWindow, timeLeft } from "@/lib/integrations/meta_messenger/window";
+import { zaloWindow } from "@/lib/integrations/zalo_oa/window";
 
 import { ConvAvatar } from "./conv-avatar";
 
-// Hội thoại Messenger trên bản thật (CLAUDE.md 10.3, 10.5): danh sách, đọc, trả lời trong khung 24 giờ; ngoài khung
-// chỉ nhân viên trả lời tay bằng thẻ Human Agent trong 7 ngày. Luật thật kiểm ở database; giao diện chỉ hiện đồng hồ
-// và khóa ô soạn cho dễ dùng. Tự tải lại mỗi 8 giây để tin mới hiện nhanh.
+// Hội thoại chung mọi kênh trên bản thật (CLAUDE.md 10.3, 10.4, 10.5): Messenger và Zalo OA trong một danh sách.
+// Messenger: trả lời trong 24 giờ, tới 7 ngày chỉ nhân viên trả lời tay (thẻ Human Agent). Zalo: miễn phí 48 giờ,
+// ngoài đó vẫn gửi được nhưng tính phí theo hạn mức gói OA nên phải xác nhận. Luật thật kiểm ở database; giao diện chỉ
+// hiện đồng hồ và nhắc. Tự tải lại mỗi 8 giây để tin mới hiện nhanh.
 
 type Result = { ok: boolean; message: string };
+type Channel = "messenger" | "zalo";
+
+const CH: Record<Channel, { label: string; avatar: "Facebook" | "Zalo" }> = {
+  messenger: { label: "Messenger", avatar: "Facebook" },
+  zalo: { label: "Zalo", avatar: "Zalo" },
+};
 
 export interface LiveConv {
   id: string;
+  channel: Channel;
   name: string;
   lastAt: string | null;
   lastInboundAt: string | null;
@@ -40,7 +49,8 @@ export interface LiveThread {
     status: "received" | "queued" | "sent" | "failed";
     error: string | null;
     by: string | null;
-    humanAgent: boolean;
+    /** "Trả lời tay" (Messenger ngoài 24 giờ), "Tin tính phí" (Zalo ngoài 48 giờ). */
+    tag: string | null;
   }[];
 }
 
@@ -65,24 +75,28 @@ export function InboxLive({
   convs,
   selectedId,
   thread,
-  blocker,
+  blockers,
+  paidThisMonth,
   send,
   markRead,
 }: {
   convs: LiveConv[];
   selectedId: string | null;
   thread: LiveThread | null;
-  /** Lý do không trả lời được trên CRM (chế độ trả lời, quyền…); null là được. */
-  blocker: string | null;
-  send: (input: { conversationId: string; text: string; humanAgent: boolean }) => Promise<Result>;
+  /** Lý do không trả lời được trên CRM theo kênh (chế độ trả lời, quyền…); null là được. */
+  blockers: Record<Channel, string | null>;
+  /** Tin Zalo tính phí đã gửi trong tháng. */
+  paidThisMonth: number;
+  send: (input: { conversationId: string; text: string; confirm: boolean }) => Promise<Result>;
   markRead: (input: { conversationId: string }) => Promise<void>;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"all" | "unread" | "mine">("all");
+  const [channel, setChannel] = useState<"" | Channel>("");
   const [text, setText] = useState("");
-  const [humanAgent, setHumanAgent] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const [pending, start] = useTransition();
   const [now, setNow] = useState(() => new Date());
   const msgs = useRef<HTMLDivElement>(null);
@@ -109,12 +123,18 @@ export function InboxLive({
 
   const list = convs
     .filter((x) => !q.trim() || fold(x.name).includes(fold(q.trim())))
-    .filter((x) => (view === "unread" ? x.unread > 0 : view === "mine" ? x.mine : true));
-  const win = c ? replyWindow(c.lastInboundAt, now) : null;
+    .filter((x) => (view === "unread" ? x.unread > 0 : view === "mine" ? x.mine : true))
+    .filter((x) => !channel || x.channel === channel);
+  const win = c?.channel === "messenger" ? replyWindow(c.lastInboundAt, now) : null;
+  const zwin = c?.channel === "zalo" ? zaloWindow(c.lastInboundAt, now) : null;
+  const blocker = c ? blockers[c.channel] : null;
+  // Cần xác nhận trước khi gửi: Messenger ngoài 24 giờ (trả lời tay), Zalo ngoài 48 giờ (tin tính phí).
+  const needConfirm = win?.mode === "human_agent" || zwin?.mode === "paid";
+  const closed = win?.mode === "closed" || zwin?.mode === "closed";
 
   function open(id: string) {
     setText("");
-    setHumanAgent(false);
+    setConfirm(false);
     router.push(`/inbox?c=${id}`);
   }
 
@@ -122,10 +142,10 @@ export function InboxLive({
     if (!c || !text.trim()) return;
     const body = text;
     start(async () => {
-      const r = await send({ conversationId: c.id, text: body, humanAgent });
+      const r = await send({ conversationId: c.id, text: body, confirm });
       if (r.ok) {
         setText("");
-        setHumanAgent(false);
+        setConfirm(false);
       } else toast(r.message, "err");
       router.refresh();
     });
@@ -138,8 +158,8 @@ export function InboxLive({
           Hội thoại
         </h1>
         <p className="c-empty">
-          Chưa có hội thoại Messenger nào gắn với khách anh chị đang phụ trách. Tin mới của khách sẽ hiện ở
-          đây.
+          Chưa có hội thoại Messenger, Zalo nào gắn với khách anh chị đang phụ trách. Tin mới của khách sẽ
+          hiện ở đây.
         </p>
       </section>
     );
@@ -176,6 +196,15 @@ export function InboxLive({
               <span className="cv-fn">{n}</span>
             </button>
           ))}
+          <select
+            aria-label="Lọc theo kênh"
+            value={channel}
+            onChange={(e) => setChannel(e.target.value as "" | Channel)}
+          >
+            <option value="">Mọi kênh</option>
+            <option value="messenger">Messenger</option>
+            <option value="zalo">Zalo</option>
+          </select>
         </div>
         {list.length === 0 ? <p className="cv-empty">Không có khách nào khớp bộ lọc.</p> : null}
         <ul className="tg-list" aria-label="Danh sách hội thoại">
@@ -187,7 +216,7 @@ export function InboxLive({
                 aria-current={x.id === c?.id}
                 onClick={() => open(x.id)}
               >
-                <ConvAvatar c={{ name: x.name, channel: "Facebook" }} />
+                <ConvAvatar c={{ name: x.name, channel: CH[x.channel].avatar }} />
                 <span className="tg-item-b">
                   <span className="tg-item-r1">
                     <b>{x.name}</b>
@@ -205,7 +234,7 @@ export function InboxLive({
                     ) : null}
                   </span>
                   <span className="cv-meta">
-                    Messenger · {x.holder ? `${x.holder} giữ lead` : "Chưa giao"}
+                    {CH[x.channel].label} · {x.holder ? `${x.holder} giữ lead` : "Chưa giao"}
                   </span>
                 </span>
               </button>
@@ -229,11 +258,11 @@ export function InboxLive({
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <ConvAvatar c={{ name: c.name, channel: "Facebook" }} size={38} />
+                <ConvAvatar c={{ name: c.name, channel: CH[c.channel].avatar }} size={38} />
                 <span className="min-w-0">
                   <b className="tg-title">{c.name}</b>
                   <span className="tg-sub">
-                    Messenger · {c.holder ? `${c.holder} giữ lead` : "Chưa giao"}
+                    {CH[c.channel].label} · {c.holder ? `${c.holder} giữ lead` : "Chưa giao"}
                     {win ? (
                       <span
                         className={`cv-st ${win.mode === "response" ? "is-ok" : win.mode === "human_agent" ? "is-warn" : "is-err"}`}
@@ -244,6 +273,18 @@ export function InboxLive({
                           : win.mode === "human_agent"
                             ? `Hết khung 24 giờ, trả lời tay ${timeLeft(win.endsAt, now)}`
                             : "Đã hết khung nhắn tin"}
+                      </span>
+                    ) : null}
+                    {zwin ? (
+                      <span
+                        className={`cv-st ${zwin.mode === "free" ? "is-ok" : zwin.mode === "paid" ? "is-warn" : "is-err"}`}
+                      >
+                        {" · "}
+                        {zwin.mode === "free"
+                          ? `Miễn phí ${timeLeft(zwin.endsAt, now)}`
+                          : zwin.mode === "paid"
+                            ? "Ngoài 48 giờ, tin tính phí"
+                            : "Khách chưa nhắn OA"}
                       </span>
                     ) : null}
                   </span>
@@ -267,7 +308,9 @@ export function InboxLive({
                   >
                     {!m.out ? (
                       <span className="tg-row-av">
-                        {tail ? <ConvAvatar c={{ name: c.name, channel: "Facebook" }} size={34} /> : null}
+                        {tail ? (
+                          <ConvAvatar c={{ name: c.name, channel: CH[c.channel].avatar }} size={34} />
+                        ) : null}
                       </span>
                     ) : null}
                     <div className="tg-bubble cv-msg">
@@ -275,7 +318,8 @@ export function InboxLive({
                       {m.text ? <p className="tg-text">{m.text}</p> : null}
                       {m.files ? (
                         <p className="tg-text c-lbl">
-                          <Paperclip size={13} aria-hidden /> {m.files} tệp đính kèm, xem trên Messenger
+                          <Paperclip size={13} aria-hidden /> {m.files} tệp đính kèm, xem trên{" "}
+                          {CH[c.channel].label}
                         </p>
                       ) : null}
                       {m.status === "failed" ? (
@@ -284,7 +328,7 @@ export function InboxLive({
                         </p>
                       ) : null}
                       <span className="tg-meta">
-                        {m.humanAgent ? <span className="tg-time">Trả lời tay · </span> : null}
+                        {m.tag ? <span className="tg-time">{m.tag} · </span> : null}
                         <span className="tg-time">{when(m.at, now)}</span>
                         {m.out ? (
                           <span className="tg-read">
@@ -306,10 +350,11 @@ export function InboxLive({
 
             {blocker ? (
               <p className="tg-readonly">{blocker}.</p>
-            ) : win?.mode === "closed" ? (
+            ) : closed ? (
               <p className="tg-readonly">
-                Đã quá 7 ngày sau tin cuối của khách, Messenger không cho nhắn nữa. Gọi điện hoặc chờ khách
-                nhắn lại.
+                {c.channel === "zalo"
+                  ? "Khách chưa nhắn cho OA nên chưa gửi được tin tư vấn. Gọi điện hoặc mời khách nhắn OA."
+                  : "Đã quá 7 ngày sau tin cuối của khách, Messenger không cho nhắn nữa. Gọi điện hoặc chờ khách nhắn lại."}
               </p>
             ) : (
               <form
@@ -319,24 +364,25 @@ export function InboxLive({
                   submit();
                 }}
               >
-                {win?.mode === "human_agent" ? (
+                {needConfirm ? (
                   <label className="flex items-start gap-2 px-2 pb-1 text-sm">
                     <input
                       type="checkbox"
                       className="mt-1"
-                      checked={humanAgent}
-                      onChange={(e) => setHumanAgent(e.target.checked)}
+                      checked={confirm}
+                      onChange={(e) => setConfirm(e.target.checked)}
                     />
                     <span>
-                      Tôi tự trả lời đúng việc khách đã hỏi (thẻ Human Agent). Không gửi tin khuyến mãi, tin
-                      tự động.
+                      {c.channel === "zalo"
+                        ? `Gửi tin tính phí (ngoài 48 giờ, trừ vào hạn mức gói OA; tháng này đã gửi ${paidThisMonth} tin tính phí).`
+                        : "Tôi tự trả lời đúng việc khách đã hỏi (thẻ Human Agent). Không gửi tin khuyến mãi, tin tự động."}
                     </span>
                   </label>
                 ) : null}
                 <div className="tg-compose-row">
                   <textarea
                     aria-label="Nội dung trả lời"
-                    placeholder={`Trả lời ${c.name} qua Messenger…`}
+                    placeholder={`Trả lời ${c.name} qua ${CH[c.channel].label}…`}
                     value={text}
                     rows={1}
                     maxLength={2000}
@@ -353,7 +399,7 @@ export function InboxLive({
                     type="submit"
                     className="tg-round tg-send"
                     aria-label="Gửi"
-                    disabled={!text.trim() || pending || (win?.mode === "human_agent" && !humanAgent)}
+                    disabled={!text.trim() || pending || (needConfirm && !confirm)}
                   >
                     <SendHorizontal size={20} />
                   </button>

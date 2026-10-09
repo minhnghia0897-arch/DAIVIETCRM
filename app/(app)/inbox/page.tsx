@@ -5,13 +5,15 @@ import { requireAnyPermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
 import { MESSENGER_KEY } from "@/lib/integrations/meta_messenger/config";
+import { ZALO_KEY } from "@/lib/integrations/zalo_oa/config";
+import { vnMonthStart } from "@/lib/integrations/zalo_oa/window";
 
-import { markConversationRead, sendMessengerReply } from "./actions";
+import { markConversationRead, sendReply } from "./actions";
 
 export const metadata: Metadata = { title: "Hội thoại · Đại Việt CRM" };
 
-// Hội thoại Messenger thật. RLS chỉ trả hội thoại của lead mình đang giữ, trừ người có message.view_all
-// (CLAUDE.md mục 5). Zalo OA nối sau theo cùng bảng conversations, messages.
+// Hội thoại chung mọi kênh (Messenger, Zalo OA). RLS chỉ trả hội thoại của lead mình đang giữ, trừ người có
+// message.view_all (CLAUDE.md mục 5).
 export default async function Page({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const user = await requireAnyPermission([
     "message.zalo_send",
@@ -23,7 +25,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
   const { data: convs } = await supabase
     .from("conversations")
-    .select("id, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contacts(full_name)")
+    .select(
+      "id, channel, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contacts(full_name)",
+    )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
   const list = convs ?? [];
@@ -65,7 +69,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
   const rows: LiveConv[] = list.map((x) => ({
     id: x.id,
-    name: x.contacts?.full_name ?? x.display_name ?? "Khách Messenger",
+    channel: x.channel === "zalo" ? "zalo" : "messenger",
+    name: x.contacts?.full_name ?? x.display_name ?? "Khách",
     lastAt: x.last_message_at,
     lastInboundAt: x.last_inbound_at,
     unread: x.unread_count,
@@ -98,41 +103,54 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         at: m.occurred_at,
         status: m.status as LiveThread["messages"][number]["status"],
         error: m.error,
-        by: staff?.find((p) => p.id === m.sent_by)?.full_name ?? (m.sent_via === "page" ? "Trên Page" : null),
-        humanAgent: m.tag === "HUMAN_AGENT",
+        by:
+          staff?.find((p) => p.id === m.sent_by)?.full_name ??
+          (m.sent_via === "page" ? (sel.channel === "zalo" ? "Trên OA" : "Trên Page") : null),
+        tag: m.tag === "HUMAN_AGENT" ? "Trả lời tay" : m.tag === "paid" ? "Tin tính phí" : null,
       })),
     };
   }
 
   // Chế độ trả lời không phải bí mật; đọc bằng service_role vì bảng integrations chỉ mở cho người có quyền Cài đặt.
-  const { data: integ } = await createAdminClient()
+  const admin = createAdminClient();
+  const { data: integs } = await admin
     .from("integrations")
-    .select("status, reply_mode")
+    .select("key, status, reply_mode")
     .eq("showroom_id", user.showroomId)
-    .eq("key", MESSENGER_KEY)
-    .maybeSingle();
-  const blocker =
-    !integ || integ.status === "not_connected" || integ.status === "not_available"
-      ? "Tin nhắn Facebook chưa kết nối, Owner kết nối ở Cài đặt, Tích hợp"
-      : integ.reply_mode === "external"
-        ? "Kênh này đang được trả lời ở công cụ khác, CRM chỉ đọc"
-        : integ.reply_mode === "off"
-          ? "Kênh này đang tắt trong Cài đặt, Tích hợp"
-          : integ.status === "paused"
-            ? "Kênh này đang tạm dừng trong Cài đặt, Tích hợp"
-            : user.viewAs
-              ? "Đang xem như người dùng khác, chỉ đọc"
-              : !user.permissions.has("message.messenger_send")
-                ? "Anh chị chưa được cấp quyền gửi tin Messenger"
-                : null;
+    .in("key", [MESSENGER_KEY, ZALO_KEY]);
+  const blockerFor = (key: string, perm: string, name: string) => {
+    const integ = integs?.find((i) => i.key === key);
+    if (!integ || integ.status === "not_connected" || integ.status === "not_available")
+      return `${name} chưa kết nối, Owner kết nối ở Cài đặt, Tích hợp`;
+    if (integ.reply_mode === "external") return "Kênh này đang được trả lời ở công cụ khác, CRM chỉ đọc";
+    if (integ.reply_mode === "off") return "Kênh này đang tắt trong Cài đặt, Tích hợp";
+    if (integ.status === "paused") return "Kênh này đang tạm dừng trong Cài đặt, Tích hợp";
+    if (user.viewAs) return "Đang xem như người dùng khác, chỉ đọc";
+    if (!user.permissions.has(perm)) return `Anh chị chưa được cấp quyền gửi tin ${name}`;
+    return null;
+  };
+
+  // Tin Zalo tính phí đã gửi trong tháng (giờ VN), để người gửi biết đã dùng bao nhiêu hạn mức gói OA.
+  const monthStart = vnMonthStart(new Date()).toISOString();
+  const { count: paidThisMonth } = await admin
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("showroom_id", user.showroomId)
+    .eq("tag", "paid")
+    .eq("status", "sent")
+    .gte("occurred_at", monthStart);
 
   return (
     <InboxLive
       convs={rows}
       selectedId={sel?.id ?? null}
       thread={thread}
-      blocker={blocker}
-      send={sendMessengerReply}
+      blockers={{
+        messenger: blockerFor(MESSENGER_KEY, "message.messenger_send", "Tin nhắn Facebook"),
+        zalo: blockerFor(ZALO_KEY, "message.zalo_send", "Zalo OA"),
+      }}
+      paidThisMonth={paidThisMonth ?? 0}
+      send={sendReply}
       markRead={markConversationRead}
     />
   );

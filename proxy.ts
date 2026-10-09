@@ -35,7 +35,9 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/q/") ||
     // Webhook của nhà cung cấp gọi vào không có phiên đăng nhập; mỗi route tự kiểm chữ ký hoặc mã bí mật
     // (CLAUDE.md mục 10.1). Đẩy về /login sẽ làm mất tin.
-    path.startsWith("/api/webhooks/");
+    path.startsWith("/api/webhooks/") ||
+    // Lịch chạy định kỳ (Vercel Cron) tự kiểm CRON_SECRET.
+    path.startsWith("/api/cron/");
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -29,6 +29,9 @@ const KIND: Record<string, string> = {
   sla_breached: "Quá hạn gọi",
   messenger_in: "Messenger",
   messenger_out: "Messenger",
+  zalo_in: "Zalo",
+  zalo_out: "Zalo",
+  identity_added: "Định danh",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -80,6 +83,22 @@ export function describeEvent(
           payload.via === "page"
             ? "Trả lời khách trên Page Facebook"
             : `Trả lời khách qua Messenger${payload.tag === "HUMAN_AGENT" ? " (trả lời tay ngoài 24 giờ)" : ""}`,
+      };
+    case "zalo_in":
+      return { kind, text: "Khách nhắn tin qua Zalo OA" };
+    case "zalo_out":
+      return {
+        kind,
+        text:
+          payload.via === "page"
+            ? "Trả lời khách trên ứng dụng Zalo OA"
+            : `Trả lời khách qua Zalo OA${payload.tag === "paid" ? " (tin tính phí ngoài 48 giờ)" : ""}`,
+      };
+    case "identity_added":
+      return {
+        kind,
+        text:
+          payload.type === "phone" ? "Khách chia sẻ số điện thoại qua Zalo OA" : "Thêm định danh liên lạc",
       };
     case "merge":
       return {
