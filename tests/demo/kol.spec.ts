@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 // KOL, KOC (bản demo, lib/koc): danh sách và lọc, hồ sơ, booking đi trọn từ đề xuất tới thanh toán, booking vượt
 // hạn mức chờ Owner duyệt, thêm người mới, quyền theo vai trò.
 
-async function as(page: Page, role: "owner" | "sale_admin" | "telesale", path: string) {
+async function as(page: Page, role: "owner" | "sale_admin" | "telesale" | "marketing", path: string) {
   await page.goto("login/");
   await page.evaluate((r) => localStorage.setItem("dv_demo_role", r), role);
   await page.goto(path);
@@ -16,7 +16,9 @@ test.beforeEach(async ({}, testInfo) => {
 
 test("danh sách lọc theo khán giả, hồ sơ có lead theo mã và tiền còn phải trả", async ({ page }) => {
   await as(page, "owner", "home/");
-  await page.getByRole("navigation", { name: "Ứng dụng" }).getByRole("link", { name: "KOL, KOC" }).click();
+  // KOL, KOC nằm trong menu Marketing (10/10/2026).
+  await page.getByRole("navigation", { name: "Ứng dụng" }).getByRole("link", { name: "Marketing" }).click();
+  await page.getByRole("navigation", { name: "Marketing" }).getByRole("link", { name: "KOL, KOC" }).click();
   const list = page.getByRole("region", { name: "Danh sách KOL, KOC" });
   await expect(list.getByRole("link", { name: "Vợ chồng Ansan" })).toBeVisible();
 
@@ -106,7 +108,7 @@ test("booking vượt hạn mức chờ Owner duyệt ngân sách", async ({ pag
 });
 
 test("thêm KOC mới rồi mở hồ sơ; không đặt booking cho người đang tạm dừng", async ({ page }) => {
-  await as(page, "sale_admin", "kol/");
+  await as(page, "marketing", "kol/");
   await page.getByRole("button", { name: "Thêm KOL, KOC" }).click();
   const form = page.getByRole("form", { name: "Thêm KOL, KOC" });
   await form.getByLabel("Tên hiển thị").fill("Hồng Incheon");
@@ -124,7 +126,7 @@ test("thêm KOC mới rồi mở hồ sơ; không đặt booking cho người đ
 });
 
 test("tải tệp hợp đồng lên hồ sơ, gỡ tệp; tạo hợp đồng cho người chưa có", async ({ page }) => {
-  await as(page, "sale_admin", "kol/koc-hanh/");
+  await as(page, "marketing", "kol/koc-hanh/");
   const files = page.getByRole("group", { name: "Tệp hợp đồng" });
   await expect(files).toContainText("hop-dong-chi-hanh.pdf");
   await files.getByLabel("Loại tệp").selectOption({ label: "Phụ lục" });
@@ -170,11 +172,11 @@ test("tải tệp hợp đồng lên hồ sơ, gỡ tệp; tạo hợp đồng c
   await expect(page.getByRole("link", { name: "hop-dong-seoul.pdf", exact: true })).toBeVisible();
 });
 
-test("telesale không thấy menu KOL, KOC", async ({ page }) => {
+test("telesale không thấy menu Marketing, KOL, KOC", async ({ page }) => {
   await as(page, "telesale", "home/");
-  await expect(
-    page.getByRole("navigation", { name: "Ứng dụng" }).getByRole("link", { name: "KOL, KOC" }),
-  ).toHaveCount(0);
+  const nav = page.getByRole("navigation", { name: "Ứng dụng" });
+  await expect(nav.getByRole("link", { name: "KOL, KOC" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Marketing" })).toHaveCount(0);
   await page.goto("kol/");
   await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();
 });

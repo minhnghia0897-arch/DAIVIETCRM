@@ -9,6 +9,8 @@ const OWNER_SCREENS: [string, string][] = [
   ["/opportunities", "Cơ hội"],
   ["/households", "Hộ gia đình"],
   ["/inbox", "Hội thoại"],
+  ["/marketing", "Tổng quan"],
+  ["/campaigns", "Chiến dịch"],
   ["/channels", "Kênh & nội dung"],
   ["/kol", "KOL, KOC"],
   ["/kol/koc-ansan", "Vợ chồng Ansan"],
@@ -56,6 +58,8 @@ test("telesale bị chặn ở màn ngoài quyền", async ({ page }) => {
   for (const path of [
     "/agents",
     "/channels",
+    "/marketing",
+    "/campaigns",
     "/settings/integrations",
     "/settings/audit",
     "/settings/markets",

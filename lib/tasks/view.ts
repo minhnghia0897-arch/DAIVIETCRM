@@ -36,4 +36,5 @@ export const APPROVAL_TYPE_LABEL: Record<string, string> = {
   payment_confirm: "Xác nhận tiền",
   stock_count: "Duyệt kiểm kê",
   ai_proposal: "Đề xuất của AI",
+  campaign_budget: "Duyệt ngân sách chiến dịch",
 };

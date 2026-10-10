@@ -9,6 +9,7 @@ const ROLES: { id: RoleKey; name: string; isOwner: boolean }[] = [
   { id: "owner", name: "Chủ hệ thống", isOwner: true },
   { id: "sale_admin", name: "Sale admin", isOwner: false },
   { id: "telesale", name: "Telesale", isOwner: false },
+  { id: "marketing", name: "Marketing", isOwner: false },
 ];
 
 export default function Page() {

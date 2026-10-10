@@ -6,6 +6,7 @@ export const USERS = {
   saleAdmin: "saleadmin@example.test",
   thao: "thao@example.test",
   an: "an@example.test",
+  marketing: "marketing@example.test",
 } as const;
 
 export async function login(page: Page, email: string) {

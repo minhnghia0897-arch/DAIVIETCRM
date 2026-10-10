@@ -19,8 +19,14 @@ const ids: Record<RoleKey, string> = {
   owner: "11111111-1111-4111-8111-000000000001",
   sale_admin: "11111111-1111-4111-8111-000000000002",
   telesale: "11111111-1111-4111-8111-000000000003",
+  marketing: "11111111-1111-4111-8111-000000000005",
 };
-const names: Record<RoleKey, string> = { owner: "Hà", sale_admin: "Minh", telesale: "Thảo" };
+const names: Record<RoleKey, string> = {
+  owner: "Hà",
+  sale_admin: "Minh",
+  telesale: "Thảo",
+  marketing: "Lan",
+};
 
 function who(role: RoleKey, extra: Partial<Who> = {}): Who {
   const perms = new Set(PERMISSIONS.filter((p) => p.defaults.includes(role)).map((p) => p.key));

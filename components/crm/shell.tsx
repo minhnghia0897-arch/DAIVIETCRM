@@ -143,6 +143,8 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/inbox": MessageCircle,
   "/chat": Send,
   "/channels": Megaphone,
+  "/marketing": Megaphone,
+  "/campaigns": Megaphone,
   "/reports": BarChart3,
   "/agents": Bot,
   "/products": Package,

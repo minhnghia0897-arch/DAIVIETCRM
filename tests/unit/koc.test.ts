@@ -4,7 +4,11 @@ import { kocDenied, kocReducer, type KocAction, type KocWho } from "@/lib/koc/ac
 import { kocSeed } from "@/lib/koc/data";
 import { creatorStats, nextStatus, suggestCode, tierOf } from "@/lib/koc/logic";
 
-const admin: KocWho = { perms: new Set(["report.team", "payment.confirm"]), isOwner: false, readOnly: false };
+const admin: KocWho = {
+  perms: new Set(["marketing.manage", "payment.confirm"]),
+  isOwner: false,
+  readOnly: false,
+};
 const owner: KocWho = { ...admin, isOwner: true };
 const telesale: KocWho = { perms: new Set(["lead.view_own"]), isOwner: false, readOnly: false };
 const meta = { actor: "u-admin", at: "2026-10-04T03:00:00Z" };
@@ -135,7 +139,7 @@ describe("quyền", () => {
       payout: { creatorId: "koc-ansan", bookingId: null, kind: "commission", amount: 1, reference: "CK" },
       ...meta,
     };
-    expect(kocDenied(kocSeed(), a, { ...admin, perms: new Set(["report.team"]) })).toMatch(
+    expect(kocDenied(kocSeed(), a, { ...admin, perms: new Set(["marketing.manage"]) })).toMatch(
       /xác nhận thanh toán/,
     );
     expect(kocDenied(kocSeed(), a, admin)).toBeNull();

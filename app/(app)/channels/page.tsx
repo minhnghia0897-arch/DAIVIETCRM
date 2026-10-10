@@ -7,6 +7,6 @@ export const metadata: Metadata = { title: "Kênh & nội dung · Đại Việt 
 
 // Màn hình theo bản mẫu, đang chạy bằng dữ liệu mô phỏng (lib/demo/crm-data.ts).
 export default async function Page() {
-  await requireAnyPermission(["report.team"]);
+  await requireAnyPermission(["marketing.view"]);
   return <CrmChannels />;
 }

@@ -16,12 +16,11 @@ import type {
 // thời điểm truyền từ ngoài. Khi có bảng thật, kocDenied chuyển thành RLS và hàm database, giao diện giữ nguyên.
 
 /**
- * Quyền tạm dùng cho bản demo, chờ duyệt bộ quyền riêng `koc.view`, `koc.manage`, `koc.payout`
- * (docs/open-questions.md). Xem và quản lý: người xem được báo cáo cả đội; duyệt ngân sách vượt mức: Owner;
- * ghi tiền trả cho KOL, KOC: người xác nhận được thanh toán.
+ * Khu KOL, KOC nằm trong menu Marketing (10/10/2026): xem theo `marketing.view`, quản lý theo `marketing.manage`;
+ * duyệt ngân sách vượt mức: Owner; ghi tiền trả cho KOL, KOC: người xác nhận được thanh toán.
  */
-export const KOC_VIEW = ["report.team"];
-export const KOC_MANAGE = "report.team";
+export const KOC_VIEW = ["marketing.view"];
+export const KOC_MANAGE = "marketing.manage";
 export const KOC_PAYOUT = "payment.confirm";
 
 export interface KocWho {

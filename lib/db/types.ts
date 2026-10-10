@@ -440,6 +440,132 @@ export type Database = {
           },
         ];
       };
+      campaign_spend: {
+        Row: {
+          amount: number;
+          campaign_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          showroom_id: string;
+          source: string;
+          spend_date: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          campaign_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          showroom_id: string;
+          source?: string;
+          spend_date: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          campaign_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          showroom_id?: string;
+          source?: string;
+          spend_date?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_spend_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_spend_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaigns: {
+        Row: {
+          budget: number;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          ends_on: string | null;
+          external_id: string | null;
+          id: string;
+          market: string | null;
+          name: string;
+          note: string | null;
+          owner_id: string | null;
+          platform: string;
+          requested_budget: number | null;
+          showroom_id: string;
+          starts_on: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          budget?: number;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on?: string | null;
+          external_id?: string | null;
+          id?: string;
+          market?: string | null;
+          name: string;
+          note?: string | null;
+          owner_id?: string | null;
+          platform: string;
+          requested_budget?: number | null;
+          showroom_id: string;
+          starts_on?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          budget?: number;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on?: string | null;
+          external_id?: string | null;
+          id?: string;
+          market?: string | null;
+          name?: string;
+          note?: string | null;
+          owner_id?: string | null;
+          platform?: string;
+          requested_budget?: number | null;
+          showroom_id?: string;
+          starts_on?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaigns_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       consents: {
         Row: {
           channel: string;
@@ -2704,6 +2830,7 @@ export type Database = {
       };
       assert_integration_writer: { Args: { p_key: string }; Returns: string };
       assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
+      assert_marketing_writer: { Args: Record<PropertyKey, never>; Returns: string };
       assign_leads: {
         Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
         Returns: number;
@@ -2726,6 +2853,7 @@ export type Database = {
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
+      expire_campaign_budget_requests: { Args: { p_campaign: string; p_note: string }; Returns: undefined };
       finish_channel_reply: {
         Args: { p_error?: string; p_message: string; p_mid: string };
         Returns: undefined;
@@ -2790,6 +2918,20 @@ export type Database = {
       };
       mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
       market_wait_until: { Args: { p_at: string; p_market: string; p_showroom_id: string }; Returns: string };
+      marketing_overview: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          budget: number;
+          contacted: number;
+          converted: number;
+          key: string;
+          kind: string;
+          label: string;
+          leads: number;
+          lost: number;
+          spend: number;
+        }[];
+      };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
       notify_lead_assigners: {
         Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
@@ -2810,6 +2952,7 @@ export type Database = {
         Args: { p_confirm_paid?: boolean; p_conversation: string; p_text: string };
         Returns: Json;
       };
+      record_campaign_spend: { Args: { p_rows: Json; p_source?: string }; Returns: number };
       record_event: {
         Args: {
           p_actor_type?: string;
@@ -2825,12 +2968,17 @@ export type Database = {
         Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
         Returns: string;
       };
+      request_campaign_budget: {
+        Args: { p_amount: number; p_campaign: string; p_reason?: string };
+        Returns: string;
+      };
       reusable_lead_for: { Args: { p_contact: string }; Returns: string };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
       route_lead: { Args: { p_lead_id: string }; Returns: string };
       route_no_receiver_leads: { Args: { p_showroom_id: string }; Returns: number };
       route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
+      save_campaign: { Args: { p: Json }; Returns: string };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
       set_lead_recipient: {
         Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };

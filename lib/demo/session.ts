@@ -33,6 +33,13 @@ export const DEMO_ROLES: Record<
     roleName: "Telesale",
     note: "Chỉ thấy khách, đơn, hiệu suất của mình",
   },
+  marketing: {
+    id: "11111111-1111-4111-8111-000000000005",
+    fullName: "Lan Marketing",
+    shortName: "Lan",
+    roleName: "Marketing",
+    note: "Chiến dịch, chi phí, hiệu quả theo nguồn; không thấy khách từng người",
+  },
 };
 
 const KEY = "dv_demo_role";

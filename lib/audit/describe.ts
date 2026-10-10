@@ -49,6 +49,10 @@ const ACTION_LABEL: Record<string, string> = {
   "settings.assignment_rules.update": "Sửa luật phân lead",
   "settings.markets.insert": "Thêm thị trường",
   "settings.markets.update": "Sửa thị trường",
+  "campaign.create": "Tạo chiến dịch",
+  "campaign.update": "Sửa chiến dịch",
+  "campaign.budget_set": "Đặt ngân sách chiến dịch",
+  "campaign.spend": "Ghi chi phí quảng cáo",
 };
 
 export function auditActionLabel(action: string): string {
@@ -93,6 +97,8 @@ const FIELD_LABEL: Record<string, string> = {
   secret: "khóa",
   config: "cấu hình",
   prerequisites_done: "điều kiện tiên quyết",
+  platform: "nền tảng",
+  self_approved: "tự duyệt",
 };
 
 const EFFECT: Record<string, string> = { grant: "cấp riêng", revoke: "thu riêng" };
@@ -108,6 +114,10 @@ const VALUE_LABEL: Record<string, Record<string, string>> = {
     paused: "tạm dừng",
     draft: "bản nháp",
     signed: "đã ký",
+    pending_approval: "chờ duyệt ngân sách",
+    active: "đang chạy",
+    ended: "đã kết thúc",
+    rejected: "bị từ chối",
   },
   action: {
     created: "khách mới",

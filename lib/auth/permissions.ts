@@ -1,7 +1,7 @@
 // Danh sách quyền giai đoạn 1 (CLAUDE.md mục 5). Đây là nguồn gốc duy nhất:
 // seed.sql phải khớp danh sách này (có unit test kiểm tra), giao diện đọc nhãn từ đây.
 
-export type RoleKey = "owner" | "sale_admin" | "telesale";
+export type RoleKey = "owner" | "sale_admin" | "telesale" | "marketing";
 
 export interface PermissionDef {
   key: string;
@@ -17,6 +17,7 @@ export interface PermissionDef {
 const O: RoleKey = "owner";
 const S: RoleKey = "sale_admin";
 const T: RoleKey = "telesale";
+const M: RoleKey = "marketing";
 
 function p(
   key: string,
@@ -61,9 +62,9 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("message.zalo_send", "Tin nhắn", "Gửi tin Zalo OA", [O, S, T]),
   p("message.messenger_send", "Tin nhắn", "Gửi tin Messenger", [O, S, T]),
   p("message.view_all", "Tin nhắn", "Xem mọi hội thoại", [O, S]),
-  p("catalog.view", "Danh mục", "Xem danh mục tra cứu", [O, S, T]),
+  p("catalog.view", "Danh mục", "Xem danh mục tra cứu", [O, S, T, M]),
   p("catalog.manage", "Danh mục", "Sửa danh mục tra cứu", [O, S]),
-  p("product.view", "Sản phẩm", "Xem sản phẩm, giá bán, tồn khả dụng", [O, S, T]),
+  p("product.view", "Sản phẩm", "Xem sản phẩm, giá bán, tồn khả dụng", [O, S, T, M]),
   p("product.manage", "Sản phẩm", "Thêm, sửa sản phẩm, SKU", [O, S]),
   p("product.view_cost", "Sản phẩm", "Xem giá vốn, biên lợi nhuận", [O], { sensitive: true }),
   p("price.manage", "Sản phẩm", "Sửa bảng giá", [O]),
@@ -72,7 +73,7 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("inventory.post", "Tồn kho", "Ghi sổ phiếu kho", [O, S]),
   p("inventory.count_approve", "Tồn kho", "Duyệt chênh lệch kiểm kê", [O]),
   p("combo.manage", "Combo", "Tạo, sửa combo", [O]),
-  p("policy.view", "Chính sách", "Xem chính sách đang áp", [O, S, T]),
+  p("policy.view", "Chính sách", "Xem chính sách đang áp", [O, S, T, M]),
   p("policy.manage", "Chính sách", "Tạo, sửa, bật tắt chính sách", [O]),
   p("quote.create", "Báo giá, đơn", "Tạo, gửi báo giá", [O, S, T]),
   p("order.view_own", "Báo giá, đơn", "Xem đơn của mình", [O, S, T]),
@@ -91,15 +92,22 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("staff.manage", "Đội ngũ", "Sửa hồ sơ nhân sự, xếp ca, duyệt nghỉ", [O]),
   p("staff.offboard", "Đội ngũ", "Chạy trình bàn giao khi nghỉ việc", [O], { grantable: false }),
   p("target.manage", "Đội ngũ", "Đặt chỉ tiêu", [O]),
-  p("kpi.own", "Đội ngũ", "Xem chỉ số của mình", [O, S, T]),
+  p("kpi.own", "Đội ngũ", "Xem chỉ số của mình", [O, S, T, M]),
   p("kpi.team", "Đội ngũ", "Xem chỉ số của từng người trong đội", [O, S]),
   p("kpi.leaderboard", "Đội ngũ", "Xem bảng xếp hạng có tên", [O, S]),
   p("attendance.view_team", "Đội ngũ", "Xem giờ trực, nghỉ của đội", [O, S]),
   p("coaching.manage", "Đội ngũ", "Viết, đọc ghi chú kèm cặp", [O, S]),
   p("delivery.update", "Giao, bảo hành", "Cập nhật bước giao lắp", [O, S]),
   p("warranty.manage", "Giao, bảo hành", "Tạo, sửa phiếu bảo hành", [O, S]),
-  p("report.own", "Báo cáo", "Xem báo cáo của mình", [O, S, T]),
+  p("report.own", "Báo cáo", "Xem báo cáo của mình", [O, S, T, M]),
   p("report.team", "Báo cáo", "Xem báo cáo cả đội", [O, S]),
+  p("marketing.view", "Marketing", "Xem tổng quan marketing, chiến dịch, chi phí, hiệu quả theo nguồn", [
+    O,
+    S,
+    M,
+  ]),
+  p("marketing.manage", "Marketing", "Tạo, sửa chiến dịch; nhập chi phí quảng cáo", [O, M]),
+  p("marketing.budget_approve", "Marketing", "Duyệt ngân sách chiến dịch", [O], { sensitive: true }),
   p("settings.assignment", "Cài đặt", "Sửa luật phân lead, ca trực, thị trường", [O, S]),
   p("settings.integrations", "Cài đặt", "Kết nối Meta, Zalo, tổng đài", [O]),
   p("settings.users", "Cài đặt", "Mời, khóa người dùng", [O], { grantable: false }),

@@ -8,7 +8,8 @@ declare
     {"id": "11111111-1111-4111-8111-000000000001", "email": "owner@example.test", "name": "Hà Owner", "role": "owner"},
     {"id": "11111111-1111-4111-8111-000000000002", "email": "saleadmin@example.test", "name": "Minh Sale admin", "role": "sale_admin"},
     {"id": "11111111-1111-4111-8111-000000000003", "email": "thao@example.test", "name": "Thảo", "role": "telesale"},
-    {"id": "11111111-1111-4111-8111-000000000004", "email": "an@example.test", "name": "An", "role": "telesale"}
+    {"id": "11111111-1111-4111-8111-000000000004", "email": "an@example.test", "name": "An", "role": "telesale"},
+    {"id": "11111111-1111-4111-8111-000000000005", "email": "marketing@example.test", "name": "Lan Marketing", "role": "marketing"}
   ]';
   u jsonb;
 begin
@@ -105,3 +106,27 @@ on conflict (showroom_id, key) do update set config = excluded.config;
 insert into public.duty_sessions (showroom_id, user_id, started_at) values
   ('4a000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-000000000003', now()),
   ('4a000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-000000000004', now());
+
+-- Chiến dịch marketing giả: một chiến dịch đang chạy đã duyệt ngân sách, một chiến dịch chờ Owner duyệt.
+insert into public.campaigns (id, showroom_id, name, platform, external_id, market, starts_on, ends_on, budget,
+                              requested_budget, status, owner_id, created_by) values
+  ('66666666-6666-4666-8666-000000000001', '4a000000-0000-4000-8000-000000000004', 'Ghế massage cho bố mẹ, người Việt tại Hàn',
+   'facebook', '120210000000001', 'KR', current_date - 20, current_date + 10, 30000000, null, 'active',
+   '11111111-1111-4111-8111-000000000005', '11111111-1111-4111-8111-000000000005'),
+  ('66666666-6666-4666-8666-000000000002', '4a000000-0000-4000-8000-000000000004', 'Máy lọc nước mùa Tết, trong nước',
+   'tiktok', null, 'VN', current_date, current_date + 30, 0, 15000000, 'pending_approval',
+   '11111111-1111-4111-8111-000000000005', '11111111-1111-4111-8111-000000000005');
+
+insert into public.approvals (showroom_id, type, entity, entity_id, requested_by, reason, payload) values
+  ('4a000000-0000-4000-8000-000000000004', 'campaign_budget', 'campaigns', '66666666-6666-4666-8666-000000000002',
+   '11111111-1111-4111-8111-000000000005', 'Ngân sách chiến dịch Máy lọc nước mùa Tết, trong nước: 15.000.000 đ',
+   '{"amount": 15000000, "before": 0, "campaign": "Máy lọc nước mùa Tết, trong nước"}');
+
+insert into public.campaign_spend (showroom_id, campaign_id, spend_date, amount, created_by)
+select '4a000000-0000-4000-8000-000000000004', '66666666-6666-4666-8666-000000000001', current_date - d,
+       800000 + d * 25000, '11111111-1111-4111-8111-000000000005'
+from generate_series(1, 14) d;
+
+-- Lead từ Form Facebook của chiến dịch trên (mã chiến dịch trong source_detail).
+update public.leads set source_detail = source_detail || '{"campaign_id": "120210000000001"}'
+where source = 'meta_lead_ads';

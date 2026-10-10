@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 
+import { redirect } from "next/navigation";
+
 import { HomeView } from "@/components/views/home";
-import { requireAnyPermission } from "@/lib/auth/session";
-import { LEAD_VIEW } from "@/lib/nav";
+import { requireAnyPermission, requireUser } from "@/lib/auth/session";
+import { LEAD_VIEW, visibleTabs } from "@/lib/nav";
 import { createClient } from "@/lib/db/server";
 
 export const metadata: Metadata = { title: "Trang chủ · Đại Việt CRM" };
 
 export default async function HomePage() {
+  // Vai trò không làm việc với lead (Marketing…): trang chủ là khu đầu tiên mình được mở.
+  const me = await requireUser();
+  if (!LEAD_VIEW.some((p) => me.permissions.has(p))) {
+    const first = visibleTabs(me.permissions).find((t) => t.href !== "/home" && t.anyOf.length > 0);
+    if (first) redirect(first.href);
+  }
   const user = await requireAnyPermission(LEAD_VIEW);
   const supabase = await createClient();
   const teamView = user.permissions.has("lead.view_all");

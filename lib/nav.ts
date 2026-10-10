@@ -22,6 +22,8 @@ export interface NavTab {
 
 /** Quyền mở từng khu, dùng chung cho thanh tab và kiểm quyền ở trang (requireAnyPermission, DemoPage). */
 export const LEAD_VIEW = ["lead.view_own", "lead.view_all"];
+/** Khu Marketing: số tổng hợp, chiến dịch, chi phí (không có dữ liệu từng khách). */
+export const MARKETING_VIEW = ["marketing.view"];
 /** Khách thuộc lead hoặc đơn mình được xem (CLAUDE.md 11.1). */
 export const CUSTOMER_VIEW = ["lead.view_own", "lead.view_all", "order.view_own", "order.view_all"];
 /** Đội ngũ: chỉ số của mình hoặc đội, hoặc một trong các trang con theo quyền riêng. */
@@ -46,6 +48,8 @@ export const LIVE_SCREENS = [
   "/leads",
   "/chat",
   "/inbox",
+  "/marketing",
+  "/campaigns",
   "/settings/users",
   "/settings/permissions",
   "/settings/audit",
@@ -116,9 +120,20 @@ export const NAV_TABS: NavTab[] = [
     anyOf: ["message.zalo_send", "message.messenger_send", "message.view_all"],
     ready: true,
   },
-  { href: "/channels", label: "Kênh & nội dung", section: "insight", anyOf: ["report.team"], ready: true },
-  // KOL, KOC: dữ liệu mô phỏng, quyền tạm theo report.team (chờ duyệt koc.view, koc.manage; open-questions 35).
-  { href: "/kol", label: "KOL, KOC", section: "insight", anyOf: ["report.team"], ready: true },
+  // Phòng Marketing (duyệt 10/10/2026): tổng quan, chiến dịch thật; Kênh & nội dung, KOL, KOC vẫn mô phỏng.
+  {
+    href: "/marketing",
+    label: "Marketing",
+    section: "insight",
+    anyOf: MARKETING_VIEW,
+    ready: true,
+    children: [
+      { href: "/marketing", label: "Tổng quan", perm: "marketing.view" },
+      { href: "/campaigns", label: "Chiến dịch", perm: "marketing.view" },
+      { href: "/channels", label: "Kênh & nội dung", perm: "marketing.view" },
+      { href: "/kol", label: "KOL, KOC", perm: "marketing.view" },
+    ],
+  },
   {
     href: "/reports",
     label: "Báo cáo",
