@@ -53,6 +53,9 @@ const ACTION_LABEL: Record<string, string> = {
   "campaign.update": "Sửa chiến dịch",
   "campaign.budget_set": "Đặt ngân sách chiến dịch",
   "campaign.spend": "Ghi chi phí quảng cáo",
+  "content.create": "Thêm bài vào lịch nội dung",
+  "content.move": "Chuyển cột bài nội dung",
+  "content.delete": "Xóa bài khỏi lịch nội dung",
 };
 
 export function auditActionLabel(action: string): string {
@@ -99,6 +102,7 @@ const FIELD_LABEL: Record<string, string> = {
   prerequisites_done: "điều kiện tiên quyết",
   platform: "nền tảng",
   self_approved: "tự duyệt",
+  channel: "kênh",
 };
 
 const EFFECT: Record<string, string> = { grant: "cấp riêng", revoke: "thu riêng" };
@@ -118,6 +122,12 @@ const VALUE_LABEL: Record<string, Record<string, string>> = {
     active: "đang chạy",
     ended: "đã kết thúc",
     rejected: "bị từ chối",
+    idea: "ý tưởng",
+    script: "viết kịch bản",
+    production: "đang sản xuất",
+    review: "chờ duyệt",
+    scheduled: "đã lên lịch",
+    published: "đã đăng",
   },
   action: {
     created: "khách mới",

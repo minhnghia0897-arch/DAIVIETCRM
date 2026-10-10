@@ -24,3 +24,19 @@ test("telesale không vào được Marketing", async ({ page }) => {
   await as(page, "telesale", "marketing/");
   await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();
 });
+
+test("Lịch nội dung: chuyển thẻ sang cột khác; lên lịch thiếu kiểm nội dung thì mở bài để bổ sung", async ({
+  page,
+}) => {
+  await as(page, "marketing", "content/");
+  await expect(page.getByRole("heading", { name: "Lịch nội dung", exact: true })).toBeVisible();
+  const title = "Video 30 giây: con ở Hàn tặng ghế cho bố mẹ";
+  await page.getByLabel(`Chuyển ${title} sang`).selectOption("production");
+  await expect(
+    page.getByRole("region", { name: "Đang sản xuất", exact: true }).getByRole("listitem", { name: title }),
+  ).toBeVisible();
+  const review = "Hướng dẫn thay lõi lọc tại nhà";
+  await page.getByLabel(`Chuyển ${review} sang`).selectOption("scheduled");
+  await expect(page.getByRole("status").last()).toContainText("kiểm nội dung");
+  await expect(page.getByRole("region", { name: `Bài ${review}` })).toBeVisible();
+});

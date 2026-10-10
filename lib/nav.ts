@@ -50,6 +50,7 @@ export const LIVE_SCREENS = [
   "/inbox",
   "/marketing",
   "/campaigns",
+  "/content",
   "/settings/users",
   "/settings/permissions",
   "/settings/audit",
@@ -130,6 +131,7 @@ export const NAV_TABS: NavTab[] = [
     children: [
       { href: "/marketing", label: "Tổng quan", perm: "marketing.view" },
       { href: "/campaigns", label: "Chiến dịch", perm: "marketing.view" },
+      { href: "/content", label: "Lịch nội dung", perm: "marketing.view" },
       { href: "/channels", label: "Kênh & nội dung", perm: "marketing.view" },
       { href: "/kol", label: "KOL, KOC", perm: "marketing.view" },
     ],

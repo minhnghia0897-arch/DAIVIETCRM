@@ -35,6 +35,7 @@ test("Marketing vào thẳng Tổng quan, thấy số theo chiến dịch, khôn
   await expect(page.getByRole("navigation", { name: "Marketing" }).getByRole("link")).toHaveText([
     "Tổng quan",
     "Chiến dịch",
+    "Lịch nội dung",
     "Kênh & nội dung",
     "KOL, KOC",
   ]);

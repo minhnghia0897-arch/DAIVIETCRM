@@ -37,11 +37,12 @@ describe("vai trò Marketing", () => {
     expect(perms("sale_admin").has("marketing.manage")).toBe(false);
     expect(perms("telesale").has("marketing.view")).toBe(false);
   });
-  it("menu Marketing gom Tổng quan, Chiến dịch, Kênh & nội dung, KOL, KOC; telesale không thấy", () => {
+  it("menu Marketing gom Tổng quan, Chiến dịch, Lịch nội dung, Kênh & nội dung, KOL, KOC; telesale không thấy", () => {
     const tab = visibleTabs(perms("marketing")).find((t) => t.label === "Marketing");
     expect(tab?.children?.map((c) => c.label)).toEqual([
       "Tổng quan",
       "Chiến dịch",
+      "Lịch nội dung",
       "Kênh & nội dung",
       "KOL, KOC",
     ]);

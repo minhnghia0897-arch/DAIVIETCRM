@@ -130,3 +130,23 @@ from generate_series(1, 14) d;
 -- Lead từ Form Facebook của chiến dịch trên (mã chiến dịch trong source_detail).
 update public.leads set source_detail = source_detail || '{"campaign_id": "120210000000001"}'
 where source = 'meta_lead_ads';
+
+-- Lịch nội dung giả (bảng Kanban của Marketing).
+insert into public.content_items (showroom_id, title, channel, format, status, owner_id, publish_at, market, product,
+                                  campaign_id, review_checks, position, post_url, published_at, created_by) values
+  ('4a000000-0000-4000-8000-000000000004', 'Video 30 giây: con ở Hàn tặng ghế cho bố mẹ', 'facebook', 'short_video',
+   'idea', '11111111-1111-4111-8111-000000000005', null, 'KR', 'Ghế massage DV-X9',
+   '66666666-6666-4666-8666-000000000001', '{}', 1, null, null, '11111111-1111-4111-8111-000000000005'),
+  ('4a000000-0000-4000-8000-000000000004', 'Livestream trải nghiệm ghế tại showroom Q4', 'tiktok', 'livestream',
+   'script', '11111111-1111-4111-8111-000000000005', now() + interval '3 days', 'VN', 'Ghế massage DV-X9', null,
+   '{}', 1, null, null, '11111111-1111-4111-8111-000000000005'),
+  ('4a000000-0000-4000-8000-000000000004', 'Hướng dẫn thay lõi lọc tại nhà', 'youtube', 'short_video',
+   'review', '11111111-1111-4111-8111-000000000005', now() + interval '2 days', 'VN', 'Máy lọc nước', null,
+   '{"no_health_claim": true, "customer_consent": false}', 1, null, null, '11111111-1111-4111-8111-000000000005'),
+  ('4a000000-0000-4000-8000-000000000004', 'Bài Zalo OA: quà 20/10 cho mẹ', 'zalo_oa', 'post',
+   'scheduled', '11111111-1111-4111-8111-000000000005', now() + interval '1 day', 'VN', null, null,
+   '{"no_health_claim": true, "customer_consent": true}', 1, null, null, '11111111-1111-4111-8111-000000000005'),
+  ('4a000000-0000-4000-8000-000000000004', 'Khách ở Incheon nhận ghế cho bố tại Nghệ An', 'facebook', 'image',
+   'published', '11111111-1111-4111-8111-000000000005', now() - interval '2 days', 'KR', 'Ghế massage DV-X9',
+   '66666666-6666-4666-8666-000000000001', '{"no_health_claim": true, "customer_consent": true}', 1,
+   'https://www.facebook.com/example/posts/1', now() - interval '2 days', '11111111-1111-4111-8111-000000000005');

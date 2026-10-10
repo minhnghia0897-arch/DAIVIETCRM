@@ -775,6 +775,101 @@ export type Database = {
           },
         ];
       };
+      content_items: {
+        Row: {
+          campaign_id: string | null;
+          channel: string;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          draft_url: string | null;
+          format: string;
+          id: string;
+          market: string | null;
+          note: string | null;
+          owner_id: string | null;
+          position: number;
+          post_url: string | null;
+          product: string | null;
+          publish_at: string | null;
+          published_at: string | null;
+          review_checks: NonNullable<Json>;
+          showroom_id: string;
+          status: string;
+          title: string;
+          updated_at: string;
+          check_content_stage: undefined | null;
+        };
+        Insert: {
+          campaign_id?: string | null;
+          channel: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          draft_url?: string | null;
+          format: string;
+          id?: string;
+          market?: string | null;
+          note?: string | null;
+          owner_id?: string | null;
+          position?: number;
+          post_url?: string | null;
+          product?: string | null;
+          publish_at?: string | null;
+          published_at?: string | null;
+          review_checks?: NonNullable<Json>;
+          showroom_id: string;
+          status?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          campaign_id?: string | null;
+          channel?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          draft_url?: string | null;
+          format?: string;
+          id?: string;
+          market?: string | null;
+          note?: string | null;
+          owner_id?: string | null;
+          position?: number;
+          post_url?: string | null;
+          product?: string | null;
+          publish_at?: string | null;
+          published_at?: string | null;
+          review_checks?: NonNullable<Json>;
+          showroom_id?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_items_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_items_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_items_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversations: {
         Row: {
           channel: string;
@@ -2841,6 +2936,10 @@ export type Database = {
       };
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
+      check_content_stage: {
+        Args: { p_row: Database["public"]["Tables"]["content_items"]["Row"] };
+        Returns: undefined;
+      };
       check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
       close_stale_duty_sessions: { Args: Record<PropertyKey, never>; Returns: number };
       contact_blocked: {
@@ -2849,6 +2948,7 @@ export type Database = {
       };
       create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
+      delete_content_item: { Args: { p_id: string }; Returns: undefined };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
@@ -2932,6 +3032,10 @@ export type Database = {
           spend: number;
         }[];
       };
+      move_content_item: {
+        Args: { p_before?: string; p_id: string; p_post_url?: string; p_status: string };
+        Returns: undefined;
+      };
       my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
       notify_lead_assigners: {
         Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
@@ -2979,6 +3083,7 @@ export type Database = {
       route_no_receiver_leads: { Args: { p_showroom_id: string }; Returns: number };
       route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
       save_campaign: { Args: { p: Json }; Returns: string };
+      save_content_item: { Args: { p: Json }; Returns: string };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
       set_lead_recipient: {
         Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };
