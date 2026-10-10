@@ -278,7 +278,7 @@ begin
     values (new.showroom_id, new.requested_by, 'approval_decided',
             case when new.status = 'approved' then 'Ngân sách chiến dịch đã được duyệt'
                  else 'Ngân sách chiến dịch bị từ chối' end,
-            '/marketing/campaigns');
+            '/campaigns');
   end if;
   return null;
 end;
