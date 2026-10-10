@@ -1,0 +1,3255 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+  public: {
+    Tables: {
+      absences: {
+        Row: {
+          approved_by: string | null;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          ends_on: string;
+          id: string;
+          kind: string;
+          note: string | null;
+          showroom_id: string;
+          starts_on: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          approved_by?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on: string;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          showroom_id: string;
+          starts_on: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          approved_by?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on?: string;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          showroom_id?: string;
+          starts_on?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "absences_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "absences_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "absences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      approvals: {
+        Row: {
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_note: string | null;
+          entity: string;
+          entity_id: string;
+          id: string;
+          payload: NonNullable<Json>;
+          reason: string;
+          requested_by: string | null;
+          requested_by_type: string;
+          showroom_id: string;
+          status: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_note?: string | null;
+          entity: string;
+          entity_id: string;
+          id?: string;
+          payload?: NonNullable<Json>;
+          reason: string;
+          requested_by?: string | null;
+          requested_by_type?: string;
+          showroom_id: string;
+          status?: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_note?: string | null;
+          entity?: string;
+          entity_id?: string;
+          id?: string;
+          payload?: NonNullable<Json>;
+          reason?: string;
+          requested_by?: string | null;
+          requested_by_type?: string;
+          showroom_id?: string;
+          status?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "approvals_decided_by_fkey";
+            columns: ["decided_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "approvals_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assignment_rules: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          max_uncontacted_per_person: number;
+          mode: string;
+          showroom_id: string;
+          sla_minutes: number;
+          updated_at: string;
+          working_hours: NonNullable<Json>;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          max_uncontacted_per_person?: number;
+          mode?: string;
+          showroom_id: string;
+          sla_minutes?: number;
+          updated_at?: string;
+          working_hours?: NonNullable<Json>;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          max_uncontacted_per_person?: number;
+          mode?: string;
+          showroom_id?: string;
+          sla_minutes?: number;
+          updated_at?: string;
+          working_hours?: NonNullable<Json>;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "assignment_rules_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: true;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      audit_logs: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          actor_type: string;
+          at: string;
+          entity: string;
+          entity_id: string | null;
+          id: number;
+          ip: unknown;
+          metadata: NonNullable<Json>;
+          showroom_id: string | null;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          actor_type?: string;
+          at?: string;
+          entity: string;
+          entity_id?: string | null;
+          id?: never;
+          ip?: unknown;
+          metadata?: NonNullable<Json>;
+          showroom_id?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          actor_type?: string;
+          at?: string;
+          entity?: string;
+          entity_id?: string | null;
+          id?: never;
+          ip?: unknown;
+          metadata?: NonNullable<Json>;
+          showroom_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      budget_ranges: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "budget_ranges_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      call_outcomes: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "call_outcomes_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      calls: {
+        Row: {
+          agent_id: string | null;
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          direction: string;
+          duration_sec: number | null;
+          from_e164: string | null;
+          id: string;
+          lead_id: string | null;
+          outcome_id: string | null;
+          provider: string;
+          provider_call_id: string | null;
+          recording_path: string | null;
+          showroom_id: string;
+          started_at: string;
+          status: string;
+          to_e164: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          agent_id?: string | null;
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          direction?: string;
+          duration_sec?: number | null;
+          from_e164?: string | null;
+          id?: string;
+          lead_id?: string | null;
+          outcome_id?: string | null;
+          provider?: string;
+          provider_call_id?: string | null;
+          recording_path?: string | null;
+          showroom_id: string;
+          started_at?: string;
+          status: string;
+          to_e164?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          agent_id?: string | null;
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          direction?: string;
+          duration_sec?: number | null;
+          from_e164?: string | null;
+          id?: string;
+          lead_id?: string | null;
+          outcome_id?: string | null;
+          provider?: string;
+          provider_call_id?: string | null;
+          recording_path?: string | null;
+          showroom_id?: string;
+          started_at?: string;
+          status?: string;
+          to_e164?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calls_agent_id_fkey";
+            columns: ["agent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_outcome_id_fkey";
+            columns: ["outcome_id"];
+            isOneToOne: false;
+            referencedRelation: "call_outcomes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calls_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_spend: {
+        Row: {
+          amount: number;
+          campaign_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          showroom_id: string;
+          source: string;
+          spend_date: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          campaign_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          showroom_id: string;
+          source?: string;
+          spend_date: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          campaign_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          showroom_id?: string;
+          source?: string;
+          spend_date?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_spend_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_spend_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaigns: {
+        Row: {
+          budget: number;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          ends_on: string | null;
+          external_id: string | null;
+          id: string;
+          market: string | null;
+          name: string;
+          note: string | null;
+          owner_id: string | null;
+          platform: string;
+          requested_budget: number | null;
+          showroom_id: string;
+          starts_on: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          budget?: number;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on?: string | null;
+          external_id?: string | null;
+          id?: string;
+          market?: string | null;
+          name: string;
+          note?: string | null;
+          owner_id?: string | null;
+          platform: string;
+          requested_budget?: number | null;
+          showroom_id: string;
+          starts_on?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          budget?: number;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          ends_on?: string | null;
+          external_id?: string | null;
+          id?: string;
+          market?: string | null;
+          name?: string;
+          note?: string | null;
+          owner_id?: string | null;
+          platform?: string;
+          requested_budget?: number | null;
+          showroom_id?: string;
+          starts_on?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaigns_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      consents: {
+        Row: {
+          channel: string;
+          contact_id: string;
+          created_at: string;
+          created_by: string | null;
+          granted: boolean;
+          granted_at: string;
+          id: string;
+          provided_by_contact_id: string | null;
+          purpose: string;
+          showroom_id: string;
+          source: string;
+          updated_at: string;
+          withdrawn_at: string | null;
+        };
+        Insert: {
+          channel: string;
+          contact_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          granted: boolean;
+          granted_at?: string;
+          id?: string;
+          provided_by_contact_id?: string | null;
+          purpose: string;
+          showroom_id: string;
+          source: string;
+          updated_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Update: {
+          channel?: string;
+          contact_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          granted?: boolean;
+          granted_at?: string;
+          id?: string;
+          provided_by_contact_id?: string | null;
+          purpose?: string;
+          showroom_id?: string;
+          source?: string;
+          updated_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "consents_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "consents_provided_by_contact_id_fkey";
+            columns: ["provided_by_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "consents_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contact_identities: {
+        Row: {
+          contact_id: string;
+          created_at: string;
+          created_by: string | null;
+          display_masked: string;
+          id: string;
+          is_primary: boolean;
+          is_valid: boolean;
+          showroom_id: string;
+          source: string | null;
+          type: string;
+          updated_at: string;
+          value: string;
+          value_raw: string | null;
+          verified_at: string | null;
+        };
+        Insert: {
+          contact_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          display_masked: string;
+          id?: string;
+          is_primary?: boolean;
+          is_valid?: boolean;
+          showroom_id: string;
+          source?: string | null;
+          type: string;
+          updated_at?: string;
+          value: string;
+          value_raw?: string | null;
+          verified_at?: string | null;
+        };
+        Update: {
+          contact_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          display_masked?: string;
+          id?: string;
+          is_primary?: boolean;
+          is_valid?: boolean;
+          showroom_id?: string;
+          source?: string | null;
+          type?: string;
+          updated_at?: string;
+          value?: string;
+          value_raw?: string | null;
+          verified_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_identities_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_identities_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contacts: {
+        Row: {
+          city: string | null;
+          contact_via_contact_id: string | null;
+          country_of_residence: string;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          full_name: string;
+          household_id: string | null;
+          id: string;
+          lifecycle_stage: string;
+          province: string | null;
+          relation_in_household: string | null;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          city?: string | null;
+          contact_via_contact_id?: string | null;
+          country_of_residence?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          full_name: string;
+          household_id?: string | null;
+          id?: string;
+          lifecycle_stage?: string;
+          province?: string | null;
+          relation_in_household?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          city?: string | null;
+          contact_via_contact_id?: string | null;
+          country_of_residence?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          full_name?: string;
+          household_id?: string | null;
+          id?: string;
+          lifecycle_stage?: string;
+          province?: string | null;
+          relation_in_household?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contacts_contact_via_contact_id_fkey";
+            columns: ["contact_via_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contacts_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contacts_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      content_items: {
+        Row: {
+          campaign_id: string | null;
+          channel: string;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          draft_url: string | null;
+          format: string;
+          id: string;
+          market: string | null;
+          note: string | null;
+          owner_id: string | null;
+          position: number;
+          post_url: string | null;
+          product: string | null;
+          publish_at: string | null;
+          published_at: string | null;
+          review_checks: NonNullable<Json>;
+          showroom_id: string;
+          status: string;
+          title: string;
+          updated_at: string;
+          check_content_stage: undefined | null;
+        };
+        Insert: {
+          campaign_id?: string | null;
+          channel: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          draft_url?: string | null;
+          format: string;
+          id?: string;
+          market?: string | null;
+          note?: string | null;
+          owner_id?: string | null;
+          position?: number;
+          post_url?: string | null;
+          product?: string | null;
+          publish_at?: string | null;
+          published_at?: string | null;
+          review_checks?: NonNullable<Json>;
+          showroom_id: string;
+          status?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          campaign_id?: string | null;
+          channel?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          draft_url?: string | null;
+          format?: string;
+          id?: string;
+          market?: string | null;
+          note?: string | null;
+          owner_id?: string | null;
+          position?: number;
+          post_url?: string | null;
+          product?: string | null;
+          publish_at?: string | null;
+          published_at?: string | null;
+          review_checks?: NonNullable<Json>;
+          showroom_id?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "content_items_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_items_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "content_items_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversations: {
+        Row: {
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_name: string | null;
+          external_user_id: string;
+          id: string;
+          last_inbound_at: string | null;
+          last_message_at: string | null;
+          lead_id: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count: number;
+          updated_at: string;
+          can_see_conversation: boolean | null;
+        };
+        Insert: {
+          channel: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_name?: string | null;
+          external_user_id: string;
+          id?: string;
+          last_inbound_at?: string | null;
+          last_message_at?: string | null;
+          lead_id?: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          channel?: string;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          display_name?: string | null;
+          external_user_id?: string;
+          id?: string;
+          last_inbound_at?: string | null;
+          last_message_at?: string | null;
+          lead_id?: string | null;
+          page_id?: string;
+          showroom_id?: string;
+          unread_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversations_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_lifecycle: {
+        Row: {
+          contact_id: string;
+          flags: string[];
+          last_interaction_at: string | null;
+          open_tasks: number;
+          orders_count: number;
+          owned_products: NonNullable<Json>;
+          showroom_id: string;
+          stage: string;
+          stage_since: string;
+          total_paid: number;
+          updated_at: string;
+        };
+        Insert: {
+          contact_id: string;
+          flags?: string[];
+          last_interaction_at?: string | null;
+          open_tasks?: number;
+          orders_count?: number;
+          owned_products?: NonNullable<Json>;
+          showroom_id: string;
+          stage: string;
+          stage_since?: string;
+          total_paid?: number;
+          updated_at?: string;
+        };
+        Update: {
+          contact_id?: string;
+          flags?: string[];
+          last_interaction_at?: string | null;
+          open_tasks?: number;
+          orders_count?: number;
+          owned_products?: NonNullable<Json>;
+          showroom_id?: string;
+          stage?: string;
+          stage_since?: string;
+          total_paid?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_lifecycle_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: true;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_lifecycle_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      duty_sessions: {
+        Row: {
+          created_at: string;
+          end_source: string | null;
+          ended_at: string | null;
+          ended_by: string | null;
+          id: string;
+          showroom_id: string;
+          start_source: string;
+          started_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          end_source?: string | null;
+          ended_at?: string | null;
+          ended_by?: string | null;
+          id?: string;
+          showroom_id: string;
+          start_source?: string;
+          started_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          end_source?: string | null;
+          ended_at?: string | null;
+          ended_by?: string | null;
+          id?: string;
+          showroom_id?: string;
+          start_source?: string;
+          started_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "duty_sessions_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "duty_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      events: {
+        Row: {
+          actor_id: string | null;
+          actor_type: string;
+          contact_id: string | null;
+          household_id: string | null;
+          id: number;
+          lead_id: string | null;
+          occurred_at: string;
+          order_id: string | null;
+          payload: NonNullable<Json>;
+          showroom_id: string;
+          type: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          actor_type?: string;
+          contact_id?: string | null;
+          household_id?: string | null;
+          id?: never;
+          lead_id?: string | null;
+          occurred_at?: string;
+          order_id?: string | null;
+          payload?: NonNullable<Json>;
+          showroom_id: string;
+          type: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_type?: string;
+          contact_id?: string | null;
+          household_id?: string | null;
+          id?: never;
+          lead_id?: string | null;
+          occurred_at?: string;
+          order_id?: string | null;
+          payload?: NonNullable<Json>;
+          showroom_id?: string;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "events_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      households: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          display_name: string;
+          district: string | null;
+          id: string;
+          note: string | null;
+          province: string | null;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          display_name: string;
+          district?: string | null;
+          id?: string;
+          note?: string | null;
+          province?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          display_name?: string;
+          district?: string | null;
+          id?: string;
+          note?: string | null;
+          province?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "households_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      important_dates: {
+        Row: {
+          contact_id: string;
+          created_at: string;
+          created_by: string | null;
+          date: string;
+          id: string;
+          recurring_yearly: boolean;
+          showroom_id: string;
+          source: string | null;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          contact_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          date: string;
+          id?: string;
+          recurring_yearly?: boolean;
+          showroom_id: string;
+          source?: string | null;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          contact_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          date?: string;
+          id?: string;
+          recurring_yearly?: boolean;
+          showroom_id?: string;
+          source?: string | null;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "important_dates_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "important_dates_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      integration_secrets: {
+        Row: {
+          created_at: string;
+          id: string;
+          integration_key: string;
+          name: string;
+          showroom_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          vault_secret_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          integration_key: string;
+          name: string;
+          showroom_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          vault_secret_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          integration_key?: string;
+          name?: string;
+          showroom_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          vault_secret_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integration_secrets_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "integration_secrets_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      integrations: {
+        Row: {
+          config: NonNullable<Json>;
+          connected_at: string | null;
+          connected_by: string | null;
+          created_at: string;
+          enabled: boolean;
+          id: string;
+          key: string;
+          last_error: string | null;
+          last_error_at: string | null;
+          last_event_at: string | null;
+          last_success_at: string | null;
+          prerequisites_done: NonNullable<Json>;
+          refresh_lock_until: string | null;
+          reply_mode: string | null;
+          secret_ref: string | null;
+          showroom_id: string;
+          status: string;
+          token_expires_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          config?: NonNullable<Json>;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          created_at?: string;
+          enabled?: boolean;
+          id?: string;
+          key: string;
+          last_error?: string | null;
+          last_error_at?: string | null;
+          last_event_at?: string | null;
+          last_success_at?: string | null;
+          prerequisites_done?: NonNullable<Json>;
+          refresh_lock_until?: string | null;
+          reply_mode?: string | null;
+          secret_ref?: string | null;
+          showroom_id: string;
+          status?: string;
+          token_expires_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          config?: NonNullable<Json>;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          created_at?: string;
+          enabled?: boolean;
+          id?: string;
+          key?: string;
+          last_error?: string | null;
+          last_error_at?: string | null;
+          last_event_at?: string | null;
+          last_success_at?: string | null;
+          prerequisites_done?: NonNullable<Json>;
+          refresh_lock_until?: string | null;
+          reply_mode?: string | null;
+          secret_ref?: string | null;
+          showroom_id?: string;
+          status?: string;
+          token_expires_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integrations_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      jobs: {
+        Row: {
+          attempts: number;
+          created_at: string;
+          id: number;
+          last_error: string | null;
+          payload: NonNullable<Json>;
+          run_at: string;
+          showroom_id: string | null;
+          status: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          attempts?: number;
+          created_at?: string;
+          id?: never;
+          last_error?: string | null;
+          payload?: NonNullable<Json>;
+          run_at?: string;
+          showroom_id?: string | null;
+          status?: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          attempts?: number;
+          created_at?: string;
+          id?: never;
+          last_error?: string | null;
+          payload?: NonNullable<Json>;
+          run_at?: string;
+          showroom_id?: string | null;
+          status?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "jobs_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_sources: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_sources_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      leads: {
+        Row: {
+          assigned_at: string | null;
+          assigned_to: string | null;
+          budget_range_id: string | null;
+          contact_id: string;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          first_contact_at: string | null;
+          flags: string[];
+          id: string;
+          keep_surprise: boolean;
+          lost_reason_id: string | null;
+          occasion_date: string | null;
+          occasion_id: string | null;
+          product_interest_id: string | null;
+          recipient_contact_id: string | null;
+          recipient_province: string | null;
+          score: number;
+          showroom_id: string;
+          sla_alerted_at: string | null;
+          sla_due_at: string | null;
+          source: string;
+          source_detail: NonNullable<Json>;
+          stage: string;
+          updated_at: string;
+          window_wait_until: string | null;
+          assert_lead_editor: string | null;
+        };
+        Insert: {
+          assigned_at?: string | null;
+          assigned_to?: string | null;
+          budget_range_id?: string | null;
+          contact_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          first_contact_at?: string | null;
+          flags?: string[];
+          id?: string;
+          keep_surprise?: boolean;
+          lost_reason_id?: string | null;
+          occasion_date?: string | null;
+          occasion_id?: string | null;
+          product_interest_id?: string | null;
+          recipient_contact_id?: string | null;
+          recipient_province?: string | null;
+          score?: number;
+          showroom_id: string;
+          sla_alerted_at?: string | null;
+          sla_due_at?: string | null;
+          source: string;
+          source_detail?: NonNullable<Json>;
+          stage?: string;
+          updated_at?: string;
+          window_wait_until?: string | null;
+        };
+        Update: {
+          assigned_at?: string | null;
+          assigned_to?: string | null;
+          budget_range_id?: string | null;
+          contact_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          first_contact_at?: string | null;
+          flags?: string[];
+          id?: string;
+          keep_surprise?: boolean;
+          lost_reason_id?: string | null;
+          occasion_date?: string | null;
+          occasion_id?: string | null;
+          product_interest_id?: string | null;
+          recipient_contact_id?: string | null;
+          recipient_province?: string | null;
+          score?: number;
+          showroom_id?: string;
+          sla_alerted_at?: string | null;
+          sla_due_at?: string | null;
+          source?: string;
+          source_detail?: NonNullable<Json>;
+          stage?: string;
+          updated_at?: string;
+          window_wait_until?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_budget_range_id_fkey";
+            columns: ["budget_range_id"];
+            isOneToOne: false;
+            referencedRelation: "budget_ranges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_lost_reason_id_fkey";
+            columns: ["lost_reason_id"];
+            isOneToOne: false;
+            referencedRelation: "lost_reasons";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_occasion_id_fkey";
+            columns: ["occasion_id"];
+            isOneToOne: false;
+            referencedRelation: "occasions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_recipient_contact_id_fkey";
+            columns: ["recipient_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lost_reasons: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lost_reasons_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      markets: {
+        Row: {
+          allowed_channels: string[];
+          call_windows: NonNullable<Json>;
+          color_token: string;
+          country_code: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          showroom_id: string;
+          sort: number;
+          timezone: string;
+          updated_at: string;
+        };
+        Insert: {
+          allowed_channels?: string[];
+          call_windows?: NonNullable<Json>;
+          color_token?: string;
+          country_code: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          showroom_id: string;
+          sort?: number;
+          timezone: string;
+          updated_at?: string;
+        };
+        Update: {
+          allowed_channels?: string[];
+          call_windows?: NonNullable<Json>;
+          color_token?: string;
+          country_code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          showroom_id?: string;
+          sort?: number;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "markets_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      messages: {
+        Row: {
+          attachments: NonNullable<Json>;
+          conversation_id: string;
+          created_at: string;
+          direction: string;
+          error: string | null;
+          external_message_id: string | null;
+          id: string;
+          occurred_at: string;
+          sent_by: string | null;
+          sent_via: string | null;
+          showroom_id: string;
+          status: string;
+          tag: string | null;
+          text: string | null;
+        };
+        Insert: {
+          attachments?: NonNullable<Json>;
+          conversation_id: string;
+          created_at?: string;
+          direction: string;
+          error?: string | null;
+          external_message_id?: string | null;
+          id?: string;
+          occurred_at?: string;
+          sent_by?: string | null;
+          sent_via?: string | null;
+          showroom_id: string;
+          status?: string;
+          tag?: string | null;
+          text?: string | null;
+        };
+        Update: {
+          attachments?: NonNullable<Json>;
+          conversation_id?: string;
+          created_at?: string;
+          direction?: string;
+          error?: string | null;
+          external_message_id?: string | null;
+          id?: string;
+          occurred_at?: string;
+          sent_by?: string | null;
+          sent_via?: string | null;
+          showroom_id?: string;
+          status?: string;
+          tag?: string | null;
+          text?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notification_prefs: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          events: NonNullable<Json>;
+          level: string;
+          quiet_from: string | null;
+          quiet_on: boolean;
+          quiet_to: string | null;
+          showroom_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          events?: NonNullable<Json>;
+          level?: string;
+          quiet_from?: string | null;
+          quiet_on?: boolean;
+          quiet_to?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          events?: NonNullable<Json>;
+          level?: string;
+          quiet_from?: string | null;
+          quiet_on?: boolean;
+          quiet_to?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_prefs_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notification_prefs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          created_at: string;
+          id: string;
+          link: string | null;
+          read_at: string | null;
+          showroom_id: string;
+          title: string;
+          type: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          link?: string | null;
+          read_at?: string | null;
+          showroom_id: string;
+          title: string;
+          type: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          link?: string | null;
+          read_at?: string | null;
+          showroom_id?: string;
+          title?: string;
+          type?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      occasions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "occasions_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      permissions: {
+        Row: {
+          description: string;
+          grantable: boolean;
+          group: string;
+          key: string;
+          sensitive: boolean;
+        };
+        Insert: {
+          description: string;
+          grantable?: boolean;
+          group: string;
+          key: string;
+          sensitive?: boolean;
+        };
+        Update: {
+          description?: string;
+          grantable?: boolean;
+          group?: string;
+          key?: string;
+          sensitive?: boolean;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          call_extension: string | null;
+          created_at: string;
+          created_by: string | null;
+          full_name: string;
+          id: string;
+          is_active: boolean;
+          role_id: string;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          call_extension?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          full_name: string;
+          id: string;
+          is_active?: boolean;
+          role_id: string;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          call_extension?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          full_name?: string;
+          id?: string;
+          is_active?: boolean;
+          role_id?: string;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "profiles_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      role_permissions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          permission_key: string;
+          role_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          permission_key: string;
+          role_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          permission_key?: string;
+          role_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey";
+            columns: ["permission_key"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["key"];
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      roles: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_owner: boolean;
+          is_system: boolean;
+          key: string;
+          name: string;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_owner?: boolean;
+          is_system?: boolean;
+          key: string;
+          name: string;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_owner?: boolean;
+          is_system?: boolean;
+          key?: string;
+          name?: string;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "roles_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      shift_members: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          shift_id: string;
+          showroom_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          shift_id: string;
+          showroom_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          shift_id?: string;
+          showroom_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shift_members_shift_id_fkey";
+            columns: ["shift_id"];
+            isOneToOne: false;
+            referencedRelation: "shifts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shift_members_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shift_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      shifts: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          days: number[];
+          end_time: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          showroom_id: string;
+          sort: number;
+          start_time: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          days: number[];
+          end_time: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          showroom_id: string;
+          sort?: number;
+          start_time: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          days?: number[];
+          end_time?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          showroom_id?: string;
+          sort?: number;
+          start_time?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shifts_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      showrooms: {
+        Row: {
+          call_mode: string;
+          code: string;
+          created_at: string;
+          id: string;
+          name: string;
+          organization_id: string | null;
+          timezone: string;
+          updated_at: string;
+        };
+        Insert: {
+          call_mode?: string;
+          code: string;
+          created_at?: string;
+          id?: string;
+          name: string;
+          organization_id?: string | null;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Update: {
+          call_mode?: string;
+          code?: string;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          organization_id?: string | null;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      task_rules: {
+        Row: {
+          assignee: string;
+          conditions: NonNullable<Json>;
+          created_at: string;
+          created_by: string | null;
+          due_offset: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          priority: number;
+          rule_key: string;
+          showroom_id: string;
+          task_type: string;
+          title_template: string;
+          trigger: NonNullable<Json>;
+          updated_at: string;
+        };
+        Insert: {
+          assignee?: string;
+          conditions?: NonNullable<Json>;
+          created_at?: string;
+          created_by?: string | null;
+          due_offset?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          priority?: number;
+          rule_key: string;
+          showroom_id: string;
+          task_type: string;
+          title_template: string;
+          trigger: NonNullable<Json>;
+          updated_at?: string;
+        };
+        Update: {
+          assignee?: string;
+          conditions?: NonNullable<Json>;
+          created_at?: string;
+          created_by?: string | null;
+          due_offset?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          priority?: number;
+          rule_key?: string;
+          showroom_id?: string;
+          task_type?: string;
+          title_template?: string;
+          trigger?: NonNullable<Json>;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_rules_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tasks: {
+        Row: {
+          assigned_to: string | null;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          done_at: string | null;
+          due_at: string;
+          id: string;
+          lead_id: string | null;
+          order_id: string | null;
+          outcome: string | null;
+          priority: number;
+          rule_key: string | null;
+          showroom_id: string;
+          source: string;
+          status: string;
+          title: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_to?: string | null;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          done_at?: string | null;
+          due_at: string;
+          id?: string;
+          lead_id?: string | null;
+          order_id?: string | null;
+          outcome?: string | null;
+          priority?: number;
+          rule_key?: string | null;
+          showroom_id: string;
+          source?: string;
+          status?: string;
+          title: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_to?: string | null;
+          contact_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          done_at?: string | null;
+          due_at?: string;
+          id?: string;
+          lead_id?: string | null;
+          order_id?: string | null;
+          outcome?: string | null;
+          priority?: number;
+          rule_key?: string | null;
+          showroom_id?: string;
+          source?: string;
+          status?: string;
+          title?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_groups: {
+        Row: {
+          assigned_at: string | null;
+          assigned_by: string | null;
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          purpose: string;
+          showroom_id: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_at?: string | null;
+          assigned_by?: string | null;
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          purpose?: string;
+          showroom_id: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_at?: string | null;
+          assigned_by?: string | null;
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          purpose?: string;
+          showroom_id?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_groups_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_groups_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_link_codes: {
+        Row: {
+          code_hash: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          showroom_id: string;
+          updated_at: string;
+          used_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          code_hash: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          showroom_id: string;
+          updated_at?: string;
+          used_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          code_hash?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          showroom_id?: string;
+          updated_at?: string;
+          used_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_codes_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_link_codes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_links: {
+        Row: {
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          linked_at: string;
+          revoked_at: string | null;
+          showroom_id: string;
+          telegram_user_id: number;
+          updated_at: string;
+          user_id: string;
+          username: string | null;
+        };
+        Insert: {
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          linked_at?: string;
+          revoked_at?: string | null;
+          showroom_id: string;
+          telegram_user_id: number;
+          updated_at?: string;
+          user_id: string;
+          username?: string | null;
+        };
+        Update: {
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          linked_at?: string;
+          revoked_at?: string | null;
+          showroom_id?: string;
+          telegram_user_id?: number;
+          updated_at?: string;
+          user_id?: string;
+          username?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_links_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_links_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_messages: {
+        Row: {
+          chat_id: number;
+          created_at: string;
+          created_by: string | null;
+          event_type: string;
+          id: string;
+          lead_id: string | null;
+          message_id: number;
+          showroom_id: string;
+          task_id: string | null;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          chat_id: number;
+          created_at?: string;
+          created_by?: string | null;
+          event_type: string;
+          id?: string;
+          lead_id?: string | null;
+          message_id: number;
+          showroom_id: string;
+          task_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          chat_id?: number;
+          created_at?: string;
+          created_by?: string | null;
+          event_type?: string;
+          id?: string;
+          lead_id?: string | null;
+          message_id?: number;
+          showroom_id?: string;
+          task_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_messages_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "telegram_messages_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_outbound_state: {
+        Row: {
+          created_at: string;
+          last_approval_at: string;
+          last_decision_at: string;
+          last_event_id: number;
+          last_integration_error_at: string;
+          last_task_check: string;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          last_approval_at?: string;
+          last_decision_at?: string;
+          last_event_id?: number;
+          last_integration_error_at?: string;
+          last_task_check?: string;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          last_approval_at?: string;
+          last_decision_at?: string;
+          last_event_id?: number;
+          last_integration_error_at?: string;
+          last_task_check?: string;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_outbound_state_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: true;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_permission_overrides: {
+        Row: {
+          effect: string;
+          permission_key: string;
+          set_at: string;
+          set_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          effect: string;
+          permission_key: string;
+          set_at?: string;
+          set_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          effect?: string;
+          permission_key?: string;
+          set_at?: string;
+          set_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_permission_overrides_permission_key_fkey";
+            columns: ["permission_key"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["key"];
+          },
+          {
+            foreignKeyName: "user_permission_overrides_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      view_as_sessions: {
+        Row: {
+          ended_at: string | null;
+          expires_at: string;
+          id: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at: string;
+          target_id: string;
+        };
+        Insert: {
+          ended_at?: string | null;
+          expires_at?: string;
+          id?: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at?: string;
+          target_id: string;
+        };
+        Update: {
+          ended_at?: string | null;
+          expires_at?: string;
+          id?: string;
+          owner_id?: string;
+          showroom_id?: string;
+          started_at?: string;
+          target_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "view_as_sessions_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "view_as_sessions_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "view_as_sessions_target_id_fkey";
+            columns: ["target_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      webhook_events: {
+        Row: {
+          error: string | null;
+          event_type: string | null;
+          external_id: string;
+          id: number;
+          payload: NonNullable<Json>;
+          processed_at: string | null;
+          provider: string;
+          received_at: string;
+          showroom_id: string | null;
+          signature_valid: boolean;
+          status: string;
+        };
+        Insert: {
+          error?: string | null;
+          event_type?: string | null;
+          external_id: string;
+          id?: never;
+          payload: NonNullable<Json>;
+          processed_at?: string | null;
+          provider: string;
+          received_at?: string;
+          showroom_id?: string | null;
+          signature_valid: boolean;
+          status?: string;
+        };
+        Update: {
+          error?: string | null;
+          event_type?: string | null;
+          external_id?: string;
+          id?: never;
+          payload?: NonNullable<Json>;
+          processed_at?: string | null;
+          provider?: string;
+          received_at?: string;
+          showroom_id?: string | null;
+          signature_valid?: boolean;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Views: {
+      activities: {
+        Row: {
+          actor_id: string | null;
+          actor_type: string | null;
+          contact_id: string | null;
+          household_id: string | null;
+          id: number | null;
+          lead_id: string | null;
+          occurred_at: string | null;
+          order_id: string | null;
+          payload: Json | null;
+          showroom_id: string | null;
+          type: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          actor_type?: string | null;
+          contact_id?: string | null;
+          household_id?: string | null;
+          id?: number | null;
+          lead_id?: string | null;
+          occurred_at?: string | null;
+          order_id?: string | null;
+          payload?: Json | null;
+          showroom_id?: string | null;
+          type?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          actor_type?: string | null;
+          contact_id?: string | null;
+          household_id?: string | null;
+          id?: number | null;
+          lead_id?: string | null;
+          occurred_at?: string | null;
+          order_id?: string | null;
+          payload?: Json | null;
+          showroom_id?: string | null;
+          type?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "events_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contact_identity_display: {
+        Row: {
+          contact_id: string | null;
+          display_masked: string | null;
+          id: string | null;
+          is_primary: boolean | null;
+          is_valid: boolean | null;
+          showroom_id: string | null;
+          type: string | null;
+          verified_at: string | null;
+        };
+        Insert: {
+          contact_id?: string | null;
+          display_masked?: string | null;
+          id?: string | null;
+          is_primary?: boolean | null;
+          is_valid?: boolean | null;
+          showroom_id?: string | null;
+          type?: string | null;
+          verified_at?: string | null;
+        };
+        Update: {
+          contact_id?: string | null;
+          display_masked?: string | null;
+          id?: string | null;
+          is_primary?: boolean | null;
+          is_valid?: boolean | null;
+          showroom_id?: string | null;
+          type?: string | null;
+          verified_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_identities_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_identities_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Functions: {
+      active_view_as: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          ended_at: string | null;
+          expires_at: string;
+          id: string;
+          owner_id: string;
+          showroom_id: string;
+          started_at: string;
+          target_id: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "view_as_sessions";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      add_lead_note: { Args: { p_lead_id: string; p_text: string }; Returns: number };
+      alert_sla_overdue: { Args: Record<PropertyKey, never>; Returns: number };
+      apply_task_action: {
+        Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string; p_user: string };
+        Returns: string;
+      };
+      approval_permission: { Args: { p_type: string }; Returns: string };
+      assert_channel_reply: {
+        Args: {
+          p_channel: string;
+          p_consent_channel: string;
+          p_conversation: string;
+          p_integration: string;
+          p_perm: string;
+          p_text: string;
+        };
+        Returns: {
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_name: string | null;
+          external_user_id: string;
+          id: string;
+          last_inbound_at: string | null;
+          last_message_at: string | null;
+          lead_id: string | null;
+          page_id: string;
+          showroom_id: string;
+          unread_count: number;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "conversations";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      assert_integration_writer: { Args: { p_key: string }; Returns: string };
+      assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
+      assert_marketing_writer: { Args: Record<PropertyKey, never>; Returns: string };
+      assign_leads: {
+        Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
+        Returns: number;
+      };
+      can_see_conversation: {
+        Args: { p_conversation: Database["public"]["Tables"]["conversations"]["Row"] };
+        Returns: boolean;
+      };
+      can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
+      can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
+      check_content_stage: {
+        Args: { p_row: Database["public"]["Tables"]["content_items"]["Row"] };
+        Returns: undefined;
+      };
+      check_request: { Args: Record<PropertyKey, never>; Returns: undefined };
+      close_stale_duty_sessions: { Args: Record<PropertyKey, never>; Returns: number };
+      contact_blocked: {
+        Args: { p_channel: string; p_contact: string; p_purpose: string };
+        Returns: boolean;
+      };
+      create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
+      current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
+      delete_content_item: { Args: { p_id: string }; Returns: undefined };
+      delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
+      dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
+      effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
+      end_duty_for: { Args: { p_user: string }; Returns: boolean };
+      expire_campaign_budget_requests: { Args: { p_campaign: string; p_note: string }; Returns: undefined };
+      finish_channel_reply: {
+        Args: { p_error?: string; p_message: string; p_mid: string };
+        Returns: undefined;
+      };
+      finish_messenger_reply: {
+        Args: { p_error?: string; p_message: string; p_mid: string };
+        Returns: undefined;
+      };
+      get_integration_secret: {
+        Args: { p_key: string; p_name: string; p_showroom: string };
+        Returns: string;
+      };
+      has_perm: { Args: { perm: string }; Returns: boolean };
+      has_perm_for: { Args: { perm: string; uid: string }; Returns: boolean };
+      has_real_perm: { Args: { perm: string }; Returns: boolean };
+      import_check_phones: {
+        Args: { p_phones: string[] };
+        Returns: {
+          e164: string;
+          has_open_lead: boolean;
+        }[];
+      };
+      ingest_channel_message: { Args: { p: Json }; Returns: string };
+      ingest_lead: { Args: { p: Json }; Returns: Json };
+      is_absent_today: { Args: { p_user: string }; Returns: boolean };
+      is_owner_user: { Args: { uid: string }; Returns: boolean };
+      lead_assignees: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          full_name: string;
+          id: string;
+          receives: boolean;
+          uncontacted: number;
+        }[];
+      };
+      lead_receivers: {
+        Args: { p_showroom_id: string };
+        Returns: {
+          full_name: string;
+          id: string;
+          uncontacted: number;
+        }[];
+      };
+      lease_token_refresh: {
+        Args: { p_key: string; p_seconds?: number; p_showroom: string };
+        Returns: boolean;
+      };
+      log_call: {
+        Args: {
+          p_callback_at?: string;
+          p_channel: string;
+          p_lead_id: string;
+          p_note?: string;
+          p_outcome_key: string;
+        };
+        Returns: string;
+      };
+      mark_conversation_read: { Args: { p_conversation: string }; Returns: undefined };
+      mark_integration_error: {
+        Args: { p_key: string; p_message: string; p_showroom: string };
+        Returns: undefined;
+      };
+      mark_lead_lost: { Args: { p_lead_id: string; p_reason_key: string }; Returns: undefined };
+      market_wait_until: { Args: { p_at: string; p_market: string; p_showroom_id: string }; Returns: string };
+      marketing_overview: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          budget: number;
+          contacted: number;
+          converted: number;
+          key: string;
+          kind: string;
+          label: string;
+          leads: number;
+          lost: number;
+          spend: number;
+        }[];
+      };
+      move_content_item: {
+        Args: { p_before?: string; p_id: string; p_post_url?: string; p_status: string };
+        Returns: undefined;
+      };
+      my_permissions: { Args: Record<PropertyKey, never>; Returns: string[] };
+      notify_lead_assigners: {
+        Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
+        Returns: undefined;
+      };
+      process_messenger_backlog: { Args: Record<PropertyKey, never>; Returns: number };
+      process_messenger_event: { Args: { p_display_name?: string; p_event_id: number }; Returns: string };
+      process_zalo_backlog: { Args: Record<PropertyKey, never>; Returns: number };
+      process_zalo_event: {
+        Args: { p_display_name?: string; p_event_id: number; p_phone?: Json };
+        Returns: string;
+      };
+      queue_messenger_reply: {
+        Args: { p_conversation: string; p_human_agent?: boolean; p_text: string };
+        Returns: Json;
+      };
+      queue_zalo_reply: {
+        Args: { p_confirm_paid?: boolean; p_conversation: string; p_text: string };
+        Returns: Json;
+      };
+      record_campaign_spend: { Args: { p_rows: Json; p_source?: string }; Returns: number };
+      record_event: {
+        Args: {
+          p_actor_type?: string;
+          p_contact_id?: string;
+          p_lead_id?: string;
+          p_payload?: Json;
+          p_showroom_id: string;
+          p_type: string;
+        };
+        Returns: number;
+      };
+      redeem_telegram_link_code: {
+        Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
+        Returns: string;
+      };
+      request_campaign_budget: {
+        Args: { p_amount: number; p_campaign: string; p_reason?: string };
+        Returns: string;
+      };
+      reusable_lead_for: { Args: { p_contact: string }; Returns: string };
+      reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
+      revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
+      route_lead: { Args: { p_lead_id: string }; Returns: string };
+      route_no_receiver_leads: { Args: { p_showroom_id: string }; Returns: number };
+      route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
+      save_campaign: { Args: { p: Json }; Returns: string };
+      save_content_item: { Args: { p: Json }; Returns: string };
+      set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
+      set_lead_recipient: {
+        Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };
+        Returns: string;
+      };
+      set_my_duty: { Args: { p_on: boolean }; Returns: Json };
+      set_telegram_group: {
+        Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
+        Returns: string;
+      };
+      store_integration_token: {
+        Args: { p_expires_at?: string; p_key: string; p_name: string; p_showroom: string; p_value: string };
+        Returns: undefined;
+      };
+      task_action: {
+        Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string };
+        Returns: string;
+      };
+      telegram_act_as: { Args: { p_user: string }; Returns: undefined };
+      telegram_add_note: {
+        Args: { p_file_path?: string; p_lead_id: string; p_telegram_user_id: number; p_text: string };
+        Returns: number;
+      };
+      telegram_assign_group: {
+        Args: { p_chat_id: number; p_purpose: string; p_telegram_user_id: number; p_title: string };
+        Returns: string;
+      };
+      telegram_task_action: {
+        Args: { p_action: string; p_minutes?: number; p_task_id: string; p_telegram_user_id: number };
+        Returns: string;
+      };
+      telegram_user: { Args: { p_telegram_user_id: number }; Returns: string };
+      view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
+      whoami: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          effective_uid: string;
+          real_uid: string;
+          view_as_session_id: string;
+        }[];
+      };
+      write_audit: {
+        Args: {
+          p_action: string;
+          p_actor_type?: string;
+          p_entity: string;
+          p_entity_id: string;
+          p_metadata?: Json;
+        };
+        Returns: undefined;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+};
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    keyof (DefaultSchema["Tables"] & DefaultSchema["Views"]) | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const;

@@ -1,0 +1,279 @@
+// Chạy bot Telegram thật nối với database CRM, kiểu hỏi liên tục (getUpdates), chưa cần tên miền HTTPS.
+// Dùng cho đợt chạy thử (kế hoạch đã duyệt 07/10/2026); bản thật dùng webhook /api/webhooks/telegram với cùng bộ xử lý.
+//
+//   node scripts/telegram-bot.mts run                  # chạy bot (nhận tin, gửi việc)
+//   node scripts/telegram-bot.mts run-inbound          # chỉ nhận tin; dùng khi pg_cron đã lo phần gửi
+//   node scripts/telegram-bot.mts link <email>         # in link liên kết một lần cho một tài khoản CRM
+//   node scripts/telegram-bot.mts demo-lead <email>    # tạo lead thử giao cho người đó + hẹn gọi lại sau 2 phút
+//   node scripts/telegram-bot.mts demo-flow <email>    # dựng đủ 5 loại tin để chạy thử vòng CRM ↔ Telegram
+//   node scripts/telegram-bot.mts setup                # khai tên bot vào Cài đặt → Tích hợp (cho trang Thông báo)
+//   node scripts/telegram-bot.mts webhook-set <url>    # chuyển sang nhận tin bằng webhook của CRM (cần HTTPS thật)
+//   node scripts/telegram-bot.mts webhook-off          # bỏ webhook, quay lại getUpdates
+//
+// Đọc TELEGRAM_BOT_TOKEN từ biến môi trường; địa chỉ và khóa Supabase từ .env.local. Không in token.
+
+import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+import { createClient } from "@supabase/supabase-js";
+
+import type { Database } from "../lib/db/types.ts";
+import { telegramApi } from "../lib/integrations/telegram_bot/api.ts";
+import { telegramConfig } from "../lib/integrations/telegram_bot/config.ts";
+import { handleUpdate } from "../lib/integrations/telegram_bot/inbound.ts";
+import { initialCursor, pollOutbound } from "../lib/integrations/telegram_bot/outbound.ts";
+
+for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split("\n")) {
+  const m = /^([A-Z_]+)=(.*)$/.exec(line.trim());
+  if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+}
+
+const db = createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+const [cmd, arg] = process.argv.slice(2);
+
+async function userByEmail(email: string) {
+  const { data } = await db.auth.admin.listUsers();
+  const u = data.users.find((x) => x.email === email);
+  if (!u) throw new Error(`Không có tài khoản ${email}`);
+  const { data: p } = await db.from("profiles").select("id, showroom_id, full_name").eq("id", u.id).single();
+  return p!;
+}
+
+if (cmd === "link") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const bot = token
+    ? await telegramApi(token).call<{ username: string }>("getMe")
+    : { username: "DAIVIETS4BOT" };
+  const p = await userByEmail(arg);
+  const code = randomBytes(16).toString("hex");
+  await db
+    .from("telegram_link_codes")
+    .update({ expires_at: new Date().toISOString() })
+    .eq("user_id", p.id)
+    .is("used_at", null);
+  const { error } = await db.from("telegram_link_codes").insert({
+    showroom_id: p.showroom_id,
+    user_id: p.id,
+    code_hash: createHash("sha256").update(code).digest("hex"),
+    expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+    created_by: p.id,
+  });
+  if (error) throw error;
+  console.log(`Link liên kết cho ${p.full_name} (một lần, hết hạn sau 10 phút):`);
+  console.log(`https://t.me/${bot.username}?start=${code}`);
+} else if (cmd === "demo-lead") {
+  const p = await userByEmail(arg);
+  const { data: contact, error: ce } = await db
+    .from("contacts")
+    .insert({ showroom_id: p.showroom_id, full_name: "Trần Thị Mai (khách thử)", country_of_residence: "KR" })
+    .select("id")
+    .single();
+  if (ce) throw ce;
+  const { data: lead, error: le } = await db
+    .from("leads")
+    .insert({
+      showroom_id: p.showroom_id,
+      contact_id: contact.id,
+      source: "meta_lead_ads",
+      assigned_to: p.id,
+      sla_due_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (le) throw le;
+  const { error: te } = await db.from("tasks").insert({
+    showroom_id: p.showroom_id,
+    type: "callback",
+    title: "Gọi lại khách thử Mai",
+    contact_id: contact.id,
+    lead_id: lead.id,
+    assigned_to: p.id,
+    due_at: new Date(Date.now() + 2 * 60_000).toISOString(),
+  });
+  if (te) throw te;
+  console.log(`Đã tạo lead thử ${lead.id} giao cho ${p.full_name}, hẹn gọi lại sau 2 phút.`);
+} else if (cmd === "demo-flow") {
+  // Dựng một lượt đủ các loại tin đang chạy, để kiểm tra một lần cài đặt mới có thông suốt không.
+  const p = await userByEmail(arg);
+  const { data: other } = await db
+    .from("profiles")
+    .select("id, full_name")
+    .eq("showroom_id", p.showroom_id)
+    .eq("is_active", true)
+    .neq("id", p.id)
+    .limit(1)
+    .single();
+
+  const { data: contact, error: ce } = await db
+    .from("contacts")
+    .insert({ showroom_id: p.showroom_id, full_name: "Lê Thị Hoa (khách thử)", country_of_residence: "VN" })
+    .select("id")
+    .single();
+  if (ce) throw ce;
+
+  // 1. Lead mới giao cho người này + 2. hẹn gọi lại tới giờ.
+  const { data: lead, error: le } = await db
+    .from("leads")
+    .insert({
+      showroom_id: p.showroom_id,
+      contact_id: contact.id,
+      source: "walk_in",
+      assigned_to: p.id,
+      sla_due_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (le) throw le;
+  const { error: te } = await db.from("tasks").insert({
+    showroom_id: p.showroom_id,
+    type: "callback",
+    title: "Gọi lại chị Hoa chốt giao hàng",
+    contact_id: contact.id,
+    lead_id: lead.id,
+    assigned_to: p.id,
+    due_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  if (te) throw te;
+
+  // 3. Lead quá hạn gọi: hạn SLA đã qua mà chưa liên hệ lần nào.
+  const { data: lateContact } = await db
+    .from("contacts")
+    .insert({ showroom_id: p.showroom_id, full_name: "Phạm Văn Tú (khách thử)", country_of_residence: "KR" })
+    .select("id")
+    .single();
+  const { error: lateErr } = await db.from("leads").insert({
+    showroom_id: p.showroom_id,
+    contact_id: lateContact!.id,
+    source: "meta_lead_ads",
+    assigned_to: p.id,
+    sla_due_at: new Date(Date.now() - 10 * 60_000).toISOString(),
+  });
+  if (lateErr) throw lateErr;
+
+  // 4. Đề xuất của người này được duyệt: người khác bấm duyệt.
+  const { data: approval, error: ae } = await db
+    .from("approvals")
+    .insert({
+      showroom_id: p.showroom_id,
+      type: "discount",
+      entity: "leads",
+      entity_id: lead.id,
+      requested_by: p.id,
+      requested_by_type: "user",
+      reason: "Giảm 7% cho khách thử",
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (ae) throw ae;
+  const { error: de } = await db
+    .from("approvals")
+    .update({ status: "approved", decided_by: other?.id ?? null, decided_at: new Date().toISOString() })
+    .eq("id", approval.id);
+  if (de) throw de;
+
+  // 5. Đấu nối bị lỗi.
+  const { error: ie } = await db
+    .from("integrations")
+    .update({
+      status: "error",
+      last_error: "Chạy thử: giả lập đấu nối ngừng nhận dữ liệu",
+      last_error_at: new Date().toISOString(),
+    })
+    .eq("showroom_id", p.showroom_id)
+    .eq("key", "telegram_bot");
+  if (ie) throw ie;
+
+  console.log(`Đã dựng cho ${p.full_name}:`);
+  console.log(`  1. Lead mới (${lead.id}) và hẹn gọi lại sau 1 phút`);
+  console.log(`  2. Lead quá hạn gọi (hạn 10 phút trước)`);
+  console.log(`  3. Đề xuất giảm giá đã được ${other?.full_name ?? "người khác"} duyệt`);
+  console.log(`  4. Đấu nối Telegram đặt sang trạng thái lỗi`);
+  console.log("Bot sẽ gửi các tin này trong vòng quét kế tiếp.");
+} else if (cmd === "setup") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  const me = await telegramApi(token).call<{ username: string }>("getMe");
+  const { data: showroom } = await db
+    .from("showrooms")
+    .select("id, name")
+    .order("created_at")
+    .limit(1)
+    .single();
+  const { error } = await db
+    .from("integrations")
+    .upsert(
+      { showroom_id: showroom!.id, key: "telegram_bot", config: { botUsername: me.username } },
+      { onConflict: "showroom_id,key" },
+    );
+  if (error) throw error;
+  console.log(`Đã khai bot @${me.username} cho showroom ${showroom!.name}.`);
+  console.log("Trang Cài đặt → Thông báo Telegram giờ tạo được link liên kết thật.");
+} else if (cmd === "webhook-set") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  if (!arg?.startsWith("https://")) throw new Error("Cần địa chỉ HTTPS, ví dụ https://crm.example.vn");
+  const cfg = await telegramConfig(db);
+  if (!cfg?.webhookSecret)
+    throw new Error(
+      "Chưa có mã bí mật webhook. Owner đặt ở Cài đặt → Tích hợp, hoặc đặt biến TELEGRAM_WEBHOOK_SECRET.",
+    );
+  const url = `${arg.replace(/\/$/, "")}/api/webhooks/telegram`;
+  await telegramApi(token).call("setWebhook", {
+    url,
+    secret_token: cfg.webhookSecret,
+    allowed_updates: ["message", "callback_query", "my_chat_member"],
+    drop_pending_updates: false,
+  });
+  console.log(`Telegram sẽ gửi tin về ${url}. Dừng lệnh run, CRM tự nhận tin từ giờ.`);
+} else if (cmd === "webhook-off") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  await telegramApi(token).call("deleteWebhook", { drop_pending_updates: false });
+  console.log("Đã bỏ webhook. Chạy lại lệnh run để nhận tin bằng getUpdates.");
+} else if (cmd === "run" || cmd === "run-inbound") {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("Thiếu biến môi trường TELEGRAM_BOT_TOKEN");
+  const api = telegramApi(token);
+  const me = await api.call<{ username: string }>("getMe");
+  console.log(`Bot @${me.username} đang chạy, nối với database ${process.env.NEXT_PUBLIC_SUPABASE_URL}`);
+
+  // Khi Edge Function telegram-outbound đã chạy theo lịch pg_cron thì dùng run-inbound, tránh gửi trùng tin.
+  if (cmd === "run") {
+    let cursor = await initialCursor(db);
+    setInterval(async () => {
+      try {
+        cursor = await pollOutbound(db, api, cursor);
+      } catch (e) {
+        console.error("Gửi tin lỗi:", e instanceof Error ? e.message : e);
+      }
+    }, 5_000);
+  } else {
+    console.log("Chế độ chỉ nhận tin: phần gửi do Edge Function telegram-outbound lo.");
+  }
+
+  let offset = 0;
+  for (;;) {
+    try {
+      const updates = await api.call<{ update_id: number }[]>("getUpdates", {
+        offset,
+        timeout: 25,
+        allowed_updates: ["message", "callback_query", "my_chat_member"],
+      });
+      for (const u of updates) {
+        offset = u.update_id + 1;
+        await handleUpdate(db, api, me.username, u);
+        console.log(`Đã xử lý tin ${u.update_id}`);
+      }
+    } catch (e) {
+      console.error("Nhận tin lỗi:", e instanceof Error ? e.message : e);
+      await new Promise((r) => setTimeout(r, 3_000));
+    }
+  }
+} else {
+  console.log(
+    "Lệnh: run | run-inbound | link <email> | demo-flow <email> | demo-lead <email> | setup | webhook-set <https-url> | webhook-off",
+  );
+}
