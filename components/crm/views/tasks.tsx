@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { PersonChip } from "@/components/person-chip";
 import { CalendarX, Check, Clock, ListChecks, PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -39,6 +41,8 @@ export interface LiveApproval {
   reason: string;
   requestedBy: string;
   mine: boolean;
+  /** Mở hồ sơ liên quan (đơn, phiếu kho) để xem trước khi duyệt. */
+  href?: string | null;
 }
 
 /**
@@ -366,7 +370,17 @@ function LiveApprovalList({ items }: { items: LiveApproval[] }) {
           <div className="c-lbl">
             {a.title} · {a.requestedBy} đề xuất
           </div>
-          <div>{a.reason || "Không có lý do kèm theo"}</div>
+          <div>
+            {a.reason || "Không có lý do kèm theo"}
+            {a.href ? (
+              <>
+                {" "}
+                <Link href={a.href} className="c-link">
+                  Mở để xem
+                </Link>
+              </>
+            ) : null}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button
               type="button"

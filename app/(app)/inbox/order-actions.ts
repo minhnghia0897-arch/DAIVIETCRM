@@ -27,6 +27,7 @@ const orderSchema = z.object({
   deliveryFee: z.number().int().min(0).max(MAX_FEE),
   installationFee: z.number().int().min(0).max(MAX_FEE),
   note: z.string().trim().max(1000).optional(),
+  giftMessage: z.string().trim().max(500).optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof orderSchema>;
@@ -52,7 +53,7 @@ function friendly(code: string | undefined, message: string | undefined): string
   }
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<ActionResult> {
+export async function createOrder(input: CreateOrderInput): Promise<ActionResult & { orderId?: string }> {
   const user = await requireUser();
   if (user.viewAs) return { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." };
   if (!user.permissions.has("order.create"))
@@ -75,16 +76,19 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
     // Không lưu số điện thoại đầy đủ trong ghi chú đơn.
     p_note: d.note ? maskPhonesInText(d.note) : undefined,
     p_channel: "inbox",
+    p_gift_message: d.giftMessage ? maskPhonesInText(d.giftMessage) : undefined,
   });
   if (error || !id) return { ok: false, message: friendly(error?.code, error?.message) };
 
   const { data: order } = await supabase.from("orders").select("code, status").eq("id", id).maybeSingle();
   revalidatePath("/inbox");
   revalidatePath("/tasks");
+  revalidatePath("/orders");
   if (order?.status === "pending_approval")
     return {
       ok: true,
+      orderId: id,
       message: `Đã tạo đơn ${order.code}, mức giảm vượt giới hạn nên đang chờ Owner duyệt`,
     };
-  return { ok: true, message: `Đã tạo đơn ${order?.code ?? ""}`.trim() };
+  return { ok: true, orderId: id, message: `Đã tạo đơn ${order?.code ?? ""}`.trim() };
 }
