@@ -215,6 +215,59 @@ test("ảnh khách gửi hiện trong khung chat; bấm Enter hai lần chỉ g�
   expect(sent.length).toBe(before + 1);
 });
 
+test("cột phải: đổi tên khách, lưu số và địa chỉ khách nhắn, ghim ghi chú", async ({ page }) => {
+  const opener = `Cột phải ${PSID}`;
+  expect(await post(page, inbound(`m.side0.${PSID}`, opener))).toBe(200);
+  // Khác đuôi với mã khách giả (PSID) để không lẫn với dãy số đó trong "Khách đã cho biết".
+  const phoneDigits = `09${PSID.slice(-8).split("").reverse().join("")}`;
+  expect(
+    await post(
+      page,
+      inbound(
+        `m.side1.${PSID}`,
+        `Số em ${phoneDigits}, giao giúp em về 12 Lê Lợi, xã Diễn Kỷ, Diễn Châu, Nghệ An nhé`,
+      ),
+    ),
+  ).toBe(200);
+
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  // Danh sách hiện tin mới nhất của hội thoại (tin có số và địa chỉ).
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: new RegExp(phoneDigits) })
+    .click();
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+  await expect(side).toBeVisible();
+
+  // Đổi tên khách.
+  // Giữ "Trần Mai" trong tên: bài sau tìm hội thoại theo tên này.
+  const newName = `Trần Mai (Daegu ${PSID.slice(-4)})`;
+  await side.getByRole("button", { name: "Sửa tên khách" }).click();
+  await side.getByLabel("Tên khách").fill(newName);
+  await side.getByRole("button", { name: "Lưu tên" }).click();
+  await expect(side.getByText(newName)).toBeVisible();
+
+  // Khách đã cho biết: lưu số (hiện dạng che) và địa chỉ.
+  const facts = side.getByRole("list", { name: "Khách đã cho biết" });
+  // Mã khách giả trong các tin thử cũng là dãy số dài: chọn đúng dòng có số khách vừa nhắn.
+  await facts
+    .getByRole("listitem")
+    .filter({ hasText: phoneDigits.slice(-3) })
+    .getByRole("button", { name: "Lưu số điện thoại vào hồ sơ" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Đã lưu số vào hồ sơ khách");
+  await expect(side.getByText(`${phoneDigits.slice(-3)}`, { exact: false }).first()).toBeVisible();
+  await facts.getByRole("button", { name: "Lưu địa chỉ vào hồ sơ" }).click();
+  await expect(side.getByRole("list", { name: "Địa chỉ giao đã lưu" })).toContainText("Nghệ An");
+
+  // Ghi chú ghim hiện ở đầu khung chat.
+  await side.getByRole("tab", { name: /Ghi chú/ }).click();
+  await side.getByLabel("Ghi chú về khách").fill("Khách muốn giao trước Tết, gọi sau 19h");
+  await side.getByRole("button", { name: "Ghim ghi chú" }).click();
+  await expect(page.getByLabel("Ghi chú ghim")).toContainText("Khách muốn giao trước Tết");
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 import { InboxLive, type LiveConv, type LiveThread } from "@/components/crm/views/inbox-live";
+import type { LiveSide } from "@/components/crm/views/inbox-live-side";
+import { PROVINCE_NAMES } from "@/lib/geo/provinces";
+import { extractFindings } from "@/lib/inbox/extract";
+import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import { parseAttachments } from "@/lib/integrations/attachments";
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
@@ -27,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const { data: convs } = await supabase
     .from("conversations")
     .select(
-      "id, channel, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contacts(full_name)",
+      "id, channel, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
@@ -112,6 +116,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     };
   }
 
+  const side = sel
+    ? await loadSide(
+        supabase,
+        list.find((x) => x.id === sel.id)!,
+        thread,
+        user,
+      )
+    : null;
+
   // Chế độ trả lời không phải bí mật; đọc bằng service_role vì bảng integrations chỉ mở cho người có quyền Cài đặt.
   const admin = createAdminClient();
   const { data: integs } = await admin
@@ -146,6 +159,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       convs={rows}
       selectedId={sel?.id ?? null}
       thread={thread}
+      side={side}
       blockers={{
         messenger: blockerFor(MESSENGER_KEY, "message.messenger_send", "Tin nhắn Facebook"),
         zalo: blockerFor(ZALO_KEY, "message.zalo_send", "Zalo OA"),
@@ -155,4 +169,129 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       markRead={markConversationRead}
     />
   );
+}
+
+type Db = Awaited<ReturnType<typeof createClient>>;
+type ConvRow = {
+  id: string;
+  lead_id: string | null;
+  contact_id: string | null;
+  contacts: { full_name: string; country_of_residence: string } | null;
+};
+type Me = Awaited<ReturnType<typeof requireAnyPermission>>;
+
+const noteTime = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  hour: "2-digit",
+  minute: "2-digit",
+  day: "2-digit",
+  month: "2-digit",
+});
+
+/** Cột phải: hồ sơ khách, thông tin đọc từ tin của khách, bốn thông tin bắt buộc, địa chỉ, ghi chú (RLS lọc theo quyền). */
+async function loadSide(
+  supabase: Db,
+  conv: ConvRow,
+  thread: LiveThread | null,
+  me: Me,
+): Promise<LiveSide | null> {
+  if (!conv.contact_id || !conv.contacts) return null;
+  const contactId = conv.contact_id;
+  const [lead, identities, addresses, notes, occasions, budgets] = await Promise.all([
+    conv.lead_id
+      ? supabase
+          .from("leads")
+          .select(
+            "id, stage, assigned_to, contact_id, recipient_contact_id, recipient_province, occasion_id, occasion_date, budget_range_id, keep_surprise, recipient:contacts!leads_recipient_contact_id_fkey(full_name, relation_in_household)",
+          )
+          .eq("id", conv.lead_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("contact_identity_display")
+      .select("display_masked")
+      .eq("contact_id", contactId)
+      .eq("type", "phone"),
+    supabase
+      .from("contact_addresses")
+      .select("id, receiver, street, ward, district, province, is_default")
+      .eq("contact_id", contactId)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("contact_notes")
+      .select("id, text, pinned, created_at, created_by")
+      .eq("contact_id", contactId)
+      .order("pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase.from("occasions").select("id, label").eq("is_active", true).order("sort"),
+    supabase.from("budget_ranges").select("id, label").eq("is_active", true).order("sort"),
+  ]);
+  const authors = [
+    ...new Set((notes.data ?? []).map((n) => n.created_by).filter((x): x is string => Boolean(x))),
+  ];
+  const { data: people } = authors.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", authors)
+    : { data: [] as { id: string; full_name: string }[] };
+  const l = lead.data;
+  const canEdit =
+    !me.viewAs &&
+    (me.permissions.has("lead.edit_all") ||
+      (me.permissions.has("lead.edit_own") && l?.assigned_to === me.id));
+
+  const inbound = (thread?.messages ?? [])
+    .filter((m) => !m.out && m.text)
+    .map((m) => [m.text!, noteTime.format(new Date(m.at))] as [string, string]);
+
+  return {
+    contact: {
+      id: contactId,
+      name: conv.contacts.full_name,
+      country: conv.contacts.country_of_residence,
+      phones: (identities.data ?? []).map((i) => i.display_masked).filter((x): x is string => Boolean(x)),
+    },
+    canEdit,
+    lead: l
+      ? {
+          id: l.id,
+          stageLabel: LEAD_STAGE_LABEL[l.stage] ?? l.stage,
+          recipient: !l.recipient_contact_id
+            ? null
+            : l.recipient_contact_id === l.contact_id
+              ? { self: true, name: null, relation: null }
+              : {
+                  self: false,
+                  name: l.recipient?.full_name ?? null,
+                  relation: l.recipient?.relation_in_household ?? null,
+                },
+          recipientProvince: l.recipient_province,
+          occasionId: l.occasion_id,
+          occasionDate: l.occasion_date,
+          budgetRangeId: l.budget_range_id,
+          keepSurprise: l.keep_surprise,
+        }
+      : null,
+    occasions: occasions.data ?? [],
+    budgets: budgets.data ?? [],
+    provinces: PROVINCE_NAMES,
+    addresses: (addresses.data ?? []).map((a) => ({
+      id: a.id,
+      receiver: a.receiver,
+      street: a.street,
+      ward: a.ward,
+      district: a.district,
+      province: a.province,
+      isDefault: a.is_default,
+    })),
+    notes: (notes.data ?? []).map((n) => ({
+      id: n.id,
+      text: n.text,
+      pinned: n.pinned,
+      by: people?.find((p) => p.id === n.created_by)?.full_name ?? "Nhân viên",
+      at: noteTime.format(new Date(n.created_at)),
+    })),
+    // Sản phẩm: chưa có bảng sản phẩm thật (lát 2), nên chưa dò tên sản phẩm trong tin.
+    findings: extractFindings(inbound, PROVINCE_NAMES, []),
+  };
 }

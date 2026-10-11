@@ -3854,3 +3854,25 @@ select:not([multiple]):not([size]) {
   border-radius: 10px;
   object-fit: cover;
 }
+
+/* Ghi chú ghim ở đầu khung chat (Hội thoại bản thật). */
+.cv-pins {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line-2);
+  background: #fff8e1;
+}
+.cv-pin {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+.cv-pin svg {
+  flex: none;
+  margin-top: 3px;
+}

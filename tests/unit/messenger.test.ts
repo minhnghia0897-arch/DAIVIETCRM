@@ -150,4 +150,32 @@ describe("Graph API", () => {
       await userName("9001", "t", ok({ first_name: "Mai", last_name: "Trần" }) as unknown as typeof fetch),
     ).toBe("Trần Mai");
   });
+  it("hồ sơ khách bị chặn thì lấy tên từ danh sách hội thoại của Page", async () => {
+    const f = vi.fn(async (url: URL | RequestInfo) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/9001"))
+        return new Response(JSON.stringify({ error: { code: 100 } }), { status: 400 });
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              participants: {
+                data: [
+                  { id: "555", name: "Fanpage" },
+                  { id: "9001", name: "Lê Thị Hoa" },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+    expect(await userName("9001", "t", f as unknown as typeof fetch, "555")).toBe("Lê Thị Hoa");
+    const second = new URL(String(f.mock.calls[1]![0]));
+    expect(second.pathname).toMatch(/\/555\/conversations$/);
+    expect(second.searchParams.get("user_id")).toBe("9001");
+    // Không có Page ID thì không thử đường thứ hai.
+    expect(await userName("9001", "t", fail(100) as unknown as typeof fetch)).toBeNull();
+  });
 });
