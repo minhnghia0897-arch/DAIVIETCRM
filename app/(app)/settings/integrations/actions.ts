@@ -7,7 +7,13 @@ import { requireWritable } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import { createAdminClient } from "@/lib/db/admin";
 import { configErrors } from "@/lib/integrations/connection";
-import { graphErrorMessage, pageOfToken, subscribePage } from "@/lib/integrations/meta_messenger/api";
+import {
+  GraphError,
+  graphErrorMessage,
+  pageOfToken,
+  subscribeErrorMessage,
+  subscribePage,
+} from "@/lib/integrations/meta_messenger/api";
 import { MESSENGER_KEY, messengerConfigForShowroom } from "@/lib/integrations/meta_messenger/config";
 import { oaOfToken, zaloErrorMessage } from "@/lib/integrations/zalo_oa/api";
 import { ZALO_KEY, zaloConfigForShowroom } from "@/lib/integrations/zalo_oa/config";
@@ -186,9 +192,14 @@ const PROBES: Record<string, Probe> = {
         return {
           error: `Token này thuộc Page khác (${page.name ?? "không rõ tên"}), không phải Page có ID đã khai. Lấy token của đúng Page rồi kết nối lại.`,
         };
+    } catch (e) {
+      const detail = e instanceof GraphError && e.code !== 190 && e.detail ? ` Meta báo: "${e.detail}"` : "";
+      return { error: graphErrorMessage(e) + detail };
+    }
+    try {
       await subscribePage(cfg.pageId, cfg.pageToken!);
     } catch (e) {
-      return { error: graphErrorMessage(e) };
+      return { error: subscribeErrorMessage(e) };
     }
     return { done: "token đúng Page, Page đã đăng ký gửi tin về CRM", replyMode: cfg.replyMode };
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plug } from "lucide-react";
+import { Eye, EyeOff, Plug } from "lucide-react";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
@@ -799,13 +799,12 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
         return (
           <label key={name} className="c-lbl block">
             {label}
-            <input
-              aria-label={label}
-              type="password"
+            <SecretInput
+              label={label}
               autoComplete="new-password"
               placeholder={st.secrets[name] ? "Đã có, để trống nếu giữ nguyên" : "Dán vào đây"}
               value={values[name] ?? ""}
-              onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
+              onChange={(v) => setValues((x) => ({ ...x, [name]: v }))}
               className={FIELD}
             />
           </label>
@@ -931,14 +930,14 @@ function Secrets({ def, st }: { def: Def; st: IntegrationState }) {
                   setValues((v) => ({ ...v, [name]: "" }));
                 }}
               >
-                <input
-                  aria-label={label}
-                  type="password"
+                <SecretInput
+                  label={label}
                   autoComplete="off"
                   placeholder={st.secrets[name] ? "Nhập khóa mới để thay" : "Dán khóa vào đây"}
                   value={values[name] ?? ""}
-                  onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
-                  className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
+                  onChange={(v) => setValues((x) => ({ ...x, [name]: v }))}
+                  className="w-full rounded-control border border-line bg-surface px-2 py-1.5"
+                  wrapClassName="min-w-0 flex-1"
                 />
                 <button type="submit" className="c-btn" disabled={pending}>
                   {st.secrets[name] ? "Thay khóa" : "Lưu khóa"}
@@ -989,5 +988,51 @@ function Log({ st }: { st: IntegrationState }) {
         thoại.
       </p>
     </div>
+  );
+}
+
+// Ô dán khóa: mặc định che, bấm con mắt để xem lại đúng chữ vừa dán trước khi lưu. Khóa đã lưu không bao giờ được
+// gửi xuống trình duyệt nên ô luôn trống khi mở lại (CLAUDE.md 11.2, tab Bí mật).
+function SecretInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  className,
+  wrapClassName,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  autoComplete: string;
+  className: string;
+  wrapClassName?: string;
+}) {
+  const [shown, setShown] = useState(false);
+  return (
+    <span className={`relative block ${wrapClassName ?? ""}`}>
+      <input
+        aria-label={label}
+        type={shown ? "text" : "password"}
+        autoComplete={autoComplete}
+        spellCheck={false}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${className} pr-9`}
+      />
+      <button
+        type="button"
+        onClick={() => setShown((x) => !x)}
+        aria-label={shown ? "Ẩn chữ đã dán" : "Hiện chữ đã dán"}
+        title={shown ? "Ẩn chữ đã dán" : "Hiện chữ đã dán"}
+        aria-pressed={shown}
+        className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-text-weak hover:text-text"
+      >
+        {shown ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+      </button>
+    </span>
   );
 }

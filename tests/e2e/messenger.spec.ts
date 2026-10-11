@@ -179,6 +179,8 @@ test("telesale không giữ lead thì không thấy hội thoại", async ({ pag
   for (const who of [USERS.thao, USERS.an]) {
     await login(page, who);
     await page.goto("/inbox");
+    // Chờ màn Hội thoại hiện xong (có khung chờ khi tải) rồi mới xem có hội thoại hay không.
+    await expect(page.getByRole("heading", { name: "Hội thoại", level: 1 })).toBeAttached();
     seen.push(await page.getByRole("button", { name: /Trần Mai/ }).isVisible());
   }
   expect(seen.filter(Boolean).length).toBe(1);
