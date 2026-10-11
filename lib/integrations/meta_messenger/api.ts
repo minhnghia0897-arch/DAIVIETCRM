@@ -11,15 +11,20 @@ const graphBase = () => (typeof process !== "undefined" ? process.env.META_GRAPH
 export class GraphError extends Error {
   readonly code: number;
   readonly subcode?: number;
-  constructor(code: number, subcode?: number) {
+  /** Câu lỗi Meta trả về (không chứa token), dùng để chẩn đoán khi Owner kết nối. */
+  readonly detail?: string;
+  constructor(code: number, subcode?: number, detail?: string) {
     super(`Graph API lỗi ${code}${subcode ? `/${subcode}` : ""}`);
     this.code = code;
     this.subcode = subcode;
+    this.detail = detail;
   }
 }
 
 const errorBody = z.object({
-  error: z.object({ code: z.number(), error_subcode: z.number().optional() }).passthrough(),
+  error: z
+    .object({ code: z.number(), error_subcode: z.number().optional(), message: z.string().optional() })
+    .passthrough(),
 });
 
 async function call<T>(
@@ -49,6 +54,7 @@ async function call<T>(
     throw new GraphError(
       e.success ? e.data.error.code : res.status,
       e.success ? e.data.error.error_subcode : undefined,
+      e.success ? e.data.error.message?.slice(0, 300) : undefined,
     );
   }
   return data as T;
@@ -106,6 +112,20 @@ export async function userName(psid: string, pageToken: string, fetchImpl: typeo
   } catch {
     return null;
   }
+}
+
+/**
+ * Lỗi khi đăng ký Page gửi tin về CRM (bước kết nối). Lý do hay gặp nhất là ứng dụng chưa có webhook đã xác minh, nên
+ * nói rõ cách xử lý và kèm nguyên văn câu lỗi của Meta để chẩn đoán (màn chỉ Owner thấy, không chứa token).
+ */
+export function subscribeErrorMessage(e: unknown): string {
+  if (e instanceof GraphError && e.code === 190) return graphErrorMessage(e);
+  const detail = e instanceof GraphError && e.detail ? ` Meta báo: "${e.detail}"` : "";
+  return (
+    "Token đúng Page nhưng Meta chưa cho Page gửi tin về CRM. Kiểm tra trong ứng dụng Meta, mục Webhook: đã điền " +
+    "địa chỉ nhận dữ liệu, mã xác minh giống hệt ô trên CRM và bấm Xác minh và lưu thành công, rồi kết nối lại." +
+    detail
+  );
 }
 
 /** Lỗi của Meta viết thành câu người dùng hiểu, kèm cách xử lý (CLAUDE.md 11.2). */

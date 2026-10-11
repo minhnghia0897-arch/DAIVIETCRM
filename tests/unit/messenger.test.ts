@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   GraphError,
   graphErrorMessage,
+  subscribeErrorMessage,
   pageOfToken,
   sendText,
   userName,
@@ -137,6 +138,11 @@ describe("Graph API", () => {
     expect(graphErrorMessage(new GraphError(551))).toMatch(/không nhận được tin/);
     expect(graphErrorMessage(new GraphError(613))).toMatch(/quá nhanh/);
     expect(graphErrorMessage(new Error("x"))).toMatch(/Thử lại/);
+    // Đăng ký Page lỗi: chỉ cách sửa webhook và kèm nguyên văn câu của Meta.
+    const sub = subscribeErrorMessage(new GraphError(100, undefined, "(#100) Invalid parameter"));
+    expect(sub).toMatch(/Webhook/);
+    expect(sub).toContain('Meta báo: "(#100) Invalid parameter"');
+    expect(subscribeErrorMessage(new GraphError(190))).toMatch(/token hết hạn/);
   });
   it("không lấy được tên khách thì trả null", async () => {
     expect(await userName("9001", "t", fail(100) as unknown as typeof fetch)).toBeNull();
