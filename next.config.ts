@@ -16,6 +16,12 @@ const nextConfig: NextConfig = demoExport
       // Route type của Next chỉ biết route bản thật; CI đã typecheck toàn bộ mã ở chế độ thường.
       typescript: { ignoreBuildErrors: true },
     }
-  : {};
+  : {
+      // Giữ trang vừa xem trong bộ nhớ trình duyệt 30 giây: quay lại màn vừa mở thì hiện ngay, không chờ server.
+      // Lệnh ghi (server action có revalidatePath, router.refresh) vẫn làm mới ngay.
+      experimental: { staleTimes: { dynamic: 30 } },
+      // Font tiếng Việt vẽ ảnh báo giá (đọc bằng readFile nên phải khai báo để có trong gói chạy trên Vercel).
+      outputFileTracingIncludes: { "/api/quotes/[id]/image": ["./assets/fonts/*.ttf"] },
+    };
 
 export default nextConfig;

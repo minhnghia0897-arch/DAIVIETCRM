@@ -385,7 +385,7 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
   await expect(page.getByLabel(/Duyệt giảm giá: Đơn Q4-.*Giảm tay 7/)).toHaveCount(0);
 });
 
-test("báo giá: gửi link, khách mở trên trang công khai và bấm đồng ý thì sinh đơn", async ({
+test("báo giá: tạo ảnh đầy đủ thông tin để gửi khách, khách đồng ý thì nhân viên bấm sinh đơn", async ({
   page,
   browser,
 }) => {
@@ -402,27 +402,28 @@ test("báo giá: gửi link, khách mở trên trang công khai và bấm đồn
   await pick(form, 1, "DC203");
   await form.getByLabel("Phí giao").fill("300.000");
   await expect(form.getByLabel("Tạm tính")).toContainText("34.880.000");
-  await form.getByRole("button", { name: "Gửi báo giá" }).click();
-  const link = await side.getByRole("textbox", { name: "Link báo giá" }).inputValue();
-  expect(link).toMatch(/^https?:\/\/.+\/q\/[0-9a-f]{36}$/);
+  await form.getByRole("button", { name: "Ảnh báo giá" }).click();
 
-  // Khách mở link (không đăng nhập): thấy giá, không thấy số điện thoại, bấm đồng ý.
+  // Ảnh PNG hiện ngay để tải hoặc chép gửi khách; không còn link.
+  const img = side.getByRole("img", { name: /^Ảnh báo giá BG-Q4-/ });
+  await expect(img).toBeVisible();
+  await expect.poll(() => img.evaluate((e: HTMLImageElement) => e.naturalHeight)).toBeGreaterThan(600);
+  await expect(side.getByRole("link", { name: "Tải ảnh" })).toBeVisible();
+  await expect(side.getByRole("button", { name: "Chép ảnh" })).toBeVisible();
+  const src = await img.getAttribute("src");
+  const res = await page.request.get(src!);
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("image/png");
+
+  // Người ngoài (chưa đăng nhập) không lấy được ảnh.
   const guest = await browser.newContext();
-  const g = await guest.newPage();
-  await g.goto(new URL(link).pathname);
-  await expect(g.getByRole("heading", { name: /^Báo giá BG-Q4-/ })).toBeVisible();
-  await expect(g.locator("body")).toContainText("34.880.000");
-  await expect(g.locator("body")).not.toContainText(/\+84|0\d{9}/);
-  await g.getByRole("button", { name: "Đồng ý báo giá" }).click();
-  await expect(g.getByRole("status")).toContainText("Cảm ơn anh chị đã đồng ý");
-  await g.reload();
-  await expect(g.getByRole("button", { name: "Đồng ý báo giá" })).toHaveCount(0);
+  const leaked = await guest.request.get(new URL(src!, page.url()).toString());
+  expect(leaked.headers()["content-type"] ?? "").not.toContain("image/png");
   await guest.close();
 
-  // Người bán thấy báo giá đã đồng ý và đơn sinh từ báo giá.
-  await page.reload();
-  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  // Khách nhắn đồng ý: nhân viên bấm "Khách đã đồng ý" thì sinh đơn từ báo giá.
   const quotes = side.getByRole("list", { name: "Báo giá đã gửi" });
+  await quotes.getByRole("button", { name: "Khách đã đồng ý" }).first().click();
   await expect(quotes).toContainText("Khách đã đồng ý");
   await quotes.getByRole("link", { name: "Mở đơn từ báo giá" }).first().click();
   await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();

@@ -8,42 +8,48 @@ import { createClient } from "@/lib/db/server";
 export type { SessionUser } from "./types";
 import type { SessionUser } from "./types";
 
-/** Lấy người dùng và quyền hiệu lực một lần mỗi request (CLAUDE.md mục 5, Hàm kiểm tra). */
+/**
+ * Lấy người dùng và quyền hiệu lực một lần mỗi request (CLAUDE.md mục 5, Hàm kiểm tra).
+ * Nhanh: phiên kiểm bằng chữ ký JWT ngay tại server (getClaims, không gọi máy chủ Auth), rồi hỏi database một lượt
+ * song song (người hiệu lực, quyền, hồ sơ). Người bị khóa vẫn bị chặn ở đây (is_active) và ở RLS (has_perm).
+ */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: auth } = await supabase.auth.getClaims();
+  const claims = auth?.claims;
+  if (!claims?.sub) return null;
+  const uid = claims.sub;
 
-  // GET: chạy được cả khi đang "Xem như" (database chặn mọi lệnh ghi trong phiên đó).
-  const { data: who } = await supabase.rpc("whoami", undefined, { get: true }).maybeSingle();
-  const effectiveId = who?.effective_uid ?? user.id;
-  const viewAsSession = who?.view_as_session_id ?? null;
-
-  const [{ data: profile }, { data: perms }, owner] = await Promise.all([
+  const profileOf = (id: string) =>
     supabase
       .from("profiles")
       .select("full_name, is_active, showroom_id, showrooms(name), roles(key, name)")
-      .eq("id", effectiveId)
-      .maybeSingle(),
+      .eq("id", id)
+      .maybeSingle();
+  // GET: chạy được cả khi đang "Xem như" (database chặn mọi lệnh ghi trong phiên đó). my_permissions đã tính theo
+  // người hiệu lực nên chạy song song được.
+  const [{ data: who }, { data: perms }, { data: me }] = await Promise.all([
+    supabase.rpc("whoami", undefined, { get: true }).maybeSingle(),
     supabase.rpc("my_permissions", undefined, { get: true }),
-    viewAsSession
-      ? supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()
-      : Promise.resolve({ data: null }),
+    profileOf(uid),
   ]);
+  if (!me || !me.is_active) return null;
+  const effectiveId = who?.effective_uid ?? uid;
+  const viewAsSession = who?.view_as_session_id ?? null;
+  // Hiếm: đang "Xem như" người khác thì đọc thêm hồ sơ của người đó.
+  const profile = effectiveId === uid ? me : (await profileOf(effectiveId)).data;
   if (!profile || !profile.is_active) return null;
 
   return {
     id: effectiveId,
-    email: user.email ?? null,
+    email: typeof claims.email === "string" ? claims.email : null,
     fullName: profile.full_name,
     showroomId: profile.showroom_id,
     showroomName: profile.showrooms?.name ?? "",
     roleName: profile.roles?.name ?? "",
     roleKey: profile.roles?.key ?? "",
     permissions: new Set((perms ?? []) as string[]),
-    viewAs: viewAsSession ? { sessionId: viewAsSession, ownerName: owner.data?.full_name ?? "" } : null,
+    viewAs: viewAsSession ? { sessionId: viewAsSession, ownerName: me.full_name } : null,
   };
 });
 

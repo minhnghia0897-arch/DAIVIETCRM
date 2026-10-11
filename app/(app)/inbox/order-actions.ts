@@ -1,11 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
-import { siteUrl } from "@/lib/db/env";
 import { createClient } from "@/lib/db/server";
 import { maskPhonesInText } from "@/lib/phone";
 import { acceptQuote, CHECKOUT_MESSAGE, placeOrder, sendQuote } from "@/lib/sales/checkout-server";
@@ -92,7 +90,7 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
 
 export async function createQuote(
   input: CreateOrderInput,
-): Promise<ActionResult & { quoteId?: string; link?: string }> {
+): Promise<ActionResult & { quoteId?: string; code?: string }> {
   const user = await requireUser();
   if (user.viewAs) return { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." };
   if (!user.permissions.has("quote.create")) return { ok: false, message: CHECKOUT_MESSAGE.not_allowed };
@@ -101,15 +99,11 @@ export async function createQuote(
   const r = await sendQuote(user, toCheckout(p.data));
   if (!r.ok) return { ok: false, message: CHECKOUT_MESSAGE[r.error] };
   refresh();
-  // Link đầy đủ để dán vào khung chat gửi khách.
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const origin = host ? `${h.get("x-forwarded-proto") ?? "https"}://${host}` : siteUrl();
   return {
     ok: true,
     quoteId: r.quoteId,
-    link: `${origin}/q/${r.token}`,
-    message: `Đã tạo báo giá ${r.code}, gửi link cho khách`,
+    code: r.code,
+    message: `Đã tạo báo giá ${r.code}, tải hoặc chép ảnh để gửi khách`,
   };
 }
 

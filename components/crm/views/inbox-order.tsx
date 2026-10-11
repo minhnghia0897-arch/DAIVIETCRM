@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, FileText, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Copy, Download, FileImage, Plus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -19,7 +19,7 @@ import { PricingSummary } from "./pricing-summary";
 
 // Tab Lên đơn của Hội thoại, bố cục như bản demo: Người đặt, Người nhận, Địa chỉ giao, Hàng, tổng tiền dính đáy cột.
 // Mọi ô điền sẵn từ hồ sơ đúng khách của hội thoại đang mở và từ tin khách nhắn; nhân viên kiểm lại rồi bấm Tạo đơn
-// hoặc Gửi báo giá. Bấm thì lưu phần hồ sơ đã sửa (tên, số, nơi sống, người nhận, dịp, ngân sách, địa chỉ mới) rồi mới
+// hoặc Ảnh báo giá (ảnh PNG đầy đủ thông tin để gửi khách trong khung chat). Bấm thì lưu phần hồ sơ đã sửa (tên, số, nơi sống, người nhận, dịp, ngân sách, địa chỉ mới) rồi mới
 // tạo đơn. Số trên màn do hàm định giá dùng chung tính trên trình duyệt để xem trước; server tính lại từ database
 // khi lưu (CLAUDE.md 8.1, 8.5).
 
@@ -158,7 +158,8 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
     href: string;
     label: string;
     message: string;
-    link?: string;
+    /** Ảnh báo giá gửi khách. */
+    image?: { url: string; code: string };
   } | null>(null);
 
   const options = [
@@ -320,8 +321,10 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
       } else {
         const r = await createQuote(payload);
         toast(r.message, r.ok ? "ok" : "err");
-        if (r.ok && r.link) {
-          setCreated({ href: r.link, label: "Xem báo giá", message: r.message, link: r.link });
+        if (r.ok && r.quoteId) {
+          const url = `/api/quotes/${r.quoteId}/image`;
+          const code = r.code ?? "bao-gia";
+          setCreated({ href: url, label: "Mở ảnh", message: r.message, image: { url, code } });
           reset();
         }
       }
@@ -353,10 +356,11 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
               <li key={q.id} className="text-sm">
                 <span className="flex justify-between gap-2">
                   <a
-                    href={`/q/${q.token}`}
+                    href={`/api/quotes/${q.id}/image`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="c-link font-semibold"
+                    title="Mở ảnh báo giá"
                   >
                     {q.code}
                   </a>
@@ -418,28 +422,7 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
             <Link href={created.href} className="font-semibold underline">
               {created.label}
             </Link>
-            {created.link ? (
-              <span className="mt-1 flex items-center gap-1.5">
-                <input
-                  readOnly
-                  aria-label="Link báo giá"
-                  value={created.link}
-                  className={`${FIELD} text-sm`}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <button
-                  type="button"
-                  className="c-ib"
-                  aria-label="Chép link báo giá"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(created.link!);
-                    toast("Đã chép link, dán vào khung chat để gửi khách", "ok");
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
-              </span>
-            ) : null}
+            {created.image ? <QuoteImageActions image={created.image} /> : null}
           </div>
         ) : null}
         {blocker ? (
@@ -842,8 +825,8 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
                 ) : null}
                 {order.canQuote ? (
                   <button type="button" className="c-btn" disabled={pending} onClick={() => submit("quote")}>
-                    <FileText size={14} className="mr-1 inline" aria-hidden />
-                    Gửi báo giá
+                    <FileImage size={14} className="mr-1 inline" aria-hidden />
+                    Ảnh báo giá
                   </button>
                 ) : null}
                 <button type="button" className="c-btn" disabled={pending} onClick={() => setF(init)}>
@@ -855,5 +838,39 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
         )}
       </div>
     </div>
+  );
+}
+
+/** Ảnh báo giá vừa tạo: xem trước, tải về hoặc chép để dán vào khung chat (Zalo, Messenger) gửi khách. */
+function QuoteImageActions({ image }: { image: { url: string; code: string } }) {
+  const toast = useToast();
+  async function copy() {
+    try {
+      const blob = await (await fetch(image.url)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      toast("Đã chép ảnh, dán vào khung chat để gửi khách", "ok");
+    } catch {
+      toast("Trình duyệt chưa cho chép ảnh, bấm Tải ảnh rồi gửi tệp", "err");
+    }
+  }
+  return (
+    <span className="mt-2 block space-y-1.5">
+      {/* eslint-disable-next-line @next/next/no-img-element -- ảnh sinh động theo báo giá, không qua tối ưu ảnh */}
+      <img
+        src={image.url}
+        alt={`Ảnh báo giá ${image.code}`}
+        className="block w-full rounded-control border border-line bg-surface"
+      />
+      <span className="flex gap-1.5">
+        <a className="c-btn flex-1 text-center" href={image.url} download={`${image.code}.png`}>
+          <Download size={14} className="mr-1 inline" aria-hidden />
+          Tải ảnh
+        </a>
+        <button type="button" className="c-btn flex-1" onClick={() => void copy()}>
+          <Copy size={14} className="mr-1 inline" aria-hidden />
+          Chép ảnh
+        </button>
+      </span>
+    </span>
   );
 }
