@@ -26,6 +26,10 @@ import { useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast";
 import type { Finding } from "@/lib/inbox/extract";
 
+import { OrderTab, type OrderSide } from "./inbox-order";
+
+export type { OrderSide };
+
 import { setRecipient, updateLeadInfo } from "@/app/(app)/leads/[id]/actions";
 import {
   addContactNote,
@@ -39,9 +43,10 @@ import {
 
 // Cột phải màn Hội thoại bản thật (kiểu Pancake, open question 32): hồ sơ khách, "Khách đã cho biết" đọc từ tin của
 // khách, bốn thông tin bắt buộc của lead, địa chỉ giao, ghi chú ghim. Không tự ghi gì: nhân viên bấm Lưu mới vào hồ
-// sơ (CLAUDE.md 10.7). Lên đơn ngay trong hội thoại làm ở lát 2, khi có bảng sản phẩm và đơn hàng thật.
+// sơ (CLAUDE.md 10.7). Tab Lên đơn tạo đơn thật (components/crm/views/inbox-order.tsx).
 
 export interface LiveSide {
+  order: OrderSide;
   contact: { id: string; name: string; country: string; phones: string[] };
   canEdit: boolean;
   lead: {
@@ -150,7 +155,7 @@ export function InboxLiveSide({
             <Addresses side={side} run={run} pending={pending} />
           </div>
         ) : tab === "order" ? (
-          <OrderSoon side={side} />
+          <OrderTab order={side.order} />
         ) : (
           <Notes side={side} run={run} pending={pending} />
         )}
@@ -212,26 +217,6 @@ function TagsCard({ side, tagging, run, pending }: PartProps & { tagging: Taggin
             <Plus size={16} />
           </button>
         </form>
-      ) : null}
-    </div>
-  );
-}
-
-/** Lên đơn ngay trong hội thoại cần bảng sản phẩm, giá và hàm định giá thật (CLAUDE.md 8.5), làm ở lát 2. */
-function OrderSoon({ side }: { side: LiveSide }) {
-  return (
-    <div className="cv-card">
-      <h3>
-        <ShoppingCart size={15} aria-hidden /> Lên đơn
-      </h3>
-      <p className="c-lbl">
-        Lên đơn ngay trong hội thoại sẽ mở khi danh sách sản phẩm và bảng giá của showroom được nhập vào CRM.
-        Trong lúc chờ, lưu địa chỉ giao và bốn thông tin bắt buộc ở thẻ Khách để lên đơn nhanh hơn.
-      </p>
-      {side.lead ? (
-        <Link href={`/leads/${side.lead.id}`} className="c-btn mt-2 inline-flex">
-          Mở hồ sơ lead
-        </Link>
       ) : null}
     </div>
   );

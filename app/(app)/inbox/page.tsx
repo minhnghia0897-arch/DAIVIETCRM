@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { InboxLive, type LiveConv, type LiveThread } from "@/components/crm/views/inbox-live";
-import type { LiveSide } from "@/components/crm/views/inbox-live-side";
+import type { LiveSide, OrderSide } from "@/components/crm/views/inbox-live-side";
 import { PROVINCE_NAMES } from "@/lib/geo/provinces";
 import { extractFindings } from "@/lib/inbox/extract";
 import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
@@ -268,7 +268,10 @@ async function loadSide(
     .filter((m) => !m.out && m.text)
     .map((m) => [m.text!, noteTime.format(new Date(m.at))] as [string, string]);
 
+  const order = await loadOrderSide(supabase, me, contactId, l);
+
   return {
+    order,
     contact: {
       id: contactId,
       name: conv.contacts.full_name,
@@ -315,7 +318,134 @@ async function loadSide(
       by: people?.find((p) => p.id === n.created_by)?.full_name ?? "Nhân viên",
       at: noteTime.format(new Date(n.created_at)),
     })),
-    // Sản phẩm: chưa có bảng sản phẩm thật (lát 2), nên chưa dò tên sản phẩm trong tin.
-    findings: extractFindings(inbound, PROVINCE_NAMES, []),
+    // Sản phẩm: dò mã SKU đang bán (khách hay nhắn "DC302", "dc 302").
+    findings: extractFindings(
+      inbound,
+      PROVINCE_NAMES,
+      order.products.map((p) => ({
+        key: p.variantId,
+        label: p.name,
+        words: [p.sku.toLowerCase(), p.sku.toLowerCase().replace(/^([a-z]+)(\d)/, "$1 $2")],
+      })),
+    ),
+  };
+}
+
+const ORDER_STATUS: Record<string, string> = {
+  draft: "Nháp",
+  pending_approval: "Chờ duyệt giảm giá",
+  confirmed: "Đã xác nhận",
+  deposit_paid: "Đã cọc",
+  ready_to_ship: "Sẵn sàng giao",
+  delivering: "Đang giao",
+  installed: "Đã lắp",
+  completed: "Hoàn tất",
+  cancelled: "Đã hủy",
+  return_requested: "Yêu cầu đổi trả",
+  returned: "Đã trả hàng",
+};
+
+type LeadForOrder = {
+  id: string;
+  contact_id: string;
+  recipient_contact_id: string | null;
+  recipient_province: string | null;
+  occasion_id: string | null;
+  budget_range_id: string | null;
+  stage: string;
+} | null;
+
+/** Tab Lên đơn: SKU đang bán và giá hiện hành, địa chỉ giao của người đặt và người nhận, các đơn của khách. */
+async function loadOrderSide(
+  supabase: Db,
+  me: Me,
+  contactId: string,
+  lead: LeadForOrder,
+): Promise<OrderSide> {
+  const canSeeProducts = me.permissions.has("product.view");
+  const canSeeOrders = me.permissions.has("order.view_own") || me.permissions.has("order.view_all");
+  const addressOwners = [...new Set([contactId, lead?.contact_id, lead?.recipient_contact_id])].filter(
+    (x): x is string => Boolean(x),
+  );
+  const nowIso = new Date().toISOString();
+  const [variants, prices, addresses, orders, limits] = await Promise.all([
+    canSeeProducts
+      ? supabase
+          .from("product_variants")
+          .select("id, sku, name, is_active, products!inner(name, status, is_sellable, deleted_at)")
+          .eq("is_active", true)
+          .order("sku")
+      : Promise.resolve({ data: [] as never[] }),
+    canSeeProducts
+      ? supabase
+          .from("price_list_items")
+          .select("variant_id, price, valid_from, price_lists!inner(is_default)")
+          .eq("price_lists.is_default", true)
+          .lte("valid_from", nowIso)
+          .order("valid_from", { ascending: false })
+      : Promise.resolve({ data: [] as never[] }),
+    supabase
+      .from("contact_addresses")
+      .select("id, contact_id, receiver, street, ward, district, province, is_default")
+      .in("contact_id", addressOwners)
+      .order("is_default", { ascending: false }),
+    canSeeOrders
+      ? supabase
+          .from("orders")
+          .select("id, code, status, total, discount, created_at, order_items(sku, qty)")
+          .or(`buyer_contact_id.eq.${contactId},recipient_contact_id.eq.${contactId}`)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] as never[] }),
+    supabase.from("discount_limits").select("max_pct, roles!inner(key)").eq("roles.key", me.roleKey),
+  ]);
+
+  const priceOf = new Map<string, number>();
+  for (const p of prices.data ?? []) if (!priceOf.has(p.variant_id)) priceOf.set(p.variant_id, p.price);
+
+  const missing: string[] = [];
+  if (lead) {
+    if (!lead.recipient_contact_id) missing.push("mua cho ai");
+    if (!lead.recipient_province) missing.push("tỉnh người nhận");
+    if (!lead.occasion_id) missing.push("dịp");
+    if (!lead.budget_range_id) missing.push("ngân sách");
+  }
+
+  return {
+    leadId: lead?.id ?? null,
+    canCreate: !me.viewAs && me.permissions.has("order.create") && Boolean(lead) && lead?.stage !== "lost",
+    missing,
+    discountLimit: limits.data?.[0]?.max_pct ?? null,
+    products: (variants.data ?? [])
+      .filter((v) => v.products.status === "active" && v.products.is_sellable && !v.products.deleted_at)
+      .filter((v) => priceOf.has(v.id))
+      .map((v) => ({
+        variantId: v.id,
+        sku: v.sku,
+        name: v.name ? `${v.products.name} ${v.name}` : v.products.name,
+        price: priceOf.get(v.id)!,
+      })),
+    addresses: (addresses.data ?? []).map((a) => ({
+      id: a.id,
+      label: [
+        a.receiver,
+        [a.street, a.ward, a.district, a.province].filter(Boolean).join(", "),
+        a.contact_id === lead?.recipient_contact_id && a.contact_id !== lead?.contact_id
+          ? "(người nhận)"
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    })),
+    orders: (orders.data ?? []).map((o) => ({
+      id: o.id,
+      code: o.code,
+      status: o.status,
+      statusLabel: ORDER_STATUS[o.status] ?? o.status,
+      total: o.total,
+      discount: o.discount,
+      at: noteTime.format(new Date(o.created_at)),
+      items: o.order_items.map((i) => (i.qty > 1 ? `${i.qty} × ${i.sku}` : i.sku)).join(", "),
+    })),
   };
 }
