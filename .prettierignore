@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+docs/reference/
+supabase/config.toml
+*.md

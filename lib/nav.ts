@@ -1,0 +1,202 @@
+// Thanh tab ứng dụng (DESIGN.md 4). Tab chỉ hiện khi người dùng có một trong các quyền xem
+// và màn hình đã được dựng (`ready`). Không bao giờ suy từ tên vai trò.
+export type NavSection = "work" | "sales" | "insight" | "admin";
+
+/** Nhóm mục trên sidebar, theo thứ tự hiển thị. */
+export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
+  { key: "work", label: "Làm việc" },
+  { key: "sales", label: "Bán hàng" },
+  { key: "insight", label: "Theo dõi" },
+  { key: "admin", label: "Quản trị" },
+];
+
+export interface NavTab {
+  href: string;
+  label: string;
+  section: NavSection;
+  anyOf: string[];
+  ready: boolean;
+  /** Tab gom nhiều màn hình: hiện thành tab con, mỗi tab con theo quyền riêng. */
+  children?: { href: string; label: string; perm: string }[];
+}
+
+/** Quyền mở từng khu, dùng chung cho thanh tab và kiểm quyền ở trang (requireAnyPermission, DemoPage). */
+export const LEAD_VIEW = ["lead.view_own", "lead.view_all"];
+/** Khu Marketing: số tổng hợp, chiến dịch, chi phí (không có dữ liệu từng khách). */
+export const MARKETING_VIEW = ["marketing.view"];
+/** Khách thuộc lead hoặc đơn mình được xem (CLAUDE.md 11.1). */
+export const CUSTOMER_VIEW = ["lead.view_own", "lead.view_all", "order.view_own", "order.view_all"];
+/** Đội ngũ: chỉ số của mình hoặc đội, hoặc một trong các trang con theo quyền riêng. */
+export const TEAM_VIEW = [
+  "kpi.own",
+  "kpi.team",
+  "staff.view",
+  "staff.manage",
+  "target.manage",
+  "coaching.manage",
+  "attendance.view_team",
+  "staff.offboard",
+];
+
+/**
+ * Màn đã đọc dữ liệu thật từ database. Các màn còn lại vẫn chạy dữ liệu mô phỏng trong trình duyệt, nên thanh
+ * dưới cùng nhắc người dùng điều đó. Thêm màn vào đây mỗi lần nối xong một màn vào database.
+ */
+export const LIVE_SCREENS = [
+  "/home",
+  "/tasks",
+  "/leads",
+  "/chat",
+  "/inbox",
+  "/marketing",
+  "/campaigns",
+  "/content",
+  "/settings/users",
+  "/settings/permissions",
+  "/settings/audit",
+  "/settings/notifications",
+  "/settings/integrations",
+  "/settings/shifts",
+  "/settings/assignment",
+  "/settings/markets",
+  "/settings/catalog",
+  "/team/absences",
+];
+
+/** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */
+export function isLiveScreen(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return LIVE_SCREENS.some((s) => path === s || path.startsWith(`${s}/`));
+}
+
+export const NAV_TABS: NavTab[] = [
+  {
+    href: "/home",
+    label: "Trang chủ",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/tasks",
+    label: "Việc cần làm",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/leads",
+    label: "Lead",
+    section: "work",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/opportunities",
+    label: "Cơ hội",
+    section: "sales",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/households",
+    label: "Hộ gia đình",
+    section: "sales",
+    anyOf: ["lead.view_own", "lead.view_all"],
+    ready: true,
+  },
+  {
+    href: "/orders",
+    label: "Đơn hàng",
+    section: "sales",
+    anyOf: ["order.view_own", "order.view_all"],
+    ready: true,
+  },
+  // Nhóm nội bộ: mọi người dùng đang hoạt động (anyOf rỗng); quyền riêng chờ duyệt (open-questions mục 28).
+  { href: "/chat", label: "Nhóm nội bộ", section: "work", anyOf: [], ready: true },
+  {
+    href: "/inbox",
+    label: "Hội thoại",
+    section: "work",
+    anyOf: ["message.zalo_send", "message.messenger_send", "message.view_all"],
+    ready: true,
+  },
+  // Phòng Marketing (duyệt 10/10/2026): tổng quan, chiến dịch thật; Kênh & nội dung, KOL, KOC vẫn mô phỏng.
+  {
+    href: "/marketing",
+    label: "Marketing",
+    section: "insight",
+    anyOf: MARKETING_VIEW,
+    ready: true,
+    children: [
+      { href: "/marketing", label: "Tổng quan", perm: "marketing.view" },
+      { href: "/campaigns", label: "Chiến dịch", perm: "marketing.view" },
+      { href: "/content", label: "Lịch nội dung", perm: "marketing.view" },
+      { href: "/channels", label: "Kênh & nội dung", perm: "marketing.view" },
+      { href: "/kol", label: "KOL, KOC", perm: "marketing.view" },
+    ],
+  },
+  {
+    href: "/reports",
+    label: "Báo cáo",
+    section: "insight",
+    anyOf: ["report.own", "report.team"],
+    ready: true,
+  },
+  { href: "/agents", label: "Agent", section: "admin", anyOf: ["settings.integrations"], ready: true },
+  {
+    href: "/products",
+    label: "Sản phẩm",
+    section: "sales",
+    anyOf: ["product.view", "inventory.view", "policy.view"],
+    ready: true,
+    children: [
+      { href: "/products", label: "Sản phẩm", perm: "product.view" },
+      { href: "/inventory", label: "Kho", perm: "inventory.view" },
+      { href: "/policies", label: "Chính sách", perm: "policy.view" },
+    ],
+  },
+  { href: "/team", label: "Đội ngũ", section: "insight", anyOf: TEAM_VIEW, ready: true },
+  { href: "/customers", label: "Khách", section: "sales", anyOf: CUSTOMER_VIEW, ready: true },
+];
+
+export interface SettingsItem {
+  href: string;
+  label: string;
+  perm: string;
+}
+
+// Khu Cài đặt (CLAUDE.md 11.2). Thêm mục khi màn hình được dựng.
+export const SETTINGS_ITEMS: SettingsItem[] = [
+  // Thông báo điện thoại của chính mình: mọi người dùng (perm rỗng).
+  { href: "/settings/notifications", label: "Thông báo Telegram", perm: "" },
+  { href: "/settings/users", label: "Người dùng", perm: "settings.users" },
+  { href: "/settings/permissions", label: "Phân quyền", perm: "settings.permissions" },
+  { href: "/settings/shifts", label: "Ca trực", perm: "settings.assignment" },
+  { href: "/settings/assignment", label: "Phân lead", perm: "settings.assignment" },
+  { href: "/settings/markets", label: "Thị trường", perm: "settings.assignment" },
+  { href: "/settings/task-rules", label: "Luật sinh việc", perm: "settings.assignment" },
+  { href: "/settings/call-mode", label: "Chế độ gọi", perm: "settings.integrations" },
+  // Xem danh mục chỉ cần catalog.view; sửa cần catalog.manage (kiểm trong trang).
+  { href: "/settings/catalog", label: "Danh mục", perm: "catalog.view" },
+  { href: "/settings/integrations", label: "Tích hợp", perm: "settings.integrations" },
+  { href: "/settings/audit", label: "Nhật ký kiểm toán", perm: "audit.view" },
+];
+
+export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
+  return NAV_TABS.filter((t) => t.ready && (t.anyOf.length === 0 || t.anyOf.some((p) => perms.has(p))))
+    .map((t) => {
+      if (!t.children) return t;
+      // Tab gom: chỉ giữ tab con có quyền, tab chính trỏ tới tab con đầu tiên được xem.
+      const children = t.children.filter((c) => perms.has(c.perm));
+      return { ...t, href: children[0].href, children };
+    })
+    .map((t) =>
+      // Telesale thấy tab Đội ngũ với tên "Hiệu suất của tôi" (DESIGN.md 4).
+      t.href === "/team" && !perms.has("kpi.team") ? { ...t, label: "Hiệu suất của tôi" } : t,
+    );
+}
+
+export function visibleSettings(perms: ReadonlySet<string>): SettingsItem[] {
+  return SETTINGS_ITEMS.filter((s) => s.perm === "" || perms.has(s.perm));
+}

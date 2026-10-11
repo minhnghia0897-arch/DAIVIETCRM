@@ -1,0 +1,3754 @@
+/*
+ * Thành phần giao diện theo bản mẫu (docs/reference/daiviet-crm-q4.html), dùng token của DESIGN.md.
+ * Tiền tố c- để không lẫn với tiện ích Tailwind.
+ */
+
+@layer components {
+  /* Thẻ phẳng kiểu Slack: viền mảnh, không đổ bóng, khoảng thở rộng hơn. */
+  .c-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .c-stack > * + * {
+    margin-top: 16px;
+  }
+  .c-ch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 8px;
+  }
+  .c-ch h2 {
+    font-size: 15px;
+    margin: 0;
+    font-weight: 800;
+  }
+  .c-ch .c-r {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .c-cb {
+    padding: 4px 16px 16px;
+  }
+  .c-oi {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    flex: none;
+  }
+  .c-oi svg {
+    width: 60%;
+    height: 60%;
+  }
+  .c-oi.is-lg {
+    width: 40px;
+    height: 40px;
+  }
+  .c-oi.is-sm {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+  }
+  .c-oi.is-round {
+    border-radius: 50%;
+  }
+
+  /* Nút kiểu Slack: viền xám, chữ đậm màu chữ; nút chính nền màu thương hiệu. */
+  .c-btn {
+    border: 1px solid rgba(29, 28, 29, 0.3);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 12px;
+    min-height: 32px;
+    font-weight: 700;
+    font-size: 13.5px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .c-btn:hover {
+    background: var(--surface-2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  .c-btn.is-brand {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+  .c-btn.is-brand:hover {
+    background: var(--brand-strong);
+  }
+  .c-btn.is-ai {
+    background: var(--ai);
+    border-color: var(--ai);
+    color: #fff;
+  }
+  /* Tab lọc và tab trong trang kiểu thanh tab kênh Slack: chữ xám, tab đang chọn chữ đậm có gạch chân xanh;
+     cuộn ngang khi nhiều tab, không rớt dòng. */
+  .c-ftabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .c-ftab {
+    flex: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    background: none;
+    padding: 8px 12px 7px;
+    color: var(--text-weak);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+  }
+  .c-ftab:hover {
+    color: var(--text);
+    background: var(--surface-2);
+    text-decoration: none;
+  }
+  .c-ftab[aria-selected="true"],
+  .c-ftab[aria-current="page"],
+  .c-ftab[aria-current="true"] {
+    color: var(--text);
+    font-weight: 800;
+    border-bottom-color: var(--brand);
+  }
+
+  /* Đầu trang chỉ có tiêu đề (không kèm chỉ số) là thanh phẳng như đầu kênh Slack: bỏ khung, chỉ kẻ dưới. */
+  .c-card:has(> .c-phd):not(:has(.c-kpis, .c-hl, .c-goalrow)) {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+  }
+  .c-card:has(> .c-phd):not(:has(.c-kpis, .c-hl, .c-goalrow)) > .c-phd {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  /* Khung chỉ chứa bảng (không tiêu đề riêng) cũng phẳng: danh sách nằm thẳng trên nền như danh bạ Slack. */
+  .c-card:has(> .c-tw):not(:has(> .c-ch, > .c-phd)) {
+    border-width: 0;
+    border-radius: 0;
+  }
+
+  /* Tên ở cột đầu bảng: chữ đậm màu chữ chính như danh bạ Slack; rê chuột mới gạch chân. */
+  .c-table td:first-child :is(a, .c-link) {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* Biểu tượng trong nút mang màu theo nghĩa: gọi xanh lá, AI tím, hộ gia đình tím xanh, cảnh báo đỏ. */
+  .c-btn .is-call {
+    color: var(--ok);
+  }
+  .c-btn.is-brand .is-call {
+    color: inherit;
+  }
+  .c-btn .is-ai,
+  .c-btn.is-ai-text {
+    color: var(--ai);
+  }
+  .c-btn .is-house {
+    color: var(--obj-contact);
+  }
+  .c-btn.is-danger {
+    color: var(--err);
+  }
+
+  /* Nút phụ trầm: hành động ít dùng, không giành chú ý với nút chính. */
+  .c-btn.is-ghost {
+    border-color: transparent;
+    background: none;
+    color: var(--text-weak);
+    font-weight: 600;
+  }
+  .c-btn.is-ghost:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    box-shadow: none;
+  }
+  .c-btn.is-ghost.is-danger {
+    color: var(--err);
+  }
+  /* Nút gọi: xanh lá như nút chính của Slack, để hành động gọi nổi bật và dễ nhận ra. */
+  .c-btn.is-go {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #fff;
+  }
+  .c-btn.is-go:hover {
+    background: #006149;
+  }
+  .c-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .c-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .c-pill.is-ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+  .c-pill.is-warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  .c-pill.is-err {
+    background: var(--err-soft);
+    color: var(--err);
+  }
+  .c-pill.is-ai {
+    background: var(--ai-soft);
+    color: var(--ai);
+  }
+  .c-pill.is-n {
+    background: var(--surface-2);
+    color: var(--text-weak);
+  }
+  .c-lbl {
+    font-size: 12.5px;
+    color: var(--text-weak);
+  }
+  .c-weak {
+    color: var(--text-weak);
+  }
+  .c-link {
+    color: var(--brand);
+    cursor: pointer;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+  }
+  .c-link:hover {
+    text-decoration: underline;
+  }
+  .c-loc {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 6px;
+    border-radius: 4px;
+    vertical-align: 1px;
+    white-space: nowrap;
+  }
+  .c-loc.is-kr {
+    background: var(--loc-kr-soft);
+    color: var(--loc-kr);
+  }
+  .c-loc.is-vn {
+    background: var(--loc-vn-soft);
+    color: var(--loc-vn);
+  }
+
+  /* Đầu trang */
+  /* Đầu trang kiểu tiêu đề kênh Slack: biểu tượng nhỏ cùng màu chữ, tên trang đậm. */
+  .c-phd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  /* Biểu tượng đầu trang: nền nhạt cùng tông, biểu tượng đậm theo màu của loại màn hình (--c). */
+  .c-phd .c-oi.is-lg {
+    width: 32px;
+    height: 32px;
+    background: color-mix(in srgb, var(--c, var(--text-weak)) 14%, #fff);
+    color: var(--c, var(--text));
+    border-radius: 8px;
+  }
+  .c-phd .c-t small {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-weak);
+  }
+  .c-phd .c-t b {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+  .c-phd .c-r {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .c-hl {
+    display: flex;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--line-2);
+    padding: 10px 16px 12px;
+  }
+  .c-hl > div {
+    padding-right: 28px;
+    min-width: 120px;
+  }
+  .c-hl b {
+    display: block;
+    font-weight: 400;
+    margin-top: 1px;
+  }
+  .c-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line-2);
+  }
+  .c-kpis > div {
+    padding: 14px 16px;
+    border-left: 1px solid var(--line-2);
+  }
+  .c-kpis > div:first-child {
+    border-left: 0;
+  }
+  .c-kpis strong {
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Lưới */
+  .c-g84 {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+  .c-split {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .c-rgrid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+  }
+  .c-c360 {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  /* Bước, AI */
+  /* Thanh tiến độ gọn: vạch dưới thay ô tô màu; bước đã qua có dấu tích, bước hiện tại chữ xanh đậm. */
+  .c-steps {
+    display: flex;
+    gap: 3px;
+    margin: 6px 0 14px;
+  }
+  .c-steps > * {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 12.5px;
+    padding: 4px 2px 6px;
+    border-bottom: 3px solid var(--line-2);
+    color: var(--text-weak);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .c-steps .is-done {
+    border-bottom-color: var(--ok);
+    color: var(--text);
+  }
+  .c-steps .is-done::before {
+    content: "✓ ";
+    color: var(--ok);
+    font-weight: 800;
+  }
+  .c-steps .is-cur {
+    border-bottom-color: var(--brand);
+    color: var(--brand);
+    font-weight: 800;
+  }
+  .c-box-ai {
+    border-left: 3px solid var(--ai);
+    background: var(--ai-soft);
+    padding: 8px 10px;
+    border-radius: 0 4px 4px 0;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .c-box-ai b {
+    color: var(--ai);
+  }
+  .c-einc {
+    border-top: 3px solid var(--ai);
+  }
+  .c-nba {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 8px;
+  }
+  .c-nba h3 {
+    font-size: 13.5px;
+    margin: 0 0 4px;
+  }
+  .c-nba p {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--text-weak);
+  }
+
+  /* Dòng thời gian */
+  .c-tl {
+    list-style: none;
+    margin: 0;
+    padding: 8px 14px;
+  }
+  .c-tl li {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 10px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .c-tl li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 32px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--line-2);
+  }
+  .c-tl .c-tt {
+    font-weight: 600;
+    color: var(--brand);
+  }
+  .c-tl .c-sd {
+    font-size: 13px;
+    color: var(--text-weak);
+  }
+  .c-tl .c-dt {
+    font-size: 12px;
+    color: var(--text-weak);
+    white-space: nowrap;
+  }
+  .c-aisum {
+    margin-top: 6px;
+    border-left: 3px solid var(--ai);
+    background: var(--ai-soft);
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+    font-size: 13px;
+  }
+  .c-aisum b {
+    color: var(--ai);
+    font-weight: 600;
+  }
+
+  /* Nhật ký agent, duyệt */
+  .c-feed {
+    list-style: none;
+    margin: 0;
+    padding: 0 14px 8px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .c-feed li {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-feed li:first-child {
+    border-top: 0;
+  }
+  .c-feed .c-an {
+    font-size: 12px;
+    color: var(--text-weak);
+  }
+  .c-fresh {
+    animation: c-hl 1.2s ease;
+  }
+  @keyframes c-hl {
+    from {
+      background: var(--brand-soft);
+    }
+    to {
+      background: transparent;
+    }
+  }
+  .c-appr {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-appr:first-child {
+    border-top: 0;
+  }
+  .c-empty {
+    padding: 18px 14px;
+    color: var(--text-weak);
+    text-align: center;
+  }
+
+  /* Trang chủ */
+  .c-goalrow {
+    display: flex;
+    gap: 28px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .c-gnum {
+    font-size: 26px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .c-gside b {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .c-gbar {
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--line-2);
+    margin-bottom: 6px;
+  }
+  .c-gbar i {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background: var(--brand);
+    transition: width 0.6s;
+  }
+  .c-gmark {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--text);
+  }
+  .c-team {
+    padding: 0 14px 8px;
+  }
+  .c-tm {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-tm:first-child {
+    border-top: 0;
+  }
+  .c-ava {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    font-size: 12px;
+    flex: none;
+  }
+  .c-cq {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-cq:first-child {
+    border-top: 0;
+  }
+
+  /* Cơ hội */
+  .c-kb {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(190px, 1fr));
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .c-col {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+    min-height: 120px;
+  }
+  .c-colh {
+    display: flex;
+    flex-direction: column;
+    padding: 2px 4px 4px;
+    border-bottom: 2px solid var(--brand);
+  }
+  .c-kc {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  }
+  .c-kc:hover {
+    border-color: var(--brand);
+  }
+  .c-kc.is-sel {
+    outline: 2px solid var(--brand);
+    outline-offset: -1px;
+  }
+  .c-kt {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .c-kf {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  /* Hộ gia đình */
+  .c-hlist {
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+  }
+  .c-hlist button {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    padding: 9px 10px;
+    border-radius: 6px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    cursor: pointer;
+  }
+  .c-hlist button:hover {
+    background: var(--surface-2);
+  }
+  .c-hlist button[aria-current="true"] {
+    background: var(--brand-soft);
+    box-shadow: inset 3px 0 var(--brand);
+  }
+  .c-fam {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .c-mem {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--surface);
+  }
+  .c-mem.is-payer {
+    border-color: var(--ai);
+    box-shadow: inset 3px 0 var(--ai);
+  }
+  .c-rl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .c-rl td {
+    padding: 6px 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-rl td:last-child {
+    text-align: right;
+  }
+
+  /* Đơn & giao lắp */
+  .c-gift {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .c-gift > div {
+    flex: 1;
+  }
+  .c-gift b {
+    display: block;
+  }
+
+  /* Bảng */
+  .c-tw {
+    overflow-x: auto;
+  }
+  .c-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .c-table th {
+    text-align: left;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--text-weak);
+    background: none;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .c-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line-2);
+    white-space: nowrap;
+  }
+  .c-table tbody tr:hover td {
+    background: var(--surface-2);
+  }
+  .c-table tr.is-sel td {
+    background: var(--brand-soft) !important;
+  }
+  .c-table.is-click tbody tr {
+    cursor: pointer;
+  }
+
+  /* Hội thoại */
+  .c-inbox {
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr) 340px;
+    height: calc(100vh - 210px);
+    min-height: 540px;
+  }
+  .c-ibl {
+    border-right: 1px solid var(--line-2);
+    overflow-y: auto;
+  }
+  .c-ibl button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid var(--line-2);
+    background: none;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .c-ibl button:hover {
+    background: var(--surface-2);
+  }
+  .c-ibl button[aria-current="true"] {
+    background: var(--brand-soft);
+    box-shadow: inset 3px 0 var(--brand);
+  }
+  .c-ibl .c-l1 {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .c-ibl .c-l1 b {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .c-ibl .c-pv {
+    font-size: 12.5px;
+    color: var(--text-weak);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 2px 0 4px;
+  }
+  .c-conv {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .c-convh {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line-2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .c-convh .c-r {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+  .c-trs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--surface-2);
+  }
+  .c-bb {
+    max-width: 78%;
+    padding: 8px 11px;
+    border-radius: 12px;
+  }
+  .c-bb small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.75;
+    margin-bottom: 2px;
+  }
+  .c-bb.is-cu {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 2px 12px 12px 12px;
+  }
+  .c-bb.is-ag {
+    align-self: flex-end;
+    background: var(--ai-soft);
+    border-radius: 12px 2px 12px 12px;
+  }
+  .c-bb.is-hu {
+    align-self: flex-end;
+    background: var(--brand);
+    color: #fff;
+    border-radius: 12px 2px 12px 12px;
+  }
+  .c-sys {
+    align-self: center;
+    font-size: 12px;
+    color: var(--text-weak);
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 10px;
+    padding: 3px 10px;
+    text-align: center;
+    max-width: 90%;
+  }
+  .c-reply {
+    border-top: 1px solid var(--line-2);
+    padding: 10px;
+    display: flex;
+    gap: 6px;
+  }
+  .c-reply textarea {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 7px 9px;
+    resize: none;
+    height: 40px;
+    background: var(--surface);
+  }
+  .c-cop {
+    border-left: 1px solid var(--line-2);
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .c-cop h3 {
+    font-size: 13px;
+    margin: 12px 0 6px;
+  }
+  .c-cop h3:first-child {
+    margin-top: 0;
+  }
+  .c-sr {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .c-sr:hover {
+    border-color: var(--ai);
+    background: var(--ai-soft);
+  }
+
+  /* Báo cáo */
+  .c-hbar {
+    display: grid;
+    gap: 8px;
+    align-items: center;
+    font-size: 12.5px;
+    margin: 5px 0;
+  }
+  .c-hbar i {
+    display: block;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--line-2);
+    overflow: hidden;
+  }
+  .c-hbar i u {
+    display: block;
+    height: 100%;
+  }
+  .c-funnel > div {
+    margin: 6px 0;
+  }
+  .c-fb {
+    height: 26px;
+    border-radius: 4px;
+    background: var(--brand);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    /* Thanh ngắn trên điện thoại vẫn đủ rộng cho chữ, không để chữ tràn ra ngoài nền thanh. */
+    min-width: max-content;
+    max-width: 100%;
+  }
+  .c-bar-stack {
+    display: flex;
+    height: 22px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .c-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12.5px;
+  }
+  .c-legend span::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 5px;
+    background: var(--c);
+    vertical-align: -1px;
+  }
+
+  /* Truy vết */
+  .c-trace {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .c-trace li {
+    position: relative;
+    padding: 0 0 12px 22px;
+    font-size: 13px;
+  }
+  .c-trace li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ai);
+  }
+  .c-trace li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 16px;
+    bottom: 0;
+    width: 2px;
+    background: var(--line-2);
+  }
+  .c-trace b {
+    display: block;
+  }
+
+  /* Trợ lý AI */
+  .c-ai {
+    width: 360px;
+    flex: none;
+    position: sticky;
+    top: 12px;
+    height: calc(100vh - 150px);
+    display: flex;
+    flex-direction: column;
+  }
+  .c-aih {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .c-ctx {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--text-weak);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-2);
+  }
+  .c-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .c-mu {
+    align-self: flex-end;
+    background: var(--brand);
+    color: #fff;
+    padding: 8px 11px;
+    border-radius: 12px 12px 2px 12px;
+    max-width: 85%;
+  }
+  .c-ma {
+    align-self: flex-start;
+    background: var(--surface-2);
+    border: 1px solid var(--line-2);
+    padding: 10px 12px;
+    border-radius: 2px 12px 12px 12px;
+    max-width: 100%;
+  }
+  .c-ma p {
+    margin: 0 0 6px;
+  }
+  .c-ma p:last-child {
+    margin: 0;
+  }
+  .c-draft {
+    background: var(--surface);
+    border: 1px dashed var(--ai);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 6px 0 8px;
+  }
+  .c-sug {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-sug button {
+    text-align: left;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 5px 11px;
+    font-size: 12.5px;
+    color: var(--ai);
+    cursor: pointer;
+  }
+  .c-sug button:hover {
+    background: var(--ai-soft);
+  }
+  .c-aiin {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line-2);
+  }
+  .c-aiin input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 9px;
+    background: var(--surface);
+  }
+
+  /* Khung */
+  .c-gh {
+    background: #0b1a33;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 14px;
+  }
+  .c-search {
+    flex: 1;
+    max-width: 560px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .c-search input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 6px;
+    padding: 6px 10px 6px 32px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+  .c-search input::placeholder {
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .c-search input:focus {
+    background: #fff;
+    color: var(--text);
+  }
+  .c-search input:focus::placeholder {
+    color: var(--text-weak);
+  }
+  .c-search svg {
+    position: absolute;
+    left: 10px;
+    top: 8px;
+    color: rgba(255, 255, 255, 0.78);
+  }
+  .c-search:focus-within svg {
+    color: var(--text-weak);
+  }
+  .c-gh .c-tz {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .c-gh .c-tz b {
+    color: #fff;
+  }
+  .c-gh .c-ib {
+    color: rgba(255, 255, 255, 0.86);
+  }
+  .c-gh .c-ib:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .c-gh .c-ib.is-on {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+  .c-ib {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 0;
+    background: none;
+    display: grid;
+    place-items: center;
+    color: var(--text-weak);
+    position: relative;
+    cursor: pointer;
+  }
+  .c-ib:hover {
+    background: var(--surface-2);
+  }
+  .c-ib.is-on {
+    background: var(--ai-soft);
+    color: var(--ai);
+  }
+  .c-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    border-radius: 8px;
+    background: var(--err);
+    color: #fff;
+    font-size: 10px;
+    display: grid;
+    place-items: center;
+    padding: 0 3px;
+  }
+  /* Sidebar ứng dụng kiểu Slack: nền navy đậm, nhóm có tiêu đề, mục đang chọn xanh sáng bo góc, số đếm đỏ hồng.
+     Thu gọn được còn biểu tượng; màn hình hẹp mở dạng ngăn kéo. Màu riêng của sidebar không đổi theo giao diện sáng tối. */
+  .c-frame {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+  }
+  .c-nav {
+    --nav-bg: #12233f;
+    --nav-text: rgba(255, 255, 255, 0.86);
+    --nav-weak: rgba(255, 255, 255, 0.64);
+    --nav-hover: rgba(255, 255, 255, 0.08);
+    --nav-line: rgba(255, 255, 255, 0.12);
+    --nav-active: #3390ec;
+    --nav-badge: #e01e5a;
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 232px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: calc(100vh - 44px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    padding: 0 8px 8px;
+  }
+  .c-nav.is-collapsed {
+    width: 60px;
+  }
+  .c-nav.is-collapsed .c-navtxt,
+  .c-nav.is-collapsed .c-navcnt {
+    display: none;
+  }
+  .c-appname {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 6px 12px;
+    font-size: 16px;
+    color: #fff;
+    border-bottom: 1px solid var(--nav-line);
+    margin: 0 -8px 6px;
+    padding-left: 14px;
+  }
+  .c-navlogo {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--nav-bg);
+    font-weight: 900;
+    font-size: 13px;
+    display: grid;
+    place-items: center;
+  }
+  .c-navduty {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--nav-weak);
+  }
+  .c-navduty i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--nav-weak);
+  }
+  .c-navduty.is-on i {
+    background: #2bac76;
+    border-color: #2bac76;
+  }
+  .c-navsec {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-top: 10px;
+  }
+  .c-navhead {
+    padding: 2px 10px 4px;
+    font-size: 13px;
+    color: var(--nav-weak);
+  }
+  .c-tab,
+  .c-navfold {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    padding: 5px 10px;
+    min-height: 30px;
+    white-space: nowrap;
+    color: var(--nav-text);
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .c-tab svg,
+  .c-navfold svg {
+    flex: none;
+  }
+  .c-tab:hover,
+  .c-navfold:hover {
+    background: var(--nav-hover);
+    text-decoration: none;
+    color: #fff;
+  }
+  .c-tab[aria-current="page"] {
+    background: var(--nav-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .c-tab[aria-current="page"] svg {
+    opacity: 1;
+  }
+  .c-tab:focus-visible,
+  .c-navfold:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+  }
+  .c-navcnt {
+    flex: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--nav-badge);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  .c-nav.is-collapsed .c-tab {
+    position: relative;
+    justify-content: center;
+    padding: 5px 0;
+  }
+  .c-nav.is-collapsed .c-appname {
+    justify-content: center;
+    padding-left: 6px;
+  }
+  .c-navfold {
+    margin-top: auto;
+    color: var(--nav-weak);
+    font-size: 13px;
+  }
+  .c-menubtn,
+  .c-navscrim {
+    display: none;
+  }
+  .c-shell {
+    display: flex;
+    gap: 16px;
+    padding: 16px 20px;
+    align-items: flex-start;
+  }
+  .c-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .c-util {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    display: flex;
+    gap: 2px;
+    padding: 0 8px;
+    z-index: 40;
+  }
+  .c-util button {
+    border: 0;
+    background: none;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    border-right: 1px solid var(--line-2);
+    cursor: pointer;
+  }
+  .c-util button:hover {
+    background: var(--surface-2);
+  }
+  .c-cnt {
+    background: var(--err);
+    color: #fff;
+    border-radius: 8px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+  .c-pop {
+    position: fixed;
+    left: 8px;
+    bottom: 44px;
+    width: 380px;
+    max-width: calc(100vw - 16px);
+    max-height: 60vh;
+    overflow-y: auto;
+    z-index: 41;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+  }
+  .c-tz {
+    font-size: 12px;
+    color: var(--text-weak);
+    margin-right: 6px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .c-tz b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  @media (max-width: 1250px) {
+    .c-inbox {
+      grid-template-columns: 240px minmax(0, 1fr);
+      height: auto;
+    }
+    .c-cop {
+      grid-column: 1 / -1;
+      border-left: 0;
+      border-top: 1px solid var(--line-2);
+    }
+    .c-trs {
+      min-height: 360px;
+      max-height: 460px;
+    }
+  }
+  @media (max-width: 1100px) {
+    .c-ai {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 44px;
+      height: auto;
+      width: min(380px, 100vw);
+      z-index: 45;
+      border-radius: 0;
+    }
+  }
+  @media (max-width: 900px) {
+    .c-menubtn {
+      display: grid;
+    }
+    .c-nav,
+    .c-nav.is-collapsed {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 44px;
+      height: auto;
+      width: min(260px, 85vw);
+      z-index: 46;
+      transform: translateX(-100%);
+      transition: transform 0.15s ease;
+      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    }
+    .c-nav.is-collapsed .c-navtxt,
+    .c-nav.is-collapsed .c-navcnt {
+      display: revert;
+    }
+    .c-nav.is-collapsed .c-tab {
+      justify-content: flex-start;
+      padding: 5px 10px;
+    }
+    .c-nav.is-collapsed .c-appname {
+      justify-content: flex-start;
+      padding-left: 14px;
+    }
+    .c-nav.is-open {
+      transform: none;
+    }
+    .c-navfold {
+      display: none;
+    }
+    .c-navscrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      bottom: 44px;
+      border: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 45;
+    }
+    .c-g84,
+    .c-split,
+    .c-rgrid,
+    .c-c360 {
+      /* minmax(0, …): cột không nở theo chữ dài không xuống dòng (nhãn, nút), nên không tràn ngang. */
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .c-inbox {
+      grid-template-columns: 1fr;
+    }
+    .c-ibl {
+      max-height: 240px;
+      border-right: 0;
+      border-bottom: 1px solid var(--line-2);
+    }
+    .c-kpis {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .c-kpis > div:nth-child(3) {
+      border-left: 0;
+    }
+    .c-kpis > div:nth-child(n + 3) {
+      border-top: 1px solid var(--line-2);
+    }
+    .c-search,
+    .c-tz {
+      display: none;
+    }
+    .c-hlist {
+      display: flex;
+      overflow-x: auto;
+    }
+    .c-hlist li {
+      flex: none;
+    }
+  }
+  @media (max-width: 560px) {
+    .c-shell {
+      padding: 8px;
+    }
+    .c-phd {
+      flex-wrap: wrap;
+    }
+    .c-phd .c-r {
+      justify-content: flex-start;
+      margin-left: 0;
+    }
+    .c-util .c-lbltxt {
+      display: none;
+    }
+  }
+}
+
+/*
+ * Khu Cài đặt kiểu trang Tùy chọn của Slack: các phần nằm phẳng trên nền, tiêu đề phần to và đậm, kẻ một đường
+ * dưới tiêu đề. Đặt ngoài @layer để thắng lớp tiện ích Tailwind của Card dùng chung.
+ */
+.c-setbody .c-card,
+.c-setbody section.rounded-card {
+  border-width: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.c-setbody .c-card > .c-ch:first-child,
+.c-setbody section.rounded-card > div:first-child {
+  border-bottom: 1px solid var(--line-2);
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+}
+.c-setbody .c-card > .c-ch:first-child h2,
+.c-setbody section.rounded-card > div:first-child h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+.c-setbody .c-card + .c-card,
+.c-setbody section.rounded-card + section.rounded-card {
+  margin-top: 20px;
+}
+
+/*
+ * Trang tổng hợp kiểu Slack (Trang chủ, Việc cần làm, Cơ hội): các phần nằm phẳng trên nền, không khung; tiêu đề
+ * phần có đường kẻ dưới; cột tách bằng khoảng trắng; tên trong danh sách in đậm màu chữ chính. Ngoài @layer để
+ * thắng lớp tiện ích.
+ */
+.c-flat .c-card {
+  border-width: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.c-flat .c-card > .c-ch:first-child {
+  border-bottom: 1px solid var(--line-2);
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-bottom: 4px;
+}
+.c-flat .c-card > .c-cb,
+.c-flat .c-card > ul,
+.c-flat .c-card > ol {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.c-flat .c-card > .c-phd {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.c-flat .c-kpis {
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.c-flat .c-kpis > div:first-child {
+  padding-left: 2px;
+}
+.c-flat .c-g84,
+.c-flat .c-rgrid,
+.c-flat .c-split {
+  column-gap: 32px;
+}
+.c-flat .c-stack > * + * {
+  margin-top: 24px;
+}
+.c-flat .c-link.font-semibold {
+  color: var(--text);
+  font-weight: 700;
+}
+.c-flat .c-empty {
+  border-width: 0;
+}
+/* Bảng cơ hội: cột nền xám nhạt không viền, thẻ trắng viền mảnh, rê chuột nổi nhẹ. */
+.c-flat .c-col {
+  border-width: 0;
+  background: var(--surface-2);
+}
+.c-flat .c-kc:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ô tìm nhanh Ctrl/⌘ K kiểu Slack: hộp giữa trên, danh sách kết quả, mục đang chọn nền xanh. */
+.c-qs-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  animation: c-fade 0.12s ease-out;
+}
+.c-qs {
+  width: min(620px, 100%);
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  animation: c-pop 0.14s ease-out;
+}
+.c-qs-in {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-2);
+  color: var(--text-weak);
+}
+.c-qs-in input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  font-size: 16px;
+  color: var(--text);
+  background: none;
+}
+.c-qs-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.c-qs-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 0;
+}
+.c-qs-list li.is-on {
+  background: var(--brand);
+  color: #fff;
+}
+.c-qs-list li.is-on .c-lbl,
+.c-qs-list li.is-on .c-qs-g {
+  color: rgba(255, 255, 255, 0.85);
+}
+.c-qs-g {
+  flex: none;
+  width: 92px;
+  font-size: 12px;
+  color: var(--text-weak);
+}
+.c-qs-empty {
+  color: var(--text-weak);
+}
+.c-qs-help {
+  padding: 12px 16px;
+}
+.c-qs-help dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 8px 0 0;
+}
+.c-qs-help dl > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.c-qs-help dd {
+  margin: 0;
+}
+.c-qs-foot {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line-2);
+  font-size: 12px;
+  color: var(--text-weak);
+}
+kbd {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: var(--surface-2);
+  color: var(--text-weak);
+  white-space: nowrap;
+}
+.c-search:has(.c-search-k) input {
+  padding-right: 58px;
+}
+.c-search-k {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: none;
+  color: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+@keyframes c-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes c-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-qs-scrim,
+  .c-qs {
+    animation: none;
+  }
+}
+
+/* Dòng có thanh nút hiện khi rê chuột (kiểu thanh thao tác tin nhắn Slack); màn cảm ứng luôn hiện. */
+.c-hrow {
+  position: relative;
+  border-radius: 6px;
+  transition: background-color 0.12s;
+}
+.c-hrow:hover {
+  background: var(--surface-2);
+}
+.c-hacts {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.c-hrow:hover .c-hacts,
+.c-hrow:focus-within .c-hacts {
+  opacity: 1;
+}
+@media (hover: none) {
+  .c-hacts {
+    opacity: 1;
+  }
+}
+.c-hacts button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-weak);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.c-hacts button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+/* Dòng vừa đổi nháy vàng nhạt rồi tắt dần, như tin nhắn được nhắc tới trong Slack. */
+.c-flash {
+  animation: c-flash 1.4s ease-out;
+}
+@keyframes c-flash {
+  from {
+    background: #fff4c2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-flash {
+    animation: none;
+  }
+}
+/* Chuyển động nhẹ cho nút và liên kết. */
+.c-btn,
+.c-ftab,
+.c-tab {
+  transition:
+    background-color 0.12s,
+    color 0.12s,
+    box-shadow 0.12s;
+}
+
+/* Mục chưa đọc trên sidebar: chữ trắng đậm như kênh chưa đọc của Slack. */
+.c-tab.is-unread {
+  color: #fff;
+  font-weight: 800;
+}
+/* Vạch "Mới" đỏ ngang danh sách, như vạch tin chưa đọc của Slack. */
+.c-newline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  color: var(--err);
+  font-size: 12px;
+  font-weight: 800;
+}
+.c-newline::before {
+  content: "";
+  height: 1px;
+  background: var(--err);
+  flex: 1;
+}
+
+/*
+ * Màu nút và trang chi tiết kiểu Slack (06/10/2026). Ngoài @layer để thắng các quy tắc cũ.
+ * Nút xác nhận (Duyệt, Lưu, Gửi, Ghi nhận, Chuyển bước) xanh lá như "Upgrade Now"; nút bắt đầu việc mới
+ * (Tạo lead, Tạo báo giá, Kết nối, Tiếp quản) xanh dương như "Pay as you go". Nút bị khóa nền xám, không mờ màu.
+ */
+.c-btn {
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+.c-btn.is-brand,
+.c-btn.is-go {
+  background: var(--go);
+  border-color: var(--go);
+  color: #fff;
+}
+.c-btn.is-brand:hover,
+.c-btn.is-go:hover {
+  background: var(--go-strong);
+  border-color: var(--go-strong);
+}
+.c-btn.is-blue {
+  background: var(--action);
+  border-color: var(--action);
+  color: #fff;
+}
+.c-btn.is-blue:hover {
+  background: var(--action-strong);
+  border-color: var(--action-strong);
+}
+.c-btn:is(.is-brand, .is-go, .is-blue, .is-ai):disabled {
+  background: var(--line-2);
+  border-color: var(--line-2);
+  color: #8a898a;
+  opacity: 1;
+}
+
+/* Trang chi tiết: thẻ bo 12px, tiêu đề phần đậm hơn; dải thông tin chính nền xanh nhạt như khung giới thiệu
+   của Slack, nhãn xám nhỏ, giá trị đậm màu chữ chính để dễ đọc lướt. */
+.c-card {
+  border-radius: 12px;
+}
+.c-ch h2 {
+  font-size: 16px;
+  letter-spacing: -0.005em;
+}
+.c-phd .c-t b {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.c-hl {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  row-gap: 10px;
+}
+.c-hl > div {
+  color: var(--text-weak);
+  font-size: 12.5px;
+}
+.c-hl b {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+/* Nhãn trạng thái: chữ đậm trên nền nhạt cùng tông, bo nhẹ như nhãn "Template" của Slack. */
+.c-pill {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+.c-pill.is-info {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+/* Bước đang ở: gạch chân xanh dương đậm; bước đã qua: xanh lá. */
+.c-steps .is-cur {
+  border-bottom-color: var(--action);
+  color: var(--action);
+}
+/* Khối phụ trong thẻ (người đặt, người nhận…): nền xám nhạt bo tròn như khung "Bring all your tools". */
+.c-card .bg-surface-2 {
+  border-radius: 10px;
+}
+
+/* Nút Quay lại giữa các nghiệp vụ: dòng chữ nhỏ trên tiêu đề trang chi tiết, mũi tên trái, rê chuột đổi xanh. */
+.c-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 10px 14px 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-weak);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.c-back:hover {
+  background: var(--surface-2);
+  color: var(--action);
+}
+.c-flat .c-back,
+.c-c360 + .c-back,
+section.border-b > .c-back {
+  margin-left: 0;
+}
+/* Nút lùi trên thanh đầu tối. */
+.c-hback {
+  color: #fff;
+}
+.c-hback:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/*
+ * Nhóm nội bộ kiểu Telegram (06/10/2026): danh sách nhóm nền xám nhạt, nhóm đang mở nền xanh Telegram chữ trắng;
+ * chủ đề lùi vào dưới nhóm; khung chat nền xanh có họa tiết; thanh tiêu đề, ô soạn dạng viên thuốc nổi; bong bóng
+ * trắng bo 16px có đuôi, tin của mình xanh lá nhạt; tên người gửi theo màu từng người.
+ */
+.tg {
+  --tg-blue: #3390ec;
+  --tg-sel: #3390ec;
+  --tg-out: #effdde;
+  --tg-time: #8a9aa6;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  height: calc(100vh - 150px);
+  min-height: 560px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.tg.has-info {
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
+}
+.tg-av {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+}
+.tg-ib {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #707579;
+  cursor: pointer;
+}
+.tg-ib:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.tg-ib[aria-pressed="true"] {
+  color: var(--tg-blue);
+}
+.tg-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #f4f4f5;
+  border-right: 1px solid #e3e3e5;
+}
+.tg-side-h {
+  padding: 14px 16px 8px;
+  text-align: center;
+  font-size: 17px;
+}
+.tg-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 8px 14px;
+  border-radius: 22px;
+  background: #fff;
+  color: #9aa0a6;
+}
+.tg-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+}
+.tg-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 6px 8px;
+  list-style: none;
+}
+.tg-item {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.tg-item:hover {
+  background: #e9e9eb;
+}
+.tg-item.is-on {
+  background: var(--tg-sel);
+  color: #fff;
+}
+.tg-item-b {
+  flex: 1;
+  min-width: 0;
+}
+.tg-item-r1,
+.tg-item-r2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tg-item-r1 b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.tg-time {
+  font-size: 12px;
+  color: var(--tg-time);
+  white-space: nowrap;
+}
+.tg-item.is-on .tg-time,
+.tg-item.is-on .tg-prev,
+.tg-item.is-on .tg-prev-from {
+  color: rgba(255, 255, 255, 0.92);
+}
+.tg-prev {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #707579;
+  font-size: 14px;
+}
+.tg-prev-from {
+  color: var(--text);
+}
+.tg-badge {
+  flex: none;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 11px;
+  background: var(--tg-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.tg-item.is-on .tg-badge {
+  background: #fff;
+  color: var(--tg-sel);
+}
+.tg-topics {
+  margin: 4px 0 6px 30px;
+  padding: 0 0 0 10px;
+  list-style: none;
+  border-left: 2px solid #dfe3e7;
+}
+.tg-topic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.tg-topic:hover {
+  background: #e9e9eb;
+}
+.tg-topic.is-on {
+  background: #dbe9f8;
+  font-weight: 700;
+}
+.tg-topic-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  flex: none;
+}
+.tg-topic-n {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-topic-add {
+  color: var(--tg-blue);
+  font-weight: 600;
+}
+.tg-topic-new {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 8px;
+}
+.tg-topic-new input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #cfd6dd;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 14px;
+}
+.tg-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* Nền xanh kiểu Telegram, họa tiết chấm mờ vẽ bằng CSS (không tải ảnh ngoài). */
+  background-color: #a8c991;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.18) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.14) 0 3px, transparent 4px),
+    radial-gradient(circle at 40% 80%, rgba(80, 120, 60, 0.12) 0 2px, transparent 3px),
+    linear-gradient(160deg, #d1e2b1 0%, #a9cb93 45%, #87b48a 100%);
+  background-size:
+    46px 46px,
+    70px 70px,
+    58px 58px,
+    100% 100%;
+}
+.tg-head {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.tg-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-head-l {
+  flex: 1;
+  min-width: 0;
+}
+.tg-title {
+  display: block;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-topic-name {
+  color: #707579;
+  font-weight: 600;
+}
+.tg-topic-name svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.tg-sub {
+  display: block;
+  font-size: 12.5px;
+  color: #707579;
+}
+.tg-mback {
+  display: none;
+}
+.tg-pinned {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 4px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--tg-blue);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--tg-blue);
+  font-size: 13px;
+}
+.tg-pinned b {
+  display: block;
+}
+.tg-pinned-t {
+  display: block;
+  color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tg-msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 10px;
+}
+.tg-day {
+  margin: 10px 0;
+  text-align: center;
+}
+.tg-day span {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(70, 110, 60, 0.45);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 3px 0;
+}
+.tg-row.has-tail {
+  margin-bottom: 8px;
+}
+.tg-row.is-out {
+  justify-content: flex-end;
+}
+.tg-row-av {
+  width: 34px;
+  flex: none;
+}
+.tg-bubble {
+  position: relative;
+  max-width: min(560px, 78%);
+  padding: 6px 10px 6px 12px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
+  line-height: 1.38;
+}
+.is-out .tg-bubble {
+  background: var(--tg-out);
+}
+.has-tail.is-in .tg-bubble {
+  border-bottom-left-radius: 4px;
+}
+.has-tail.is-out .tg-bubble {
+  border-bottom-right-radius: 4px;
+}
+.tg-from {
+  display: block;
+  font-size: 14px;
+}
+.tg-quote {
+  display: block;
+  margin: 3px 0 4px;
+  padding: 3px 8px;
+  border-left: 3px solid var(--q, #4fae4e);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--q, #4fae4e) 12%, transparent);
+  font-size: 13.5px;
+}
+.tg-quote b {
+  display: block;
+  color: var(--q, #4fae4e);
+}
+.tg-quote span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tg-img {
+  display: block;
+  margin: 4px -6px 4px -8px;
+}
+.tg-img img {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 12px;
+}
+.tg-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.tg-file-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tg-blue);
+  color: #fff;
+  font-weight: 700;
+}
+.tg-file-ic.is-link {
+  background: #4fae4e;
+}
+.tg-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tg-link {
+  color: var(--tg-blue);
+}
+.tg-mention {
+  color: var(--tg-blue);
+  font-weight: 600;
+}
+.tg-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 2px;
+}
+.is-out .tg-time,
+.tg-read {
+  color: #4fae4e;
+}
+.tg-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: auto;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8f1fb;
+  color: #e53935;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Nút thao tác trên tin hiện khi rê chuột, như Telegram. */
+.tg-acts {
+  position: absolute;
+  top: -14px;
+  right: 6px;
+  display: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.tg-bubble:hover .tg-acts,
+.tg-bubble:focus-within .tg-acts {
+  display: flex;
+}
+.tg-compose {
+  padding: 6px 10px 10px;
+}
+.tg-compose-ctx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 56px 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+.tg-compose-ctx .tg-quote {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.tg-compose-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tg-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #707579;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-send {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.tg-send:disabled {
+  background: rgba(255, 255, 255, 0.95);
+  color: #a9b3bb;
+  cursor: default;
+}
+.tg-input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 23px;
+  background: rgba(255, 255, 255, 0.95);
+  font: inherit;
+  font-size: 15px;
+  outline: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.tg-attach-menu {
+  position: absolute;
+  bottom: 54px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-pop);
+  z-index: 5;
+}
+.tg-attach-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tg-attach-menu button:hover {
+  background: #f1f1f2;
+}
+.tg-warn,
+.tg-readonly {
+  margin: 6px 56px 0;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--warn);
+  font-size: 13px;
+}
+.tg-readonly {
+  margin: 8px 10px 10px;
+  padding: 12px;
+  text-align: center;
+  color: #707579;
+}
+.tg-info {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid #e3e3e5;
+  background: #fff;
+}
+.tg-info-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 4px 16px;
+  font-size: 16px;
+}
+.tg-info-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px 12px;
+  text-align: center;
+}
+.tg-info-b {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+.tg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.tg-grid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.tg-flist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tg-flist li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+.tg-flist .tg-link {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Màn hẹp: như Telegram điện thoại, danh sách và khung chat thay nhau; thông tin nhóm phủ lên. */
+@media (max-width: 900px) {
+  .tg,
+  .tg.has-info {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 170px);
+  }
+  .tg.is-list .tg-main,
+  .tg.is-chat .tg-side {
+    display: none;
+  }
+  .tg-mback {
+    display: inline-flex;
+  }
+  .tg-info {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+  }
+  .tg {
+    position: relative;
+  }
+  .tg-bubble {
+    max-width: 88%;
+  }
+}
+.tg > * {
+  min-width: 0;
+}
+
+/* Cài đặt thông báo Telegram: cột cài đặt bên trái, điện thoại xem trước bên phải (dính khi cuộn). */
+.tgset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+.tgp {
+  position: sticky;
+  top: 12px;
+}
+.tgp-phone {
+  display: flex;
+  flex-direction: column;
+  height: 640px;
+  border: 10px solid #1d1c1d;
+  border-radius: 34px;
+  overflow: hidden;
+  background-color: #a8c991;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.18) 0 2px, transparent 3px),
+    linear-gradient(160deg, #d1e2b1 0%, #a9cb93 45%, #87b48a 100%);
+  background-size:
+    46px 46px,
+    100% 100%;
+}
+.tgp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.tgp-head b {
+  display: block;
+}
+.tgp-msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+.tgp-note {
+  margin: 6px 0 10px;
+}
+.tgp-note .tg-bubble {
+  max-width: 100%;
+  border-bottom-left-radius: 4px;
+}
+/* Nút dưới tin (bàn phím trong tin của bot Telegram): viên mờ trên nền chat. */
+.tgp-kb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.tgp-kb button {
+  flex: 1 1 30%;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(60, 100, 50, 0.35);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tgp-kb button:hover {
+  background: rgba(60, 100, 50, 0.5);
+}
+.tgp-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.tgp-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 18px;
+  background: #3390ec;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Tin người gõ cho bot (bên phải, xanh nhạt như Telegram) và tin bot trả lời. */
+.tgp-chat {
+  display: flex;
+  margin: 6px 0;
+}
+.tgp-chat.is-me {
+  justify-content: flex-end;
+}
+.tgp-chat.is-me .tg-bubble {
+  background: #effdde;
+  border-bottom-right-radius: 4px;
+}
+.tgp-quote,
+.tgp-photo {
+  display: block;
+  margin-bottom: 4px;
+  padding-left: 8px;
+  border-left: 3px solid #3390ec;
+  color: #3a6d99;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tgp-photo {
+  border-left-color: #6fb04a;
+  color: #4a7a32;
+}
+.tgp-replying {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid #e5e5e5;
+  background: #fff;
+  color: #3a6d99;
+  font-size: 13px;
+}
+.tgp-replying button {
+  border: 0;
+  background: none;
+  color: #8a8a8a;
+  cursor: pointer;
+}
+.tgp-compose {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid #e5e5e5;
+  background: #fff;
+}
+.tgp-compose input:not([type="file"]) {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 16px;
+  background: #f1f1f1;
+  font: inherit;
+}
+.tgp-attach,
+.tgp-send {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #8a8a8a;
+  cursor: pointer;
+}
+.tgp-send {
+  background: #3390ec;
+  color: #fff;
+}
+.tgp-cmd {
+  padding: 6px 10px;
+  border: 1px solid #d9e6f5;
+  border-radius: 14px;
+  background: #fff;
+  color: #3390ec;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 1100px) {
+  .tgset {
+    grid-template-columns: 1fr;
+  }
+  .tgp {
+    position: static;
+  }
+}
+
+/* Mini App: khung hẹp như màn điện thoại, chữ to, nút lớn bấm bằng ngón cái. */
+.ma {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.ma-head {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 2px 10px;
+}
+.ma-head b {
+  font-size: 20px;
+}
+.ma-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.ma-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text-weak);
+  cursor: pointer;
+}
+.ma .tg-badge {
+  background: var(--action);
+}
+.ma-tabs button[aria-selected="true"] {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.ma-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ma-list > li + li {
+  margin-top: 8px;
+}
+.ma-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: #fff;
+}
+.ma-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ma-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ma-acts .c-btn {
+  min-height: 40px;
+}
+.ma-search {
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+}
+
+/*
+ * Hội thoại với khách kiểu Telegram (07/10/2026): dùng lại bộ .tg-* của Nhóm nội bộ. Ba cột: danh sách, khung chat,
+ * cột phải (Trợ lý, Lên đơn, Ghi chú) dạng thẻ bo tròn, tab kiểu nút viên thuốc.
+ */
+.tg.cv {
+  grid-template-columns: 320px minmax(0, 1fr) 360px;
+}
+/* Hội thoại bản thật chưa có cột phải: hai cột. */
+@media (min-width: 901px) {
+  .tg.cv.cv-2 {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
+.cv-av-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.cv-chan {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+.cv-meta {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--tg-time);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-item.is-on .cv-meta {
+  color: rgba(255, 255, 255, 0.85);
+}
+.tg-badge.cv-need {
+  background: #e53935;
+}
+.tg-item.is-on .tg-badge.cv-need {
+  background: #fff;
+  color: #e53935;
+}
+.cv-st.is-err {
+  color: #e53935;
+  font-weight: 600;
+}
+.cv-st.is-ai {
+  color: #7c4dff;
+}
+.cv-st.is-warn {
+  color: #c77700;
+}
+.cv-st.is-ok {
+  color: #4fae4e;
+}
+.cv-hbtn {
+  flex: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 16px;
+}
+.cv-hbtn.is-blue {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.cv-sys span {
+  max-width: 90%;
+  font-weight: 500;
+}
+.cv-msg.is-agent {
+  background: #f3efff;
+}
+.cv-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #7c4dff;
+  font-size: 13px;
+}
+.cv-input {
+  height: auto;
+  min-height: 46px;
+  max-height: 140px;
+  padding: 12px 18px;
+  resize: none;
+  line-height: 1.4;
+}
+/* Cột phải */
+.cv-info {
+  background: #f4f4f5;
+}
+.cv-info-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 16px 10px;
+  background: #fff;
+  text-align: center;
+}
+.cv-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #fff;
+  border-bottom: 1px solid #e3e3e5;
+}
+.cv-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 18px;
+  background: none;
+  color: #707579;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-tabs button:hover {
+  background: #f1f1f2;
+}
+.cv-tabs button[aria-selected="true"] {
+  background: #e3effc;
+  color: var(--tg-blue);
+}
+.cv-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--tg-blue);
+  color: #fff;
+  font-size: 11px;
+}
+.cv-card {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cv-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #707579;
+  text-transform: none;
+}
+.cv-card.is-ai {
+  background: linear-gradient(135deg, #f3efff, #ece6ff);
+}
+.cv-card.is-ai h3 {
+  color: #7c4dff;
+}
+.cv-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cv-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid #f0f0f1;
+}
+.cv-facts li:first-child {
+  border-top: 0;
+}
+.cv-facts small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tg-time);
+}
+.cv-fact-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: #e3effc;
+  color: var(--tg-blue);
+}
+.cv-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3390ec, #2a7bd4);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(51, 144, 236, 0.35);
+}
+.cv-cta:hover {
+  filter: brightness(1.05);
+}
+.cv-sugg {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--tg-out);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+.cv-sugg:hover {
+  background: #e2f7c9;
+}
+/* Lên đơn: mỗi nhóm ô là một thẻ, tổng tiền và nút tạo dính đáy cột. */
+.cv-order fieldset {
+  padding: 10px 12px !important;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+/* Tiêu đề nhóm nằm trong thẻ (mặc định legend nằm đè lên mép trên của fieldset). */
+.cv-order legend {
+  float: left;
+  width: 100%;
+  grid-column: 1 / -1;
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--tg-blue);
+}
+.cv-order .c-rl {
+  width: 100%;
+}
+.cv-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #e3effc;
+  color: #2a6fb5;
+  font-size: 13px;
+}
+.cv-done {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--tg-out);
+  color: #2e7d32;
+  font-weight: 600;
+}
+.cv-order-foot {
+  position: sticky;
+  bottom: -10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -12px -10px;
+  padding: 10px 12px;
+  background: #fff;
+  border-top: 1px solid #e3e3e5;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+.cv-total {
+  flex: 1;
+  min-width: 0;
+}
+.cv-total small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tg-time);
+}
+.cv-total b {
+  font-size: 18px;
+  color: var(--text);
+}
+.cv-note {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cv-note.is-pinned {
+  border-left: 3px solid var(--tg-blue);
+}
+.cv-card textarea {
+  border-radius: 12px;
+}
+@media (max-width: 1250px) {
+  .tg.cv {
+    grid-template-columns: 280px minmax(0, 1fr);
+    height: auto;
+  }
+  .tg.cv .tg-main {
+    height: calc(100vh - 170px);
+    min-height: 520px;
+  }
+  .tg.cv .cv-info {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid #e3e3e5;
+  }
+}
+@media (max-width: 900px) {
+  .tg.cv {
+    grid-template-columns: 1fr;
+  }
+  .tg.cv.is-list .cv-info {
+    display: none;
+  }
+  .tg.cv .cv-info {
+    position: static;
+  }
+}
+/* Đầu khung chat: một hàng gọn, chữ phụ cắt bằng dấu ba chấm; màn hẹp thì nút xuống hàng dưới. */
+/* Đầu khung chat hai hàng: viên tên khách chiếm cả hàng, nút (phụ trách, tiếp quản, xong) ở hàng dưới. */
+.tg.cv .tg-head {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.tg.cv .tg-head-l {
+  flex: 1 1 100%;
+}
+.tg.cv .tg-head .cv-hbtn,
+.tg.cv .tg-head .cv-assign {
+  height: 34px;
+  font-size: 13.5px;
+}
+.cv-hbtn {
+  white-space: nowrap;
+}
+.cv-order fieldset > :not(legend) {
+  clear: both;
+}
+/* Cột hẹp: ô chọn sản phẩm chiếm cả hàng, số lượng và giảm xuống dưới. */
+.cv-order select[aria-label^="Sản phẩm dòng"] {
+  flex-basis: 100%;
+}
+/* fieldset mặc định rộng theo nội dung nên bảng tiền tràn ra ngoài cột hẹp. */
+.cv-order fieldset {
+  min-width: 0;
+}
+.tg.cv .tg-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-hbtn {
+  height: 40px;
+}
+.cv-order .c-rl {
+  width: 100%;
+  table-layout: fixed;
+}
+.cv-order .c-rl td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cv-order .c-rl td:last-child {
+  width: 112px;
+  text-align: right;
+}
+.cv-order .c-pill {
+  white-space: normal;
+}
+
+/* Hội thoại: lọc khách, thẻ nhân viên phụ trách, thẻ khách. Màu thẻ đặt qua biến --t. */
+.cv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 12px 8px;
+}
+.cv-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #4d5560;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-filters button[aria-pressed="true"] {
+  background: var(--tg-blue);
+  color: #fff;
+}
+.cv-fn {
+  font-size: 11.5px;
+  opacity: 0.75;
+}
+.cv-filters select {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: #4d5560;
+}
+.cv-empty {
+  margin: 8px 16px;
+  color: #707579;
+  font-size: 14px;
+}
+.cv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.cv-staff {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #e3effc;
+  color: #2a6fb5;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.cv-staff.is-none {
+  background: #fdecea;
+  color: #c62828;
+}
+.cv-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--t, #8e99a4) 14%, #fff);
+  color: var(--t, #8e99a4);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cv-tag.is-more {
+  background: #eceff1;
+  color: #607d8b;
+}
+.tg-item.is-on .cv-staff,
+.tg-item.is-on .cv-tag {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.cv-tagpick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cv-tagpick .cv-tag {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.cv-tagpick .cv-tag.is-on {
+  background: var(--t);
+  color: #fff;
+}
+.cv-tagpick .cv-tag.is-off {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t) 45%, #fff);
+}
+.cv-tagnew {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.cv-tagnew input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 1px solid #dfe3e7;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 13px;
+}
+.cv-assign {
+  flex: none;
+  height: 40px;
+  padding: 0 6px 0 12px;
+  color: #2a6fb5;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cv-assign select {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/*
+ * Ô chọn dùng mũi tên tự vẽ và chừa chỗ bên phải: chữ dài cắt bằng dấu ba chấm, không chạy đè lên mũi tên (Safari
+ * vẽ mũi tên đè lên chữ khi ô có nền và viền riêng). Đặt ngoài @layer để thắng tiện ích padding của Tailwind.
+ */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23707579' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/*
+ * Phong cách Telegram (07/10/2026, áp cho toàn bộ vùng nội dung: lớp .tgx trên khung trang trong shell.tsx): giữ nguyên bố cục, đổi kiểu chữ
+ * Roboto, nền xám nhạt, thẻ trắng bo 16px đổ bóng nhẹ, tiêu đề mục chữ xanh Telegram, nút viên thuốc, nhãn bo tròn.
+ */
+.tgx {
+  --tgx-blue: #3390ec;
+  --tgx-bg: #f1f2f5;
+  --tgx-weak: #707579;
+  --tgx-sep: #eef0f2;
+  font-family:
+    var(--font-tg),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background: var(--tgx-bg);
+  color: #000;
+  letter-spacing: 0.1px;
+}
+.tgx .c-card,
+.tgx.c-flat .c-card,
+.tgx .c-flat .c-card {
+  background: #fff;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 35, 47, 0.08);
+  overflow: hidden;
+}
+.tgx .c-flat .c-stack > * + *,
+.tgx .c-stack > * + * {
+  margin-top: 12px;
+}
+.tgx .c-flat .c-g84,
+.tgx .c-flat .c-rgrid,
+.tgx .c-flat .c-split {
+  column-gap: 12px;
+  row-gap: 12px;
+}
+.tgx .c-flat .c-card > .c-ch:first-child,
+.tgx .c-card > .c-ch:first-child {
+  padding: 14px 16px 6px;
+  margin: 0;
+  border-bottom: 0;
+}
+.tgx .c-ch h2 {
+  color: var(--tgx-blue);
+  font-size: 15px;
+  font-weight: 500;
+}
+.tgx .c-flat .c-card > .c-cb,
+.tgx .c-flat .c-card > ul,
+.tgx .c-flat .c-card > ol,
+.tgx .c-flat .c-card > .c-phd {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.tgx h1 b,
+.tgx .c-phd h1 {
+  font-weight: 700;
+}
+.tgx b,
+.tgx strong {
+  font-weight: 500;
+}
+.tgx .c-lbl,
+.tgx small {
+  color: var(--tgx-weak);
+}
+/* Số liệu: ô xám nhạt bo tròn thay cho đường kẻ. */
+.tgx .c-kpis,
+.tgx .c-flat .c-kpis {
+  gap: 8px;
+  border: 0;
+  padding: 4px 16px 16px;
+}
+.tgx .c-kpis > div,
+.tgx .c-flat .c-kpis > div {
+  padding: 12px 14px;
+  border: 0 !important;
+  border-radius: 14px;
+  background: var(--tgx-bg);
+}
+.tgx .c-kpis b {
+  font-weight: 700;
+}
+.tgx .c-gbar {
+  border-radius: 8px;
+  overflow: hidden;
+}
+/* Dòng danh sách: kẻ mảnh nhạt, avatar tròn như Telegram. */
+.tgx li,
+.tgx .c-tm,
+.tgx .c-an,
+.tgx .c-cq,
+.tgx .c-appr > * {
+  border-color: var(--tgx-sep) !important;
+}
+.tgx .c-ava,
+.tgx .c-oi {
+  border-radius: 50%;
+}
+/* Nút viên thuốc: nút chính xanh Telegram, nút phụ nền xanh nhạt, không viền. */
+.tgx .c-btn {
+  border: 0;
+  border-radius: 18px;
+  padding: 6px 16px;
+  background: #e3effc;
+  color: var(--tgx-blue);
+  font-weight: 500;
+}
+.tgx .c-btn:hover {
+  background: #d5e7fb;
+}
+/* Nút chốt (Duyệt, Lưu) giữ màu xanh lá để nhìn là biết nút quan trọng; nút bắt đầu việc mới xanh Telegram. */
+.tgx .c-btn.is-blue {
+  background: var(--tgx-blue);
+  color: #fff;
+}
+.tgx .c-btn.is-brand,
+.tgx .c-btn.is-go {
+  background: #4fae4e;
+  color: #fff;
+}
+.tgx .c-btn.is-ai {
+  background: #7c4dff;
+  color: #fff;
+}
+.tgx .c-btn.is-danger {
+  background: #fdecea;
+  color: #e53935;
+}
+.tgx .c-pill,
+.tgx .c-loc {
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-weight: 500;
+}
+.tgx .c-link {
+  color: var(--tgx-blue);
+}
+.tgx .c-table th {
+  color: var(--tgx-weak);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.tgx .c-table td,
+.tgx .c-table th {
+  border-color: var(--tgx-sep);
+}
+/* Trang chủ bản thật theo phong cách Telegram: ô số liệu bấm được, dòng lead có avatar tròn. */
+.tgx .tgx-metric {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--tgx-bg);
+  color: inherit;
+  text-decoration: none;
+}
+.tgx .tgx-metric:hover {
+  background: #e7e9ee;
+}
+.tgx .tgx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.tgx .tgx-row:hover {
+  background: #f4f4f5;
+}
+.tgx .c-oi {
+  background: color-mix(in srgb, var(--c) 14%, #fff);
+  color: var(--c);
+}
+
+/* Phong cách Telegram cho thành phần dùng chung của bản thật (components/ui) và các phần còn lại của bản demo. */
+.tgx .ui-card {
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 35, 47, 0.08);
+}
+.tgx .ui-card-h {
+  border-bottom: 0;
+  padding: 14px 16px 6px;
+}
+.tgx .ui-card-t {
+  color: var(--tgx-blue);
+  font-size: 15px;
+  font-weight: 500;
+}
+.tgx .ui-btn {
+  border-radius: 18px;
+  font-weight: 500;
+}
+.tgx .ui-btn-secondary,
+.tgx .ui-btn-danger {
+  border: 0;
+  background: #e3effc;
+  color: var(--tgx-blue);
+}
+.tgx .ui-btn-secondary:hover {
+  background: #d5e7fb;
+}
+.tgx .ui-btn-danger {
+  background: #fdecea;
+  color: #e53935;
+}
+.tgx .ui-btn-blue {
+  background: var(--tgx-blue);
+}
+.tgx .ui-btn-primary {
+  background: #4fae4e;
+}
+.tgx .ui-input,
+.tgx input[type="text"],
+.tgx input[type="search"],
+.tgx input[type="email"],
+.tgx input[type="tel"],
+.tgx input[type="number"],
+.tgx input[type="date"],
+.tgx input[type="datetime-local"],
+.tgx input:not([type]),
+.tgx select,
+.tgx textarea {
+  border-radius: 10px;
+}
+.tgx .ui-input:focus,
+.tgx input:focus,
+.tgx select:focus,
+.tgx textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--tgx-blue) 35%, transparent);
+  outline-offset: 0;
+  border-color: var(--tgx-blue);
+}
+/* Tab con (Cài đặt, Đội ngũ, Sản phẩm…): gạch chân và chữ xanh Telegram. */
+.tgx .c-ftab[aria-current="page"],
+.tgx .c-ftab[aria-current="true"],
+.tgx .c-ftab[aria-selected="true"] {
+  color: var(--tgx-blue);
+  border-color: var(--tgx-blue);
+}
+.tgx .c-phd small {
+  color: var(--tgx-weak);
+}
+.tgx .c-empty {
+  border-radius: 16px;
+}
+.tgx .c-rl td {
+  border-color: var(--tgx-sep);
+}
+/* Cài đặt theo phong cách Telegram: mỗi phần là một thẻ trắng, tiêu đề xanh; mục menu đang mở xanh Telegram. */
+.tgx .c-setbody .c-card,
+.tgx .c-setbody section.rounded-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 35, 47, 0.08);
+  overflow: hidden;
+}
+.tgx .c-setbody .c-card > .c-ch:first-child,
+.tgx .c-setbody section.rounded-card > div:first-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding: 14px 16px 8px;
+}
+.tgx .c-setbody .c-card > .c-ch:first-child h2,
+.tgx .c-setbody section.rounded-card > div:first-child h2 {
+  color: var(--tgx-blue);
+  font-size: 18px;
+  font-weight: 500;
+}
+.tgx .c-setbody .c-card + .c-card,
+.tgx .c-setbody section.rounded-card + section.rounded-card {
+  margin-top: 12px;
+}
+.tgx nav[aria-label="Cài đặt"] a {
+  border-radius: 10px;
+}
+.tgx nav[aria-label="Cài đặt"] a[aria-current="page"] {
+  background: var(--tgx-blue);
+  font-weight: 500;
+}
+/* Đầu danh sách (Sản phẩm, Khách) nằm trong thẻ: chừa lề như các thẻ khác. */
+.tgx .ui-card > .list-head {
+  padding: 12px 16px 0;
+}
+.tgx .ui-card > .list-head h1 {
+  font-weight: 700;
+}
