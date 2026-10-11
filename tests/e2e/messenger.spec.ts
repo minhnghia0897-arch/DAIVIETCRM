@@ -310,6 +310,61 @@ test("thẻ khách, lọc theo thẻ, giao nhân viên, đánh dấu xong", asyn
   await expect(page.getByRole("button", { name: "Đánh dấu xong" })).toBeVisible();
 });
 
+test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng giá, giảm vượt mức chờ Owner duyệt", async ({
+  page,
+}) => {
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Trần Mai/ })
+    .first()
+    .click();
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+
+  // Chưa đủ bốn thông tin thì chưa lên đơn.
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  await expect(side.getByRole("note")).toContainText("Lead còn thiếu");
+
+  const info = side.getByRole("form", { name: "Bốn thông tin bắt buộc" });
+  await side.getByRole("tab", { name: /Khách/ }).click();
+  await info.getByLabel("Chính mình").check();
+  await info.getByLabel("Tỉnh người nhận").fill("Nghệ An");
+  await info.getByLabel("Dịp", { exact: true }).selectOption({ index: 1 });
+  await info.getByLabel("Ngân sách").selectOption({ index: 1 });
+  await info.getByRole("button", { name: "Lưu thông tin" }).click();
+  await expect(info).toContainText("Đã đủ bốn thông tin");
+
+  // Đơn trong giới hạn giảm: xác nhận luôn, tổng = 49.000.000 − 1.000.000 + 500.000.
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  const form = side.getByRole("form", { name: "Lên đơn" });
+  await form.getByRole("button", { name: "Thêm DC302" }).click();
+  await form.getByLabel("Mức giảm").fill("1.000.000");
+  await form.getByLabel("Phí giao").fill("500.000");
+  await expect(form.getByLabel("Tạm tính")).toContainText("48.500.000");
+  await form.getByRole("button", { name: "Tạo đơn" }).click();
+  await expect(page.getByRole("status")).toContainText(/Đã tạo đơn Q4-\d{4}-\d{4}/);
+  const orders = side.getByRole("list", { name: "Đơn của khách" });
+  await expect(orders).toContainText("48.500.000");
+  await expect(orders).toContainText("Đã xác nhận");
+
+  // Giảm 7% vượt mức 5% của sale admin: đơn chờ Owner duyệt.
+  await form.getByRole("button", { name: "Thêm DC108" }).click();
+  await form.getByLabel("Kiểu giảm").selectOption("pct");
+  await form.getByLabel("Mức giảm").fill("7");
+  await expect(form.getByRole("note")).toContainText("chờ Owner duyệt");
+  await form.getByRole("button", { name: "Tạo đơn" }).click();
+  await expect(page.getByRole("status")).toContainText("đang chờ Owner duyệt");
+  await expect(orders).toContainText("Chờ duyệt giảm giá");
+
+  // Owner duyệt ở hàng chờ duyệt.
+  await login(page, USERS.owner);
+  await page.goto("/tasks");
+  const ap = page.getByLabel(/Duyệt giảm giá: Giảm 7% trên đơn Q4-/);
+  await ap.getByRole("button", { name: "Duyệt" }).click();
+  await expect(page.getByLabel(/Duyệt giảm giá: Giảm 7% trên đơn Q4-/)).toHaveCount(0);
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];
