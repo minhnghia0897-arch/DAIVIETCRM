@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
+import { useLiveChanges } from "@/lib/db/use-live-changes";
 import { fold } from "@/lib/inbox/extract";
 import { replyWindow, timeLeft } from "@/lib/integrations/meta_messenger/window";
 import { zaloWindow } from "@/lib/integrations/zalo_oa/window";
@@ -15,7 +16,7 @@ import { ConvAvatar } from "./conv-avatar";
 // Hội thoại chung mọi kênh trên bản thật (CLAUDE.md 10.3, 10.4, 10.5): Messenger và Zalo OA trong một danh sách.
 // Messenger: trả lời trong 24 giờ, tới 7 ngày chỉ nhân viên trả lời tay (thẻ Human Agent). Zalo: miễn phí 48 giờ,
 // ngoài đó vẫn gửi được nhưng tính phí theo hạn mức gói OA nên phải xác nhận. Luật thật kiểm ở database; giao diện chỉ
-// hiện đồng hồ và nhắc. Tự tải lại mỗi 8 giây để tin mới hiện nhanh.
+// hiện đồng hồ và nhắc. Tin mới đến qua Supabase Realtime.
 
 type Result = { ok: boolean; message: string };
 type Channel = "messenger" | "zalo";
@@ -102,14 +103,13 @@ export function InboxLive({
   const msgs = useRef<HTMLDivElement>(null);
   const c = convs.find((x) => x.id === selectedId) ?? null;
 
-  // Tin mới của khách: tải lại dữ liệu từ server; đồng hồ khung 24 giờ chạy theo.
+  // Tin mới của khách: Realtime báo khi hội thoại, tin nhắn đổi (RLS chỉ gửi dòng mình được xem) rồi tải lại từ
+  // server; không hỏi lại định kỳ cho đỡ tốn lượt gọi. Đồng hồ khung giờ chạy mỗi 30 giây.
+  useLiveChanges("inbox", [{ table: "messages" }, { table: "conversations" }], () => router.refresh());
   useEffect(() => {
-    const t = setInterval(() => {
-      setNow(new Date());
-      if (document.visibilityState === "visible") router.refresh();
-    }, 8000);
+    const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     msgs.current?.scrollTo({ top: msgs.current.scrollHeight });

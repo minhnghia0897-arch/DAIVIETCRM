@@ -58,6 +58,7 @@ import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
 import { ORDER_STATUS } from "@/lib/demo/labels";
+import { useLiveChanges } from "@/lib/db/use-live-changes";
 import { visibleChats, visibleConvs, visibleHouses, visibleOpps, visibleQueue } from "./access";
 import { CrmProvider, fmtMinutes, orderPeople, orderRisks, useCrm, visibleOrders } from "./store";
 
@@ -261,23 +262,19 @@ function ShellInner({
     setSeenInitial(liveNotices.initial);
     setNotices(liveNotices.initial);
   }
-  // Thông báo mới: hỏi lại server mỗi 30 giây và khi quay lại tab (không cần tải lại trang).
-  useEffect(() => {
-    if (!liveNotices) return;
-    let alive = true;
-    const pull = () =>
+  // Thông báo mới: Realtime báo khi bảng notifications đổi (RLS chỉ gửi thông báo của mình), rồi tải lại danh sách;
+  // vẫn hỏi lại khi quay lại tab và mỗi 5 phút phòng mất kết nối.
+  useLiveChanges(
+    "notices",
+    [{ table: "notifications" }],
+    () => {
       liveNotices
-        .load()
-        .then((f) => alive && setNotices(f))
+        ?.load()
+        .then(setNotices)
         .catch(() => undefined);
-    const id = setInterval(pull, 30_000);
-    window.addEventListener("focus", pull);
-    return () => {
-      alive = false;
-      clearInterval(id);
-      window.removeEventListener("focus", pull);
-    };
-  }, [liveNotices]);
+    },
+    { enabled: Boolean(liveNotices) },
+  );
   function readNotices(ids?: string[]) {
     if (!liveNotices || user.readOnly) return;
     setNotices((f) =>

@@ -154,6 +154,25 @@ test("tin đến tạo hội thoại; sale admin trả lời trong khung 24 gi�
   await expect(page.getByText("Trả lời khách qua Messenger").first()).toBeVisible();
 });
 
+test("tin mới hiện ngay trên màn đang mở, không cần tải lại trang (Realtime)", async ({ page, browser }) => {
+  // Tin mở đầu riêng của lần chạy này để chọn đúng hội thoại (nhiều lần chạy cùng tên "Trần Mai").
+  const opener = `Mở đầu ${PSID}`;
+  expect(await post(page, inbound(`m.rt0.${PSID}`, opener))).toBe(200);
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const item = page.getByRole("list", { name: "Danh sách hội thoại" }).getByRole("button", { name: opener });
+  await expect(item).toBeVisible({ timeout: 15_000 });
+  await item.click();
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  await expect(log.getByText(opener)).toBeVisible();
+  await expect(page.locator("html[data-live-inbox=on]")).toHaveCount(1, { timeout: 15_000 });
+  const other = await browser.newPage();
+  expect(await post(other, inbound(`m.rt.${PSID}`, "Shop ơi còn đó không?"))).toBe(200);
+  await other.close();
+  // Hỏi định kỳ đã bỏ (5 phút mới hỏi lại): tin hiện được trong vài giây chỉ có thể nhờ Realtime.
+  await expect(log.getByText("Shop ơi còn đó không?")).toBeVisible({ timeout: 15_000 });
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];
