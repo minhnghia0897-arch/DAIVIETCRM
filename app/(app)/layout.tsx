@@ -1,4 +1,4 @@
-import { CrmShell } from "@/components/crm/shell";
+import { AppShell } from "@/components/crm/live-shell";
 import { signOut } from "../(auth)/login/actions";
 import { loadNotices, markNoticesRead } from "./notify-actions";
 import { setMyDuty } from "./team/duty-actions";
@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   ]);
 
   return (
-    <CrmShell
+    <AppShell
       user={{
         id: user.id,
         fullName: user.fullName,
@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       }
     >
       {children}
-    </CrmShell>
+    </AppShell>
   );
 }
 

@@ -4,7 +4,8 @@ import { Bot } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { AGENTS, GLOBAL_RULES, agentById, traceSteps } from "@/lib/demo/crm-data";
-import { AgentIcon, FeedList, PageHead } from "../parts";
+import { PageHead } from "../parts";
+import { AgentIcon, FeedList } from "../parts-demo";
 import { useShell } from "../shell";
 import { useCrm } from "../store";
 

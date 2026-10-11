@@ -3,7 +3,8 @@
 import { Home, Sparkles } from "lucide-react";
 
 import { tr } from "@/lib/demo/crm-data";
-import { KindIcon, LocTag } from "../parts";
+import { LocTag } from "../parts";
+import { KindIcon } from "../parts-demo";
 import { useShell } from "../shell";
 import { visibleHouses } from "../access";
 import { BackButton } from "../back-button";

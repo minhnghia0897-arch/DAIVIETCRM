@@ -9,7 +9,8 @@ import { createContext, useContext, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import { TASK_TYPE_LABEL, type Task } from "@/lib/demo/ops-data";
-import { ApprovalList, PageHead } from "../parts";
+import { PageHead } from "../parts";
+import { ApprovalList } from "../parts-demo";
 import { useShell } from "../shell-context";
 import { fmtDue, useCrm } from "../store";
 
