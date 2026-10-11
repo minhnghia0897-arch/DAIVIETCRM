@@ -167,3 +167,51 @@ export async function deleteContactNote(input: z.infer<typeof idSchema>): Promis
   if (error) return { ok: false, message: friendly(error.code, error.message) };
   return done("Đã xóa ghi chú");
 }
+
+// Thẻ khách và trạng thái hội thoại (migration 20261011000300_inbox_tags_status.sql).
+
+const tagSchema = z.object({ contactId: z.uuid(), tagId: z.uuid() });
+
+export async function toggleContactTag(input: z.infer<typeof tagSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = tagSchema.parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("toggle_contact_tag", {
+    p_contact_id: p.contactId,
+    p_tag_id: p.tagId,
+  });
+  if (error) return { ok: false, message: friendly(error.code, error.message) };
+  return done(data ? "Đã gắn thẻ" : "Đã gỡ thẻ");
+}
+
+const newTagSchema = z.object({ contactId: z.uuid(), label: z.string().trim().min(1).max(30) });
+
+export async function createContactTag(input: z.infer<typeof newTagSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = newTagSchema.safeParse(input);
+  if (!p.success) return { ok: false, message: "Tên thẻ từ 1 đến 30 ký tự." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("create_contact_tag", {
+    p_contact_id: p.data.contactId,
+    p_label: p.data.label,
+  });
+  if (error) return { ok: false, message: friendly(error.code, error.message) };
+  return done(`Đã gắn thẻ ${p.data.label}`);
+}
+
+const doneSchema = z.object({ conversationId: z.uuid(), done: z.boolean() });
+
+export async function setConversationDone(input: z.infer<typeof doneSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = doneSchema.parse(input);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_conversation_done", {
+    p_conversation_id: p.conversationId,
+    p_done: p.done,
+  });
+  if (error) return { ok: false, message: friendly(error.code, error.message) };
+  return done(p.done ? "Đã đánh dấu xong, khách nhắn lại sẽ tự mở" : "Đã mở lại hội thoại");
+}

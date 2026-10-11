@@ -13,7 +13,9 @@ import { MESSENGER_KEY } from "@/lib/integrations/meta_messenger/config";
 import { ZALO_KEY } from "@/lib/integrations/zalo_oa/config";
 import { vnMonthStart } from "@/lib/integrations/zalo_oa/window";
 
+import { assignLeads } from "../leads/actions";
 import { markConversationRead, sendReply } from "./actions";
+import { createContactTag, setConversationDone, toggleContactTag } from "./side-actions";
 
 export const metadata: Metadata = { title: "Hội thoại · Đại Việt CRM" };
 
@@ -31,28 +33,40 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const { data: convs } = await supabase
     .from("conversations")
     .select(
-      "id, channel, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
+      "id, channel, status, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
   const list = convs ?? [];
   const leadIds = list.map((x) => x.lead_id).filter((x): x is string => Boolean(x));
-  const [{ data: leads }, { data: recent }] = await Promise.all([
-    leadIds.length
-      ? supabase.from("leads").select("id, stage, assigned_to").in("id", leadIds)
-      : Promise.resolve({ data: [] as { id: string; stage: string; assigned_to: string | null }[] }),
-    list.length
-      ? supabase
-          .from("messages")
-          .select("conversation_id, direction, text, attachments")
-          .in(
-            "conversation_id",
-            list.map((x) => x.id),
-          )
-          .order("occurred_at", { ascending: false })
-          .limit(400)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const contactIds = [...new Set(list.map((x) => x.contact_id).filter((x): x is string => Boolean(x)))];
+  const canAssign = user.permissions.has("lead.assign") && !user.viewAs;
+  const [{ data: leads }, { data: recent }, { data: tags }, { data: contactTags }, { data: assignees }] =
+    await Promise.all([
+      leadIds.length
+        ? supabase.from("leads").select("id, stage, assigned_to").in("id", leadIds)
+        : Promise.resolve({ data: [] as { id: string; stage: string; assigned_to: string | null }[] }),
+      list.length
+        ? supabase
+            .from("messages")
+            .select("conversation_id, direction, text, attachments")
+            .in(
+              "conversation_id",
+              list.map((x) => x.id),
+            )
+            .order("occurred_at", { ascending: false })
+            .limit(400)
+        : Promise.resolve({ data: [] }),
+      supabase.from("tags").select("id, label, color").order("sort"),
+      contactIds.length
+        ? supabase.from("contact_tags").select("contact_id, tag_id").in("contact_id", contactIds)
+        : Promise.resolve({ data: [] as { contact_id: string; tag_id: string }[] }),
+      canAssign
+        ? supabase.rpc("lead_assignees")
+        : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    ]);
+  const tagsOf = (contactId: string | null) =>
+    (contactTags ?? []).filter((t) => t.contact_id === contactId).map((t) => t.tag_id);
   const holderIds = [
     ...new Set((leads ?? []).map((l) => l.assigned_to).filter((x): x is string => Boolean(x))),
   ];
@@ -81,8 +95,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     unread: x.unread_count,
     preview: last.get(x.id) ?? null,
     leadId: x.lead_id,
+    contactId: x.contact_id,
+    holderId: leadOf(x.lead_id)?.assigned_to ?? null,
     holder: nameOf(leadOf(x.lead_id)?.assigned_to),
     mine: leadOf(x.lead_id)?.assigned_to === user.id,
+    done: x.status === "done",
+    tagIds: tagsOf(x.contact_id),
   }));
 
   const sel = rows.find((x) => x.id === c) ?? null;
@@ -167,6 +185,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       paidThisMonth={paidThisMonth ?? 0}
       send={sendReply}
       markRead={markConversationRead}
+      tags={tags ?? []}
+      assignees={canAssign ? (assignees ?? []).map((a) => ({ id: a.id, name: a.full_name })) : null}
+      assign={assignLeads}
+      setDone={setConversationDone}
+      toggleTag={toggleContactTag}
+      createTag={createContactTag}
     />
   );
 }

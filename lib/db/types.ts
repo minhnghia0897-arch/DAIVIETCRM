@@ -819,6 +819,52 @@ export type Database = {
           },
         ];
       };
+      contact_tags: {
+        Row: {
+          contact_id: string;
+          created_at: string;
+          created_by: string | null;
+          showroom_id: string;
+          tag_id: string;
+        };
+        Insert: {
+          contact_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          showroom_id: string;
+          tag_id: string;
+        };
+        Update: {
+          contact_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          showroom_id?: string;
+          tag_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_tags_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_tags_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contacts: {
         Row: {
           city: string | null;
@@ -994,6 +1040,8 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           display_name: string | null;
+          done_at: string | null;
+          done_by: string | null;
           external_user_id: string;
           id: string;
           last_inbound_at: string | null;
@@ -1001,6 +1049,7 @@ export type Database = {
           lead_id: string | null;
           page_id: string;
           showroom_id: string;
+          status: string;
           unread_count: number;
           updated_at: string;
           can_see_conversation: boolean | null;
@@ -1011,6 +1060,8 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           display_name?: string | null;
+          done_at?: string | null;
+          done_by?: string | null;
           external_user_id: string;
           id?: string;
           last_inbound_at?: string | null;
@@ -1018,6 +1069,7 @@ export type Database = {
           lead_id?: string | null;
           page_id: string;
           showroom_id: string;
+          status?: string;
           unread_count?: number;
           updated_at?: string;
         };
@@ -1027,6 +1079,8 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           display_name?: string | null;
+          done_at?: string | null;
+          done_by?: string | null;
           external_user_id?: string;
           id?: string;
           last_inbound_at?: string | null;
@@ -1034,6 +1088,7 @@ export type Database = {
           lead_id?: string | null;
           page_id?: string;
           showroom_id?: string;
+          status?: string;
           unread_count?: number;
           updated_at?: string;
         };
@@ -2288,6 +2343,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      tags: {
+        Row: {
+          color: string;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          id: string;
+          label: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          color?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          label: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          id?: string;
+          label?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tags_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_rules: {
         Row: {
           assignee: string;
@@ -3031,6 +3130,8 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           display_name: string | null;
+          done_at: string | null;
+          done_by: string | null;
           external_user_id: string;
           id: string;
           last_inbound_at: string | null;
@@ -3038,6 +3139,7 @@ export type Database = {
           lead_id: string | null;
           page_id: string;
           showroom_id: string;
+          status: string;
           unread_count: number;
           updated_at: string;
         };
@@ -3072,12 +3174,17 @@ export type Database = {
         Args: { p_channel: string; p_contact: string; p_purpose: string };
         Returns: boolean;
       };
+      create_contact_tag: {
+        Args: { p_color?: string; p_contact_id: string; p_label: string };
+        Returns: string;
+      };
       create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
       delete_contact_address: { Args: { p_id: string }; Returns: undefined };
       delete_contact_note: { Args: { p_id: string }; Returns: undefined };
       delete_content_item: { Args: { p_id: string }; Returns: undefined };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
+      delete_tag: { Args: { p_tag_id: string }; Returns: undefined };
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
@@ -3216,6 +3323,7 @@ export type Database = {
       save_contact_address: { Args: { p: Json }; Returns: string };
       save_content_item: { Args: { p: Json }; Returns: string };
       set_contact_note_pinned: { Args: { p_id: string; p_pinned: boolean }; Returns: undefined };
+      set_conversation_done: { Args: { p_conversation_id: string; p_done: boolean }; Returns: undefined };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
       set_lead_recipient: {
         Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };
@@ -3248,6 +3356,7 @@ export type Database = {
         Returns: string;
       };
       telegram_user: { Args: { p_telegram_user_id: number }; Returns: string };
+      toggle_contact_tag: { Args: { p_contact_id: string; p_tag_id: string }; Returns: boolean };
       view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
       whoami: {
         Args: Record<PropertyKey, never>;
