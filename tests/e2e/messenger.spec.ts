@@ -18,6 +18,7 @@ test.describe.configure({ mode: "serial" });
 
 let mock: http.Server | null = null;
 const sent: { path: string; body: unknown }[] = [];
+let meNeedsEngagement = false;
 
 test.beforeAll(async () => {
   if (!process.env.E2E_GRAPH_MOCK) return;
@@ -31,8 +32,14 @@ test.beforeAll(async () => {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify(obj));
       };
-      if (req.method === "GET" && path === "me")
+      if (req.method === "GET" && path === "me") {
+        if (meNeedsEngagement) {
+          // Token thiếu pages_read_engagement: Meta không cho đọc thông tin Page (mã 100).
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: { code: 100, message: "requires pages_read_engagement" } }));
+        }
         return reply({ id: PAGE_ID, name: "Đại Việt Showroom Quận 4" });
+      }
       if (req.method === "POST" && path.endsWith("/subscribed_apps")) return reply({ success: true });
       if (req.method === "POST" && path === "me/messages") {
         sent.push({ path, body: JSON.parse(raw) });
@@ -89,6 +96,8 @@ const inbound = (mid: string, text: string) => ({
 });
 
 test("Owner kết nối Messenger: token đúng Page thì chuyển sang Đã kết nối", async ({ page }) => {
+  // Như Page thật: token có quyền nhắn tin nhưng không có pages_read_engagement, vẫn phải kết nối được.
+  meNeedsEngagement = true;
   await login(page, USERS.owner);
   await page.goto("/settings/integrations");
   const row = page.getByRole("listitem", { name: "Tin nhắn Facebook" });
