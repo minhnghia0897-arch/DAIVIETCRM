@@ -20,6 +20,13 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   Access**, cần App Review. Trang Access Levels: Advanced Access cần **xác minh doanh nghiệp** (Business Verification),
   có thể phải duyệt thêm từng quyền. Hệ quả: ứng dụng ở chế độ phát triển, chưa có Advanced Access cho
   `pages_messaging` thì tin khách thật không về CRM.
+  **Thực tế trên NGHIA ngày 11/10/2026 khác tài liệu:** ứng dụng DAIVIETCRM mới có Standard Access cho
+  `pages_messaging` (chưa gửi App Review) nhưng vẫn nhận tin của một tài khoản không có vai trò trên ứng dụng, không
+  liên quan Page (Owner thử lúc 22:51). Giữ nguyên ứng dụng này; nếu Meta siết lại đúng như tài liệu thì xin Advanced
+  Access: xác minh doanh nghiệp, biểu tượng 1024×1024, các trang `/privacy`, `/terms`, `/data-deletion` (đã có), quay
+  màn hình theo yêu cầu của từng quyền (với `pages_messaging`: bước đăng nhập Facebook cấp quyền trên ứng dụng, rồi
+  ứng dụng gửi tin và tin hiện trong Messenger của khách). CRM hiện kết nối bằng dán khóa, nên lúc đó cần thêm nút
+  đăng nhập Facebook (Facebook Login for Business) để quay được bước cấp quyền.
 - **Webhook:** khai địa chỉ nhận (callback URL) và mã xác minh (verify token); Meta gửi yêu cầu GET kèm
   `hub.challenge` để xác nhận. Đăng ký Page vào ứng dụng, chọn `messages`, `messaging_postbacks`, `message_echoes`.
 - **Chữ ký:** HMAC-SHA256 bằng App Secret của **đúng ứng dụng** gửi webhook, trong `X-Hub-Signature-256`; tính trên
@@ -29,11 +36,15 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   1 giờ thì gửi cảnh báo "Webhooks Disabled" và **hủy đăng ký ứng dụng khỏi Page**, phải đăng ký lại.
 - **Bản sao tin của Page (`message_echoes`):** gửi khi Page gửi tin, kể cả gửi từ hộp thư Page; `app_id` là ứng dụng
   gửi, từ v12.0 tin gửi từ hộp thư Page có `app_id` của hộp thư Page (tài liệu ghi `26390203743090`).
-- **Đọc lại tin (để đối soát):** `GET /{page-id}/conversations` (tham số `platform`, `user_id`, `folder`) cần Page
-  access token của người có việc MESSAGING và các quyền `pages_manage_metadata`, `pages_read_engagement`,
-  `pages_messaging`; không phân trang theo thời gian. `GET /{conversation-id}/messages` cần `pages_messaging`; mỗi tin
-  có `id`, `created_time`, `from` (người hoặc Page), `message`, `attachments`. Trang Message ghi chỉ đọc được 20 tin
-  gần nhất của hội thoại (ghi trong phần Instagram, chưa rõ có áp cho Messenger).
+- **Đọc lại tin (để đối soát):** `GET /{page-id}/conversations` (tham số `platform`, `user_id`, `folder`; trả `id`,
+  `updated_time`, `participants`) cần Page access token của người có việc MESSAGING và các quyền
+  `pages_manage_metadata`, `pages_read_engagement`, `pages_messaging`; không phân trang theo thời gian. Hội thoại trong
+  thư mục Tin nhắn chờ không hoạt động quá 30 ngày thì không trả. `GET /{conversation-id}/messages` và
+  `GET /{message-id}` cần `pages_messaging`, `pages_manage_metadata`; mỗi tin có `id`, `created_time`, `from` (người
+  hoặc Page), `to`, `message`, `sticker`, `attachments.data[]` (`image_data`, `video_data`, `file_url`, `mime_type`,
+  `name`). Chỉ đọc được chi tiết **20 tin gần nhất** của mỗi hội thoại; tin cũ hơn báo "đã bị xóa".
+  Token CRM đang dùng trên NGHIA (lấy ở Messenger, Cài đặt API) **chưa có `pages_read_engagement`**: gọi `GET /me`
+  bị từ chối mã 100, nên phải lấy token mới (phần C).
 - **Khung 24 giờ:** được nhắn trong 24 giờ kể từ lần cuối khách tương tác (khách nhắn, bấm nút Bắt đầu, nhắn từ quảng
   cáo Click-to-Messenger…). Trong khung được gửi cả nội dung khuyến mãi.
 - **Ngoài 24 giờ:** chỉ còn thẻ **Human Agent**: nhân viên trả lời tay trong **7 ngày**, chỉ để giải quyết đúng việc
@@ -48,6 +59,9 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   có; chờ đọc tài liệu gốc.
 - Messenger có yêu cầu xác minh doanh nghiệp (Business Verification) cho trường hợp Page của chính mình hay không.
 - Thời hạn của Page access token khi lấy qua Facebook Login for Business.
+- Mã tin Graph (`id` của tin trong hội thoại) có trùng `mid` của webhook hay không. CRM chống trùng theo mã, rồi theo
+  nội dung (cùng chiều, cùng chữ, lệch dưới 5 giây với tin khách, dưới 90 giây với tin CRM gửi). Số tin nhận ra theo
+  nội dung ghi ở `integration_sync_state.last_result.byContent`: khác 0 thường xuyên nghĩa là hai mã khác nhau.
 
 ## Phần A. Owner chuẩn bị ngay (không cần chờ CRM)
 
@@ -89,12 +103,34 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 5. Chọn **chế độ trả lời** ở tab Cấu hình: Trả lời trên CRM, hoặc Trả lời ở công cụ khác (CRM chỉ đọc), hoặc Tắt.
    Nút **Gửi dữ liệu thử** chạy lại bước kiểm tra token và đăng ký Page.
 
+## Phần C. Bật đọc lại tin bị lỡ
+
+1. **Một lần cho mỗi môi trường:** đặt địa chỉ CRM vào Vault để pg_cron gọi được route (chưa đặt thì việc này im lặng
+   không chạy). Trên NGHIA đã đặt `https://daivietcrmq4.vercel.app`.
+
+   ```sql
+   select vault.create_secret('https://<tên miền CRM>', 'app_base_url', 'Địa chỉ CRM cho pg_cron gọi /api/cron/*');
+   ```
+
+2. **Token có `pages_read_engagement`:** trong ứng dụng Meta, thêm quyền `pages_read_engagement` vào trường hợp sử
+   dụng Messenger (Trường hợp sử dụng › Tùy chỉnh › Quyền), rồi tạo lại Page access token ở Messenger › Cài đặt API
+   (bấm tạo token cho Page, đồng ý quyền mới). Cách khác: Graph API Explorer, chọn ứng dụng, lấy User access token có
+   `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement`, rồi chọn Page để đổi sang
+   Page access token (token này hết hạn theo User token; muốn dùng lâu phải gia hạn User token trước).
+3. Dán token mới ở Cài đặt › Tích hợp › Tin nhắn Facebook, bấm **Lưu khóa và cấu hình**. Kết quả phải ghi "CRM đọc lại
+   được tin bị lỡ"; còn ghi "token thiếu quyền pages_read_engagement" thì token chưa có quyền đó.
+4. Thử: trả lời một khách trên hộp thư Facebook; trong vòng khoảng 2 phút tin hiện trong Hội thoại là tin đi "Trên
+   Page" (nếu bản sao tin qua webhook về trước thì hiện ngay).
+
 ## CRM làm gì (đã viết)
 
 - **Nhận tin:** webhook kiểm `X-Hub-Signature-256` bằng App Secret trên đúng chuỗi byte nhận được, và trên bản đã đổi
   mọi ký tự ngoài ASCII sang `\uXXXX` chữ thường: tài liệu "Validate Payloads" của Meta ghi chữ ký tính trên bản
   thoát Unicode ("äöå" thành "\u00e4\u00f6\u00e5"). Thiếu bước này thì tin có chữ tiếng Việt (hay gặp ở tin nhân viên
-  trả lời trong hộp thư Facebook) bị coi sai chữ ký; ngày 11/10/2026 NGHIA ghi 93 lần như vậy. Sai chữ ký thì chỉ ghi
+  trả lời trong hộp thư Facebook) có thể bị coi sai chữ ký. Ngày 11/10/2026 NGHIA ghi 93 lần sai chữ ký (hai sự kiện
+  402 và 474 byte được Meta gửi lại liên tục); tin khách có chữ tiếng Việt cùng ngày vẫn qua, nên nguyên nhân hai sự
+  kiện đó chưa chắc là thoát Unicode. Từ bản này, dấu vết sai chữ ký ghi thêm loại sự kiện, có phải bản sao tin của
+  Page và mã ứng dụng gửi để tìm ra nguồn. Sai chữ ký thì chỉ ghi
   dấu vết (không lưu nội dung; có loại sự kiện, có phải bản sao tin của Page, mã ứng dụng gửi) và trả `401`.
 - **Tin nhân viên trả lời ngoài CRM:** Meta gửi bản sao (`message_echoes`, `app_id` là hộp thư Page khi gửi từ Meta
   Business Suite hoặc ứng dụng Messenger); CRM ghi là tin đi "từ Page" vào đúng hội thoại. Đúng thì ghi từng tin vào `webhook_events` (chống trùng theo mã tin),
@@ -111,13 +147,22 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 - **Trả lời thẳng trên Page** (hộp thư Meta Business Suite): Meta gửi bản sao (echo), CRM ghi lại là tin đi "Trên Page".
 - **Không lộ dữ liệu:** nội dung tin chỉ nằm ở bảng `messages` (và hộp nhận thô); sự kiện, thông báo, nhật ký kiểm toán
   không chứa nội dung tin hay PSID. Token không bao giờ nằm trong log hay thông báo lỗi.
+- **Đọc lại tin bị lỡ** (`lib/integrations/meta_messenger/reconcile.ts`, route `/api/cron/messenger-reconcile`):
+  pg_cron mỗi 2 phút gọi route qua pg_net (`public.dispatch_messenger_reconcile`, kèm mã tự sinh trong Vault
+  `cron_invoke_token`; route hỏi lại bằng `public.cron_token_ok`, hoặc nhận `CRON_SECRET`). Mỗi lượt đọc các hội thoại
+  cập nhật từ lượt trước (lùi thêm 5 phút; lượt đầu lùi tối đa 7 ngày), tối đa 4 trang × 25 hội thoại, lấy 20 tin cuối
+  mỗi hội thoại; tin CRM chưa có (kể cả tin nhân viên trả lời trên hộp thư Facebook) đi vào `webhook_events` với
+  `payload.via = "reconcile"` rồi qua `process_messenger_event` như webhook. Không nhận tin trước mốc bắt đầu
+  (`integration_sync_state.start_at`: lúc Owner khai Messenger lần đầu, kết nối lại không dời). Con trỏ và chỉ số đếm ở `integration_sync_state`. Lỗi (thiếu quyền, token hỏng) hiện
+  ở trang Tích hợp và tự xóa khi lượt sau chạy tốt. Lúc kết nối hoặc bấm Gửi dữ liệu thử, CRM báo luôn token đã đọc lại
+  được tin hay còn thiếu `pages_read_engagement`.
 - **Chạy thử trên máy:** đặt `META_GRAPH_BASE=http://127.0.0.1:4010/v25.0` cho server để gọi máy chủ Meta giả;
   `tests/e2e/messenger.spec.ts` dựng sẵn máy chủ giả (chạy với `E2E_GRAPH_MOCK=1`).
 
 ## Còn thiếu
 
-- Tệp đính kèm (ảnh, video) mới hiện số tệp, chưa tải về kho riêng; xem trên Messenger.
-- Job đối soát lấy lại hội thoại gần đây (Conversations API) phòng webhook bị lỡ; cảnh báo Owner khi token hết hạn.
+- Tệp đính kèm hiện bằng link của Meta (hết hạn sau một thời gian), chưa tải về kho riêng.
+- Cảnh báo Owner khi token hết hạn (hiện chỉ thấy lỗi ở trang Tích hợp).
 - Gửi ảnh, mẫu tin nhanh từ CRM.
 
 ## Nguồn
@@ -127,6 +172,9 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 - Access Levels: https://developers.facebook.com/docs/graph-api/overview/access-levels
 - Page Conversations: https://developers.facebook.com/docs/graph-api/reference/page/conversations
 - Conversation Messages: https://developers.facebook.com/docs/graph-api/reference/conversation/messages
+- Conversations API (hướng dẫn): https://developers.facebook.com/docs/messenger-platform/conversations
+- App Review submission walkthrough: https://developers.facebook.com/docs/resp-plat-initiatives/individual-processes/app-review/submission-guide
+- Permissions reference (`pages_messaging`): https://developers.facebook.com/docs/permissions
 - Message: https://developers.facebook.com/docs/graph-api/reference/message
 
 

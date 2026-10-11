@@ -19,6 +19,9 @@ test.describe.configure({ mode: "serial" });
 let mock: http.Server | null = null;
 const sent: { path: string; body: unknown }[] = [];
 let meNeedsEngagement = false;
+// Hội thoại và tin Meta trả khi CRM đọc lại tin bị lỡ (bài "đọc lại tin bị lỡ").
+let graphConversations: unknown[] = [];
+const graphMessages = new Map<string, unknown[]>();
 
 test.beforeAll(async () => {
   if (!process.env.E2E_GRAPH_MOCK) return;
@@ -45,8 +48,19 @@ test.beforeAll(async () => {
         sent.push({ path, body: JSON.parse(raw) });
         return reply({ recipient_id: PSID, message_id: `m_out_${sent.length}_${PSID}` });
       }
+      if (req.method === "GET" && path === `${PAGE_ID}/conversations` && !url.searchParams.get("user_id")) {
+        if (meNeedsEngagement) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: { code: 10, message: "requires pages_read_engagement" } }));
+        }
+        return reply({ data: graphConversations, paging: {} });
+      }
+      const thread = path.match(/^(t_[a-z]+)\/messages$/)?.[1];
+      if (req.method === "GET" && thread) return reply({ data: graphMessages.get(thread) ?? [] });
       // Khách thứ hai (người gửi PSID + "2") mang tên khác để không lẫn với "Trần Mai".
       if (path.startsWith(`${PSID}2`)) return reply({ first_name: "Hùng", last_name: "Lê" });
+      // Khách chỉ có trong phần đọc lại tin bị lỡ (webhook không về).
+      if (path.startsWith(`${PSID}3`)) return reply({ first_name: "Lan", last_name: "Phạm" });
       return reply({ first_name: "Mai", last_name: "Trần" });
     });
   });
@@ -115,6 +129,10 @@ test("Owner kết nối Messenger: token đúng Page thì chuyển sang Đã k�
   await form.getByRole("checkbox").check();
   await form.getByRole("button", { name: /Lưu khóa/ }).click();
   await expect(page.getByRole("status")).toContainText("Tin nhắn Facebook đã kết nối");
+  // Vẫn kết nối được, nhưng báo token thiếu quyền để đọc lại tin bị lỡ.
+  await expect(page.getByRole("status")).toContainText(
+    "chưa đọc lại được tin bị lỡ vì token thiếu quyền pages_read_engagement",
+  );
   await page.reload();
   await expect(page.getByRole("listitem", { name: "Tin nhắn Facebook" })).toContainText("Đã kết nối");
   expect(await page.content()).not.toContain(APP_SECRET);
@@ -538,4 +556,93 @@ test("telesale không giữ lead thì không thấy hội thoại", async ({ pag
     seen.push(await page.getByRole("button", { name: /Trần Mai/ }).isVisible());
   }
   expect(seen.filter(Boolean).length).toBe(1);
+});
+
+test("đọc lại tin bị lỡ: tin khách và trả lời trên hộp thư Facebook vào CRM, không nhân đôi", async ({
+  page,
+}) => {
+  // Chạy app với CRON_SECRET giống E2E_CRON_SECRET để gọi thẳng route mà pg_cron gọi mỗi 2 phút.
+  test.skip(!mock || !process.env.E2E_CRON_SECRET, "Cần máy chủ Meta giả của bài này và E2E_CRON_SECRET");
+  const cron = process.env.E2E_CRON_SECRET ?? "";
+  // Owner đã dán token mới có pages_read_engagement.
+  meNeedsEngagement = false;
+  const now = Date.now();
+  const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "+0000");
+  const missed = `${PSID}3`;
+  const ask = `Cho em hỏi giá ghế ${PSID}`;
+  const pageReply = `Dạ ghế DV-X9 giá 45 triệu ạ ${PSID}`;
+  const inboxReply = `Dạ em gửi chị ảnh ghế ${PSID}`;
+  graphConversations = [
+    {
+      id: "t_missed",
+      updated_time: iso(now - 1000),
+      participants: {
+        data: [
+          { id: missed, name: "Lan Phạm" },
+          { id: PAGE_ID, name: "Đại Việt" },
+        ],
+      },
+    },
+    { id: "t_mai", updated_time: iso(now - 1500), participants: { data: [{ id: PSID }, { id: PAGE_ID }] } },
+  ];
+  // Meta trả tin mới trước. Khách mới chỉ có trên Facebook: webhook không về cả tin khách lẫn tin Page trả lời.
+  graphMessages.set("t_missed", [
+    { id: `m_page_${PSID}`, created_time: iso(now - 1000), from: { id: PAGE_ID }, message: pageReply },
+    { id: `m_ask_${PSID}`, created_time: iso(now - 2000), from: { id: missed }, message: ask },
+  ]);
+  // Khách cũ: nhân viên gửi ảnh trên hộp thư Facebook; tin khách m.1 đã về qua webhook thì không thêm lần nữa.
+  graphMessages.set("t_mai", [
+    {
+      id: `m_inbox_${PSID}`,
+      created_time: iso(now - 1500),
+      from: { id: PAGE_ID },
+      message: inboxReply,
+      attachments: {
+        data: [{ mime_type: "image/jpeg", image_data: { url: "https://example.com/anh-ghe.jpg" } }],
+      },
+    },
+    {
+      id: `m.1.${PSID}`,
+      created_time: iso(now - 1800),
+      from: { id: PSID },
+      message: "Chào shop, ghế DV-X9 còn hàng không?",
+    },
+  ]);
+
+  await page.goto("/login");
+  const call = (token: string) =>
+    page.evaluate(async (token) => {
+      const r = await fetch("/api/cron/messenger-reconcile", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      return { status: r.status, body: r.ok ? await r.json() : null };
+    }, token);
+  expect((await call("ma-sai-0123456789abcdef")).status).toBe(401);
+  const first = await call(cron);
+  expect(first.status).toBe(200);
+  expect(first.body.runs[0]).toMatchObject({ conversations: 2, added: 3, byContent: 0 });
+  // Lượt gọi dồn ngay sau đó bị bỏ, không đọc chồng.
+  expect((await call(cron)).body.runs[0]).toMatchObject({ skipped: "too_soon" });
+
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const list = page.getByRole("list", { name: "Danh sách hội thoại" });
+  await list
+    .getByRole("button", { name: /Phạm Lan/ })
+    .first()
+    .click();
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  await expect(log.getByText(ask)).toHaveCount(1);
+  await expect(log.getByText(pageReply)).toHaveCount(1);
+
+  // Tin cuối của hội thoại có thể là tin bài khác vừa gửi: chọn theo tên khách.
+  await list
+    .getByRole("button", { name: /Trần Mai/ })
+    .first()
+    .click();
+  await expect(log.getByText(inboxReply)).toHaveCount(1);
+  // Ảnh nhân viên gửi trên hộp thư Facebook nằm trong đúng tin đó (ảnh thật hoặc dòng báo ảnh hết hạn).
+  await expect(log.locator(".tg-row.is-out", { hasText: inboxReply }).locator(".cv-media")).toHaveCount(1);
+  await expect(log.getByText("Chào shop, ghế DV-X9 còn hàng không?")).toHaveCount(1);
 });

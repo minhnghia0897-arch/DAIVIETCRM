@@ -28,12 +28,16 @@ export async function storeMessengerItems(
         external_id: i.externalId,
         event_type: i.eventType,
         signature_valid: true,
-        payload: { page_id: i.pageId, item: i.item } as never,
+        payload: { page_id: i.pageId, item: i.item, ...(i.via ? { via: i.via } : {}) } as never,
       })),
       { onConflict: "provider,external_id", ignoreDuplicates: true },
     )
-    .select("id");
-  return (data ?? []).map((r) => r.id);
+    .select("id, external_id");
+  // Trả theo đúng thứ tự đầu vào: tin cũ xử lý trước để hội thoại mới được tạo trước bản sao tin của Page.
+  const order = new Map(items.map((i, n) => [i.externalId, n]));
+  return (data ?? [])
+    .sort((a, b) => (order.get(a.external_id) ?? 0) - (order.get(b.external_id) ?? 0))
+    .map((r) => r.id);
 }
 
 /** Xử lý các tin vừa lưu. Khách lần đầu nhắn thì hỏi Meta tên khách (không được thì để tên tạm). */

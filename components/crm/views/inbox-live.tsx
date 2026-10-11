@@ -491,7 +491,9 @@ export function InboxLive({
                     <div className="tg-bubble cv-msg">
                       {m.out && m.by ? <b className="tg-from">{m.by}</b> : null}
                       {m.text ? <p className="tg-text">{m.text}</p> : null}
-                      {m.media.length ? <MessageMedia items={m.media} channel={CH[c.channel].label} /> : null}
+                      {m.media.length ? (
+                        <MessageMedia items={m.media} channel={CH[c.channel].label} out={m.out} />
+                      ) : null}
                       {m.status === "failed" ? (
                         <p className="tg-text text-err" role="alert">
                           <AlertCircle size={13} aria-hidden /> Chưa gửi được: {m.error}
@@ -633,12 +635,12 @@ const MEDIA_LABEL: Record<Attachment["kind"], string> = {
 
 // Ảnh hiện ngay trong khung chat (bấm để mở to); video, tin thoại, tệp hiện thành link mở. Link của Meta, Zalo hết hạn
 // sau một thời gian: ảnh không tải được thì báo xem trên kênh gốc.
-function MessageMedia({ items, channel }: { items: Attachment[]; channel: string }) {
+function MessageMedia({ items, channel, out }: { items: Attachment[]; channel: string; out: boolean }) {
   return (
     <div className="cv-media">
       {items.map((a, i) =>
         a.url && (a.kind === "image" || a.kind === "sticker") ? (
-          <MediaImage key={i} url={a.url} label={MEDIA_LABEL[a.kind]} channel={channel} />
+          <MediaImage key={i} url={a.url} label={MEDIA_LABEL[a.kind]} channel={channel} out={out} />
         ) : (
           <p key={i} className="tg-text c-lbl">
             <Paperclip size={13} aria-hidden /> {a.name ?? MEDIA_LABEL[a.kind]}
@@ -659,7 +661,18 @@ function MessageMedia({ items, channel }: { items: Attachment[]; channel: string
   );
 }
 
-function MediaImage({ url, label, channel }: { url: string; label: string; channel: string }) {
+function MediaImage({
+  url,
+  label,
+  channel,
+  out,
+}: {
+  url: string;
+  label: string;
+  channel: string;
+  /** Ảnh nhân viên gửi (kể cả gửi trên hộp thư Page) hay ảnh khách gửi. */
+  out: boolean;
+}) {
   const [broken, setBroken] = useState(false);
   if (broken)
     return (
@@ -672,7 +685,7 @@ function MediaImage({ url, label, channel }: { url: string; label: string; chann
       {/* eslint-disable-next-line @next/next/no-img-element -- ảnh từ máy chủ Meta, Zalo, không qua bộ tối ưu ảnh */}
       <img
         src={url}
-        alt={`${label} khách gửi`}
+        alt={out ? `${label} gửi khách` : `${label} khách gửi`}
         loading="lazy"
         referrerPolicy="no-referrer"
         onError={() => setBroken(true)}
