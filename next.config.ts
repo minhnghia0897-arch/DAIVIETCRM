@@ -16,6 +16,9 @@ const nextConfig: NextConfig = demoExport
       // Route type của Next chỉ biết route bản thật; CI đã typecheck toàn bộ mã ở chế độ thường.
       typescript: { ignoreBuildErrors: true },
     }
-  : {};
+  : {
+      // Font tiếng Việt vẽ ảnh báo giá (đọc bằng readFile nên phải khai báo để có trong gói chạy trên Vercel).
+      outputFileTracingIncludes: { "/api/quotes/[id]/image": ["./assets/fonts/*.ttf"] },
+    };
 
 export default nextConfig;
