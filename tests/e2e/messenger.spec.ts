@@ -182,6 +182,39 @@ test("tin mới hiện ngay trên màn đang mở, không cần tải lại tran
   await expect(log.getByText("Shop ơi còn đó không?")).toBeVisible({ timeout: 15_000 });
 });
 
+test("ảnh khách gửi hiện trong khung chat; bấm Enter hai lần chỉ gửi một tin", async ({ page }) => {
+  test.skip(!mock, "Cần máy chủ Meta giả của bài này để đếm số tin đã gửi");
+  const opener = `Ảnh ${PSID}`;
+  expect(await post(page, inbound(`m.img0.${PSID}`, opener))).toBe(200);
+  const withImage = inbound(`m.img1.${PSID}`, "");
+  const msg = withImage.entry[0].messaging[0].message as unknown as Record<string, unknown>;
+  delete msg.text;
+  msg.attachments = [{ type: "image", payload: { url: "https://example.com/ghe-dv-x9.jpg" } }];
+  expect(await post(page, withImage)).toBe(200);
+
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const item = page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Trần Mai/ });
+  await item.first().click();
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  // Máy chạy thử không ra được mạng: ảnh có thể không tải được, khi đó báo xem trên kênh gốc.
+  await expect(
+    log.getByRole("img", { name: "Ảnh khách gửi" }).or(log.getByText(/Ảnh đã hết hạn xem trên CRM/)),
+  ).toBeVisible();
+
+  const before = sent.length;
+  const box = page.getByLabel("Nội dung trả lời");
+  await box.fill(`Dạ em nhận ảnh rồi ${PSID}`);
+  await box.press("Enter");
+  await box.press("Enter");
+  await expect(log.getByText(`Dạ em nhận ảnh rồi ${PSID}`)).toHaveCount(1);
+  await expect.poll(() => sent.length).toBe(before + 1);
+  await page.waitForTimeout(1500);
+  expect(sent.length).toBe(before + 1);
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];
