@@ -636,6 +636,55 @@ export type Database = {
           },
         ];
       };
+      consumable_links: {
+        Row: {
+          consumable_variant_id: string;
+          created_at: string;
+          id: string;
+          product_id: string;
+          replacement_cycle_months: number;
+          showroom_id: string;
+        };
+        Insert: {
+          consumable_variant_id: string;
+          created_at?: string;
+          id?: string;
+          product_id: string;
+          replacement_cycle_months: number;
+          showroom_id: string;
+        };
+        Update: {
+          consumable_variant_id?: string;
+          created_at?: string;
+          id?: string;
+          product_id?: string;
+          replacement_cycle_months?: number;
+          showroom_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "consumable_links_consumable_variant_id_fkey";
+            columns: ["consumable_variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "consumable_links_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "consumable_links_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contact_addresses: {
         Row: {
           contact_id: string;
@@ -1166,6 +1215,54 @@ export type Database = {
           },
           {
             foreignKeyName: "customer_lifecycle_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deliveries: {
+        Row: {
+          crew_note: string | null;
+          handover_sent_at: string | null;
+          installed_at: string | null;
+          order_id: string;
+          scheduled_on: string | null;
+          showroom_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          crew_note?: string | null;
+          handover_sent_at?: string | null;
+          installed_at?: string | null;
+          order_id: string;
+          scheduled_on?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          crew_note?: string | null;
+          handover_sent_at?: string | null;
+          installed_at?: string | null;
+          order_id?: string;
+          scheduled_on?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deliveries_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
             referencedRelation: "showrooms";
@@ -2196,17 +2293,23 @@ export type Database = {
       };
       orders: {
         Row: {
+          backorder_until: string | null;
           balance_due: number | null;
           buyer_contact_id: string;
           cancel_reason: string | null;
           channel: string | null;
+          cod_approved_at: string | null;
+          cod_approved_by: string | null;
           code: string;
+          completed_at: string | null;
           created_at: string;
           created_by: string | null;
           deleted_at: string | null;
           delivery_fee: number;
+          deposit_min: number | null;
           discount: number;
           gift_message: string | null;
+          hold_until: string | null;
           id: string;
           installation_fee: number;
           is_gift: boolean;
@@ -2224,22 +2327,31 @@ export type Database = {
           ship_ward: string | null;
           showroom_id: string;
           status: string;
+          stock_issued_at: string | null;
           subtotal: number;
           total: number;
           updated_at: string;
+          warehouse_id: string | null;
+          order_deposit_min: number | null;
         };
         Insert: {
+          backorder_until?: string | null;
           balance_due?: never;
           buyer_contact_id: string;
           cancel_reason?: string | null;
           channel?: string | null;
+          cod_approved_at?: string | null;
+          cod_approved_by?: string | null;
           code: string;
+          completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
           deleted_at?: string | null;
           delivery_fee?: number;
+          deposit_min?: number | null;
           discount?: number;
           gift_message?: string | null;
+          hold_until?: string | null;
           id?: string;
           installation_fee?: number;
           is_gift?: boolean;
@@ -2257,22 +2369,30 @@ export type Database = {
           ship_ward?: string | null;
           showroom_id: string;
           status?: string;
+          stock_issued_at?: string | null;
           subtotal: number;
           total: number;
           updated_at?: string;
+          warehouse_id?: string | null;
         };
         Update: {
+          backorder_until?: string | null;
           balance_due?: never;
           buyer_contact_id?: string;
           cancel_reason?: string | null;
           channel?: string | null;
+          cod_approved_at?: string | null;
+          cod_approved_by?: string | null;
           code?: string;
+          completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
           deleted_at?: string | null;
           delivery_fee?: number;
+          deposit_min?: number | null;
           discount?: number;
           gift_message?: string | null;
+          hold_until?: string | null;
           id?: string;
           installation_fee?: number;
           is_gift?: boolean;
@@ -2290,9 +2410,11 @@ export type Database = {
           ship_ward?: string | null;
           showroom_id?: string;
           status?: string;
+          stock_issued_at?: string | null;
           subtotal?: number;
           total?: number;
           updated_at?: string;
+          warehouse_id?: string | null;
         };
         Relationships: [
           {
@@ -2325,6 +2447,96 @@ export type Database = {
           },
           {
             foreignKeyName: "orders_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payments: {
+        Row: {
+          amount: number;
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          created_at: string;
+          decision_note: string | null;
+          id: string;
+          method: string;
+          order_id: string;
+          proof_path: string | null;
+          recorded_by: string | null;
+          reference: string | null;
+          showroom_id: string;
+          status: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          decision_note?: string | null;
+          id?: string;
+          method: string;
+          order_id: string;
+          proof_path?: string | null;
+          recorded_by?: string | null;
+          reference?: string | null;
+          showroom_id: string;
+          status?: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          decision_note?: string | null;
+          id?: string;
+          method?: string;
+          order_id?: string;
+          proof_path?: string | null;
+          recorded_by?: string | null;
+          reference?: string | null;
+          showroom_id?: string;
+          status?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
             referencedRelation: "showrooms";
@@ -2769,6 +2981,115 @@ export type Database = {
           },
         ];
       };
+      sales_settings: {
+        Row: {
+          bank_info: string | null;
+          deposit_min_amount: number;
+          deposit_min_pct: number;
+          hold_days: number;
+          post_delivery_call_days: number;
+          quote_valid_days: number;
+          showroom_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          bank_info?: string | null;
+          deposit_min_amount?: number;
+          deposit_min_pct?: number;
+          hold_days?: number;
+          post_delivery_call_days?: number;
+          quote_valid_days?: number;
+          showroom_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          bank_info?: string | null;
+          deposit_min_amount?: number;
+          deposit_min_pct?: number;
+          hold_days?: number;
+          post_delivery_call_days?: number;
+          quote_valid_days?: number;
+          showroom_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sales_settings_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: true;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      serial_units: {
+        Row: {
+          created_at: string;
+          id: string;
+          order_item_id: string | null;
+          serial: string;
+          showroom_id: string;
+          status: string;
+          updated_at: string;
+          variant_id: string;
+          warehouse_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          order_item_id?: string | null;
+          serial: string;
+          showroom_id: string;
+          status?: string;
+          updated_at?: string;
+          variant_id: string;
+          warehouse_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          order_item_id?: string | null;
+          serial?: string;
+          showroom_id?: string;
+          status?: string;
+          updated_at?: string;
+          variant_id?: string;
+          warehouse_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "serial_units_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "serial_units_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "serial_units_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "serial_units_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       shift_members: {
         Row: {
           created_at: string;
@@ -2897,6 +3218,345 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      stock_document_lines: {
+        Row: {
+          counted: number | null;
+          document_id: string;
+          expected: number | null;
+          id: string;
+          qty: number | null;
+          serials: string[];
+          showroom_id: string;
+          variant_id: string;
+        };
+        Insert: {
+          counted?: number | null;
+          document_id: string;
+          expected?: number | null;
+          id?: string;
+          qty?: number | null;
+          serials?: string[];
+          showroom_id: string;
+          variant_id: string;
+        };
+        Update: {
+          counted?: number | null;
+          document_id?: string;
+          expected?: number | null;
+          id?: string;
+          qty?: number | null;
+          serials?: string[];
+          showroom_id?: string;
+          variant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_document_lines_document_id_fkey";
+            columns: ["document_id"];
+            isOneToOne: false;
+            referencedRelation: "stock_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_document_lines_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_document_lines_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_documents: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          kind: string;
+          order_id: string | null;
+          posted_at: string | null;
+          posted_by: string | null;
+          reason: string | null;
+          showroom_id: string;
+          status: string;
+          to_warehouse_id: string | null;
+          updated_at: string;
+          warehouse_id: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind: string;
+          order_id?: string | null;
+          posted_at?: string | null;
+          posted_by?: string | null;
+          reason?: string | null;
+          showroom_id: string;
+          status?: string;
+          to_warehouse_id?: string | null;
+          updated_at?: string;
+          warehouse_id: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          order_id?: string | null;
+          posted_at?: string | null;
+          posted_by?: string | null;
+          reason?: string | null;
+          showroom_id?: string;
+          status?: string;
+          to_warehouse_id?: string | null;
+          updated_at?: string;
+          warehouse_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_documents_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_documents_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_documents_to_warehouse_id_fkey";
+            columns: ["to_warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_documents_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_levels: {
+        Row: {
+          available: number | null;
+          low_threshold: number | null;
+          on_hand: number;
+          reserved: number;
+          showroom_id: string;
+          updated_at: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Insert: {
+          available?: never;
+          low_threshold?: number | null;
+          on_hand?: number;
+          reserved?: number;
+          showroom_id: string;
+          updated_at?: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Update: {
+          available?: never;
+          low_threshold?: number | null;
+          on_hand?: number;
+          reserved?: number;
+          showroom_id?: string;
+          updated_at?: string;
+          variant_id?: string;
+          warehouse_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_levels_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_levels_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_levels_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_movements: {
+        Row: {
+          actor_id: string | null;
+          at: string;
+          document_id: string | null;
+          id: number;
+          order_id: string | null;
+          qty: number;
+          reason: string | null;
+          showroom_id: string;
+          type: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          at?: string;
+          document_id?: string | null;
+          id?: never;
+          order_id?: string | null;
+          qty: number;
+          reason?: string | null;
+          showroom_id: string;
+          type: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          at?: string;
+          document_id?: string | null;
+          id?: never;
+          order_id?: string | null;
+          qty?: number;
+          reason?: string | null;
+          showroom_id?: string;
+          type?: string;
+          variant_id?: string;
+          warehouse_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_reservations: {
+        Row: {
+          created_at: string;
+          expires_at: string | null;
+          id: string;
+          order_id: string;
+          order_item_id: string;
+          qty: number;
+          release_reason: string | null;
+          released_at: string | null;
+          showroom_id: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          order_id: string;
+          order_item_id: string;
+          qty: number;
+          release_reason?: string | null;
+          released_at?: string | null;
+          showroom_id: string;
+          variant_id: string;
+          warehouse_id: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          order_id?: string;
+          order_item_id?: string;
+          qty?: number;
+          release_reason?: string | null;
+          released_at?: string | null;
+          showroom_id?: string;
+          variant_id?: string;
+          warehouse_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_reservations_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_reservations_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_reservations_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_reservations_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_reservations_warehouse_id_fkey";
+            columns: ["warehouse_id"];
+            isOneToOne: false;
+            referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       tags: {
         Row: {
@@ -3464,6 +4124,152 @@ export type Database = {
           },
         ];
       };
+      warehouses: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          is_default: boolean;
+          is_display: boolean;
+          is_virtual: boolean;
+          name: string;
+          showroom_id: string;
+          sort: number;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          is_default?: boolean;
+          is_display?: boolean;
+          is_virtual?: boolean;
+          name: string;
+          showroom_id: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          is_default?: boolean;
+          is_display?: boolean;
+          is_virtual?: boolean;
+          name?: string;
+          showroom_id?: string;
+          sort?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "warehouses_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      warranties: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string | null;
+          ends_on: string | null;
+          id: string;
+          note: string | null;
+          order_id: string;
+          order_item_id: string;
+          owner_contact_id: string | null;
+          product_name: string;
+          serial: string | null;
+          serial_unit_id: string | null;
+          showroom_id: string;
+          starts_on: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_on?: string | null;
+          id?: string;
+          note?: string | null;
+          order_id: string;
+          order_item_id: string;
+          owner_contact_id?: string | null;
+          product_name: string;
+          serial?: string | null;
+          serial_unit_id?: string | null;
+          showroom_id: string;
+          starts_on: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_on?: string | null;
+          id?: string;
+          note?: string | null;
+          order_id?: string;
+          order_item_id?: string;
+          owner_contact_id?: string | null;
+          product_name?: string;
+          serial?: string | null;
+          serial_unit_id?: string | null;
+          showroom_id?: string;
+          starts_on?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "warranties_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warranties_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warranties_owner_contact_id_fkey";
+            columns: ["owner_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warranties_serial_unit_id_fkey";
+            columns: ["serial_unit_id"];
+            isOneToOne: false;
+            referencedRelation: "serial_units";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warranties_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       webhook_events: {
         Row: {
           error: string | null;
@@ -3664,12 +4470,14 @@ export type Database = {
         Returns: string;
       };
       add_lead_note: { Args: { p_lead_id: string; p_text: string }; Returns: number };
+      advance_order: { Args: { p_order_id: string }; Returns: string };
       alert_sla_overdue: { Args: Record<PropertyKey, never>; Returns: number };
       apply_task_action: {
         Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string; p_user: string };
         Returns: string;
       };
       approval_permission: { Args: { p_type: string }; Returns: string };
+      approve_cod: { Args: { p_order_id: string }; Returns: undefined };
       assert_channel_reply: {
         Args: {
           p_channel: string;
@@ -3709,6 +4517,57 @@ export type Database = {
       assert_integration_writer: { Args: { p_key: string }; Returns: string };
       assert_lead_editor: { Args: { p_lead: Database["public"]["Tables"]["leads"]["Row"] }; Returns: string };
       assert_marketing_writer: { Args: Record<PropertyKey, never>; Returns: string };
+      assert_order_editor: {
+        Args: { p_order_id: string };
+        Returns: {
+          backorder_until: string | null;
+          balance_due: number | null;
+          buyer_contact_id: string;
+          cancel_reason: string | null;
+          channel: string | null;
+          cod_approved_at: string | null;
+          cod_approved_by: string | null;
+          code: string;
+          completed_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          delivery_fee: number;
+          deposit_min: number | null;
+          discount: number;
+          gift_message: string | null;
+          hold_until: string | null;
+          id: string;
+          installation_fee: number;
+          is_gift: boolean;
+          keep_surprise: boolean;
+          lead_id: string | null;
+          note: string | null;
+          paid_amount: number;
+          quote_id: string | null;
+          recipient_contact_id: string | null;
+          seller_id: string | null;
+          ship_district: string | null;
+          ship_province: string;
+          ship_receiver: string | null;
+          ship_street: string | null;
+          ship_ward: string | null;
+          showroom_id: string;
+          status: string;
+          stock_issued_at: string | null;
+          subtotal: number;
+          total: number;
+          updated_at: string;
+          warehouse_id: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "orders";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      assert_writer: { Args: Record<PropertyKey, never>; Returns: string };
       assign_leads: {
         Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
         Returns: number;
@@ -3720,6 +4579,8 @@ export type Database = {
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       can_view_order: { Args: { p_order_id: string }; Returns: boolean };
+      cancel_order: { Args: { p_order_id: string; p_reason: string }; Returns: undefined };
+      cancel_stock_document: { Args: { p_doc_id: string }; Returns: undefined };
       check_content_stage: {
         Args: { p_row: Database["public"]["Tables"]["content_items"]["Row"] };
         Returns: undefined;
@@ -3740,6 +4601,7 @@ export type Database = {
           p_channel?: string;
           p_delivery_fee?: number;
           p_discount?: Json;
+          p_gift_message?: string;
           p_installation_fee?: number;
           p_lead_id: string;
           p_lines: Json;
@@ -3767,6 +4629,7 @@ export type Database = {
         Args: { p_error?: string; p_message: string; p_mid: string };
         Returns: undefined;
       };
+      fire_order_rules: { Args: { p_event: string; p_order_id: string }; Returns: number };
       get_integration_secret: {
         Args: { p_key: string; p_name: string; p_showroom: string };
         Returns: string;
@@ -3785,6 +4648,7 @@ export type Database = {
       ingest_lead: { Args: { p: Json }; Returns: Json };
       is_absent_today: { Args: { p_user: string }; Returns: boolean };
       is_owner_user: { Args: { uid: string }; Returns: boolean };
+      issue_order_stock: { Args: { p_order_id: string; p_serials?: Json }; Returns: string };
       lead_assignees: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -3837,6 +4701,7 @@ export type Database = {
           spend: number;
         }[];
       };
+      money_text: { Args: { p: number }; Returns: string };
       move_content_item: {
         Args: { p_before?: string; p_id: string; p_post_url?: string; p_status: string };
         Returns: undefined;
@@ -3846,6 +4711,16 @@ export type Database = {
         Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
         Returns: undefined;
       };
+      order_blockers: { Args: { p_order_id: string }; Returns: string[] };
+      order_deposit_min: {
+        Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] };
+        Returns: number;
+      };
+      order_event: { Args: { p_order_id: string; p_payload: Json; p_type: string }; Returns: undefined };
+      order_paid: { Args: { p_order_id: string }; Returns: Record<string, unknown> };
+      pct_text: { Args: { p: number }; Returns: string };
+      post_stock_document: { Args: { p_doc_id: string }; Returns: string };
+      post_stock_lines: { Args: { p_actor: string; p_doc_id: string }; Returns: undefined };
       process_messenger_backlog: { Args: Record<PropertyKey, never>; Returns: number };
       process_messenger_event: { Args: { p_display_name?: string; p_event_id: number }; Returns: string };
       process_zalo_backlog: { Args: Record<PropertyKey, never>; Returns: number };
@@ -3874,10 +4749,23 @@ export type Database = {
         };
         Returns: number;
       };
+      record_payment: {
+        Args: {
+          p_amount: number;
+          p_method: string;
+          p_order_id: string;
+          p_proof_path?: string;
+          p_reference: string;
+        };
+        Returns: string;
+      };
+      record_refund: { Args: { p_amount: number; p_order_id: string; p_reference: string }; Returns: string };
       redeem_telegram_link_code: {
         Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
         Returns: string;
       };
+      release_expired_holds: { Args: Record<PropertyKey, never>; Returns: number };
+      release_order_reservations: { Args: { p_order_id: string; p_reason: string }; Returns: undefined };
       rename_contact: { Args: { p_contact_id: string; p_name: string }; Returns: undefined };
       request_campaign_budget: {
         Args: { p_amount: number; p_campaign: string; p_reason?: string };
@@ -3892,6 +4780,9 @@ export type Database = {
       save_campaign: { Args: { p: Json }; Returns: string };
       save_contact_address: { Args: { p: Json }; Returns: string };
       save_content_item: { Args: { p: Json }; Returns: string };
+      save_product: { Args: { p: Json }; Returns: string };
+      save_sales_settings: { Args: { p: Json }; Returns: undefined };
+      save_stock_document: { Args: { p: Json }; Returns: string };
       set_contact_note_pinned: { Args: { p_id: string; p_pinned: boolean }; Returns: undefined };
       set_conversation_done: { Args: { p_conversation_id: string; p_done: boolean }; Returns: undefined };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
@@ -3899,7 +4790,14 @@ export type Database = {
         Args: { p_lead_id: string; p_name?: string; p_relation?: string; p_self: boolean };
         Returns: string;
       };
+      set_low_stock_threshold: {
+        Args: { p_threshold: number; p_variant_id: string; p_warehouse_id: string };
+        Returns: undefined;
+      };
       set_my_duty: { Args: { p_on: boolean }; Returns: Json };
+      set_order_backorder: { Args: { p_expected: string; p_order_id: string }; Returns: undefined };
+      set_order_warehouse: { Args: { p_order_id: string; p_warehouse_id: string }; Returns: undefined };
+      set_price: { Args: { p_price: number; p_variant_id: string }; Returns: undefined };
       set_telegram_group: {
         Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
         Returns: string;
@@ -3908,6 +4806,8 @@ export type Database = {
         Args: { p_expires_at?: string; p_key: string; p_name: string; p_showroom: string; p_value: string };
         Returns: undefined;
       };
+      sync_lead_from_order: { Args: { p_order_id: string; p_stage: string }; Returns: undefined };
+      sync_lifecycle_from_order: { Args: { p_order_id: string; p_stage: string }; Returns: undefined };
       task_action: {
         Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string };
         Returns: string;
@@ -3927,6 +4827,10 @@ export type Database = {
       };
       telegram_user: { Args: { p_telegram_user_id: number }; Returns: string };
       toggle_contact_tag: { Args: { p_contact_id: string; p_tag_id: string }; Returns: boolean };
+      update_delivery: {
+        Args: { p_handover?: boolean; p_note: string; p_order_id: string; p_scheduled_on: string };
+        Returns: undefined;
+      };
       view_as_header: { Args: Record<PropertyKey, never>; Returns: string };
       whoami: {
         Args: Record<PropertyKey, never>;
