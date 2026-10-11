@@ -96,8 +96,17 @@ export async function subscribePage(pageId: string, pageToken: string, fetchImpl
   });
 }
 
-/** Tên khách theo PSID. Meta có thể không trả (khách giới hạn quyền riêng tư): trả null, không làm hỏng việc nhận tin. */
-export async function userName(psid: string, pageToken: string, fetchImpl: typeof fetch = fetch) {
+/**
+ * Tên khách theo PSID. Hồ sơ người dùng (GET /{psid}) chỉ trả tên khi ứng dụng có tính năng Business Asset User Profile
+ * Access hoặc khách có vai trò trong ứng dụng; không được thì thử danh sách hội thoại của Page (người tham gia có kèm
+ * tên). Vẫn không được thì trả null, không làm hỏng việc nhận tin.
+ */
+export async function userName(
+  psid: string,
+  pageToken: string,
+  fetchImpl: typeof fetch = fetch,
+  pageId?: string,
+) {
   try {
     const r = await call<{ first_name?: string; last_name?: string; name?: string }>(
       fetchImpl,
@@ -107,8 +116,21 @@ export async function userName(psid: string, pageToken: string, fetchImpl: typeo
         query: { fields: "first_name,last_name,name" },
       },
     );
-    const name = r.name ?? [r.last_name, r.first_name].filter(Boolean).join(" ");
-    return name.trim() || null;
+    const name = (r.name ?? [r.last_name, r.first_name].filter(Boolean).join(" ")).trim();
+    if (name) return name;
+  } catch {
+    // Thử đường thứ hai bên dưới.
+  }
+  if (!pageId) return null;
+  try {
+    const r = await call<{ data?: { participants?: { data?: { id?: string; name?: string }[] } }[] }>(
+      fetchImpl,
+      `${pageId}/conversations`,
+      pageToken,
+      { query: { platform: "messenger", user_id: psid, fields: "participants" } },
+    );
+    const who = r.data?.[0]?.participants?.data?.find((p) => p.id === psid);
+    return who?.name?.trim() || null;
   } catch {
     return null;
   }

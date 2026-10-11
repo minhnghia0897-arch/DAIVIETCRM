@@ -10,6 +10,9 @@ import type { MessengerItem } from "./webhook.ts";
 
 type Db = SupabaseClient<Database>;
 
+/** Tên tạm database đặt khi chưa biết tên khách (migration 20261008000200_messenger.sql). */
+const PLACEHOLDER = "Khách Messenger ";
+
 export async function storeMessengerItems(
   db: Db,
   cfg: MessengerConfig,
@@ -48,20 +51,34 @@ export async function processMessengerEvents(
       .maybeSingle();
     if (!ev) continue;
     let name: string | null = null;
+    let contactToRename: string | null = null;
     const psid = (ev.payload as { item?: { sender?: { id?: string } } } | null)?.item?.sender?.id;
     if (ev.event_type !== "message_echo" && psid && cfg.pageToken) {
-      const { count } = await db
+      // Khách mới, hoặc khách còn tên tạm ("Khách Messenger 1234"): hỏi lại Meta tên thật mỗi khi khách nhắn.
+      const { data: conv } = await db
         .from("conversations")
-        .select("id", { count: "exact", head: true })
+        .select("contact_id, contacts(full_name)")
         .eq("showroom_id", cfg.showroomId)
         .eq("channel", "messenger")
-        .eq("external_user_id", psid);
-      if (!count) name = await userName(psid, cfg.pageToken, fetchImpl);
+        .eq("external_user_id", psid)
+        .maybeSingle();
+      const placeholder = conv?.contacts?.full_name?.startsWith(PLACEHOLDER) ?? false;
+      if (!conv || placeholder)
+        name = await userName(psid, cfg.pageToken, fetchImpl, cfg.pageId || undefined);
+      if (name && conv?.contact_id && placeholder) contactToRename = conv.contact_id;
     }
     const { error } = await db.rpc("process_messenger_event", {
       p_event_id: id,
       p_display_name: name ?? undefined,
     });
+    if (!error && contactToRename && name) {
+      // Chỉ thay tên tạm; tên nhân viên đã sửa tay thì giữ nguyên.
+      await db
+        .from("contacts")
+        .update({ full_name: name })
+        .eq("id", contactToRename)
+        .like("full_name", `${PLACEHOLDER}%`);
+    }
     if (error) {
       // Để job mỗi phút thử lại; ghi lỗi ngắn, không kèm nội dung tin.
       await db
