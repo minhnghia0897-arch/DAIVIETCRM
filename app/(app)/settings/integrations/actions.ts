@@ -193,8 +193,13 @@ const PROBES: Record<string, Probe> = {
           error: `Token này thuộc Page khác (${page.name ?? "không rõ tên"}), không phải Page có ID đã khai. Lấy token của đúng Page rồi kết nối lại.`,
         };
     } catch (e) {
-      const detail = e instanceof GraphError && e.code !== 190 && e.detail ? ` Meta báo: "${e.detail}"` : "";
-      return { error: graphErrorMessage(e) + detail };
+      // Đọc thông tin Page cần thêm quyền pages_read_engagement, nhắn tin thì không. Thiếu quyền đó (mã 100) thì bỏ qua
+      // bước này: đăng ký Page ở dưới vẫn chỉ thành công khi token đúng là của Page có ID đã khai.
+      if (!(e instanceof GraphError && e.code === 100)) {
+        const detail =
+          e instanceof GraphError && e.code !== 190 && e.detail ? ` Meta báo: "${e.detail}"` : "";
+        return { error: graphErrorMessage(e) + detail };
+      }
     }
     try {
       await subscribePage(cfg.pageId, cfg.pageToken!);
