@@ -40,8 +40,10 @@ test("Owner thấy cả đội, giá vốn và hồ sơ nhân sự", async ({ pa
 
 test("telesale không mở được hiệu suất và hồ sơ nhân sự của người khác", async ({ page }) => {
   await login(page, USERS.thao);
-  const res = await page.goto("/team/people/11111111-1111-4111-8111-000000000004");
-  expect(res?.status()).toBe(404);
+  // Có khung chờ (loading.tsx) nên trang trả 200 rồi mới đổi sang màn "Không tìm thấy" (soft 404, kèm noindex);
+  // dữ liệu của người khác vẫn không được gửi xuống.
+  await page.goto("/team/people/11111111-1111-4111-8111-000000000004");
+  await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
   await page.goto("/team/staff");
   await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();
 });

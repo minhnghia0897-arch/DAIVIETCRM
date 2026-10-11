@@ -3752,3 +3752,57 @@ select:not([multiple]):not([size]) {
 .tgx .ui-card > .list-head h1 {
   font-weight: 700;
 }
+
+/* Khung chờ khi chuyển màn (app/(app)/loading.tsx). */
+.c-skel-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.c-skel-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.c-skel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+.c-skel {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--line-2) 25%, var(--surface-2) 50%, var(--line-2) 75%);
+  background-size: 200% 100%;
+  animation: c-skel 1.2s ease-in-out infinite;
+}
+.c-skel.is-title {
+  width: 220px;
+  height: 26px;
+}
+.c-skel.is-tile {
+  height: 76px;
+  border-radius: 12px;
+}
+.c-skel.is-line {
+  height: 14px;
+}
+.c-skel.is-line:nth-child(3n + 2) {
+  width: 82%;
+}
+.c-skel.is-line:nth-child(3n) {
+  width: 64%;
+}
+@keyframes c-skel {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-skel {
+    animation: none;
+  }
+}

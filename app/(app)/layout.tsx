@@ -72,14 +72,13 @@ async function loadShortcuts(userId: string, perms: ReadonlySet<string>) {
   const endOfDay = vnEndOfToday();
   const items: { label: string; count: number }[] = [];
 
-  const { count: callbacks } = await supabase
+  const callbacksQ = supabase
     .from("tasks")
     .select("id", { count: "exact", head: true })
     .eq("assigned_to", userId)
     .eq("status", "open")
     .eq("type", "callback")
     .lte("due_at", endOfDay.toISOString());
-  items.push({ label: "Hẹn gọi lại hôm nay", count: callbacks ?? 0 });
 
   const overdue = supabase
     .from("leads")
@@ -88,7 +87,8 @@ async function loadShortcuts(userId: string, perms: ReadonlySet<string>) {
     .lt("sla_due_at", nowIso)
     .not("stage", "in", "(won,lost)");
   if (perms.has("lead.view_all")) {
-    const [{ count: unassigned }, { count: overdueTeam }] = await Promise.all([
+    const [{ count: callbacks }, { count: unassigned }, { count: overdueTeam }] = await Promise.all([
+      callbacksQ,
       supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
@@ -97,10 +97,15 @@ async function loadShortcuts(userId: string, perms: ReadonlySet<string>) {
         .not("stage", "in", "(won,lost)"),
       overdue,
     ]);
+    items.push({ label: "Hẹn gọi lại hôm nay", count: callbacks ?? 0 });
     items.push({ label: "Lead chưa phân", count: unassigned ?? 0 });
     items.push({ label: "Quá hạn toàn đội", count: overdueTeam ?? 0 });
   } else {
-    const { count: mine } = await overdue.eq("assigned_to", userId);
+    const [{ count: callbacks }, { count: mine }] = await Promise.all([
+      callbacksQ,
+      overdue.eq("assigned_to", userId),
+    ]);
+    items.push({ label: "Hẹn gọi lại hôm nay", count: callbacks ?? 0 });
     items.push({ label: "Lead quá hạn của tôi", count: mine ?? 0 });
   }
   return items;
