@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { CrmShell } from "@/components/crm/shell";
+import { CrmShell } from "@/components/crm/demo-shell";
 import { DemoUserProvider } from "@/components/demo/demo-user";
 import { DEMO_ROLES, setDemoRole } from "@/lib/demo/session";
 import { visibleSettings } from "@/lib/nav";

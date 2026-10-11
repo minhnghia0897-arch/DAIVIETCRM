@@ -46,25 +46,19 @@ import {
 import { AccountMenu } from "@/components/shell/account-menu";
 import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import { AI_SUGGESTIONS, aiAnswer, type AiAnswer, type AiView } from "@/lib/demo/ai-answers";
-import { STAGES, houseById } from "@/lib/demo/crm-data";
-import { visibleCustomers } from "@/lib/demo/repo";
+import type { AiAnswer, AiView } from "@/lib/demo/ai-answers";
 import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
-import { CUSTOMERS } from "@/lib/demo/data";
 import type { NoticeFeed } from "@/lib/notify/notice";
 import { NoticeList } from "./notices";
-import { ApprovalList, FeedList } from "./parts";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
-import { slaStats } from "./views/lead-intake";
 import { ShellContext } from "./shell-context";
-import { ORDER_STATUS } from "@/lib/demo/labels";
 import { useLiveChanges } from "@/lib/db/use-live-changes";
-import { visibleChats, visibleConvs, visibleHouses, visibleOpps, visibleQueue } from "./access";
-import { CrmProvider, fmtMinutes, orderPeople, orderRisks, useCrm, visibleOrders } from "./store";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
 // thanh tab, vùng nội dung kèm khung trợ lý AI bên phải, thanh tiện ích dưới cùng.
-// Dùng chung cho bản thật (app/(app)/layout.tsx) và bản demo tĩnh (layout.demo.tsx).
+// Khung này không đọc kho dữ liệu mô phỏng: bản thật (CrmLiveShell, app/(app)/layout.tsx) dùng giờ thật, số đếm và
+// thông báo thật; bản demo (CrmShell trong demo-shell.tsx) cắm thêm phần mô phỏng qua `useDemo` (DemoBits). Nhờ vậy
+// trang thật không phải tải kho mô phỏng và các thư viện đi kèm.
 
 export interface ShellUser {
   id: string;
@@ -81,7 +75,31 @@ export interface ShellUser {
 
 export { useShell } from "./shell-context";
 
-export function CrmShell(props: {
+/** Phần mô phỏng của khung (bản demo): đồng hồ giả lập, số đếm, trợ lý AI thử, hàng chờ duyệt, nhật ký agent… */
+export interface DemoBits {
+  clock: { vn: string; kr: string; label: string };
+  navCounts: Record<string, number>;
+  activity: Record<string, number>;
+  duty: boolean | null;
+  toggleDuty: (on: boolean) => void;
+  trailExtra: () => { opp: string; house: string };
+  trailLabel: (step: TrailStep) => string | null;
+  restore: (step: TrailStep) => void;
+  answer: (question: string, view: AiView, pathname: string) => AiAnswer;
+  suggestions: (view: AiView) => string[];
+  ctxLine: (view: AiView, pathname: string) => string;
+  quickItems: () => QuickItem[];
+  search: (text: string) => boolean;
+  queueCount: number;
+  approvals: React.ReactNode;
+  feed: React.ReactNode;
+  paused: boolean;
+  togglePause: () => void;
+  sla: { overdue: number; unassigned: number };
+  integrationErrors: number;
+}
+
+export interface ShellProps {
   user: ShellUser;
   settings: { href: string; label: string }[];
   signOutAction: () => void | Promise<void>;
@@ -99,28 +117,45 @@ export function CrmShell(props: {
     load: () => Promise<NoticeFeed>;
     markRead: (ids?: string[]) => Promise<void>;
   } | null;
+  /** Bọc phần nội dung (bản thật: nạp kho mô phỏng cho màn còn mô phỏng). */
+  wrapContent?: (children: React.ReactNode) => React.ReactNode;
   children: React.ReactNode;
-}) {
-  const { user } = props;
-  const who = useMemo(
-    () => ({
-      perms: new Set(user.permissions),
-      me: user.shortName,
-      userId: user.id,
-      // Quyền chỉ Owner (không cấp được) dùng để nhận ra Owner, không suy từ tên vai trò.
-      isOwner: user.permissions.includes("settings.permissions"),
-      readOnly: Boolean(user.readOnly),
-    }),
-    [user.permissions, user.shortName, user.id, user.readOnly],
-  );
+}
+
+/** Khung của bản thật: không có phần mô phỏng. */
+export function CrmLiveShell(props: ShellProps) {
   return (
     <ToastProvider>
-      <CrmProvider who={who}>
-        <ShellInner {...props} />
-      </CrmProvider>
+      <ShellFrame {...props} useDemo={useNoDemo} />
     </ToastProvider>
   );
 }
+
+function useNoDemo(): DemoBits | null {
+  return null;
+}
+
+const tzTime = (tz: string, d: Date) =>
+  d.toLocaleTimeString("vi-VN", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false });
+const subscribeMinute = (cb: () => void) => {
+  const t = setInterval(cb, 30_000);
+  return () => clearInterval(t);
+};
+const minuteNow = () => Math.floor(Date.now() / 60_000);
+
+/** Giờ thật Việt Nam và Hàn Quốc, cập nhật mỗi phút. */
+function useRealClock() {
+  const m = useSyncExternalStore(subscribeMinute, minuteNow, () => 0);
+  if (!m) return { vn: "--:--", kr: "--:--", label: "Giờ hiện tại" };
+  const d = new Date(m * 60_000);
+  return { vn: tzTime("Asia/Ho_Chi_Minh", d), kr: tzTime("Asia/Seoul", d), label: "Giờ hiện tại" };
+}
+
+const LIVE_AI_NOTE: AiAnswer = {
+  paragraphs: [
+    "Trợ lý AI trên dữ liệu thật đang được chuẩn bị (dự kiến tháng 3). Hiện trợ lý chỉ chạy thử trên bản demo với dữ liệu mô phỏng.",
+  ],
+};
 
 const VIEW_BY_PATH: [string, AiView][] = [
   ["/home", "home"],
@@ -157,7 +192,7 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/kol": Clapperboard,
 };
 
-interface TrailStep {
+export interface TrailStep {
   path: string;
   opp: string;
   house: string;
@@ -165,20 +200,15 @@ interface TrailStep {
 
 const normPath = (p: string) => p.replace(/\/+$/, "") || "/";
 
-/** Tên màn để ghi trên nút Quay lại: "đơn Q4-2610-0012", "lead Nguyễn Thị Thu", "Việc cần làm"… */
-function trailLabel(step: TrailStep, s: ReturnType<typeof useCrm>["state"]): string {
-  const [, root, id] = step.path.split("/");
-  if (root === "orders" && id) return `đơn ${s.orders.find((o) => o.id === id)?.code ?? ""}`.trim();
-  if (root === "customers" && id) return `khách ${CUSTOMERS.find((c) => c.id === id)?.fullName ?? ""}`.trim();
-  if (root === "opportunities") {
-    const o = s.opps.find((x) => x.id === step.opp);
-    return o ? `lead ${o.name}` : "Cơ hội";
-  }
-  if (root === "households") return houseById(step.house)?.name ?? "Hộ gia đình";
-  if (root === "products" && id) return "sản phẩm";
-  if (root === "team" && step.path.includes("/people/")) return "hiệu suất";
+/** Tên màn để ghi trên nút Quay lại theo tên tab ("Việc cần làm"…); bản demo ghi rõ lead, đơn, hộ. */
+function tabLabel(path: string): string {
+  if (/^\/orders\/[^/]+/.test(path)) return "đơn hàng";
+  if (/^\/customers\/[^/]+/.test(path)) return "khách";
+  if (/^\/leads\/[^/]+/.test(path)) return "lead";
+  if (/^\/products\/[^/]+/.test(path)) return "sản phẩm";
+  if (path.includes("/team/people/")) return "hiệu suất";
   const tab = [...NAV_TABS.flatMap((t) => [t, ...(t.children ?? [])]), ...SETTINGS_ITEMS].find(
-    (t) => t.href === step.path,
+    (t) => t.href === path,
   );
   return tab?.label ?? "trang trước";
 }
@@ -208,9 +238,6 @@ function writeNavCollapsed(v: boolean) {
   navListeners.forEach((cb) => cb());
 }
 
-const fold = (s: string) =>
-  s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
-
 // Trợ lý AI mở sẵn chỉ trên màn hình thật rộng; laptop để toàn bộ chiều ngang cho nội dung, bấm nút AI để mở.
 const WIDE = "(min-width: 1600px)";
 const subscribeWide = (cb: () => void) => {
@@ -226,7 +253,7 @@ interface AiMessage {
   answer: AiAnswer;
 }
 
-function ShellInner({
+export function ShellFrame({
   user,
   settings,
   signOutAction,
@@ -235,9 +262,11 @@ function ShellInner({
   allDemo,
   liveDuty,
   liveNotices,
+  wrapContent,
+  useDemo,
   children,
-}: Parameters<typeof CrmShell>[0]) {
-  const { state, act, who } = useCrm();
+}: ShellProps & { useDemo: () => DemoBits | null }) {
+  const demo = useDemo();
   const toast = useToast();
   const pathname = usePathname();
   const router = useRouter();
@@ -306,44 +335,14 @@ function ShellInner({
     const next = typeof v === "function" ? v(navOpen) : v;
     setNavOpenAt(next ? pathname : null);
   };
-  const latest = useRef(state);
-  useEffect(() => {
-    latest.current = state;
-  }, [state]);
-
   const ask = useCallback(
     (question: string) => {
-      const s = latest.current;
       // Trợ lý chạy dưới quyền người hỏi: chỉ nhận dữ liệu người đó được xem (CLAUDE.md 10.7).
-      const opps = visibleOpps(s, who);
-      const houses = visibleHouses(s, who);
-      const answer = aiAnswer(question, {
-        view,
-        revenue: s.revenue,
-        minutes: fmtMinutes(s.minutes),
-        autoCount: s.autoCount,
-        opps,
-        oppSel: opps.some((o) => o.id === s.oppSel) ? s.oppSel : (opps[0]?.id ?? ""),
-        houseSel: houses.some((h) => h.id === s.houseSel) ? s.houseSel : (houses[0]?.id ?? ""),
-        team: perms.has("report.team"),
-        orders: visibleOrders(s.orders, perms, user.id).map((o) => {
-          const p = orderPeople(o);
-          return {
-            id: o.id,
-            code: o.code,
-            buyer: p.buyer,
-            recipient: p.self ? p.buyer : p.recipient,
-            status: ORDER_STATUS[o.status].label,
-            risks: orderRisks(o),
-          };
-        }),
-        orderSel: pathname.match(/^\/orders\/([^/]+)/)?.[1],
-        convs: visibleConvs(s, who),
-      });
+      const answer = demo ? demo.answer(question, view, pathname) : LIVE_AI_NOTE;
       setAiPref(true);
       setMessages((m) => [...m, { id: (m.at(-1)?.id ?? 0) + 1, question, answer }]);
     },
-    [view, perms, pathname, user.id, who],
+    [demo, view, pathname],
   );
 
   const me = user.shortName;
@@ -355,7 +354,7 @@ function ShellInner({
   const [trail, setTrail] = useState<TrailStep[]>([]);
   const [trailAt, setTrailAt] = useState(pathname);
   if (trailAt !== pathname) {
-    const left: TrailStep = { path: normPath(trailAt), opp: state.oppSel, house: state.houseSel };
+    const left: TrailStep = { path: normPath(trailAt), ...(demo?.trailExtra() ?? { opp: "", house: "" }) };
     const cur = normPath(pathname);
     setTrailAt(pathname);
     setTrail((t) => (t.at(-1)?.path === cur ? t.slice(0, -1) : [...t, left].slice(-20)));
@@ -363,45 +362,26 @@ function ShellInner({
   const prev = trail.at(-1);
   const back = useMemo(() => {
     if (!prev) return null;
-    const label = trailLabel(prev, state);
+    const label = demo?.trailLabel(prev) ?? tabLabel(prev.path);
     return {
       label,
       go: () => {
-        // Trả lại lead, hộ đang chọn lúc rời màn đó rồi lùi lịch sử trình duyệt.
-        if (prev.path === "/opportunities" && prev.opp) act({ type: "selectOpp", id: prev.opp });
-        if (prev.path === "/households" && prev.house) act({ type: "selectHouse", id: prev.house });
+        // Trả lại lead, hộ đang chọn lúc rời màn đó (bản demo) rồi lùi lịch sử trình duyệt.
+        demo?.restore(prev);
         router.back();
       },
     };
-  }, [prev, state, act, router]);
+  }, [prev, demo, router]);
   const shell = useMemo(
     () => ({ perms, can, ask, me, isOwner, roleKey, userId: user.id, back }),
     [perms, can, ask, me, isOwner, roleKey, user.id, back],
   );
 
   const tabs = visibleTabs(perms);
-  // Hàng chờ duyệt theo quyền duyệt tương ứng, cộng đề xuất của chính mình (CLAUDE.md 11.1).
-  const queue = visibleQueue(state, who);
-  // Số đếm kiểu Slack trên sidebar: việc mở của tôi, hội thoại cần người, lead quá SLA.
-  const navCounts: Record<string, number> = {
-    "/tasks": state.tasks.filter((t) => t.status === "open" && t.owner === me).length,
-    "/inbox": visibleConvs(state, who).filter((c) => c.status === "need").length,
-    // Tin chưa đọc trong các nhóm nội bộ mình tham gia.
-    "/chat": visibleChats(state, who).reduce(
-      (n, c) =>
-        n +
-        c.topics.reduce(
-          (k, t) => k + Math.max(0, t.messages.length - (state.chatSeen[`${c.id}/${t.id}`] ?? 0)),
-          0,
-        ),
-      0,
-    ),
-  };
+  // Số đếm kiểu Slack trên sidebar (bản demo); bản thật chưa đếm trên menu, số thật nằm ở thanh tiện ích.
+  const navCounts: Record<string, number> = demo?.navCounts ?? {};
   // Mục "chưa đọc" kiểu Slack: in đậm khi có việc mới so với lần cuối rời trang đó (đang mở thì không đậm).
-  const activity: Record<string, number> = {
-    ...navCounts,
-    "/opportunities": visibleOpps(state, who).filter((o) => o.stage === 0).length,
-  };
+  const activity: Record<string, number> = demo?.activity ?? {};
   const hrefOf = (p: string) => tabs.find((t) => p === t.href || p.startsWith(t.href + "/"))?.href ?? p;
   const [seenPath, setSeenPath] = useState(pathname);
   const [seen, setSeen] = useState<Record<string, number>>({});
@@ -414,14 +394,7 @@ function ShellInner({
   const unread = (href: string) => hrefOf(pathname) !== href && (activity[href] ?? 0) > (seen[href] ?? 0);
   const [dutyPending, startDuty] = useTransition();
   const [dutyOptimistic, setDutyOptimistic] = useOptimistic(liveDuty?.on ?? false);
-  const duty =
-    liveDuty !== undefined
-      ? liveDuty
-        ? dutyOptimistic
-        : null
-      : state.receivers.some((r) => r.name === me)
-        ? Boolean(state.receivers.find((r) => r.name === me)?.onDuty)
-        : null;
+  const duty = liveDuty !== undefined ? (liveDuty ? dutyOptimistic : null) : (demo?.duty ?? null);
   function toggleDuty(v: boolean) {
     if (liveDuty) {
       startDuty(async () => {
@@ -430,13 +403,10 @@ function ShellInner({
         toast(res.message, res.ok ? "ok" : "err");
         router.refresh();
       });
-    } else
-      act(
-        { type: "toggleDuty", name: me, actor: me },
-        v ? "Đã bật trực, bắt đầu nhận lead" : "Đã tắt trực, không nhận lead mới",
-      );
+    } else demo?.toggleDuty(v);
   }
-  const sla = slaStats(state);
+  const realClock = useRealClock();
+  const clock = demo?.clock ?? realClock;
   const group = tabs.find((t) =>
     t.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/")),
   );
@@ -488,78 +458,22 @@ function ShellInner({
       group: "Màn hình" as const,
       run: () => router.push(t.href),
     }));
-    const leads: QuickItem[] = visibleOpps(state, who).map((o) => ({
-      id: `l${o.id}`,
-      label: o.name,
-      hint: `${o.product} · ${STAGES[o.stage]}${o.owner ? ` · ${o.owner}` : ""}`,
-      group: "Lead" as const,
-      run: () => {
-        act({ type: "selectOpp", id: o.id });
-        router.push("/opportunities");
-      },
-    }));
-    const orders: QuickItem[] = visibleOrders(state.orders, perms, user.id).map((o) => ({
-      id: `o${o.id}`,
-      label: o.code,
-      hint: `${orderPeople(o).buyer} · ${ORDER_STATUS[o.status].label}`,
-      group: "Đơn hàng" as const,
-      run: () => router.push(`/orders/${o.id}`),
-    }));
-    const houses: QuickItem[] = visibleHouses(state, who).map((h) => ({
-      id: `h${h.id}`,
-      label: h.name,
-      hint: h.members.map((m) => m.name).join(", "),
-      group: "Hộ gia đình" as const,
-      run: () => {
-        act({ type: "selectHouse", id: h.id });
-        router.push("/households");
-      },
-    }));
-    const customers: QuickItem[] = visibleCustomers({ id: user.id, permissions: perms }).map((c) => ({
-      id: `c${c.id}`,
-      label: c.fullName,
-      hint: `Khách · ${c.phoneMasked}`,
-      group: "Khách" as const,
-      run: () => router.push(`/customers/${c.id}`),
-    }));
-    return [...pages, ...leads, ...orders, ...houses, ...customers];
+    return [...pages, ...(demo?.quickItems() ?? [])];
   }
 
   function search(text: string) {
-    const t = fold(text);
+    const t = text.trim();
     if (!t) return;
-    const house = visibleHouses(state, who).find(
-      (h) => fold(h.name).includes(t) || h.members.some((m) => fold(m.name).includes(t)),
-    );
-    if (house) {
-      act({ type: "selectHouse", id: house.id }, `Mở ${house.name}`);
-      router.push("/households");
+    if (demo) {
+      if (!demo.search(t)) toast(`Không tìm thấy "${text}"`, "err");
       return;
     }
-    const d = visibleOrders(state.orders, perms, user.id).find(
-      (x) => fold(x.code).includes(t) || fold(orderPeople(x).buyer).includes(t),
-    );
-    if (d) {
-      toast(`Mở đơn ${d.code}`);
-      router.push(`/orders/${d.id}`);
-      return;
-    }
-    toast(`Không tìm thấy "${text}"`, "err");
+    // Bản thật: tìm lead theo tên khách.
+    if (can("lead.view_own") || can("lead.view_all")) router.push(`/leads?q=${encodeURIComponent(t)}`);
+    else toast("Anh chị chưa được cấp quyền xem lead", "err");
   }
 
-  const ctxLine = (() => {
-    if (view === "house") return `Đang xem: ${houseById(state.houseSel)?.name}`;
-    if (view === "opps")
-      return `Đang xem: cơ hội ${state.opps.find((o) => o.id === state.oppSel)?.name ?? ""}`;
-    if (view === "orders") {
-      const id = pathname.match(/^\/orders\/([^/]+)/)?.[1];
-      const o = id ? state.orders.find((x) => x.id === id) : undefined;
-      return o ? `Đang xem: đơn ${o.code}` : "Đang xem: danh sách đơn hàng";
-    }
-    if (view === "convos")
-      return `Đang xem: hội thoại ${state.convs.find((c) => c.id === state.convSel)?.name}`;
-    return "Đọc dữ liệu showroom Quận 4 theo quyền của anh chị";
-  })();
+  const ctxLine = demo ? demo.ctxLine(view, pathname) : "Trợ lý AI trên dữ liệu thật sẽ có từ tháng 3";
 
   return (
     <ShellContext.Provider value={shell}>
@@ -607,7 +521,7 @@ function ShellInner({
             <input
               ref={searchRef}
               aria-label="Tìm kiếm"
-              placeholder="Tìm hộ gia đình, khách, mã đơn…"
+              placeholder={demo ? "Tìm hộ gia đình, khách, mã đơn…" : "Tìm lead theo tên khách…"}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -620,8 +534,8 @@ function ShellInner({
               Ctrl K
             </button>
           </form>
-          <span className="c-tz ml-auto" aria-label="Giờ mô phỏng">
-            VN <b>{fmtMinutes(state.minutes)}</b> · Hàn <b>{fmtMinutes(state.minutes + 120)}</b>
+          <span className="c-tz ml-auto" aria-label={clock.label}>
+            VN <b>{clock.vn}</b> · Hàn <b>{clock.kr}</b>
           </span>
           {can("lead.receive") && duty !== null ? (
             <label className="flex items-center gap-1.5 text-label whitespace-nowrap">
@@ -659,11 +573,11 @@ function ShellInner({
             <button
               type="button"
               className="c-ib"
-              aria-label={`Chờ duyệt: ${queue.length}`}
+              aria-label={`Chờ duyệt: ${demo?.queueCount ?? 0}`}
               onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}
             >
               <Bell size={18} />
-              {queue.length ? <span className="c-badge">{queue.length}</span> : null}
+              {demo?.queueCount ? <span className="c-badge">{demo.queueCount}</span> : null}
             </button>
           )}
           <AccountMenu
@@ -766,7 +680,7 @@ function ShellInner({
                     })}
                   </nav>
                 ) : null}
-                {children}
+                {wrapContent ? wrapContent(children) : children}
               </div>
               {aiOpen ? (
                 <aside className="c-card c-ai" aria-label="Trợ lý AI">
@@ -842,7 +756,7 @@ function ShellInner({
                     ))}
                   </div>
                   <div className="c-sug" aria-label="Câu hỏi gợi ý">
-                    {AI_SUGGESTIONS[view].map((s) => (
+                    {(demo?.suggestions(view) ?? []).map((s) => (
                       <button key={s} type="button" onClick={() => ask(s)}>
                         {s}
                       </button>
@@ -864,7 +778,7 @@ function ShellInner({
             <div className="c-ch">
               <h2>
                 {pop === "appr"
-                  ? `Chờ duyệt (${queue.length})`
+                  ? `Chờ duyệt (${demo?.queueCount ?? 0})`
                   : pop === "notices"
                     ? `Thông báo${notices?.unread ? ` (${notices.unread} chưa đọc)` : ""}`
                     : "Nhật ký agent"}
@@ -876,7 +790,7 @@ function ShellInner({
               </span>
             </div>
             {pop === "appr" ? (
-              <ApprovalList items={queue} />
+              demo?.approvals
             ) : pop === "notices" && notices ? (
               <NoticeList
                 items={notices.items}
@@ -887,7 +801,7 @@ function ShellInner({
                 onReadAll={() => readNotices()}
               />
             ) : (
-              <FeedList items={state.feed} limit={20} />
+              demo?.feed
             )}
           </div>
         ) : null}
@@ -897,51 +811,45 @@ function ShellInner({
         ) : null}
 
         <footer className="c-util" aria-label="Tiện ích">
-          <button type="button" onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}>
-            <ClipboardCheck size={15} aria-hidden />
-            <span className="c-lbltxt">Chờ duyệt</span>
-            <span className="c-cnt">{queue.length}</span>
-          </button>
-          {can("lead.view_all") ? (
+          {demo ? (
+            <button type="button" onClick={() => setPop((p) => (p === "appr" ? null : "appr"))}>
+              <ClipboardCheck size={15} aria-hidden />
+              <span className="c-lbltxt">Chờ duyệt</span>
+              <span className="c-cnt">{demo.queueCount}</span>
+            </button>
+          ) : null}
+          {demo && can("lead.view_all") ? (
             <button type="button" onClick={() => setPop((p) => (p === "feed" ? null : "feed"))}>
               <ScrollText size={15} aria-hidden />
               <span className="c-lbltxt">Nhật ký agent</span>
             </button>
           ) : null}
-          {can("settings.integrations") ? (
-            <button
-              type="button"
-              onClick={() =>
-                act({ type: "togglePause" }, state.paused ? "Agent chạy tiếp" : "Đã tạm dừng agent")
-              }
-            >
-              {state.paused ? <Play size={15} aria-hidden /> : <Pause size={15} aria-hidden />}
-              <span className="c-lbltxt">{state.paused ? "Chạy tiếp agent" : "Tạm dừng agent"}</span>
+          {demo && can("settings.integrations") ? (
+            <button type="button" onClick={demo.togglePause}>
+              {demo.paused ? <Play size={15} aria-hidden /> : <Pause size={15} aria-hidden />}
+              <span className="c-lbltxt">{demo.paused ? "Chạy tiếp agent" : "Tạm dừng agent"}</span>
             </button>
           ) : null}
-          {can("lead.view_all") ? (
+          {demo && can("lead.view_all") ? (
             <Link
               href="/home"
               className="flex items-center gap-1.5 border-r border-line-2 px-3 text-label whitespace-nowrap"
             >
               <span className="c-lbltxt">Quá SLA</span>
-              <span className={`c-cnt ${sla.overdue.length ? "" : "opacity-40"}`}>{sla.overdue.length}</span>
+              <span className={`c-cnt ${demo.sla.overdue ? "" : "opacity-40"}`}>{demo.sla.overdue}</span>
               <span className="c-lbltxt">· Chưa phân</span>
-              <span className={`c-cnt ${sla.unassigned.length ? "" : "opacity-40"}`}>
-                {sla.unassigned.length}
+              <span className={`c-cnt ${demo.sla.unassigned ? "" : "opacity-40"}`}>
+                {demo.sla.unassigned}
               </span>
             </Link>
           ) : null}
-          {can("settings.integrations") &&
-          Object.values(state.settings.integrationStates).some((x) => x.status === "error") ? (
+          {demo && can("settings.integrations") && demo.integrationErrors ? (
             <Link
               href="/settings/integrations"
               className="flex items-center gap-1.5 border-r border-line-2 px-3 text-label whitespace-nowrap text-err"
             >
               <span className="c-lbltxt">Đấu nối lỗi</span>
-              <span className="c-cnt">
-                {Object.values(state.settings.integrationStates).filter((x) => x.status === "error").length}
-              </span>
+              <span className="c-cnt">{demo.integrationErrors}</span>
             </Link>
           ) : null}
           {shortcuts?.map((s) => (
