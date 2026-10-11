@@ -5,9 +5,8 @@ Theo `CLAUDE.md` mục 10.3, đấu nối này thuộc **tháng 2**; bộ nối 
 `20261008000200_messenger.sql`, webhook `/api/webhooks/meta`, màn Hội thoại). Phần A làm được ngay, phần B làm khi CRM
 chạy trên tên miền HTTPS thật.
 
-Các điểm dưới đây kiểm lại ngày 08/10/2026 từ tài liệu Messenger Platform của Meta (xem Nguồn). Trang
-developers.facebook.com bị chặn từ môi trường làm việc nên chưa đọc trực tiếp được; **phải mở lại tài liệu gốc khi
-viết bộ nối** (mục 10.1 điều 1). Điểm nào chưa kiểm được ghi rõ "chưa kiểm".
+Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiếp tài liệu gốc ngày 11/10/2026 (Graph API v26.0, xem Nguồn).
+Điểm nào chưa kiểm được ghi rõ "chưa kiểm".
 
 ## Đã kiểm
 
@@ -15,13 +14,26 @@ viết bộ nối** (mục 10.1 điều 1). Điểm nào chưa kiểm được g
   `pages_messaging`, `pages_read_engagement`, `business_management`. `business_management` là quyền phụ thuộc của
   `pages_messaging`.
 - **Người bấm kết nối** phải có việc **Nhắn tin (MESSAGING)** và **Kiểm duyệt (MODERATE)** trên Page.
-- **Duyệt ứng dụng (App Review):** ứng dụng chỉ dùng để nhắn tin cho **chính Page của mình** thì không phải gửi duyệt.
-  Chưa duyệt thì quyền ở mức Standard Access, chỉ áp cho người có vai trò trên ứng dụng hoặc trên Page đã nhận ứng
-  dụng. Showroom tự sở hữu Page (mục 16) nên đi đường này trước; nếu sau này cần Advanced Access thì mới gửi duyệt.
+- **Mức quyền (đọc tài liệu gốc 11/10/2026, sửa ghi chú cũ):** ứng dụng doanh nghiệp tự có **Standard Access**, nhưng
+  trang Webhooks for Messenger Platform ghi: Standard Access chỉ nhận thông báo từ **người có vai trò trên ứng dụng**
+  (quản trị, nhà phát triển, người thử); muốn nhận tin của **khách** (người không có vai trò) phải có **Advanced
+  Access**, cần App Review. Trang Access Levels: Advanced Access cần **xác minh doanh nghiệp** (Business Verification),
+  có thể phải duyệt thêm từng quyền. Hệ quả: ứng dụng ở chế độ phát triển, chưa có Advanced Access cho
+  `pages_messaging` thì tin khách thật không về CRM.
 - **Webhook:** khai địa chỉ nhận (callback URL) và mã xác minh (verify token); Meta gửi yêu cầu GET kèm
-  `hub.challenge` để xác nhận. Đăng ký Page vào ứng dụng, chọn tối thiểu trường `messages` và `messaging_postbacks`.
-  Kiểm chữ ký `X-Hub-Signature-256` bằng app secret. Trả `200` thật nhanh; webhook lỗi kéo dài thì Meta tự hủy đăng
-  ký, phải đăng ký lại.
+  `hub.challenge` để xác nhận. Đăng ký Page vào ứng dụng, chọn `messages`, `messaging_postbacks`, `message_echoes`.
+- **Chữ ký:** HMAC-SHA256 bằng App Secret của **đúng ứng dụng** gửi webhook, trong `X-Hub-Signature-256`; tính trên
+  bản thoát Unicode của thân (`äöå` thành `\u00e4\u00f6\u00e5`, hex chữ thường). Mỗi ứng dụng ký bằng App Secret
+  riêng: nếu một ứng dụng khác (ví dụ AICHAT) cũng khai callback URL của CRM thì mọi webhook của nó đều "sai chữ ký".
+- **Gửi lại khi lỗi:** Meta thử lại vài lần ngay; quá 15 phút vẫn lỗi thì báo về tài khoản nhà phát triển; lỗi kéo dài
+  1 giờ thì gửi cảnh báo "Webhooks Disabled" và **hủy đăng ký ứng dụng khỏi Page**, phải đăng ký lại.
+- **Bản sao tin của Page (`message_echoes`):** gửi khi Page gửi tin, kể cả gửi từ hộp thư Page; `app_id` là ứng dụng
+  gửi, từ v12.0 tin gửi từ hộp thư Page có `app_id` của hộp thư Page (tài liệu ghi `26390203743090`).
+- **Đọc lại tin (để đối soát):** `GET /{page-id}/conversations` (tham số `platform`, `user_id`, `folder`) cần Page
+  access token của người có việc MESSAGING và các quyền `pages_manage_metadata`, `pages_read_engagement`,
+  `pages_messaging`; không phân trang theo thời gian. `GET /{conversation-id}/messages` cần `pages_messaging`; mỗi tin
+  có `id`, `created_time`, `from` (người hoặc Page), `message`, `attachments`. Trang Message ghi chỉ đọc được 20 tin
+  gần nhất của hội thoại (ghi trong phần Instagram, chưa rõ có áp cho Messenger).
 - **Khung 24 giờ:** được nhắn trong 24 giờ kể từ lần cuối khách tương tác (khách nhắn, bấm nút Bắt đầu, nhắn từ quảng
   cáo Click-to-Messenger…). Trong khung được gửi cả nội dung khuyến mãi.
 - **Ngoài 24 giờ:** chỉ còn thẻ **Human Agent**: nhân viên trả lời tay trong **7 ngày**, chỉ để giải quyết đúng việc
@@ -109,6 +121,14 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 - Gửi ảnh, mẫu tin nhanh từ CRM.
 
 ## Nguồn
+
+- Webhooks for Messenger Platform: https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks
+- message_echoes: https://developers.facebook.com/docs/messenger-platform/reference/webhook-events/message-echoes
+- Access Levels: https://developers.facebook.com/docs/graph-api/overview/access-levels
+- Page Conversations: https://developers.facebook.com/docs/graph-api/reference/page/conversations
+- Conversation Messages: https://developers.facebook.com/docs/graph-api/reference/conversation/messages
+- Message: https://developers.facebook.com/docs/graph-api/reference/message
+
 
 - [Messenger Platform, Quick start](https://developers.facebook.com/documentation/business-messaging/messenger-platform/getting-started/quick-start)
 - [Overview for the Messenger Platform](https://developers.facebook.com/documentation/business-messaging/messenger-platform/overview)
