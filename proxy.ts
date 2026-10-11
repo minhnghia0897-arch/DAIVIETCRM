@@ -34,6 +34,10 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/invite") ||
     path.startsWith("/auth/") ||
     path.startsWith("/q/") ||
+    // Trang pháp lý công khai mà Meta, Zalo đòi khi phát hành ứng dụng.
+    path === "/privacy" ||
+    path === "/terms" ||
+    path === "/data-deletion" ||
     // Webhook của nhà cung cấp gọi vào không có phiên đăng nhập; mỗi route tự kiểm chữ ký hoặc mã bí mật
     // (CLAUDE.md mục 10.1). Đẩy về /login sẽ làm mất tin.
     path.startsWith("/api/webhooks/") ||
