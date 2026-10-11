@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import http from "node:http";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { USERS, login } from "./helpers";
 
@@ -45,6 +45,8 @@ test.beforeAll(async () => {
         sent.push({ path, body: JSON.parse(raw) });
         return reply({ recipient_id: PSID, message_id: `m_out_${sent.length}_${PSID}` });
       }
+      // Khách thứ hai (người gửi PSID + "2") mang tên khác để không lẫn với "Trần Mai".
+      if (path.startsWith(`${PSID}2`)) return reply({ first_name: "Hùng", last_name: "Lê" });
       return reply({ first_name: "Mai", last_name: "Trần" });
     });
   });
@@ -82,14 +84,14 @@ async function post(page: Page, body: unknown, secret = APP_SECRET) {
   );
 }
 
-const inbound = (mid: string, text: string) => ({
+const inbound = (mid: string, text: string, sender = PSID) => ({
   object: "page",
   entry: [
     {
       id: PAGE_ID,
       time: Date.now(),
       messaging: [
-        { sender: { id: PSID }, recipient: { id: PAGE_ID }, timestamp: Date.now(), message: { mid, text } },
+        { sender: { id: sender }, recipient: { id: PAGE_ID }, timestamp: Date.now(), message: { mid, text } },
       ],
     },
   ],
@@ -310,6 +312,21 @@ test("thẻ khách, lọc theo thẻ, giao nhân viên, đánh dấu xong", asyn
   await expect(page.getByRole("button", { name: "Đánh dấu xong" })).toBeVisible();
 });
 
+/** Chọn sản phẩm ở dòng hàng theo mã SKU (nhãn có kèm giá). */
+async function pick(form: Locator, line: number, sku: string) {
+  const sel = form.getByLabel(`Sản phẩm dòng ${line}`);
+  const value = await sel.locator("option", { hasText: sku }).first().getAttribute("value");
+  await sel.selectOption(value!);
+}
+
+/** Giao tới địa chỉ mới (khách đã có địa chỉ lưu thì chọn "Địa chỉ mới…"). */
+async function newAddress(form: Locator, province: string, street: string) {
+  const saved = form.getByLabel("Địa chỉ giao");
+  if (await saved.count()) await saved.selectOption("new");
+  await form.getByLabel("Tỉnh giao").selectOption(province);
+  await form.getByLabel("Số nhà, đường").fill(street);
+}
+
 test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng giá, giảm vượt mức chờ Owner duyệt", async ({
   page,
 }) => {
@@ -322,34 +339,37 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
     .click();
   const side = page.getByRole("complementary", { name: "Thông tin khách" });
 
-  // Chưa đủ bốn thông tin thì chưa lên đơn.
-  await side.getByRole("tab", { name: /Lên đơn/ }).click();
-  await expect(side.getByRole("note")).toContainText("Lead còn thiếu");
-
-  const info = side.getByRole("form", { name: "Bốn thông tin bắt buộc" });
-  await side.getByRole("tab", { name: /Khách/ }).click();
-  await info.getByLabel("Chính mình").check();
-  await info.getByLabel("Tỉnh người nhận").fill("Nghệ An");
-  await info.getByLabel("Dịp", { exact: true }).selectOption({ index: 1 });
-  await info.getByLabel("Ngân sách").selectOption({ index: 1 });
-  await info.getByRole("button", { name: "Lưu thông tin" }).click();
-  await expect(info).toContainText("Đã đủ bốn thông tin");
-
-  // Đơn trong giới hạn giảm: xác nhận luôn, tổng = 49.000.000 − 1.000.000 + 500.000.
+  // Form Lên đơn điền sẵn từ hồ sơ đúng khách đang mở; thiếu dịp, ngân sách thì báo, chưa tạo đơn.
   await side.getByRole("tab", { name: /Lên đơn/ }).click();
   const form = side.getByRole("form", { name: "Lên đơn" });
-  await form.getByRole("button", { name: "Thêm DC302" }).click();
+  await expect(form.getByLabel("Họ tên người đặt")).toHaveValue(/Trần Mai/);
+  await form.getByRole("button", { name: "Tạo đơn" }).click();
+  await expect(form.getByRole("list", { name: "Còn thiếu" })).toContainText("Chưa chọn dịp mua");
+
+  // Điền ngay trên form: mua cho chính mình, dịp, ngân sách, địa chỉ mới; lưu vào hồ sơ khi tạo đơn.
+  await form.getByLabel("Mua cho chính mình").check();
+  await form.getByLabel("Dịp mua").selectOption({ index: 1 });
+  await form.getByLabel("Ngân sách khách").selectOption({ index: 1 });
+  await newAddress(form, "Nghệ An", "12 Lê Lợi");
+  await pick(form, 1, "DC302");
+  // Đơn trong giới hạn giảm: xác nhận luôn, tổng = 49.000.000 − 1.000.000 + 500.000.
   await form.getByLabel("Mức giảm").fill("1.000.000");
   await form.getByLabel("Phí giao").fill("500.000");
   await expect(form.getByLabel("Tạm tính")).toContainText("48.500.000");
+  await expect(form.locator(".cv-total")).toContainText("48.500.000");
   await form.getByRole("button", { name: "Tạo đơn" }).click();
   await expect(page.getByRole("status")).toContainText(/Đã tạo đơn Q4-\d{4}-\d{4}/);
   const orders = side.getByRole("list", { name: "Đơn của khách" });
   await expect(orders).toContainText("48.500.000");
   await expect(orders).toContainText("Đã xác nhận");
+  await side.getByRole("tab", { name: /Khách/ }).click();
+  await expect(side.getByRole("form", { name: "Bốn thông tin bắt buộc" })).toContainText(
+    "Đã đủ bốn thông tin",
+  );
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
 
   // Giảm 7% vượt mức 5% của sale admin: đơn chờ Owner duyệt.
-  await form.getByRole("button", { name: "Thêm DC108" }).click();
+  await pick(form, 1, "DC108");
   await form.getByLabel("Kiểu giảm").selectOption("pct");
   await form.getByLabel("Mức giảm").fill("7");
   await expect(form.getByRole("note")).toContainText("Cần Owner duyệt");
@@ -379,7 +399,7 @@ test("báo giá: gửi link, khách mở trên trang công khai và bấm đồn
   const side = page.getByRole("complementary", { name: "Thông tin khách" });
   await side.getByRole("tab", { name: /Lên đơn/ }).click();
   const form = side.getByRole("form", { name: "Lên đơn" });
-  await form.getByRole("button", { name: "Thêm DC203" }).click();
+  await pick(form, 1, "DC203");
   await form.getByLabel("Phí giao").fill("300.000");
   await expect(form.getByLabel("Tạm tính")).toContainText("34.880.000");
   await form.getByRole("button", { name: "Gửi báo giá" }).click();
@@ -407,6 +427,31 @@ test("báo giá: gửi link, khách mở trên trang công khai và bấm đồn
   await quotes.getByRole("link", { name: "Mở đơn từ báo giá" }).first().click();
   await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();
   await expect(page.locator("body")).toContainText("34.880.000");
+});
+
+test("chuyển hội thoại thì form Lên đơn điền lại đúng khách đang mở", async ({ page }) => {
+  // Khách thứ hai nhắn tới (người gửi khác) để có hai hội thoại.
+  expect(await post(page, inbound(`m.sw.${PSID}`, `Khách thứ hai ${PSID}`, `${PSID}2`))).toBe(200);
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const buttons = page.getByRole("list", { name: "Danh sách hội thoại" }).getByRole("button");
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+  const form = side.getByRole("form", { name: "Lên đơn" });
+  const head = side.locator(".cv-info-top b").first();
+
+  await buttons.nth(0).click();
+  const first = (await head.innerText()).trim();
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  await expect(form.getByLabel("Họ tên người đặt")).toHaveValue(first);
+  await form.getByLabel("Ghi chú đơn").fill("ghi chú của khách trước");
+
+  // Khách thứ hai: tab Lên đơn vẫn mở, mọi ô điền lại theo khách mới, không giữ chữ của khách trước.
+  await buttons.nth(1).click();
+  await expect(head).not.toHaveText(first);
+  const second = (await head.innerText()).trim();
+  await expect(side.getByRole("tab", { name: /Lên đơn/ })).toHaveAttribute("aria-selected", "true");
+  await expect(form.getByLabel("Họ tên người đặt")).toHaveValue(second);
+  await expect(form.getByLabel("Ghi chú đơn")).toHaveValue("");
 });
 
 test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, thu khi giao, xuất kho serial, hoàn tất bảo hành", async ({

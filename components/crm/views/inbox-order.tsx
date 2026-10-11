@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, FileText, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Copy, FileText, Plus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -11,12 +11,17 @@ import { toQuoteInput, type Cart } from "@/lib/sales/checkout";
 import { priceQuote, type PricingCatalog } from "@/lib/sales/pricing";
 
 import { acceptQuoteForCustomer, createOrder, createQuote } from "@/app/(app)/inbox/order-actions";
+import { renameContact, saveContactAddress, saveContactPhone } from "@/app/(app)/inbox/side-actions";
+import { setBuyerMarket, setRecipient, updateLeadInfo } from "@/app/(app)/leads/[id]/actions";
 
+import type { LiveSide } from "./inbox-live-side";
 import { PricingSummary } from "./pricing-summary";
 
-// Tab Lên đơn của Hội thoại (kiểu Pancake): chọn ghế, combo, số lượng, giảm tay, phí giao lắp nhân viên nhập, địa chỉ
-// giao; tạo đơn hoặc gửi báo giá có link cho khách. Số trên màn do hàm định giá dùng chung tính ngay trên trình duyệt
-// để xem trước; server tính lại từ database khi lưu (CLAUDE.md 8.1, 8.5).
+// Tab Lên đơn của Hội thoại, bố cục như bản demo: Người đặt, Người nhận, Địa chỉ giao, Hàng, tổng tiền dính đáy cột.
+// Mọi ô điền sẵn từ hồ sơ đúng khách của hội thoại đang mở và từ tin khách nhắn; nhân viên kiểm lại rồi bấm Tạo đơn
+// hoặc Gửi báo giá. Bấm thì lưu phần hồ sơ đã sửa (tên, số, nơi sống, người nhận, dịp, ngân sách, địa chỉ mới) rồi mới
+// tạo đơn. Số trên màn do hàm định giá dùng chung tính trên trình duyệt để xem trước; server tính lại từ database
+// khi lưu (CLAUDE.md 8.1, 8.5).
 
 export interface OrderSide {
   leadId: string | null;
@@ -57,7 +62,7 @@ export interface OrderSide {
   }[];
 }
 
-const FIELD = "block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
+const FIELD = "mt-0.5 block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
 const QUOTE_STATUS: Record<string, string> = {
   draft: "Nháp",
   sent: "Đã gửi",
@@ -66,6 +71,15 @@ const QUOTE_STATUS: Record<string, string> = {
   expired: "Hết hạn",
   rejected: "Khách từ chối",
 };
+const SALES_CHANNELS = [
+  ["zalo_oa", "Zalo OA"],
+  ["messenger", "Tin nhắn Facebook"],
+  ["showroom", "Khách đến showroom"],
+  ["hotline", "Hotline"],
+  ["referral", "Giới thiệu"],
+] as const;
+type SalesChannel = (typeof SALES_CHANNELS)[number][0];
+const NEW_ADDRESS = "new";
 
 /** Đọc số tiền nhân viên gõ: bỏ dấu chấm, dấu phẩy, khoảng trắng ("1.500.000" → 1500000). */
 function parseMoney(raw: string): number {
@@ -73,18 +87,73 @@ function parseMoney(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function OrderTab({ order }: { order: OrderSide }) {
+interface Row {
+  key: number;
+  ref: string;
+  qty: number;
+}
+
+type Result = { ok: boolean; message: string };
+
+/** Giá trị ban đầu của form: hồ sơ khách, lead của hội thoại, rồi tới thông tin khách nhắn trong tin. */
+function initialOf(side: LiveSide, channel: string) {
+  const { lead, findings } = side;
+  const addr = findings.find((f) => f.kind === "address")?.value;
+  const relation = findings.find((f) => f.kind === "recipient")?.value.relation;
+  const phone = findings.find((f) => f.kind === "phone")?.value.phone;
+  const occasion = findings.find((f) => f.kind === "occasion")?.value.occasion;
+  const products = [
+    ...new Set(findings.filter((f) => f.kind === "product").map((f) => `v:${f.value.productKey}`)),
+  ].filter((k) => side.order.products.some((p) => `v:${p.variantId}` === k));
+  const firstItem = side.order.products[0]
+    ? `v:${side.order.products[0].variantId}`
+    : side.order.combos[0]
+      ? `c:${side.order.combos[0].id}`
+      : "";
+  const self = lead?.recipient ? lead.recipient.self : !relation;
+  return {
+    buyerName: side.contact.name,
+    buyerPhone: side.contact.phones.length ? "" : (phone ?? ""),
+    buyerCountry: side.contact.country,
+    channel: (channel === "Zalo" ? "zalo_oa" : "messenger") as SalesChannel,
+    self,
+    recipientName: lead?.recipient && !lead.recipient.self ? (lead.recipient.name ?? "") : (relation ?? ""),
+    recipientRelation: lead?.recipient?.relation ?? relation ?? "",
+    keepSurprise: lead?.keepSurprise ?? false,
+    occasionId:
+      lead?.occasionId ??
+      side.occasions.find((o) => o.label.toLowerCase() === occasion?.toLowerCase())?.id ??
+      "",
+    budgetId: lead?.budgetRangeId ?? "",
+    addressId: side.order.addresses[0]?.id ?? NEW_ADDRESS,
+    province: addr?.province ?? lead?.recipientProvince ?? "",
+    district: addr?.district ?? "",
+    ward: addr?.ward ?? "",
+    street: addr?.street ?? "",
+    rows: (products.length ? products : firstItem ? [firstItem] : []).map((ref, i) => ({
+      key: i + 1,
+      ref,
+      qty: 1,
+    })) as Row[],
+    prefilled: findings.length > 0 || Boolean(lead),
+  };
+}
+
+export function OrderTab({ side, channel }: { side: LiveSide; channel: string }) {
+  const order = side.order;
   const router = useRouter();
   const toast = useToast();
   const [pending, start] = useTransition();
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [init] = useState(() => initialOf(side, channel));
+  const [f, setF] = useState(init);
+  const set = (patch: Partial<typeof init>) => setF((x) => ({ ...x, ...patch }));
   const [discType, setDiscType] = useState<"amount" | "pct">("amount");
   const [discRaw, setDiscRaw] = useState("");
   const [deliveryRaw, setDeliveryRaw] = useState("");
   const [installRaw, setInstallRaw] = useState("");
-  const [addressId, setAddressId] = useState(order.addresses[0]?.id ?? "");
   const [note, setNote] = useState("");
   const [gift, setGift] = useState("");
+  const [tried, setTried] = useState(false);
   const [created, setCreated] = useState<{
     href: string;
     label: string;
@@ -92,290 +161,190 @@ export function OrderTab({ order }: { order: OrderSide }) {
     link?: string;
   } | null>(null);
 
-  const items = [
-    ...order.products.map((p) => ({ key: `v:${p.variantId}`, label: p.sku, sub: formatMoney(p.price) })),
-    ...order.combos.map((c) => ({ key: `c:${c.id}`, label: `Combo ${c.code}`, sub: c.name })),
+  const options = [
+    ...order.products.map((p) => ({
+      value: `v:${p.variantId}`,
+      label: `${p.name} · ${formatMoney(p.price)}`,
+    })),
+    ...order.combos.map((c) => ({ value: `c:${c.id}`, label: `Combo: ${c.name}` })),
   ];
   const discValue =
     discType === "pct" ? Math.min(Number(discRaw.replace(",", ".")) || 0, 100) : parseMoney(discRaw);
   const cartValue: Cart = {
-    lines: Object.entries(cart)
-      .filter(([, q]) => q > 0)
-      .map(([k, qty]) =>
-        k.startsWith("c:") ? { comboId: k.slice(2), qty } : { variantId: k.slice(2), qty },
+    lines: f.rows
+      .filter((r) => r.ref && r.qty > 0)
+      .map((r) =>
+        r.ref.startsWith("c:")
+          ? { comboId: r.ref.slice(2), qty: r.qty }
+          : { variantId: r.ref.slice(2), qty: r.qty },
       ),
     discount: discValue > 0 ? { type: discType, value: discValue } : null,
     deliveryFee: deliveryRaw.trim() ? parseMoney(deliveryRaw) : null,
     installationFee: installRaw.trim() ? parseMoney(installRaw) : null,
   };
   const province =
-    order.addresses.find((a) => a.id === addressId)?.province ?? order.context?.recipientProvince;
+    f.addressId === NEW_ADDRESS
+      ? f.province
+      : (order.addresses.find((a) => a.id === f.addressId)?.province ?? "");
   const preview = useMemo(() => {
     if (!order.catalog || !order.context || !cartValue.lines.length) return null;
     return priceQuote(
       toQuoteInput(
         cartValue,
-        { ...order.context, recipientProvince: province ?? undefined, channel: "online", date: new Date() },
+        {
+          ...order.context,
+          buyerCountry: f.buyerCountry,
+          recipientProvince: province || undefined,
+          channel: f.channel === "showroom" ? "showroom" : "online",
+          date: new Date(),
+        },
         order.catalog,
       ),
       order.catalog,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cartValue dựng lại mỗi lần vẽ từ các state bên dưới
-  }, [cart, discType, discRaw, deliveryRaw, installRaw, province, order.catalog, order.context]);
-
-  const setQty = (key: string, qty: number) =>
-    setCart((c) => ({ ...c, [key]: Math.max(0, Math.min(99, qty)) }));
-  const payload = () => ({
-    leadId: order.leadId!,
-    lines: cartValue.lines,
-    addressId: addressId || null,
-    discount: cartValue.discount,
-    deliveryFee: cartValue.deliveryFee,
-    installationFee: cartValue.installationFee,
-    note: note.trim() || undefined,
-    giftMessage: gift.trim() || undefined,
-  });
-  const reset = () => {
-    setCart({});
-    setDiscRaw("");
-    setDeliveryRaw("");
-    setInstallRaw("");
-    setNote("");
-    setGift("");
-  };
-
-  function submitOrder() {
-    start(async () => {
-      const r = await createOrder(payload());
-      toast(r.message, r.ok ? "ok" : "err");
-      if (r.ok) {
-        if (r.orderId) setCreated({ href: `/orders/${r.orderId}`, label: "Mở đơn", message: r.message });
-        reset();
-        router.refresh();
-      }
-    });
-  }
-
-  function submitQuote() {
-    start(async () => {
-      const r = await createQuote(payload());
-      toast(r.message, r.ok ? "ok" : "err");
-      if (r.ok && r.link) {
-        setCreated({ href: r.link, label: "Xem báo giá", message: r.message, link: r.link });
-        reset();
-        router.refresh();
-      }
-    });
-  }
+  }, [
+    f.rows,
+    f.buyerCountry,
+    f.channel,
+    discType,
+    discRaw,
+    deliveryRaw,
+    installRaw,
+    province,
+    order.catalog,
+    order.context,
+  ]);
 
   const blocker = !order.leadId
     ? "Hội thoại chưa gắn lead nên chưa lên đơn được."
     : !order.canCreate && !order.canQuote
       ? "Anh chị chưa được cấp quyền tạo đơn, báo giá cho lead này."
-      : order.missing.length
-        ? `Lead còn thiếu: ${order.missing.join(", ")}. Điền ở thẻ Khách rồi lên đơn.`
-        : !items.length
-          ? "Chưa có sản phẩm nào đang bán trong bảng giá."
-          : !order.addresses.length
-            ? "Chưa có địa chỉ giao. Lưu địa chỉ ở thẻ Khách trước."
-            : null;
+      : !options.length
+        ? "Chưa có sản phẩm nào đang bán trong bảng giá."
+        : null;
+  const ro = !side.canEdit;
+  const errors = [
+    !f.buyerName.trim() && "Chưa nhập tên người đặt",
+    !f.self && !f.recipientName.trim() && "Chưa nhập tên người nhận",
+    !f.occasionId && "Chưa chọn dịp mua",
+    !f.budgetId && "Chưa chọn ngân sách",
+    !province && "Chưa chọn tỉnh giao",
+    f.addressId === NEW_ADDRESS && !f.street.trim() && "Chưa nhập số nhà, đường",
+    !cartValue.lines.length && "Chưa có dòng hàng",
+  ].filter((x): x is string => Boolean(x));
+  // Người không sửa được hồ sơ chỉ lên đơn khi lead đã đủ thông tin và đã có địa chỉ lưu sẵn.
+  const roBlock = ro && (order.missing.length > 0 || f.addressId === NEW_ADDRESS);
+
+  /** Lưu phần hồ sơ đã sửa trên form; trả về địa chỉ giao dùng cho đơn. */
+  async function saveProfile(): Promise<Result & { addressId?: string }> {
+    if (ro) return { ok: true, message: "", addressId: f.addressId };
+    const lead = side.lead!;
+    const steps: (() => Promise<Result>)[] = [];
+    if (f.buyerName.trim() !== side.contact.name)
+      steps.push(() => renameContact({ contactId: side.contact.id, name: f.buyerName }));
+    if (f.buyerPhone.trim())
+      steps.push(() =>
+        saveContactPhone({ contactId: side.contact.id, raw: f.buyerPhone, country: f.buyerCountry }),
+      );
+    if (f.buyerCountry !== side.contact.country)
+      steps.push(() =>
+        setBuyerMarket({ leadId: lead.id, contactId: side.contact.id, country: f.buyerCountry }),
+      );
+    const r0 = lead.recipient;
+    if (
+      !r0 ||
+      r0.self !== f.self ||
+      (!f.self &&
+        (f.recipientName.trim() !== (r0.name ?? "") || f.recipientRelation.trim() !== (r0.relation ?? "")))
+    )
+      steps.push(() =>
+        setRecipient({
+          leadId: lead.id,
+          self: f.self,
+          name: f.self ? undefined : f.recipientName,
+          relation: f.self ? undefined : f.recipientRelation || undefined,
+        }),
+      );
+    const info: Parameters<typeof updateLeadInfo>[0] = { leadId: lead.id };
+    if (province !== (lead.recipientProvince ?? "")) info.recipientProvince = province;
+    if (f.occasionId !== (lead.occasionId ?? "")) info.occasionId = f.occasionId || null;
+    if (f.budgetId !== (lead.budgetRangeId ?? "")) info.budgetRangeId = f.budgetId || null;
+    if (!f.self && f.keepSurprise !== lead.keepSurprise) info.keepSurprise = f.keepSurprise;
+    if (Object.keys(info).length > 1) steps.push(() => updateLeadInfo(info));
+    for (const s of steps) {
+      const r = await s();
+      if (!r.ok) return r;
+    }
+    if (f.addressId !== NEW_ADDRESS) return { ok: true, message: "", addressId: f.addressId };
+    const a = await saveContactAddress({
+      contactId: side.contact.id,
+      receiver: f.self ? undefined : f.recipientName || undefined,
+      street: f.street,
+      ward: f.ward || undefined,
+      district: f.district || undefined,
+      province,
+    });
+    if (!a.ok || !a.id) return { ok: false, message: a.message };
+    set({ addressId: a.id });
+    return { ok: true, message: "", addressId: a.id };
+  }
+
+  function submit(kind: "order" | "quote") {
+    setTried(true);
+    if (errors.length || roBlock) return;
+    start(async () => {
+      const saved = await saveProfile();
+      if (!saved.ok) {
+        toast(saved.message, "err");
+        return;
+      }
+      const payload = {
+        leadId: order.leadId!,
+        lines: cartValue.lines,
+        addressId: saved.addressId ?? null,
+        discount: cartValue.discount,
+        deliveryFee: cartValue.deliveryFee,
+        installationFee: cartValue.installationFee,
+        note: note.trim() || undefined,
+        giftMessage: f.self ? undefined : gift.trim() || undefined,
+        channel: f.channel,
+      };
+      if (kind === "order") {
+        const r = await createOrder(payload);
+        toast(r.message, r.ok ? "ok" : "err");
+        if (r.ok && r.orderId) {
+          setCreated({ href: `/orders/${r.orderId}`, label: "Mở đơn", message: r.message });
+          reset();
+        }
+      } else {
+        const r = await createQuote(payload);
+        toast(r.message, r.ok ? "ok" : "err");
+        if (r.ok && r.link) {
+          setCreated({ href: r.link, label: "Xem báo giá", message: r.message, link: r.link });
+          reset();
+        }
+      }
+      router.refresh();
+    });
+  }
+
+  function reset() {
+    setF((x) => ({ ...x, rows: init.rows }));
+    setDiscRaw("");
+    setDeliveryRaw("");
+    setInstallRaw("");
+    setNote("");
+    setGift("");
+    setTried(false);
+  }
+
+  const updateRow = (key: number, patch: Partial<Row>) =>
+    set({ rows: f.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) });
+  const total = preview?.totals.total ?? 0;
 
   return (
     <div className="space-y-2.5">
-      <div className="cv-card">
-        <h3>
-          <ShoppingCart size={15} aria-hidden /> Lên đơn
-        </h3>
-        {created ? (
-          <div className="cv-done" aria-live="polite">
-            {created.message}.{" "}
-            <Link href={created.href} className="font-semibold underline">
-              {created.label}
-            </Link>
-            {created.link ? (
-              <span className="mt-1 flex items-center gap-1.5">
-                <input
-                  readOnly
-                  aria-label="Link báo giá"
-                  value={created.link}
-                  className={`${FIELD} text-sm`}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <button
-                  type="button"
-                  className="c-ib"
-                  aria-label="Chép link báo giá"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(created.link!);
-                    toast("Đã chép link, dán vào khung chat để gửi khách", "ok");
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-        {blocker ? (
-          <p className="c-lbl" role="note">
-            {blocker}
-          </p>
-        ) : (
-          <form
-            aria-label="Lên đơn"
-            className="space-y-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              submitOrder();
-            }}
-          >
-            <ul className="space-y-1.5" aria-label="Sản phẩm">
-              {items.map((p) => {
-                const qty = cart[p.key] ?? 0;
-                return (
-                  <li key={p.key} className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1">
-                      <b className="block truncate">{p.label}</b>
-                      <span className="c-lbl block truncate">{p.sub}</span>
-                    </span>
-                    {qty > 0 ? (
-                      <>
-                        <button
-                          type="button"
-                          className="c-ib"
-                          aria-label={`Bớt ${p.label}`}
-                          onClick={() => setQty(p.key, qty - 1)}
-                        >
-                          {qty === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
-                        </button>
-                        <span aria-label={`Số lượng ${p.label}`} className="w-5 text-center">
-                          {qty}
-                        </span>
-                      </>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="c-ib"
-                      aria-label={`Thêm ${p.label}`}
-                      onClick={() => setQty(p.key, qty + 1)}
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {cartValue.lines.length ? (
-              <>
-                <label className="block text-sm">
-                  Giảm giá
-                  <span className="mt-1 flex gap-1.5">
-                    <input
-                      aria-label="Mức giảm"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={discRaw}
-                      onChange={(e) => setDiscRaw(e.target.value)}
-                      className={FIELD}
-                    />
-                    <select
-                      aria-label="Kiểu giảm"
-                      value={discType}
-                      onChange={(e) => setDiscType(e.target.value as "amount" | "pct")}
-                      className="rounded-control border border-line bg-surface px-1.5"
-                    >
-                      <option value="amount">đ</option>
-                      <option value="pct">%</option>
-                    </select>
-                  </span>
-                </label>
-                <span className="grid grid-cols-2 gap-1.5">
-                  <label className="block text-sm">
-                    Phí giao
-                    <input
-                      aria-label="Phí giao"
-                      inputMode="numeric"
-                      placeholder="Theo chính sách"
-                      value={deliveryRaw}
-                      onChange={(e) => setDeliveryRaw(e.target.value)}
-                      className={`${FIELD} mt-1`}
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Phí lắp
-                    <input
-                      aria-label="Phí lắp"
-                      inputMode="numeric"
-                      placeholder="Theo chính sách"
-                      value={installRaw}
-                      onChange={(e) => setInstallRaw(e.target.value)}
-                      className={`${FIELD} mt-1`}
-                    />
-                  </label>
-                </span>
-                <label className="block text-sm">
-                  Giao tới
-                  <select
-                    aria-label="Địa chỉ giao"
-                    value={addressId}
-                    onChange={(e) => setAddressId(e.target.value)}
-                    className={`${FIELD} mt-1`}
-                  >
-                    {order.addresses.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm">
-                  Lời nhắn kèm quà
-                  <textarea
-                    aria-label="Lời nhắn kèm quà"
-                    rows={2}
-                    maxLength={500}
-                    placeholder="Ví dụ: Chúc bố mạnh khỏe"
-                    value={gift}
-                    onChange={(e) => setGift(e.target.value)}
-                    className={`${FIELD} mt-1`}
-                  />
-                </label>
-                <label className="block text-sm">
-                  Ghi chú đơn
-                  <textarea
-                    aria-label="Ghi chú đơn"
-                    rows={2}
-                    maxLength={1000}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    className={`${FIELD} mt-1`}
-                  />
-                </label>
-
-                {preview ? <PricingSummary result={preview} /> : null}
-                <p className="c-lbl">Hệ thống tính lại theo bảng giá và chính sách khi lưu.</p>
-                <div className="flex gap-1.5">
-                  {order.canCreate ? (
-                    <button type="submit" className="c-btn is-go flex-1" disabled={pending || !addressId}>
-                      Tạo đơn
-                    </button>
-                  ) : null}
-                  {order.canQuote ? (
-                    <button type="button" className="c-btn flex-1" disabled={pending} onClick={submitQuote}>
-                      <FileText size={14} className="mr-1 inline" aria-hidden />
-                      Gửi báo giá
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <p className="c-lbl">Bấm + để thêm sản phẩm, combo vào đơn.</p>
-            )}
-          </form>
-        )}
-      </div>
-
       {order.quotes.length ? (
         <div className="cv-card">
           <h3>Báo giá đã gửi</h3>
@@ -422,9 +391,9 @@ export function OrderTab({ order }: { order: OrderSide }) {
         </div>
       ) : null}
 
-      <div className="cv-card">
-        <h3>Đơn của khách</h3>
-        {order.orders.length ? (
+      {order.orders.length ? (
+        <div className="cv-card">
+          <h3>Đơn của khách</h3>
           <ul className="space-y-1.5" aria-label="Đơn của khách">
             {order.orders.map((o) => (
               <li key={o.id} className="text-sm">
@@ -440,8 +409,449 @@ export function OrderTab({ order }: { order: OrderSide }) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+      <div className="cv-order" role="region" aria-label="Lên đơn từ hội thoại">
+        {created ? (
+          <div className="cv-done" aria-live="polite">
+            {created.message}.{" "}
+            <Link href={created.href} className="font-semibold underline">
+              {created.label}
+            </Link>
+            {created.link ? (
+              <span className="mt-1 flex items-center gap-1.5">
+                <input
+                  readOnly
+                  aria-label="Link báo giá"
+                  value={created.link}
+                  className={`${FIELD} text-sm`}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  className="c-ib"
+                  aria-label="Chép link báo giá"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(created.link!);
+                    toast("Đã chép link, dán vào khung chat để gửi khách", "ok");
+                  }}
+                >
+                  <Copy size={14} />
+                </button>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {blocker ? (
+          <p className="c-lbl" role="note">
+            {blocker}
+          </p>
         ) : (
-          <p className="c-lbl">Khách chưa có đơn nào.</p>
+          <>
+            <p className="cv-hint">
+              <Sparkles size={14} aria-hidden />
+              {init.prefilled
+                ? "Đã điền sẵn từ tin của khách và hồ sơ lead. Kiểm lại trước khi tạo."
+                : "Chưa thấy địa chỉ, sản phẩm trong tin của khách: điền tay."}
+            </p>
+            {ro ? (
+              <p className="c-lbl" role="note">
+                Anh chị không sửa được hồ sơ khách này: chỉ lên đơn được khi lead đã đủ thông tin và đã có địa
+                chỉ giao.
+              </p>
+            ) : null}
+            <form
+              aria-label="Lên đơn"
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                submit(order.canCreate ? "order" : "quote");
+              }}
+            >
+              <fieldset className="m-0 grid gap-2 border-0">
+                <legend className="font-bold">Người đặt</legend>
+                <label className="c-lbl">
+                  Từ lead đang mở
+                  <select className={FIELD} aria-label="Từ lead đang mở" value={side.lead?.id ?? ""} disabled>
+                    {side.lead ? (
+                      <option value={side.lead.id}>
+                        {side.contact.name} · {side.lead.stageLabel}
+                      </option>
+                    ) : null}
+                  </select>
+                </label>
+                <label className="c-lbl">
+                  Họ tên người đặt
+                  <input
+                    className={FIELD}
+                    maxLength={120}
+                    disabled={ro}
+                    value={f.buyerName}
+                    onChange={(e) => set({ buyerName: e.target.value })}
+                  />
+                </label>
+                <label className="c-lbl">
+                  Số điện thoại người đặt
+                  {side.contact.phones.length ? (
+                    <input className={FIELD} readOnly value={side.contact.phones.join(", ")} />
+                  ) : (
+                    <input
+                      className={FIELD}
+                      inputMode="tel"
+                      maxLength={40}
+                      disabled={ro}
+                      placeholder="Khách chưa cho số"
+                      value={f.buyerPhone}
+                      onChange={(e) => set({ buyerPhone: e.target.value })}
+                    />
+                  )}
+                </label>
+                <label className="c-lbl">
+                  Người đặt đang sống ở
+                  <select
+                    className={FIELD}
+                    disabled={ro}
+                    value={f.buyerCountry}
+                    onChange={(e) => set({ buyerCountry: e.target.value })}
+                  >
+                    {side.markets.map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.name}
+                      </option>
+                    ))}
+                    <option value="unknown">Chưa rõ</option>
+                  </select>
+                </label>
+                <label className="c-lbl">
+                  Kênh bán
+                  <select
+                    className={FIELD}
+                    value={f.channel}
+                    onChange={(e) => set({ channel: e.target.value as SalesChannel })}
+                  >
+                    {SALES_CHANNELS.map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </fieldset>
+
+              <fieldset className="m-0 grid gap-2 border-0" disabled={ro}>
+                <legend className="font-bold">Người nhận</legend>
+                <div className="flex flex-wrap gap-4" role="radiogroup" aria-label="Mua cho ai">
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" checked={f.self} onChange={() => set({ self: true })} />
+                    Mua cho chính mình
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" checked={!f.self} onChange={() => set({ self: false })} />
+                    Tặng người khác
+                  </label>
+                </div>
+                {!f.self ? (
+                  <>
+                    <label className="c-lbl">
+                      Họ tên người nhận
+                      <input
+                        className={FIELD}
+                        maxLength={120}
+                        value={f.recipientName}
+                        onChange={(e) => set({ recipientName: e.target.value })}
+                      />
+                    </label>
+                    <label className="c-lbl">
+                      Quan hệ với người đặt
+                      <input
+                        className={FIELD}
+                        maxLength={40}
+                        placeholder="Bố, mẹ, vợ…"
+                        value={f.recipientRelation}
+                        onChange={(e) => set({ recipientRelation: e.target.value })}
+                      />
+                    </label>
+                    <label className="c-lbl">
+                      Lời nhắn quà
+                      <input
+                        className={FIELD}
+                        aria-label="Lời nhắn kèm quà"
+                        maxLength={500}
+                        placeholder="Ví dụ: Chúc bố mạnh khỏe"
+                        value={gift}
+                        onChange={(e) => setGift(e.target.value)}
+                      />
+                    </label>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={f.keepSurprise}
+                        onChange={(e) => set({ keepSurprise: e.target.checked })}
+                      />
+                      Giữ bất ngờ: không liên hệ người nhận khi người đặt chưa cho phép
+                    </label>
+                  </>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="c-lbl">
+                    Dịp mua
+                    <select
+                      className={FIELD}
+                      aria-label="Dịp mua"
+                      value={f.occasionId}
+                      onChange={(e) => set({ occasionId: e.target.value })}
+                    >
+                      <option value="">Chọn dịp…</option>
+                      {side.occasions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="c-lbl">
+                    Ngân sách
+                    <select
+                      className={FIELD}
+                      aria-label="Ngân sách khách"
+                      value={f.budgetId}
+                      onChange={(e) => set({ budgetId: e.target.value })}
+                    >
+                      <option value="">Chọn…</option>
+                      {side.budgets.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="m-0 grid gap-2 border-0">
+                <legend className="font-bold">Địa chỉ giao</legend>
+                {order.addresses.length ? (
+                  <label className="c-lbl">
+                    Giao tới
+                    <select
+                      className={FIELD}
+                      aria-label="Địa chỉ giao"
+                      value={f.addressId}
+                      onChange={(e) => set({ addressId: e.target.value })}
+                    >
+                      {order.addresses.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.label}
+                        </option>
+                      ))}
+                      {ro ? null : <option value={NEW_ADDRESS}>Địa chỉ mới…</option>}
+                    </select>
+                  </label>
+                ) : null}
+                {f.addressId === NEW_ADDRESS ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="c-lbl">
+                      Tỉnh, thành
+                      <select
+                        aria-label="Tỉnh giao"
+                        className={FIELD}
+                        disabled={ro}
+                        value={f.province}
+                        onChange={(e) => set({ province: e.target.value })}
+                      >
+                        <option value="">Chọn tỉnh…</option>
+                        {[...new Set([...side.provinces, f.province].filter(Boolean))].map((p) => (
+                          <option key={p}>{p}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="c-lbl">
+                      Quận, huyện
+                      <input
+                        className={FIELD}
+                        maxLength={80}
+                        disabled={ro}
+                        value={f.district}
+                        onChange={(e) => set({ district: e.target.value })}
+                      />
+                    </label>
+                    <label className="c-lbl">
+                      Phường, xã
+                      <input
+                        className={FIELD}
+                        maxLength={80}
+                        disabled={ro}
+                        value={f.ward}
+                        onChange={(e) => set({ ward: e.target.value })}
+                      />
+                    </label>
+                    <label className="c-lbl">
+                      Số nhà, đường
+                      <input
+                        className={FIELD}
+                        maxLength={200}
+                        disabled={ro}
+                        value={f.street}
+                        onChange={(e) => set({ street: e.target.value })}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </fieldset>
+
+              <fieldset className="m-0 border-0">
+                <legend className="font-bold">Hàng</legend>
+                <div className="space-y-2">
+                  {f.rows.map((r, i) => (
+                    <div key={r.key} className="flex flex-wrap items-center gap-2">
+                      <select
+                        aria-label={`Sản phẩm dòng ${i + 1}`}
+                        value={r.ref}
+                        onChange={(e) => updateRow(r.key, { ref: e.target.value })}
+                        className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
+                      >
+                        {options.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-1 c-lbl">
+                        SL
+                        <input
+                          aria-label={`Số lượng dòng ${i + 1}`}
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={r.qty}
+                          onChange={(e) =>
+                            updateRow(r.key, {
+                              qty: Math.min(99, Math.max(1, Math.floor(Number(e.target.value) || 1))),
+                            })
+                          }
+                          className="w-14 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="c-ib"
+                        aria-label={`Xóa dòng ${i + 1}`}
+                        onClick={() => set({ rows: f.rows.filter((x) => x.key !== r.key) })}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="c-btn"
+                    onClick={() =>
+                      set({
+                        rows: [
+                          ...f.rows,
+                          { key: (f.rows.at(-1)?.key ?? 0) + 1, ref: options[0].value, qty: 1 },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus size={13} className="mr-1 inline" aria-hidden />
+                    Thêm dòng
+                  </button>
+                  <label className="block c-lbl">
+                    Giảm giá cả đơn
+                    <span className="mt-0.5 flex gap-1.5">
+                      <input
+                        aria-label="Mức giảm"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={discRaw}
+                        onChange={(e) => setDiscRaw(e.target.value)}
+                        className={FIELD}
+                      />
+                      <select
+                        aria-label="Kiểu giảm"
+                        value={discType}
+                        onChange={(e) => setDiscType(e.target.value as "amount" | "pct")}
+                        className="rounded-control border border-line bg-surface px-1.5"
+                      >
+                        <option value="amount">đ</option>
+                        <option value="pct">%</option>
+                      </select>
+                    </span>
+                  </label>
+                  <span className="grid grid-cols-2 gap-1.5">
+                    <label className="block c-lbl">
+                      Phí giao
+                      <input
+                        aria-label="Phí giao"
+                        inputMode="numeric"
+                        placeholder="Theo chính sách"
+                        value={deliveryRaw}
+                        onChange={(e) => setDeliveryRaw(e.target.value)}
+                        className={FIELD}
+                      />
+                    </label>
+                    <label className="block c-lbl">
+                      Phí lắp
+                      <input
+                        aria-label="Phí lắp"
+                        inputMode="numeric"
+                        placeholder="Theo chính sách"
+                        value={installRaw}
+                        onChange={(e) => setInstallRaw(e.target.value)}
+                        className={FIELD}
+                      />
+                    </label>
+                  </span>
+                  <label className="block c-lbl">
+                    Ghi chú đơn
+                    <textarea
+                      aria-label="Ghi chú đơn"
+                      rows={2}
+                      maxLength={1000}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      className={FIELD}
+                    />
+                  </label>
+                  {preview ? <PricingSummary result={preview} /> : null}
+                </div>
+              </fieldset>
+
+              {tried && (errors.length || roBlock) ? (
+                <ul className="m-0 list-none space-y-1 p-0" aria-label="Còn thiếu">
+                  {(roBlock ? ["Lead chưa đủ thông tin hoặc chưa có địa chỉ giao đã lưu"] : errors).map(
+                    (e) => (
+                      <li key={e} className="text-err">
+                        {e}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              ) : null}
+              <div className="cv-order-foot is-wrap">
+                <span className="cv-total">
+                  <small>Khách trả</small>
+                  <b className="tabular">{formatMoney(total)}</b>
+                </span>
+                {order.canCreate ? (
+                  <button type="submit" className="c-btn is-go" disabled={pending}>
+                    {preview?.approvalsNeeded.length ? "Tạo đơn, chờ duyệt" : "Tạo đơn"}
+                  </button>
+                ) : null}
+                {order.canQuote ? (
+                  <button type="button" className="c-btn" disabled={pending} onClick={() => submit("quote")}>
+                    <FileText size={14} className="mr-1 inline" aria-hidden />
+                    Gửi báo giá
+                  </button>
+                ) : null}
+                <button type="button" className="c-btn" disabled={pending} onClick={() => setF(init)}>
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </div>
     </div>

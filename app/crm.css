@@ -3876,3 +3876,16 @@ select:not([multiple]):not([size]) {
   flex: none;
   margin-top: 3px;
 }
+/* Lên đơn bản thật: ba nút (Tạo đơn, Gửi báo giá, Hủy) nên tổng tiền nằm riêng một hàng phía trên. */
+.cv-order-foot.is-wrap {
+  flex-wrap: wrap;
+}
+.cv-order-foot.is-wrap .cv-total {
+  display: flex;
+  flex-basis: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.cv-order-foot.is-wrap .c-btn {
+  flex: 1 1 auto;
+}

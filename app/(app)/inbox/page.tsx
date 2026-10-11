@@ -223,7 +223,7 @@ async function loadSide(
 ): Promise<LiveSide | null> {
   if (!conv.contact_id || !conv.contacts) return null;
   const contactId = conv.contact_id;
-  const [lead, identities, addresses, notes, occasions, budgets] = await Promise.all([
+  const [lead, identities, addresses, notes, occasions, budgets, markets] = await Promise.all([
     conv.lead_id
       ? supabase
           .from("leads")
@@ -253,6 +253,7 @@ async function loadSide(
       .limit(50),
     supabase.from("occasions").select("id, label").eq("is_active", true).order("sort"),
     supabase.from("budget_ranges").select("id, label").eq("is_active", true).order("sort"),
+    supabase.from("markets").select("country_code, name").eq("is_active", true).order("sort"),
   ]);
   const authors = [
     ...new Set((notes.data ?? []).map((n) => n.created_by).filter((x): x is string => Boolean(x))),
@@ -303,6 +304,7 @@ async function loadSide(
       : null,
     occasions: occasions.data ?? [],
     budgets: budgets.data ?? [],
+    markets: (markets.data ?? []).map((m) => ({ code: m.country_code, name: m.name })),
     provinces: PROVINCE_NAMES,
     addresses: (addresses.data ?? []).map((a) => ({
       id: a.id,
