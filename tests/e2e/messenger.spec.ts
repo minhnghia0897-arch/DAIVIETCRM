@@ -268,6 +268,48 @@ test("cột phải: đổi tên khách, lưu số và địa chỉ khách nhắn
   await expect(page.getByLabel("Ghi chú ghim")).toContainText("Khách muốn giao trước Tết");
 });
 
+test("thẻ khách, lọc theo thẻ, giao nhân viên, đánh dấu xong", async ({ page }) => {
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const list = page.getByRole("list", { name: "Danh sách hội thoại" });
+  await list
+    .getByRole("button", { name: /Trần Mai/ })
+    .first()
+    .click();
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+  const tags = side.getByRole("group", { name: "Thẻ khách" });
+
+  // Gắn thẻ có sẵn và tạo thẻ mới.
+  await tags.getByRole("button", { name: "Hỏi giá" }).click();
+  await expect(tags.getByRole("button", { name: "Hỏi giá" })).toHaveAttribute("aria-pressed", "true");
+  const label = `Gọi tối ${PSID.slice(-4)}`;
+  await side.getByLabel("Tạo thẻ mới").fill(label);
+  await side.getByRole("button", { name: "Thêm thẻ" }).click();
+  await expect(tags.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+
+  // Lọc theo thẻ mới chỉ còn hội thoại này, mục danh sách hiện thẻ.
+  await page.getByLabel("Lọc theo thẻ").selectOption({ label });
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list.getByRole("listitem").first()).toContainText(label);
+  await page.getByLabel("Lọc theo thẻ").selectOption("");
+
+  // Giao cho Thảo từ đầu hội thoại.
+  await page.getByLabel("Nhân viên phụ trách").selectOption({ label: "Thảo" });
+  await expect(page.getByRole("status")).toContainText(/Đã giao 1 lead cho Thảo|Không có lead nào cần đổi/);
+  await expect(page.getByLabel("Nhân viên phụ trách")).toHaveValue("11111111-1111-4111-8111-000000000003");
+
+  // Đánh dấu xong rồi mở lại.
+  await page.getByRole("button", { name: "Đánh dấu xong" }).click();
+  await expect(page.getByRole("button", { name: "Mở lại" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Lọc khách" })
+    .getByRole("button", { name: /Đã xong/ })
+    .click();
+  await expect(list.getByRole("button", { name: /Trần Mai/ }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Mở lại" }).click();
+  await expect(page.getByRole("button", { name: "Đánh dấu xong" })).toBeVisible();
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];

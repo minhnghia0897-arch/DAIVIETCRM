@@ -10,8 +10,11 @@ import {
   Phone,
   Pin,
   PinOff,
+  Plus,
+  ShoppingCart,
   Sparkles,
   StickyNote,
+  Tag,
   Trash2,
   UserRound,
   type LucideIcon,
@@ -67,8 +70,16 @@ export interface LiveSide {
   findings: Finding[];
 }
 
-type Tab = "info" | "notes";
+type Tab = "info" | "order" | "notes";
 type Act = () => Promise<{ ok: boolean; message: string }>;
+
+/** Thẻ khách: danh mục thẻ, thẻ đang gắn, lệnh gắn gỡ và tạo thẻ (null khi không sửa được). */
+export interface Tagging {
+  all: { id: string; label: string; color: string }[];
+  on: string[];
+  toggle: (input: { contactId: string; tagId: string }) => Promise<{ ok: boolean; message: string }>;
+  create: (input: { contactId: string; label: string }) => Promise<{ ok: boolean; message: string }>;
+}
 
 const KIND_ICON: Record<Finding["kind"], LucideIcon> = {
   phone: Phone,
@@ -87,7 +98,15 @@ const KIND_LABEL: Record<Finding["kind"], string> = {
 
 const FIELD = "block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
 
-export function InboxLiveSide({ side, channel }: { side: LiveSide; channel: string }) {
+export function InboxLiveSide({
+  side,
+  channel,
+  tagging = null,
+}: {
+  side: LiveSide;
+  channel: string;
+  tagging?: Tagging | null;
+}) {
   const [tab, setTab] = useState<Tab>("info");
   const toast = useToast();
   const router = useRouter();
@@ -109,6 +128,7 @@ export function InboxLiveSide({ side, channel }: { side: LiveSide; channel: stri
         {(
           [
             ["info", "Khách", UserRound],
+            ["order", "Lên đơn", ShoppingCart],
             ["notes", "Ghi chú", StickyNote],
           ] as [Tab, string, LucideIcon][]
         ).map(([k, l, Icon]) => (
@@ -124,15 +144,96 @@ export function InboxLiveSide({ side, channel }: { side: LiveSide; channel: stri
       <div className="tg-info-b">
         {tab === "info" ? (
           <div className="space-y-2.5">
+            {tagging ? <TagsCard side={side} tagging={tagging} run={run} pending={pending} /> : null}
             <Findings side={side} run={run} pending={pending} />
             {side.lead ? <LeadInfo side={side} run={run} pending={pending} /> : null}
             <Addresses side={side} run={run} pending={pending} />
           </div>
+        ) : tab === "order" ? (
+          <OrderSoon side={side} />
         ) : (
           <Notes side={side} run={run} pending={pending} />
         )}
       </div>
     </aside>
+  );
+}
+
+/** Bấm thẻ để gắn hoặc gỡ, gõ tên để tạo thẻ mới (như Pancake). Thẻ đi theo khách qua mọi kênh. */
+function TagsCard({ side, tagging, run, pending }: PartProps & { tagging: Tagging }) {
+  const [adding, setAdding] = useState("");
+  const canTag = side.canEdit;
+  const shown = canTag ? tagging.all : tagging.all.filter((t) => tagging.on.includes(t.id));
+  if (!canTag && !shown.length) return null;
+  return (
+    <div className="cv-card">
+      <h3>
+        <Tag size={15} aria-hidden /> Thẻ khách
+      </h3>
+      <div className="cv-tagpick" role="group" aria-label="Thẻ khách">
+        {shown.map((t) => {
+          const on = tagging.on.includes(t.id);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={on}
+              disabled={!canTag || pending}
+              className={`cv-tag ${on ? "is-on" : "is-off"}`}
+              style={{ "--t": t.color } as React.CSSProperties}
+              onClick={() => run(() => tagging.toggle({ contactId: side.contact.id, tagId: t.id }))}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {canTag ? (
+        <form
+          className="cv-tagnew"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const label = adding.trim();
+            if (!label) return;
+            run(
+              () => tagging.create({ contactId: side.contact.id, label }),
+              () => setAdding(""),
+            );
+          }}
+        >
+          <input
+            aria-label="Tạo thẻ mới"
+            placeholder="Tạo thẻ mới…"
+            maxLength={30}
+            value={adding}
+            onChange={(e) => setAdding(e.target.value)}
+          />
+          <button type="submit" className="tg-ib" aria-label="Thêm thẻ" disabled={!adding.trim() || pending}>
+            <Plus size={16} />
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+/** Lên đơn ngay trong hội thoại cần bảng sản phẩm, giá và hàm định giá thật (CLAUDE.md 8.5), làm ở lát 2. */
+function OrderSoon({ side }: { side: LiveSide }) {
+  return (
+    <div className="cv-card">
+      <h3>
+        <ShoppingCart size={15} aria-hidden /> Lên đơn
+      </h3>
+      <p className="c-lbl">
+        Lên đơn ngay trong hội thoại sẽ mở khi danh sách sản phẩm và bảng giá của showroom được nhập vào CRM.
+        Trong lúc chờ, lưu địa chỉ giao và bốn thông tin bắt buộc ở thẻ Khách để lên đơn nhanh hơn.
+      </p>
+      {side.lead ? (
+        <Link href={`/leads/${side.lead.id}`} className="c-btn mt-2 inline-flex">
+          Mở hồ sơ lead
+        </Link>
+      ) : null}
+    </div>
   );
 }
 

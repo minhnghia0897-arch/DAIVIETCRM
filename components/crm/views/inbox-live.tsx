@@ -3,12 +3,15 @@
 import {
   AlertCircle,
   ArrowLeft,
+  CheckCheck,
   Clock,
   ExternalLink,
   Paperclip,
   Pin,
   Search,
+  RotateCcw,
   SendHorizontal,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,8 +49,19 @@ export interface LiveConv {
   unread: number;
   preview: { out: boolean; text: string } | null;
   leadId: string | null;
+  contactId: string | null;
+  holderId: string | null;
   holder: string | null;
   mine: boolean;
+  /** Nhân viên đã đánh dấu xong; khách nhắn lại thì tự mở. */
+  done: boolean;
+  tagIds: string[];
+}
+
+export interface LiveTag {
+  id: string;
+  label: string;
+  color: string;
 }
 
 export interface LiveThread {
@@ -92,6 +106,12 @@ export function InboxLive({
   paidThisMonth,
   send,
   markRead,
+  tags = [],
+  assignees = null,
+  assign,
+  setDone,
+  toggleTag,
+  createTag,
 }: {
   convs: LiveConv[];
   selectedId: string | null;
@@ -104,12 +124,27 @@ export function InboxLive({
   paidThisMonth: number;
   send: (input: { conversationId: string; text: string; confirm: boolean }) => Promise<Result>;
   markRead: (input: { conversationId: string }) => Promise<void>;
+  /** Danh mục thẻ của showroom. */
+  tags?: LiveTag[];
+  /** Người nhận lead được (null khi không có quyền giao lead). */
+  assignees?: { id: string; name: string }[] | null;
+  assign?: (input: {
+    leadIds: string[];
+    assigneeId: string | null;
+    assigneeName?: string;
+    reason?: string;
+  }) => Promise<Result>;
+  setDone?: (input: { conversationId: string; done: boolean }) => Promise<Result>;
+  toggleTag?: (input: { contactId: string; tagId: string }) => Promise<Result>;
+  createTag?: (input: { contactId: string; label: string }) => Promise<Result>;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [q, setQ] = useState("");
-  const [view, setView] = useState<"all" | "unread" | "mine">("all");
+  const [view, setView] = useState<View>("all");
   const [channel, setChannel] = useState<"" | Channel>("");
+  const [staff, setStaff] = useState("");
+  const [tag, setTag] = useState("");
   const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [pending, start] = useTransition();
@@ -135,16 +170,30 @@ export function InboxLive({
     if (c && unread > 0) void markRead({ conversationId: c.id }).then(() => router.refresh());
   }, [c?.id, unread, markRead, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const staffList = [
+    ...new Map(convs.filter((x) => x.holderId).map((x) => [x.holderId!, x.holder ?? "Nhân viên"])),
+  ].sort((a, b) => a[1].localeCompare(b[1], "vi"));
+  const tagById = new Map(tags.map((t) => [t.id, t]));
   const list = convs
     .filter((x) => !q.trim() || fold(x.name).includes(fold(q.trim())))
-    .filter((x) => (view === "unread" ? x.unread > 0 : view === "mine" ? x.mine : true))
-    .filter((x) => !channel || x.channel === channel);
+    .filter((x) => inView(x, view))
+    .filter((x) => !channel || x.channel === channel)
+    .filter((x) => !staff || x.holderId === staff)
+    .filter((x) => !tag || x.tagIds.includes(tag));
   const win = c?.channel === "messenger" ? replyWindow(c.lastInboundAt, now) : null;
   const zwin = c?.channel === "zalo" ? zaloWindow(c.lastInboundAt, now) : null;
   const blocker = c ? blockers[c.channel] : null;
   // Cần xác nhận trước khi gửi: Messenger ngoài 24 giờ (trả lời tay), Zalo ngoài 48 giờ (tin tính phí).
   const needConfirm = win?.mode === "human_agent" || zwin?.mode === "paid";
   const closed = win?.mode === "closed" || zwin?.mode === "closed";
+
+  function act(fn: () => Promise<Result>) {
+    start(async () => {
+      const r = await fn();
+      toast(r.message, r.ok ? "ok" : "err");
+      if (r.ok) router.refresh();
+    });
+  }
 
   function open(id: string) {
     setText("");
@@ -211,16 +260,10 @@ export function InboxLive({
           />
         </label>
         <div className="cv-filters" role="group" aria-label="Lọc khách">
-          {(
-            [
-              ["all", "Tất cả", convs.length],
-              ["unread", "Chưa đọc", convs.filter((x) => x.unread > 0).length],
-              ["mine", "Của tôi", convs.filter((x) => x.mine).length],
-            ] as const
-          ).map(([k, l, n]) => (
+          {VIEWS.map(([k, l]) => (
             <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)}>
               {l}
-              <span className="cv-fn">{n}</span>
+              <span className="cv-fn">{convs.filter((x) => inView(x, k)).length}</span>
             </button>
           ))}
           <select
@@ -232,6 +275,26 @@ export function InboxLive({
             <option value="messenger">Messenger</option>
             <option value="zalo">Zalo</option>
           </select>
+          {staffList.length > 1 ? (
+            <select aria-label="Lọc theo nhân viên" value={staff} onChange={(e) => setStaff(e.target.value)}>
+              <option value="">Mọi nhân viên</option>
+              {staffList.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {tags.length ? (
+            <select aria-label="Lọc theo thẻ" value={tag} onChange={(e) => setTag(e.target.value)}>
+              <option value="">Mọi thẻ</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
         {list.length === 0 ? <p className="cv-empty">Không có khách nào khớp bộ lọc.</p> : null}
         <ul className="tg-list" aria-label="Danh sách hội thoại">
@@ -258,10 +321,31 @@ export function InboxLive({
                       <span className="tg-badge" aria-label={`${x.unread} tin chưa đọc`}>
                         {x.unread}
                       </span>
+                    ) : needsReply(x) ? (
+                      <span className="tg-badge cv-need">Cần trả lời</span>
                     ) : null}
                   </span>
                   <span className="cv-meta">
-                    {CH[x.channel].label} · {x.holder ? `${x.holder} giữ lead` : "Chưa giao"}
+                    {CH[x.channel].label}
+                    {x.done ? " · Đã xong" : ""}
+                  </span>
+                  <span className="cv-chips">
+                    <span className={`cv-staff ${x.holder ? "" : "is-none"}`}>
+                      <UserRound size={11} aria-hidden />
+                      {x.holder ?? "Chưa giao"}
+                    </span>
+                    {x.tagIds
+                      .map((id) => tagById.get(id))
+                      .filter((t): t is LiveTag => Boolean(t))
+                      .slice(0, 2)
+                      .map((t) => (
+                        <span key={t.id} className="cv-tag" style={{ "--t": t.color } as React.CSSProperties}>
+                          {t.label}
+                        </span>
+                      ))}
+                    {x.tagIds.length > 2 ? (
+                      <span className="cv-tag is-more">+{x.tagIds.length - 2}</span>
+                    ) : null}
                   </span>
                 </span>
               </button>
@@ -290,6 +374,7 @@ export function InboxLive({
                   <b className="tg-title">{c.name}</b>
                   <span className="tg-sub">
                     {CH[c.channel].label} · {c.holder ? `${c.holder} giữ lead` : "Chưa giao"}
+                    {c.done ? <span className="cv-st is-ok"> · Đã xong</span> : null}
                     {win ? (
                       <span
                         className={`cv-st ${win.mode === "response" ? "is-ok" : win.mode === "human_agent" ? "is-warn" : "is-err"}`}
@@ -317,6 +402,58 @@ export function InboxLive({
                   </span>
                 </span>
               </div>
+              {assignees && assign && c.leadId ? (
+                <label className="tg-pill cv-assign">
+                  <UserRound size={15} aria-hidden />
+                  <select
+                    aria-label="Nhân viên phụ trách"
+                    value={c.holderId ?? ""}
+                    disabled={pending}
+                    onChange={(e) => {
+                      const to = e.target.value || null;
+                      const name = assignees.find((a) => a.id === to)?.name;
+                      act(() =>
+                        assign({
+                          leadIds: [c.leadId!],
+                          assigneeId: to,
+                          assigneeName: name,
+                          reason: "Giao từ Hội thoại",
+                        }),
+                      );
+                    }}
+                  >
+                    <option value="">Chưa giao</option>
+                    {[
+                      ...assignees,
+                      ...(c.holderId && !assignees.some((a) => a.id === c.holderId)
+                        ? [{ id: c.holderId, name: c.holder ?? "Nhân viên" }]
+                        : []),
+                    ].map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {setDone ? (
+                <button
+                  type="button"
+                  className="tg-pill cv-hbtn"
+                  disabled={pending}
+                  onClick={() => act(() => setDone({ conversationId: c.id, done: !c.done }))}
+                >
+                  {c.done ? (
+                    <>
+                      <RotateCcw size={15} aria-hidden /> Mở lại
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck size={15} aria-hidden /> Đánh dấu xong
+                    </>
+                  )}
+                </button>
+              ) : null}
               {c.leadId ? (
                 <Link className="tg-pill cv-hbtn" href={`/leads/${c.leadId}`}>
                   <ExternalLink size={15} aria-hidden /> Mở hồ sơ lead
@@ -442,9 +579,47 @@ export function InboxLive({
           </>
         )}
       </div>
-      {c && side ? <InboxLiveSide side={side} channel={CH[c.channel].label} /> : null}
+      {c && side ? (
+        <InboxLiveSide
+          side={side}
+          channel={CH[c.channel].label}
+          tagging={
+            toggleTag && createTag ? { all: tags, on: c.tagIds, toggle: toggleTag, create: createTag } : null
+          }
+        />
+      ) : null}
     </section>
   );
+}
+
+type View = "all" | "need" | "mine" | "unassigned" | "done";
+
+const VIEWS: [View, string][] = [
+  ["all", "Tất cả"],
+  ["need", "Cần trả lời"],
+  ["mine", "Của tôi"],
+  ["unassigned", "Chưa giao"],
+  ["done", "Đã xong"],
+];
+
+/** Khách nhắn cuối và hội thoại chưa xong: đang chờ nhân viên trả lời. */
+function needsReply(x: LiveConv) {
+  return !x.done && Boolean(x.preview) && !x.preview!.out;
+}
+
+function inView(x: LiveConv, v: View) {
+  switch (v) {
+    case "need":
+      return needsReply(x);
+    case "mine":
+      return x.mine;
+    case "unassigned":
+      return !x.holderId;
+    case "done":
+      return x.done;
+    default:
+      return true;
+  }
 }
 
 const MEDIA_LABEL: Record<Attachment["kind"], string> = {
