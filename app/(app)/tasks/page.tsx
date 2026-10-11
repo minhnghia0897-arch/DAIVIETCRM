@@ -37,7 +37,7 @@ export default async function Page() {
       .limit(50),
     supabase
       .from("approvals")
-      .select("id, type, reason, requested_by, requested_by_type, created_at")
+      .select("id, type, entity, entity_id, payload, reason, requested_by, requested_by_type, created_at")
       .eq("status", "pending")
       .order("created_at"),
   ]);
@@ -73,6 +73,14 @@ export default async function Page() {
     requestedBy:
       a.requested_by_type === "ai" ? "Agent AI" : (nameOf.get(a.requested_by ?? "") ?? "Không rõ người gửi"),
     mine: a.requested_by === user.id,
+    href:
+      a.entity === "orders"
+        ? `/orders/${a.entity_id}`
+        : a.entity === "payments" && typeof (a.payload as { order_id?: unknown })?.order_id === "string"
+          ? `/orders/${(a.payload as { order_id: string }).order_id}`
+          : a.entity === "stock_documents"
+            ? "/inventory?tab=docs"
+            : null,
   }));
 
   return (

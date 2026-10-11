@@ -54,6 +54,8 @@ export function OrderTab({ order }: { order: OrderSide }) {
   const [installRaw, setInstallRaw] = useState("");
   const [addressId, setAddressId] = useState(order.addresses[0]?.id ?? "");
   const [note, setNote] = useState("");
+  const [gift, setGift] = useState("");
+  const [created, setCreated] = useState<{ id: string; message: string } | null>(null);
 
   const lines = order.products.filter((p) => (cart[p.variantId] ?? 0) > 0);
   const subtotal = lines.reduce((s, p) => s + p.price * cart[p.variantId], 0);
@@ -83,9 +85,12 @@ export function OrderTab({ order }: { order: OrderSide }) {
         deliveryFee: delivery,
         installationFee: install,
         note: note.trim() || undefined,
+        giftMessage: gift.trim() || undefined,
       });
       toast(r.message, r.ok ? "ok" : "err");
       if (r.ok) {
+        if (r.orderId) setCreated({ id: r.orderId, message: r.message });
+        setGift("");
         setCart({});
         setDiscRaw("");
         setDeliveryRaw("");
@@ -114,6 +119,14 @@ export function OrderTab({ order }: { order: OrderSide }) {
         <h3>
           <ShoppingCart size={15} aria-hidden /> Lên đơn
         </h3>
+        {created ? (
+          <p className="cv-done" aria-live="polite">
+            {created.message}.{" "}
+            <Link href={`/orders/${created.id}`} className="font-semibold underline">
+              Mở đơn
+            </Link>
+          </p>
+        ) : null}
         {blocker ? (
           <p className="c-lbl" role="note">
             {blocker}
@@ -228,6 +241,18 @@ export function OrderTab({ order }: { order: OrderSide }) {
                   </select>
                 </label>
                 <label className="block text-sm">
+                  Lời nhắn kèm quà
+                  <textarea
+                    aria-label="Lời nhắn kèm quà"
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Ví dụ: Chúc bố mạnh khỏe"
+                    value={gift}
+                    onChange={(e) => setGift(e.target.value)}
+                    className={`${FIELD} mt-1`}
+                  />
+                </label>
+                <label className="block text-sm">
                   Ghi chú đơn
                   <textarea
                     aria-label="Ghi chú đơn"
@@ -270,17 +295,14 @@ export function OrderTab({ order }: { order: OrderSide }) {
             {order.orders.map((o) => (
               <li key={o.id} className="text-sm">
                 <span className="flex justify-between gap-2">
-                  <b>{o.code}</b>
+                  <Link href={`/orders/${o.id}`} className="c-link font-semibold">
+                    {o.code}
+                  </Link>
                   <span>{formatMoney(o.total)}</span>
                 </span>
                 <span className="c-lbl block">
                   {o.statusLabel} · {o.items} · {o.at}
                 </span>
-                {o.status === "pending_approval" ? (
-                  <Link href="/tasks" className="c-lbl underline">
-                    Xem ở hàng chờ duyệt
-                  </Link>
-                ) : null}
               </li>
             ))}
           </ul>

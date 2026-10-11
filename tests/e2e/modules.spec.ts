@@ -13,29 +13,24 @@ test("telesale chỉ thấy khách và đơn của mình, không thấy giá v�
 
   await page.goto("/orders");
   await expect(page.getByRole("heading", { name: "Đơn của tôi" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Q4-2610-0012" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Q4-2609-0008" })).toHaveCount(0);
 
-  await page.goto("/products/p-x9");
+  // Sản phẩm thật: thấy giá bán, không có cột giá vốn, không có nút sửa.
+  await page.goto("/products");
+  await expect(page.getByRole("link", { name: "Ghế massage Daikiosan DC302" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Giá vốn" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Thêm sản phẩm" })).toHaveCount(0);
 
   await page.goto("/team");
   await expect(page).toHaveURL(/\/team\/people\//);
   await expect(page.getByText("Hiệu suất của tôi").first()).toBeVisible();
 });
 
-test("Owner thấy cả đội, giá vốn và hồ sơ nhân sự", async ({ page }) => {
+test("Owner thấy cả đội và hồ sơ nhân sự", async ({ page }) => {
   await login(page, USERS.owner);
-  await page.goto("/products/p-x9");
-  await expect(page.getByRole("columnheader", { name: "Giá vốn" })).toBeVisible();
-
   await page.goto("/team");
   await expect(page.getByRole("heading", { name: "Từng người" })).toBeVisible();
   await page.goto("/team/staff");
   await expect(page.getByRole("cell", { name: "Phương" })).toBeVisible();
-
-  await page.goto("/orders/o-0011");
-  await expect(page.getByText("Giữ bất ngờ: không liên hệ người nhận")).toBeVisible();
 });
 
 test("telesale không mở được hiệu suất và hồ sơ nhân sự của người khác", async ({ page }) => {

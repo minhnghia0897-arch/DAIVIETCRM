@@ -365,6 +365,78 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
   await expect(page.getByLabel(/Duyệt giảm giá: Giảm 7% trên đơn Q4-/)).toHaveCount(0);
 });
 
+test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, thu khi giao, xuất kho serial, hoàn tất bảo hành", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const serial = `E2E-${PSID.slice(-6)}`;
+
+  // Owner nhập 1 ghế DC302 kèm serial.
+  await login(page, USERS.owner);
+  await page.goto("/inventory");
+  await page.getByRole("button", { name: "Lập phiếu nhập" }).click();
+  const doc = page.getByRole("form", { name: "Phiếu nhập" });
+  await doc.getByLabel("SKU dòng 1").selectOption({ label: "Ghế massage Daikiosan DC302 (DC302)" });
+  await doc.getByLabel("Serial dòng 1").fill(serial);
+  await doc.getByRole("button", { name: "Lưu nháp" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã lập phiếu nháp");
+  const docs = page.getByRole("region", { name: "Phiếu kho" });
+  await docs
+    .getByRole("listitem")
+    .filter({ hasText: serial })
+    .getByRole("button", { name: "Ghi sổ" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Đã ghi sổ");
+
+  // Sale admin (người bán) mở đơn 48.500.000 vừa tạo trong hội thoại, ghi cọc.
+  await login(page, USERS.saleAdmin);
+  await page.goto("/orders");
+  await page
+    .getByRole("row")
+    .filter({ hasText: "48.500.000" })
+    .filter({ hasText: "Chờ cọc" })
+    .getByRole("link")
+    .first()
+    .click();
+  await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();
+  const orderUrl = page.url();
+  await expect(page.getByRole("list", { name: "Điều kiện chưa đạt" })).toContainText("Tiền cọc");
+  await page.getByRole("button", { name: "Ghi thanh toán" }).click();
+  const pay = page.getByRole("form", { name: "Ghi thanh toán đơn" });
+  await expect(pay.getByLabel("Số tiền thanh toán")).toHaveValue("10.000.000");
+  await pay.getByRole("button", { name: "Ghi nhận" }).click();
+  await expect(page.getByRole("status")).toContainText("chờ người có quyền xác nhận");
+
+  // Owner xác nhận tiền ở hàng chờ duyệt, duyệt thu khi giao.
+  await login(page, USERS.owner);
+  await page.goto("/tasks");
+  await page
+    .getByLabel(/Xác nhận tiền: Cọc 10\.000\.000 đồng cho đơn Q4-/)
+    .getByRole("button", { name: "Duyệt" })
+    .click();
+  await expect(page.getByLabel(/Xác nhận tiền: Cọc 10\.000\.000 đồng/)).toHaveCount(0);
+  await page.goto(orderUrl);
+  await page.getByRole("button", { name: "Duyệt thu khi giao" }).click();
+  await expect(page.getByText("Được thu khi giao")).toBeVisible();
+
+  // Sale admin: đã cọc giữ hàng → sẵn sàng giao → xuất kho gán serial → giao → lắp → hoàn tất.
+  await login(page, USERS.saleAdmin);
+  await page.goto(orderUrl);
+  const steps = page.getByRole("region", { name: "Thao tác đơn" });
+  await steps.getByRole("button", { name: "Chuyển sang Đã cọc, giữ hàng" }).click();
+  await expect(page.getByText(/Đang giữ 1 sản phẩm/)).toBeVisible();
+  await steps.getByRole("button", { name: "Chuyển sang Sẵn sàng giao" }).click();
+  const issue = page.getByRole("form", { name: "Xuất kho giao hàng" });
+  await issue.getByLabel("Serial DC302").fill(serial);
+  await issue.getByRole("button", { name: "Ghi sổ xuất kho, gán serial" }).click();
+  await expect(page.getByRole("list", { name: "Sản phẩm của đơn" })).toContainText(`Serial ${serial}`);
+  await steps.getByRole("button", { name: "Bắt đầu giao" }).click();
+  await steps.getByRole("button", { name: "Xác nhận đã lắp" }).click();
+  await steps.getByRole("button", { name: "Hoàn tất đơn" }).click();
+  await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toContainText(serial);
+  await expect(page.getByText("Đơn đã kết thúc.")).toBeVisible();
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];
