@@ -97,6 +97,8 @@ export interface PricingCatalog {
 
 export interface QuoteInput {
   lines: { variantId?: string; comboId?: string; qty: number; manualDiscount?: Discount }[];
+  /** Phí giao, phí lắp nhân viên nhập tay cho đơn (thay cho phí theo vùng); khuyến mãi miễn phí vẫn đưa về 0. */
+  feeOverride?: { delivery?: number; installation?: number };
   context: {
     showroomId: string;
     channel: string;
@@ -430,6 +432,11 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
         warnings.push(`Thiếu hàng ${catalog.variants[id]?.name ?? id}: cần ${qty}, còn ${have}`);
     }
   }
+
+  if (input.feeOverride?.delivery !== undefined)
+    delivery = freeDelivery ? 0 : Math.max(0, input.feeOverride.delivery);
+  if (input.feeOverride?.installation !== undefined)
+    installation = freeInstallation ? 0 : Math.max(0, input.feeOverride.installation);
 
   const discount = lines.reduce((s, l) => s + l.discount, 0);
   const fees = delivery + installation;

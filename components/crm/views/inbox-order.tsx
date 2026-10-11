@@ -1,28 +1,41 @@
 "use client";
 
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Copy, FileText, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/format";
+import { toQuoteInput, type Cart } from "@/lib/sales/checkout";
+import { priceQuote, type PricingCatalog } from "@/lib/sales/pricing";
 
-import { createOrder } from "@/app/(app)/inbox/order-actions";
+import { acceptQuoteForCustomer, createOrder, createQuote } from "@/app/(app)/inbox/order-actions";
 
-// Tab Lên đơn của Hội thoại (kiểu Pancake): chọn ghế, số lượng, giảm tay, phí giao lắp nhân viên nhập, địa chỉ giao.
-// Số trên màn chỉ là tạm tính để nhân viên đọc cho khách; giá và tổng tiền thật do database tính lại từ bảng giá khi
-// tạo đơn (CLAUDE.md 8.1). Chưa trừ kho, chưa giữ hàng (lát sau).
+import { PricingSummary } from "./pricing-summary";
+
+// Tab Lên đơn của Hội thoại (kiểu Pancake): chọn ghế, combo, số lượng, giảm tay, phí giao lắp nhân viên nhập, địa chỉ
+// giao; tạo đơn hoặc gửi báo giá có link cho khách. Số trên màn do hàm định giá dùng chung tính ngay trên trình duyệt
+// để xem trước; server tính lại từ database khi lưu (CLAUDE.md 8.1, 8.5).
 
 export interface OrderSide {
   leadId: string | null;
   canCreate: boolean;
+  canQuote: boolean;
   /** Bốn thông tin bắt buộc còn thiếu trên lead. */
   missing: string[];
-  /** Mức giảm tối đa người bán tự áp (%); null là không giới hạn. */
-  discountLimit: number | null;
+  catalog: PricingCatalog | null;
   products: { variantId: string; sku: string; name: string; price: number }[];
-  addresses: { id: string; label: string }[];
+  combos: { id: string; code: string; name: string }[];
+  context: {
+    showroomId: string;
+    buyerCountry: string;
+    customerTags: string[];
+    recipientProvince: string | null;
+    sellerId: string;
+    sellerRole: string;
+  } | null;
+  addresses: { id: string; label: string; province: string }[];
   orders: {
     id: string;
     code: string;
@@ -33,9 +46,26 @@ export interface OrderSide {
     at: string;
     items: string;
   }[];
+  quotes: {
+    id: string;
+    code: string;
+    status: string;
+    total: number;
+    token: string;
+    orderId: string | null;
+    validUntil: string;
+  }[];
 }
 
 const FIELD = "block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text";
+const QUOTE_STATUS: Record<string, string> = {
+  draft: "Nháp",
+  sent: "Đã gửi",
+  viewed: "Khách đã xem",
+  accepted: "Khách đã đồng ý",
+  expired: "Hết hạn",
+  rejected: "Khách từ chối",
+};
 
 /** Đọc số tiền nhân viên gõ: bỏ dấu chấm, dấu phẩy, khoảng trắng ("1.500.000" → 1500000). */
 function parseMoney(raw: string): number {
@@ -55,47 +85,84 @@ export function OrderTab({ order }: { order: OrderSide }) {
   const [addressId, setAddressId] = useState(order.addresses[0]?.id ?? "");
   const [note, setNote] = useState("");
   const [gift, setGift] = useState("");
-  const [created, setCreated] = useState<{ id: string; message: string } | null>(null);
+  const [created, setCreated] = useState<{
+    href: string;
+    label: string;
+    message: string;
+    link?: string;
+  } | null>(null);
 
-  const lines = order.products.filter((p) => (cart[p.variantId] ?? 0) > 0);
-  const subtotal = lines.reduce((s, p) => s + p.price * cart[p.variantId], 0);
+  const items = [
+    ...order.products.map((p) => ({ key: `v:${p.variantId}`, label: p.sku, sub: formatMoney(p.price) })),
+    ...order.combos.map((c) => ({ key: `c:${c.id}`, label: `Combo ${c.code}`, sub: c.name })),
+  ];
   const discValue =
     discType === "pct" ? Math.min(Number(discRaw.replace(",", ".")) || 0, 100) : parseMoney(discRaw);
-  const discount = Math.min(
-    discType === "pct" ? Math.floor((subtotal * discValue) / 100) : discValue,
-    subtotal,
-  );
-  const delivery = parseMoney(deliveryRaw);
-  const install = parseMoney(installRaw);
-  const total = subtotal - discount + delivery + install;
-  const pct = subtotal ? Math.round((discount * 10000) / subtotal) / 100 : 0;
-  const overLimit = order.discountLimit !== null && pct > order.discountLimit;
+  const cartValue: Cart = {
+    lines: Object.entries(cart)
+      .filter(([, q]) => q > 0)
+      .map(([k, qty]) =>
+        k.startsWith("c:") ? { comboId: k.slice(2), qty } : { variantId: k.slice(2), qty },
+      ),
+    discount: discValue > 0 ? { type: discType, value: discValue } : null,
+    deliveryFee: deliveryRaw.trim() ? parseMoney(deliveryRaw) : null,
+    installationFee: installRaw.trim() ? parseMoney(installRaw) : null,
+  };
+  const province =
+    order.addresses.find((a) => a.id === addressId)?.province ?? order.context?.recipientProvince;
+  const preview = useMemo(() => {
+    if (!order.catalog || !order.context || !cartValue.lines.length) return null;
+    return priceQuote(
+      toQuoteInput(
+        cartValue,
+        { ...order.context, recipientProvince: province ?? undefined, channel: "online", date: new Date() },
+        order.catalog,
+      ),
+      order.catalog,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cartValue dựng lại mỗi lần vẽ từ các state bên dưới
+  }, [cart, discType, discRaw, deliveryRaw, installRaw, province, order.catalog, order.context]);
 
-  const setQty = (id: string, qty: number) =>
-    setCart((c) => ({ ...c, [id]: Math.max(0, Math.min(99, qty)) }));
+  const setQty = (key: string, qty: number) =>
+    setCart((c) => ({ ...c, [key]: Math.max(0, Math.min(99, qty)) }));
+  const payload = () => ({
+    leadId: order.leadId!,
+    lines: cartValue.lines,
+    addressId: addressId || null,
+    discount: cartValue.discount,
+    deliveryFee: cartValue.deliveryFee,
+    installationFee: cartValue.installationFee,
+    note: note.trim() || undefined,
+    giftMessage: gift.trim() || undefined,
+  });
+  const reset = () => {
+    setCart({});
+    setDiscRaw("");
+    setDeliveryRaw("");
+    setInstallRaw("");
+    setNote("");
+    setGift("");
+  };
 
-  function submit() {
-    if (!order.leadId) return;
+  function submitOrder() {
     start(async () => {
-      const r = await createOrder({
-        leadId: order.leadId!,
-        lines: lines.map((p) => ({ variantId: p.variantId, qty: cart[p.variantId] })),
-        addressId,
-        discount: discValue > 0 ? { type: discType, value: discValue } : null,
-        deliveryFee: delivery,
-        installationFee: install,
-        note: note.trim() || undefined,
-        giftMessage: gift.trim() || undefined,
-      });
+      const r = await createOrder(payload());
       toast(r.message, r.ok ? "ok" : "err");
       if (r.ok) {
-        if (r.orderId) setCreated({ id: r.orderId, message: r.message });
-        setGift("");
-        setCart({});
-        setDiscRaw("");
-        setDeliveryRaw("");
-        setInstallRaw("");
-        setNote("");
+        if (r.orderId) setCreated({ href: `/orders/${r.orderId}`, label: "Mở đơn", message: r.message });
+        reset();
+        router.refresh();
+      }
+    });
+  }
+
+  function submitQuote() {
+    start(async () => {
+      const r = await createQuote(payload());
+      toast(r.message, r.ok ? "ok" : "err");
+      if (r.ok && r.link) {
+        setCreated({ href: r.link, label: "Xem báo giá", message: r.message, link: r.link });
+        reset();
         router.refresh();
       }
     });
@@ -103,11 +170,11 @@ export function OrderTab({ order }: { order: OrderSide }) {
 
   const blocker = !order.leadId
     ? "Hội thoại chưa gắn lead nên chưa lên đơn được."
-    : !order.canCreate
-      ? "Anh chị chưa được cấp quyền tạo đơn cho lead này."
+    : !order.canCreate && !order.canQuote
+      ? "Anh chị chưa được cấp quyền tạo đơn, báo giá cho lead này."
       : order.missing.length
         ? `Lead còn thiếu: ${order.missing.join(", ")}. Điền ở thẻ Khách rồi lên đơn.`
-        : !order.products.length
+        : !items.length
           ? "Chưa có sản phẩm nào đang bán trong bảng giá."
           : !order.addresses.length
             ? "Chưa có địa chỉ giao. Lưu địa chỉ ở thẻ Khách trước."
@@ -120,12 +187,34 @@ export function OrderTab({ order }: { order: OrderSide }) {
           <ShoppingCart size={15} aria-hidden /> Lên đơn
         </h3>
         {created ? (
-          <p className="cv-done" aria-live="polite">
+          <div className="cv-done" aria-live="polite">
             {created.message}.{" "}
-            <Link href={`/orders/${created.id}`} className="font-semibold underline">
-              Mở đơn
+            <Link href={created.href} className="font-semibold underline">
+              {created.label}
             </Link>
-          </p>
+            {created.link ? (
+              <span className="mt-1 flex items-center gap-1.5">
+                <input
+                  readOnly
+                  aria-label="Link báo giá"
+                  value={created.link}
+                  className={`${FIELD} text-sm`}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  className="c-ib"
+                  aria-label="Chép link báo giá"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(created.link!);
+                    toast("Đã chép link, dán vào khung chat để gửi khách", "ok");
+                  }}
+                >
+                  <Copy size={14} />
+                </button>
+              </span>
+            ) : null}
+          </div>
         ) : null}
         {blocker ? (
           <p className="c-lbl" role="note">
@@ -137,29 +226,29 @@ export function OrderTab({ order }: { order: OrderSide }) {
             className="space-y-2"
             onSubmit={(e) => {
               e.preventDefault();
-              submit();
+              submitOrder();
             }}
           >
             <ul className="space-y-1.5" aria-label="Sản phẩm">
-              {order.products.map((p) => {
-                const qty = cart[p.variantId] ?? 0;
+              {items.map((p) => {
+                const qty = cart[p.key] ?? 0;
                 return (
-                  <li key={p.variantId} className="flex items-center gap-2">
+                  <li key={p.key} className="flex items-center gap-2">
                     <span className="min-w-0 flex-1">
-                      <b className="block truncate">{p.sku}</b>
-                      <span className="c-lbl">{formatMoney(p.price)}</span>
+                      <b className="block truncate">{p.label}</b>
+                      <span className="c-lbl block truncate">{p.sub}</span>
                     </span>
                     {qty > 0 ? (
                       <>
                         <button
                           type="button"
                           className="c-ib"
-                          aria-label={`Bớt ${p.sku}`}
-                          onClick={() => setQty(p.variantId, qty - 1)}
+                          aria-label={`Bớt ${p.label}`}
+                          onClick={() => setQty(p.key, qty - 1)}
                         >
                           {qty === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
                         </button>
-                        <span aria-label={`Số lượng ${p.sku}`} className="w-5 text-center">
+                        <span aria-label={`Số lượng ${p.label}`} className="w-5 text-center">
                           {qty}
                         </span>
                       </>
@@ -167,8 +256,8 @@ export function OrderTab({ order }: { order: OrderSide }) {
                     <button
                       type="button"
                       className="c-ib"
-                      aria-label={`Thêm ${p.sku}`}
-                      onClick={() => setQty(p.variantId, qty + 1)}
+                      aria-label={`Thêm ${p.label}`}
+                      onClick={() => setQty(p.key, qty + 1)}
                     >
                       <Plus size={14} />
                     </button>
@@ -177,7 +266,7 @@ export function OrderTab({ order }: { order: OrderSide }) {
               })}
             </ul>
 
-            {lines.length ? (
+            {cartValue.lines.length ? (
               <>
                 <label className="block text-sm">
                   Giảm giá
@@ -207,7 +296,7 @@ export function OrderTab({ order }: { order: OrderSide }) {
                     <input
                       aria-label="Phí giao"
                       inputMode="numeric"
-                      placeholder="0"
+                      placeholder="Theo chính sách"
                       value={deliveryRaw}
                       onChange={(e) => setDeliveryRaw(e.target.value)}
                       className={`${FIELD} mt-1`}
@@ -218,7 +307,7 @@ export function OrderTab({ order }: { order: OrderSide }) {
                     <input
                       aria-label="Phí lắp"
                       inputMode="numeric"
-                      placeholder="0"
+                      placeholder="Theo chính sách"
                       value={installRaw}
                       onChange={(e) => setInstallRaw(e.target.value)}
                       className={`${FIELD} mt-1`}
@@ -264,29 +353,74 @@ export function OrderTab({ order }: { order: OrderSide }) {
                   />
                 </label>
 
-                <dl className="space-y-0.5 text-sm" aria-label="Tạm tính">
-                  <Row label="Tạm tính" value={formatMoney(subtotal)} />
-                  {discount ? <Row label={`Giảm (${pct}%)`} value={`−${formatMoney(discount)}`} /> : null}
-                  {delivery ? <Row label="Phí giao" value={formatMoney(delivery)} /> : null}
-                  {install ? <Row label="Phí lắp" value={formatMoney(install)} /> : null}
-                  <Row label="Tổng" value={formatMoney(total)} strong />
-                </dl>
-                {overLimit ? (
-                  <p className="c-lbl text-warn" role="note">
-                    Giảm {pct}% vượt mức {order.discountLimit}% anh chị tự áp được: đơn sẽ chờ Owner duyệt.
-                  </p>
-                ) : null}
-                <p className="c-lbl">Hệ thống tính lại giá theo bảng giá khi tạo đơn.</p>
-                <button type="submit" className="c-btn is-go w-full" disabled={pending || !addressId}>
-                  Tạo đơn
-                </button>
+                {preview ? <PricingSummary result={preview} /> : null}
+                <p className="c-lbl">Hệ thống tính lại theo bảng giá và chính sách khi lưu.</p>
+                <div className="flex gap-1.5">
+                  {order.canCreate ? (
+                    <button type="submit" className="c-btn is-go flex-1" disabled={pending || !addressId}>
+                      Tạo đơn
+                    </button>
+                  ) : null}
+                  {order.canQuote ? (
+                    <button type="button" className="c-btn flex-1" disabled={pending} onClick={submitQuote}>
+                      <FileText size={14} className="mr-1 inline" aria-hidden />
+                      Gửi báo giá
+                    </button>
+                  ) : null}
+                </div>
               </>
             ) : (
-              <p className="c-lbl">Bấm + để thêm sản phẩm vào đơn.</p>
+              <p className="c-lbl">Bấm + để thêm sản phẩm, combo vào đơn.</p>
             )}
           </form>
         )}
       </div>
+
+      {order.quotes.length ? (
+        <div className="cv-card">
+          <h3>Báo giá đã gửi</h3>
+          <ul className="space-y-1.5" aria-label="Báo giá đã gửi">
+            {order.quotes.map((q) => (
+              <li key={q.id} className="text-sm">
+                <span className="flex justify-between gap-2">
+                  <a
+                    href={`/q/${q.token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="c-link font-semibold"
+                  >
+                    {q.code}
+                  </a>
+                  <span>{formatMoney(q.total)}</span>
+                </span>
+                <span className="c-lbl block">
+                  {QUOTE_STATUS[q.status] ?? q.status} · hạn {q.validUntil}
+                </span>
+                {q.orderId ? (
+                  <Link href={`/orders/${q.orderId}`} className="c-lbl underline">
+                    Mở đơn từ báo giá
+                  </Link>
+                ) : ["sent", "viewed"].includes(q.status) && order.canCreate ? (
+                  <button
+                    type="button"
+                    className="c-btn mt-1"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        const r = await acceptQuoteForCustomer(q.id);
+                        toast(r.message, r.ok ? "ok" : "err");
+                        if (r.ok) router.refresh();
+                      })
+                    }
+                  >
+                    Khách đã đồng ý
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="cv-card">
         <h3>Đơn của khách</h3>
@@ -310,15 +444,6 @@ export function OrderTab({ order }: { order: OrderSide }) {
           <p className="c-lbl">Khách chưa có đơn nào.</p>
         )}
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className={`flex justify-between gap-2 ${strong ? "font-semibold" : ""}`}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
     </div>
   );
 }

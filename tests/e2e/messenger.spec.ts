@@ -352,7 +352,7 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
   await form.getByRole("button", { name: "Thêm DC108" }).click();
   await form.getByLabel("Kiểu giảm").selectOption("pct");
   await form.getByLabel("Mức giảm").fill("7");
-  await expect(form.getByRole("note")).toContainText("chờ Owner duyệt");
+  await expect(form.getByRole("note")).toContainText("Cần Owner duyệt");
   await form.getByRole("button", { name: "Tạo đơn" }).click();
   await expect(page.getByRole("status")).toContainText("đang chờ Owner duyệt");
   await expect(orders).toContainText("Chờ duyệt giảm giá");
@@ -360,9 +360,53 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
   // Owner duyệt ở hàng chờ duyệt.
   await login(page, USERS.owner);
   await page.goto("/tasks");
-  const ap = page.getByLabel(/Duyệt giảm giá: Giảm 7% trên đơn Q4-/);
+  const ap = page.getByLabel(/Duyệt giảm giá: Đơn Q4-.*Giảm tay 7/);
   await ap.getByRole("button", { name: "Duyệt" }).click();
-  await expect(page.getByLabel(/Duyệt giảm giá: Giảm 7% trên đơn Q4-/)).toHaveCount(0);
+  await expect(page.getByLabel(/Duyệt giảm giá: Đơn Q4-.*Giảm tay 7/)).toHaveCount(0);
+});
+
+test("báo giá: gửi link, khách mở trên trang công khai và bấm đồng ý thì sinh đơn", async ({
+  page,
+  browser,
+}) => {
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Trần Mai/ })
+    .first()
+    .click();
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  const form = side.getByRole("form", { name: "Lên đơn" });
+  await form.getByRole("button", { name: "Thêm DC203" }).click();
+  await form.getByLabel("Phí giao").fill("300.000");
+  await expect(form.getByLabel("Tạm tính")).toContainText("34.880.000");
+  await form.getByRole("button", { name: "Gửi báo giá" }).click();
+  const link = await side.getByRole("textbox", { name: "Link báo giá" }).inputValue();
+  expect(link).toMatch(/^https?:\/\/.+\/q\/[0-9a-f]{36}$/);
+
+  // Khách mở link (không đăng nhập): thấy giá, không thấy số điện thoại, bấm đồng ý.
+  const guest = await browser.newContext();
+  const g = await guest.newPage();
+  await g.goto(new URL(link).pathname);
+  await expect(g.getByRole("heading", { name: /^Báo giá BG-Q4-/ })).toBeVisible();
+  await expect(g.locator("body")).toContainText("34.880.000");
+  await expect(g.locator("body")).not.toContainText(/\+84|0\d{9}/);
+  await g.getByRole("button", { name: "Đồng ý báo giá" }).click();
+  await expect(g.getByRole("status")).toContainText("Cảm ơn anh chị đã đồng ý");
+  await g.reload();
+  await expect(g.getByRole("button", { name: "Đồng ý báo giá" })).toHaveCount(0);
+  await guest.close();
+
+  // Người bán thấy báo giá đã đồng ý và đơn sinh từ báo giá.
+  await page.reload();
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  const quotes = side.getByRole("list", { name: "Báo giá đã gửi" });
+  await expect(quotes).toContainText("Khách đã đồng ý");
+  await quotes.getByRole("link", { name: "Mở đơn từ báo giá" }).first().click();
+  await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();
+  await expect(page.locator("body")).toContainText("34.880.000");
 });
 
 test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, thu khi giao, xuất kho serial, hoàn tất bảo hành", async ({
