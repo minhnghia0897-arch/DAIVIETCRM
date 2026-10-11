@@ -88,19 +88,22 @@ const addressSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export async function saveContactAddress(input: z.infer<typeof addressSchema>): Promise<ActionResult> {
+export async function saveContactAddress(
+  input: z.infer<typeof addressSchema>,
+): Promise<ActionResult & { id?: string }> {
   const user = await requireUser();
   if (user.viewAs) return READ_ONLY;
   const p = addressSchema.safeParse(input);
   if (!p.success) return { ok: false, message: "Địa chỉ cần ít nhất tỉnh, thành phố." };
   const a = p.data;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_contact_address", {
+  const { data: id, error } = await supabase.rpc("save_contact_address", {
     p: {
       id: a.id,
       contact_id: a.contactId,
-      receiver: a.receiver,
-      street: a.street,
+      // Không lưu số điện thoại đầy đủ trong địa chỉ (số lưu ở định danh của khách).
+      receiver: a.receiver ? maskPhonesInText(a.receiver) : undefined,
+      street: a.street ? maskPhonesInText(a.street) : undefined,
       ward: a.ward,
       district: a.district,
       province: a.province,
@@ -109,7 +112,7 @@ export async function saveContactAddress(input: z.infer<typeof addressSchema>): 
     },
   });
   if (error) return { ok: false, message: friendly(error.code, error.message) };
-  return done("Đã lưu địa chỉ giao");
+  return { ...done("Đã lưu địa chỉ giao"), id: id ?? undefined };
 }
 
 const idSchema = z.object({ id: z.uuid() });

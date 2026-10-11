@@ -109,7 +109,11 @@ export async function placeOrder(
     .maybeSingle();
   if (!visible) return { ok: false, error: "lead_not_found" };
   if (!input.addressId) return { ok: false, error: "address_required" };
-  const priced = await price(input, { id: user.id, roleKey: user.roleKey });
+  const priced = await price(
+    input,
+    { id: user.id, roleKey: user.roleKey },
+    extra.channel === "showroom" ? "showroom" : "online",
+  );
   if (!priced.ok) return priced;
   return persistOrder(user.id, input, priced.result, extra);
 }

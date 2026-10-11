@@ -25,6 +25,18 @@ describe("extractFindings", () => {
     });
   });
 
+  it("số điện thoại nhắn chung với địa chỉ không lọt vào ô địa chỉ", () => {
+    const a = run("Số em 0995357452, 12 Lê Lợi, xã Diễn Kỷ, Diễn Châu, Nghệ An").find(
+      (x) => x.kind === "address",
+    )?.value;
+    expect(a).toEqual({
+      province: "Nghệ An",
+      district: "Diễn Châu",
+      ward: "xã Diễn Kỷ",
+      street: "12 Lê Lợi",
+    });
+  });
+
   it("nhận tỉnh viết không dấu, viết tắt", () => {
     expect(run("ship binh dinh dc ko").find((x) => x.kind === "address")?.value.province).toBe("Bình Định");
     expect(run("Giao 12 Lê Lợi, Q1, Sài Gòn").find((x) => x.kind === "address")?.value.province).toBe(

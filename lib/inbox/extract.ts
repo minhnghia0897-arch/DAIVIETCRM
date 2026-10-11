@@ -22,6 +22,14 @@ export interface Finding {
   };
 }
 
+/** Bỏ số điện thoại (kèm chữ dẫn "số em", "sđt") khỏi một đoạn địa chỉ: số không được lọt vào ô địa chỉ. */
+function stripPhones(part: string): string {
+  return part.replace(
+    /(?:(?:s[oố]|s[dđ]t|đt)\s*(?:đt|điện thoại|em|chị|anh|mình)?\s*:?\s*)?(?<![\p{L}\d/-])\+?\d[\d .-]{7,}\d/giu,
+    (m) => (m.replace(/\D/g, "").length >= 9 ? "" : m),
+  );
+}
+
 export interface ProductHint {
   key: string;
   label: string;
@@ -98,7 +106,7 @@ export function maskForDisplay(raw: string): string {
 function addressIn(text: string, provinces: string[]) {
   const parts = text
     .split(/[,;\n]/)
-    .map((p) => p.trim())
+    .map((p) => stripPhones(p).trim())
     .filter(Boolean);
   for (let i = 0; i < parts.length; i++) {
     const f = fold(parts[i]).replace(/[.!?]+/g, " ");

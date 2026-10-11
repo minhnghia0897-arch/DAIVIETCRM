@@ -61,6 +61,7 @@ export interface LiveSide {
   } | null;
   occasions: { id: string; label: string }[];
   budgets: { id: string; label: string }[];
+  markets: { code: string; name: string }[];
   provinces: string[];
   addresses: {
     id: string;
@@ -128,7 +129,8 @@ export function InboxLiveSide({
 
   return (
     <aside className="tg-info cv-info" aria-label="Thông tin khách">
-      <ContactHead side={side} channel={channel} run={run} pending={pending} />
+      {/* key theo khách: chuyển hội thoại thì mọi ô nhập điền lại đúng khách đang mở, không giữ dữ liệu khách trước. */}
+      <ContactHead key={side.contact.id} side={side} channel={channel} run={run} pending={pending} />
       <div className="cv-tabs" role="tablist" aria-label="Khung bên phải">
         {(
           [
@@ -146,7 +148,7 @@ export function InboxLiveSide({
           </button>
         ))}
       </div>
-      <div className="tg-info-b">
+      <div className="tg-info-b" key={`${side.contact.id}:${side.lead?.id ?? ""}`}>
         {tab === "info" ? (
           <div className="space-y-2.5">
             {tagging ? <TagsCard side={side} tagging={tagging} run={run} pending={pending} /> : null}
@@ -155,7 +157,7 @@ export function InboxLiveSide({
             <Addresses side={side} run={run} pending={pending} />
           </div>
         ) : tab === "order" ? (
-          <OrderTab order={side.order} />
+          <OrderTab side={side} channel={channel} />
         ) : (
           <Notes side={side} run={run} pending={pending} />
         )}

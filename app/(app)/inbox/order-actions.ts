@@ -39,6 +39,8 @@ const schema = z.object({
   installationFee: z.number().int().min(0).max(MAX_FEE).nullable(),
   note: z.string().trim().max(1000).optional(),
   giftMessage: z.string().trim().max(500).optional(),
+  /** Kênh bán ghi vào đơn; "showroom" thì áp chính sách kênh showroom, còn lại là online. */
+  channel: z.enum(["zalo_oa", "messenger", "showroom", "hotline", "referral"]).optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof schema>;
@@ -75,7 +77,7 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
   if (!p.success) return { ok: false, message: INVALID };
   if (p.data.discount?.type === "pct" && p.data.discount.value > 100)
     return { ok: false, message: "Giảm theo phần trăm tối đa 100%." };
-  const r = await placeOrder(user, toCheckout(p.data));
+  const r = await placeOrder(user, toCheckout(p.data), { channel: p.data.channel });
   if (!r.ok) return { ok: false, message: CHECKOUT_MESSAGE[r.error] };
   refresh();
   return {
