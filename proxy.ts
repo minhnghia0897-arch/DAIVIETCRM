@@ -23,9 +23,10 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims kiểm chữ ký phiên ngay tại đây (khóa ký bất đối xứng), không gọi máy chủ Auth mỗi lần chuyển
+  // trang; phiên hết hạn thì tự làm mới. Người bị khóa vẫn bị chặn ở getSessionUser và RLS.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims.sub ?? null;
 
   const path = request.nextUrl.pathname;
   const isPublic =

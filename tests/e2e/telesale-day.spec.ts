@@ -66,8 +66,10 @@ test("một ngày của telesale trên CRM", async ({ page }, testInfo) => {
 
 test("telesale không mở được hồ sơ lead của người khác", async ({ page }) => {
   await login(page, USERS.thao);
-  const res = await page.goto("/leads/33333333-3333-4333-8333-000000000002");
-  expect(res?.status()).toBe(404);
+  // Có khung chờ (loading.tsx) nên trang trả 200 rồi mới đổi sang màn "Không tìm thấy" (soft 404, kèm noindex);
+  // dữ liệu của người khác vẫn không được gửi xuống.
+  await page.goto("/leads/33333333-3333-4333-8333-000000000002");
+  await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
 });
 
 test("Owner duyệt đề xuất giảm giá của telesale trên màn Việc", async ({ page }, testInfo) => {
