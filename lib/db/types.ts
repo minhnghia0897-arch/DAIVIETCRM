@@ -4780,6 +4780,7 @@ export type Database = {
       save_campaign: { Args: { p: Json }; Returns: string };
       save_contact_address: { Args: { p: Json }; Returns: string };
       save_content_item: { Args: { p: Json }; Returns: string };
+      save_discount_limit: { Args: { p_max_pct: number; p_role_id: string }; Returns: undefined };
       save_product: { Args: { p: Json }; Returns: string };
       save_sales_settings: { Args: { p: Json }; Returns: undefined };
       save_stock_document: { Args: { p: Json }; Returns: string };

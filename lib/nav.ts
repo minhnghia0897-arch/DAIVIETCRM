@@ -60,7 +60,11 @@ export const LIVE_SCREENS = [
   "/settings/assignment",
   "/settings/markets",
   "/settings/catalog",
+  "/settings/sales",
   "/team/absences",
+  "/orders",
+  "/products",
+  "/inventory",
 ];
 
 /** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */
@@ -179,6 +183,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { href: "/settings/call-mode", label: "Chế độ gọi", perm: "settings.integrations" },
   // Xem danh mục chỉ cần catalog.view; sửa cần catalog.manage (kiểm trong trang).
   { href: "/settings/catalog", label: "Danh mục", perm: "catalog.view" },
+  { href: "/settings/sales", label: "Bán hàng", perm: "settings.integrations" },
   { href: "/settings/integrations", label: "Tích hợp", perm: "settings.integrations" },
   { href: "/settings/audit", label: "Nhật ký kiểm toán", perm: "audit.view" },
 ];

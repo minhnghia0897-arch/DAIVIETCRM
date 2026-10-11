@@ -1799,7 +1799,7 @@ $$;
 revoke all on function public.set_price(uuid, bigint) from public, anon;
 grant execute on function public.set_price(uuid, bigint) to authenticated;
 
--- Cài đặt bán hàng (Owner).
+-- Cài đặt bán hàng (CLAUDE.md 11.2: settings.integrations, mặc định chỉ Owner).
 create or replace function public.save_sales_settings(p jsonb)
 returns void
 language plpgsql
@@ -1809,7 +1809,7 @@ as $$
 declare
   v_user uuid := public.assert_writer();
 begin
-  if not public.is_owner_user(v_user) then
+  if not public.has_perm('settings.integrations') then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   update public.sales_settings set
@@ -1832,3 +1832,34 @@ $$;
 
 revoke all on function public.save_sales_settings(jsonb) from public, anon;
 grant execute on function public.save_sales_settings(jsonb) to authenticated;
+
+-- Giới hạn giảm tay theo vai trò; null là bỏ giới hạn (vai trò đó tự áp mọi mức giảm).
+create or replace function public.save_discount_limit(p_role_id uuid, p_max_pct numeric)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.assert_writer();
+  if not public.has_perm('settings.integrations') then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.roles where id = p_role_id and showroom_id = public.current_showroom_id()) then
+    raise exception 'role not found' using errcode = 'P0002';
+  end if;
+  if p_max_pct is null then
+    delete from public.discount_limits where role_id = p_role_id;
+  elsif p_max_pct < 0 or p_max_pct > 100 then
+    raise exception 'invalid pct' using errcode = '22023';
+  else
+    insert into public.discount_limits (showroom_id, role_id, max_pct)
+    values (public.current_showroom_id(), p_role_id, p_max_pct)
+    on conflict (showroom_id, role_id) do update set max_pct = excluded.max_pct, updated_at = now();
+  end if;
+  perform public.write_audit('settings.discount_limit', 'roles', p_role_id::text, jsonb_build_object('max_pct', p_max_pct));
+end;
+$$;
+
+revoke all on function public.save_discount_limit(uuid, numeric) from public, anon;
+grant execute on function public.save_discount_limit(uuid, numeric) to authenticated;

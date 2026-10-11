@@ -18,11 +18,14 @@ test("nhãn Dữ liệu mô phỏng chỉ hiện ở màn còn mô phỏng", asy
     "/inbox",
     "/settings/notifications",
     "/settings/integrations",
+    "/orders",
+    "/products",
+    "/inventory",
   ]) {
     await page.goto(path);
     await expect(label, `${path} đã nối database, không được nhắc mô phỏng`).toHaveCount(0);
   }
-  for (const path of ["/opportunities", "/households", "/products"]) {
+  for (const path of ["/opportunities", "/households"]) {
     await page.goto(path);
     await expect(label, `${path} còn mô phỏng, phải nhắc`).toBeVisible();
   }

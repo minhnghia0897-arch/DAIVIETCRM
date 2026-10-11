@@ -120,7 +120,7 @@ export function OrderTab({ order }: { order: OrderSide }) {
           <ShoppingCart size={15} aria-hidden /> Lên đơn
         </h3>
         {created ? (
-          <p role="status" className="cv-done">
+          <p className="cv-done" aria-live="polite">
             {created.message}.{" "}
             <Link href={`/orders/${created.id}`} className="font-semibold underline">
               Mở đơn
