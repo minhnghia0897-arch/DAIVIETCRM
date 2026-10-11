@@ -7,13 +7,29 @@ import { z } from "zod";
 // Meta gửi { object: "page", entry: [{ id: <Page ID>, time, messaging: [<một sự kiện>] }] } và ký thân yêu cầu bằng
 // HMAC-SHA256 với App Secret trong header X-Hub-Signature-256 ("sha256=<hex>").
 
-/** Kiểm chữ ký trên đúng chuỗi byte Meta gửi (không parse lại JSON trước khi kiểm). */
+/**
+ * Chuỗi Meta thực sự ký: theo tài liệu Meta, chữ ký tính trên bản thân yêu cầu đã đổi mọi ký tự ngoài ASCII sang
+ * dạng \uXXXX (hex chữ thường), ví dụ "äöå" thành "\u00e4\u00f6\u00e5". Thân nhận được có thể chứa chữ có dấu
+ * nguyên văn (tin tiếng Việt, tên người), nên phải đổi lại trước khi tính.
+ */
+export function metaSignedForm(rawBody: string): string {
+  return rawBody.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/** Kiểm chữ ký trên đúng chuỗi Meta gửi (không parse lại JSON), và trên bản ký tự có dấu đã đổi sang \uXXXX. */
 export function verifySignature(rawBody: string, header: string | null, appSecret: string): boolean {
   if (!header?.startsWith("sha256=") || !appSecret) return false;
-  const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
   const given = header.slice("sha256=".length);
   if (!/^[0-9a-f]{64}$/i.test(given)) return false;
-  return timingSafeEqual(Buffer.from(given.toLowerCase(), "hex"), Buffer.from(expected, "hex"));
+  const givenBuf = Buffer.from(given.toLowerCase(), "hex");
+  const forms = [rawBody];
+  if (/[^\x00-\x7f]/.test(rawBody)) forms.push(metaSignedForm(rawBody));
+  return forms.some((body) =>
+    timingSafeEqual(
+      givenBuf,
+      Buffer.from(createHmac("sha256", appSecret).update(body, "utf8").digest("hex"), "hex"),
+    ),
+  );
 }
 
 const item = z
@@ -87,6 +103,27 @@ export function parseMessengerWebhook(json: unknown): MessengerItem[] | null {
     }
   }
   return out;
+}
+
+/**
+ * Tóm tắt an toàn của một webhook (loại sự kiện, có phải bản sao tin của Page, ứng dụng gửi) để ghi kèm khi chữ ký
+ * sai: không có nội dung tin, không có PSID.
+ */
+export function webhookShape(json: unknown): { kinds: string[]; echo: boolean; appIds: string[] } {
+  const kinds = new Set<string>();
+  const appIds = new Set<string>();
+  let echo = false;
+  const entries = (json as { entry?: { messaging?: Record<string, unknown>[] }[] } | null)?.entry;
+  for (const e of Array.isArray(entries) ? entries : []) {
+    for (const m of Array.isArray(e?.messaging) ? e.messaging : []) {
+      for (const k of ["message", "postback", "read", "delivery", "reaction", "referral", "optin"])
+        if (m && k in m) kinds.add(k);
+      const msg = m?.message as { is_echo?: boolean; app_id?: number | string } | undefined;
+      if (msg?.is_echo) echo = true;
+      if (msg?.app_id !== undefined) appIds.add(String(msg.app_id));
+    }
+  }
+  return { kinds: [...kinds], echo, appIds: [...appIds] };
 }
 
 /** Page ID đầu tiên trong thân webhook, để tìm App Secret của showroom trước khi kiểm chữ ký. */
