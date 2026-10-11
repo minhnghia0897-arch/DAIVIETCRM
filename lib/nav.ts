@@ -65,6 +65,7 @@ export const LIVE_SCREENS = [
   "/orders",
   "/products",
   "/inventory",
+  "/policies",
 ];
 
 /** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */

@@ -1,94 +1,131 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
+import { siteUrl } from "@/lib/db/env";
 import { createClient } from "@/lib/db/server";
 import { maskPhonesInText } from "@/lib/phone";
+import { acceptQuote, CHECKOUT_MESSAGE, placeOrder, sendQuote } from "@/lib/sales/checkout-server";
 
 import type { ActionResult } from "../settings/types";
 
-// Lên đơn trong Hội thoại (migration 20261011000400_sales_orders.sql). Trình duyệt chỉ gửi SKU, số lượng, giảm tay,
-// phí giao lắp; giá và tổng tiền do hàm create_order tính lại từ bảng giá (CLAUDE.md 8.1).
+// Lên đơn, gửi báo giá trong Hội thoại. Trình duyệt chỉ gửi giỏ hàng (SKU, combo, số lượng, giảm tay, phí nhập tay);
+// server định giá lại bằng hàm định giá dùng chung với dữ liệu database rồi mới ghi (lib/sales/checkout-server.ts).
 
 const MAX_FEE = 100_000_000;
 
-const orderSchema = z.object({
+const schema = z.object({
   leadId: z.uuid(),
   lines: z
-    .array(z.object({ variantId: z.uuid(), qty: z.number().int().min(1).max(99) }))
+    .array(
+      z
+        .object({
+          variantId: z.uuid().optional(),
+          comboId: z.uuid().optional(),
+          qty: z.number().int().min(1).max(99),
+        })
+        .refine((l) => Boolean(l.variantId) !== Boolean(l.comboId)),
+    )
     .min(1)
     .max(50),
-  addressId: z.uuid(),
+  addressId: z.uuid().nullable(),
   discount: z
     .object({ type: z.enum(["amount", "pct"]), value: z.number().min(0).max(1_000_000_000) })
     .nullable(),
-  deliveryFee: z.number().int().min(0).max(MAX_FEE),
-  installationFee: z.number().int().min(0).max(MAX_FEE),
+  deliveryFee: z.number().int().min(0).max(MAX_FEE).nullable(),
+  installationFee: z.number().int().min(0).max(MAX_FEE).nullable(),
   note: z.string().trim().max(1000).optional(),
   giftMessage: z.string().trim().max(500).optional(),
 });
 
-export type CreateOrderInput = z.infer<typeof orderSchema>;
+export type CreateOrderInput = z.infer<typeof schema>;
 
-function friendly(code: string | undefined, message: string | undefined): string {
-  switch (message) {
-    case "missing_required_info":
-      return "Lead chưa đủ bốn thông tin bắt buộc (mua cho ai, tỉnh người nhận, dịp, ngân sách). Điền ở thẻ Khách rồi lên đơn.";
-    case "address_required":
-      return "Chọn địa chỉ giao của người đặt hoặc người nhận.";
-    case "lead_lost":
-      return "Lead này đã đánh thất bại, không lên đơn được.";
-  }
-  switch (code) {
-    case "42501":
-      return "Anh chị chưa được cấp quyền tạo đơn.";
-    case "P0002":
-      return "Anh chị không còn giữ lead này.";
-    case "22023":
-      return "Dòng hàng, giảm giá hoặc phí chưa đúng, kiểm lại rồi tạo đơn.";
-    default:
-      return "Chưa tạo được đơn, thử lại sau ít phút.";
-  }
+const INVALID = "Dòng hàng, giảm giá hoặc phí chưa đúng, kiểm lại rồi thử lại.";
+
+function toCheckout(d: CreateOrderInput) {
+  return {
+    leadId: d.leadId,
+    cart: {
+      lines: d.lines,
+      discount: d.discount && d.discount.value > 0 ? d.discount : null,
+      deliveryFee: d.deliveryFee,
+      installationFee: d.installationFee,
+    },
+    addressId: d.addressId,
+    // Không lưu số điện thoại đầy đủ trong ghi chú, lời nhắn.
+    giftMessage: d.giftMessage ? maskPhonesInText(d.giftMessage) : undefined,
+    note: d.note ? maskPhonesInText(d.note) : undefined,
+  };
+}
+
+function refresh() {
+  revalidatePath("/inbox");
+  revalidatePath("/tasks");
+  revalidatePath("/orders");
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<ActionResult & { orderId?: string }> {
   const user = await requireUser();
   if (user.viewAs) return { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." };
-  if (!user.permissions.has("order.create"))
-    return { ok: false, message: "Anh chị chưa được cấp quyền tạo đơn." };
-  const p = orderSchema.safeParse(input);
-  if (!p.success)
-    return { ok: false, message: "Dòng hàng, giảm giá hoặc phí chưa đúng, kiểm lại rồi tạo đơn." };
-  const d = p.data;
-  if (d.discount?.type === "pct" && d.discount.value > 100)
+  if (!user.permissions.has("order.create")) return { ok: false, message: CHECKOUT_MESSAGE.not_allowed };
+  const p = schema.safeParse(input);
+  if (!p.success) return { ok: false, message: INVALID };
+  if (p.data.discount?.type === "pct" && p.data.discount.value > 100)
     return { ok: false, message: "Giảm theo phần trăm tối đa 100%." };
+  const r = await placeOrder(user, toCheckout(p.data));
+  if (!r.ok) return { ok: false, message: CHECKOUT_MESSAGE[r.error] };
+  refresh();
+  return {
+    ok: true,
+    orderId: r.orderId,
+    message:
+      r.status === "pending_approval"
+        ? `Đã tạo đơn ${r.code}, mức giảm vượt giới hạn nên đang chờ Owner duyệt`
+        : `Đã tạo đơn ${r.code}`,
+  };
+}
 
-  const supabase = await createClient();
-  const { data: id, error } = await supabase.rpc("create_order", {
-    p_lead_id: d.leadId,
-    p_lines: d.lines.map((l) => ({ variant_id: l.variantId, qty: l.qty })),
-    p_address_id: d.addressId,
-    p_discount: d.discount && d.discount.value > 0 ? d.discount : undefined,
-    p_delivery_fee: d.deliveryFee,
-    p_installation_fee: d.installationFee,
-    // Không lưu số điện thoại đầy đủ trong ghi chú đơn.
-    p_note: d.note ? maskPhonesInText(d.note) : undefined,
-    p_channel: "inbox",
-    p_gift_message: d.giftMessage ? maskPhonesInText(d.giftMessage) : undefined,
-  });
-  if (error || !id) return { ok: false, message: friendly(error?.code, error?.message) };
+export async function createQuote(
+  input: CreateOrderInput,
+): Promise<ActionResult & { quoteId?: string; link?: string }> {
+  const user = await requireUser();
+  if (user.viewAs) return { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." };
+  if (!user.permissions.has("quote.create")) return { ok: false, message: CHECKOUT_MESSAGE.not_allowed };
+  const p = schema.safeParse(input);
+  if (!p.success) return { ok: false, message: INVALID };
+  const r = await sendQuote(user, toCheckout(p.data));
+  if (!r.ok) return { ok: false, message: CHECKOUT_MESSAGE[r.error] };
+  refresh();
+  // Link đầy đủ để dán vào khung chat gửi khách.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const origin = host ? `${h.get("x-forwarded-proto") ?? "https"}://${host}` : siteUrl();
+  return {
+    ok: true,
+    quoteId: r.quoteId,
+    link: `${origin}/q/${r.token}`,
+    message: `Đã tạo báo giá ${r.code}, gửi link cho khách`,
+  };
+}
 
-  const { data: order } = await supabase.from("orders").select("code, status").eq("id", id).maybeSingle();
-  revalidatePath("/inbox");
-  revalidatePath("/tasks");
-  revalidatePath("/orders");
-  if (order?.status === "pending_approval")
-    return {
-      ok: true,
-      orderId: id,
-      message: `Đã tạo đơn ${order.code}, mức giảm vượt giới hạn nên đang chờ Owner duyệt`,
-    };
-  return { ok: true, orderId: id, message: `Đã tạo đơn ${order?.code ?? ""}`.trim() };
+/** Nhân viên bấm "Khách đã đồng ý" thay khách. */
+export async function acceptQuoteForCustomer(quoteId: string): Promise<ActionResult & { orderId?: string }> {
+  const user = await requireUser();
+  if (user.viewAs) return { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." };
+  // Chỉ người xem được báo giá (RLS theo lead) mới bấm được.
+  const { data: q } = await (
+    await createClient()
+  )
+    .from("quotes")
+    .select("id")
+    .eq("id", z.uuid().parse(quoteId))
+    .maybeSingle();
+  if (!q) return { ok: false, message: CHECKOUT_MESSAGE.lead_not_found };
+  const r = await acceptQuote(quoteId, false);
+  if (!r.ok) return { ok: false, message: CHECKOUT_MESSAGE[r.error] };
+  refresh();
+  return { ok: true, orderId: r.orderId, message: `Khách đã đồng ý, đã tạo đơn ${r.code}` };
 }

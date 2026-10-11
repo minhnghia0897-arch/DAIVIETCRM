@@ -10,6 +10,8 @@ import { requireAnyPermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
 import { MESSENGER_KEY } from "@/lib/integrations/meta_messenger/config";
+import { loadCatalog } from "@/lib/sales/catalog-server";
+import { contextOf } from "@/lib/sales/checkout-server";
 import { ZALO_KEY } from "@/lib/integrations/zalo_oa/config";
 import { vnMonthStart } from "@/lib/integrations/zalo_oa/window";
 
@@ -355,7 +357,7 @@ type LeadForOrder = {
   stage: string;
 } | null;
 
-/** Tab Lên đơn: SKU đang bán và giá hiện hành, địa chỉ giao của người đặt và người nhận, các đơn của khách. */
+/** Tab Lên đơn: danh mục định giá (SKU, combo, chính sách), địa chỉ giao, đơn và báo giá của khách. */
 async function loadOrderSide(
   supabase: Db,
   me: Me,
@@ -367,23 +369,8 @@ async function loadOrderSide(
   const addressOwners = [...new Set([contactId, lead?.contact_id, lead?.recipient_contact_id])].filter(
     (x): x is string => Boolean(x),
   );
-  const nowIso = new Date().toISOString();
-  const [variants, prices, addresses, orders, limits] = await Promise.all([
-    canSeeProducts
-      ? supabase
-          .from("product_variants")
-          .select("id, sku, name, is_active, products!inner(name, status, is_sellable, deleted_at)")
-          .eq("is_active", true)
-          .order("sku")
-      : Promise.resolve({ data: [] as never[] }),
-    canSeeProducts
-      ? supabase
-          .from("price_list_items")
-          .select("variant_id, price, valid_from, price_lists!inner(is_default)")
-          .eq("price_lists.is_default", true)
-          .lte("valid_from", nowIso)
-          .order("valid_from", { ascending: false })
-      : Promise.resolve({ data: [] as never[] }),
+  const [loaded, addresses, orders, quotes, ctx] = await Promise.all([
+    canSeeProducts ? loadCatalog(createAdminClient(), me.showroomId) : Promise.resolve(null),
     supabase
       .from("contact_addresses")
       .select("id, contact_id, receiver, street, ward, district, province, is_default")
@@ -397,11 +384,16 @@ async function loadOrderSide(
           .order("created_at", { ascending: false })
           .limit(20)
       : Promise.resolve({ data: [] as never[] }),
-    supabase.from("discount_limits").select("max_pct, roles!inner(key)").eq("roles.key", me.roleKey),
+    lead
+      ? supabase
+          .from("quotes")
+          .select("id, code, status, total, token, valid_until, created_at, order_id")
+          .eq("lead_id", lead.id)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [] as never[] }),
+    lead ? contextOf(lead.id, null) : Promise.resolve(null),
   ]);
-
-  const priceOf = new Map<string, number>();
-  for (const p of prices.data ?? []) if (!priceOf.has(p.variant_id)) priceOf.set(p.variant_id, p.price);
 
   const missing: string[] = [];
   if (lead) {
@@ -414,19 +406,24 @@ async function loadOrderSide(
   return {
     leadId: lead?.id ?? null,
     canCreate: !me.viewAs && me.permissions.has("order.create") && Boolean(lead) && lead?.stage !== "lost",
+    canQuote: !me.viewAs && me.permissions.has("quote.create") && Boolean(lead) && lead?.stage !== "lost",
     missing,
-    discountLimit: limits.data?.[0]?.max_pct ?? null,
-    products: (variants.data ?? [])
-      .filter((v) => v.products.status === "active" && v.products.is_sellable && !v.products.deleted_at)
-      .filter((v) => priceOf.has(v.id))
-      .map((v) => ({
-        variantId: v.id,
-        sku: v.sku,
-        name: v.name ? `${v.products.name} ${v.name}` : v.products.name,
-        price: priceOf.get(v.id)!,
-      })),
+    catalog: loaded?.catalog ?? null,
+    products: loaded?.products ?? [],
+    combos: loaded?.combos ?? [],
+    context: ctx
+      ? {
+          showroomId: ctx.showroomId,
+          buyerCountry: ctx.buyerCountry,
+          customerTags: ctx.customerTags,
+          recipientProvince: ctx.recipientProvince ?? null,
+          sellerId: me.id,
+          sellerRole: me.roleKey,
+        }
+      : null,
     addresses: (addresses.data ?? []).map((a) => ({
       id: a.id,
+      province: a.province,
       label: [
         a.receiver,
         [a.street, a.ward, a.district, a.province].filter(Boolean).join(", "),
@@ -446,6 +443,15 @@ async function loadOrderSide(
       discount: o.discount,
       at: noteTime.format(new Date(o.created_at)),
       items: o.order_items.map((i) => (i.qty > 1 ? `${i.qty} × ${i.sku}` : i.sku)).join(", "),
+    })),
+    quotes: (quotes.data ?? []).map((q) => ({
+      id: q.id,
+      code: q.code,
+      status: q.status,
+      total: q.total,
+      token: q.token,
+      orderId: q.order_id,
+      validUntil: noteTime.format(new Date(q.valid_until)),
     })),
   };
 }

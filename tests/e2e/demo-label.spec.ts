@@ -21,6 +21,7 @@ test("nhãn Dữ liệu mô phỏng chỉ hiện ở màn còn mô phỏng", asy
     "/orders",
     "/products",
     "/inventory",
+    "/policies",
   ]) {
     await page.goto(path);
     await expect(label, `${path} đã nối database, không được nhắc mô phỏng`).toHaveCount(0);
