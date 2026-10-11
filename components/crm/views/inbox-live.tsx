@@ -1,6 +1,15 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, Clock, ExternalLink, Paperclip, Search, SendHorizontal } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  ExternalLink,
+  Paperclip,
+  Pin,
+  Search,
+  SendHorizontal,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -13,6 +22,7 @@ import { replyWindow, timeLeft } from "@/lib/integrations/meta_messenger/window"
 import { zaloWindow } from "@/lib/integrations/zalo_oa/window";
 
 import { ConvAvatar } from "./conv-avatar";
+import { InboxLiveSide, type LiveSide } from "./inbox-live-side";
 
 // Hội thoại chung mọi kênh trên bản thật (CLAUDE.md 10.3, 10.4, 10.5): Messenger và Zalo OA trong một danh sách.
 // Messenger: trả lời trong 24 giờ, tới 7 ngày chỉ nhân viên trả lời tay (thẻ Human Agent). Zalo: miễn phí 48 giờ,
@@ -77,6 +87,7 @@ export function InboxLive({
   convs,
   selectedId,
   thread,
+  side = null,
   blockers,
   paidThisMonth,
   send,
@@ -85,6 +96,8 @@ export function InboxLive({
   convs: LiveConv[];
   selectedId: string | null;
   thread: LiveThread | null;
+  /** Cột phải (hồ sơ khách, ghi chú); null khi chưa chọn hội thoại hoặc hội thoại chưa gắn khách. */
+  side?: LiveSide | null;
   /** Lý do không trả lời được trên CRM theo kênh (chế độ trả lời, quyền…); null là được. */
   blockers: Record<Channel, string | null>;
   /** Tin Zalo tính phí đã gửi trong tháng. */
@@ -176,7 +189,10 @@ export function InboxLive({
     );
 
   return (
-    <section className={`tg cv cv-2 ${c ? "is-chat" : "is-list"}`} aria-labelledby="inbox-title">
+    <section
+      className={`tg cv ${c && side ? "" : "cv-2"} ${c ? "is-chat" : "is-list"}`}
+      aria-labelledby="inbox-title"
+    >
       <h1 id="inbox-title" className="sr-only">
         Hội thoại
       </h1>
@@ -308,6 +324,17 @@ export function InboxLive({
               ) : null}
             </div>
 
+            {side?.notes.some((n) => n.pinned) ? (
+              <div className="cv-pins" aria-label="Ghi chú ghim">
+                {side.notes
+                  .filter((n) => n.pinned)
+                  .map((n) => (
+                    <p key={n.id} className="cv-pin">
+                      <Pin size={13} aria-hidden /> {n.text}
+                    </p>
+                  ))}
+              </div>
+            ) : null}
             <div className="tg-msgs" ref={msgs} role="log" aria-label="Tin nhắn">
               {thread.messages.map((m, i) => {
                 const next = thread.messages[i + 1];
@@ -415,6 +442,7 @@ export function InboxLive({
           </>
         )}
       </div>
+      {c && side ? <InboxLiveSide side={side} channel={CH[c.channel].label} /> : null}
     </section>
   );
 }
