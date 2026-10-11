@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast";
 import { useLiveChanges } from "@/lib/db/use-live-changes";
 import { fold } from "@/lib/inbox/extract";
+import type { Attachment } from "@/lib/integrations/attachments";
 import { replyWindow, timeLeft } from "@/lib/integrations/meta_messenger/window";
 import { zaloWindow } from "@/lib/integrations/zalo_oa/window";
 
@@ -45,7 +46,7 @@ export interface LiveThread {
     id: string;
     out: boolean;
     text: string | null;
-    files: number;
+    media: Attachment[];
     at: string;
     status: "received" | "queued" | "sent" | "failed";
     error: string | null;
@@ -138,16 +139,26 @@ export function InboxLive({
     router.push(`/inbox?c=${id}`);
   }
 
+  // Chặn gửi trùng: Enter có thể bấm lại (hoặc bộ gõ tiếng Việt bắn Enter hai lần) khi tin trước còn đang gửi.
+  // Xóa ô soạn ngay khi bấm gửi, gửi lỗi thì trả lại chữ cho người dùng sửa.
+  const sending = useRef(false);
   function submit() {
-    if (!c || !text.trim()) return;
+    if (!c || !text.trim() || sending.current) return;
+    sending.current = true;
     const body = text;
+    setText("");
     start(async () => {
-      const r = await send({ conversationId: c.id, text: body, confirm });
-      if (r.ok) {
-        setText("");
-        setConfirm(false);
-      } else toast(r.message, "err");
-      router.refresh();
+      try {
+        const r = await send({ conversationId: c.id, text: body, confirm });
+        if (r.ok) setConfirm(false);
+        else {
+          setText((cur) => cur || body);
+          toast(r.message, "err");
+        }
+        router.refresh();
+      } finally {
+        sending.current = false;
+      }
     });
   }
 
@@ -316,12 +327,7 @@ export function InboxLive({
                     <div className="tg-bubble cv-msg">
                       {m.out && m.by ? <b className="tg-from">{m.by}</b> : null}
                       {m.text ? <p className="tg-text">{m.text}</p> : null}
-                      {m.files ? (
-                        <p className="tg-text c-lbl">
-                          <Paperclip size={13} aria-hidden /> {m.files} tệp đính kèm, xem trên{" "}
-                          {CH[c.channel].label}
-                        </p>
-                      ) : null}
+                      {m.media.length ? <MessageMedia items={m.media} channel={CH[c.channel].label} /> : null}
                       {m.status === "failed" ? (
                         <p className="tg-text text-err" role="alert">
                           <AlertCircle size={13} aria-hidden /> Chưa gửi được: {m.error}
@@ -389,7 +395,7 @@ export function InboxLive({
                     className="tg-input cv-input"
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         e.currentTarget.form?.requestSubmit();
                       }
@@ -410,5 +416,64 @@ export function InboxLive({
         )}
       </div>
     </section>
+  );
+}
+
+const MEDIA_LABEL: Record<Attachment["kind"], string> = {
+  image: "Ảnh",
+  sticker: "Nhãn dán",
+  video: "Video",
+  audio: "Tin thoại",
+  file: "Tệp",
+  other: "Tệp đính kèm",
+};
+
+// Ảnh hiện ngay trong khung chat (bấm để mở to); video, tin thoại, tệp hiện thành link mở. Link của Meta, Zalo hết hạn
+// sau một thời gian: ảnh không tải được thì báo xem trên kênh gốc.
+function MessageMedia({ items, channel }: { items: Attachment[]; channel: string }) {
+  return (
+    <div className="cv-media">
+      {items.map((a, i) =>
+        a.url && (a.kind === "image" || a.kind === "sticker") ? (
+          <MediaImage key={i} url={a.url} label={MEDIA_LABEL[a.kind]} channel={channel} />
+        ) : (
+          <p key={i} className="tg-text c-lbl">
+            <Paperclip size={13} aria-hidden /> {a.name ?? MEDIA_LABEL[a.kind]}
+            {a.url ? (
+              <>
+                {" · "}
+                <a href={a.url} target="_blank" rel="noopener noreferrer" className="underline">
+                  Mở
+                </a>
+              </>
+            ) : (
+              <>, xem trên {channel}</>
+            )}
+          </p>
+        ),
+      )}
+    </div>
+  );
+}
+
+function MediaImage({ url, label, channel }: { url: string; label: string; channel: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken)
+    return (
+      <p className="tg-text c-lbl">
+        <Paperclip size={13} aria-hidden /> {label} đã hết hạn xem trên CRM, xem trên {channel}
+      </p>
+    );
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="cv-media-img">
+      {/* eslint-disable-next-line @next/next/no-img-element -- ảnh từ máy chủ Meta, Zalo, không qua bộ tối ưu ảnh */}
+      <img
+        src={url}
+        alt={`${label} khách gửi`}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
+      />
+    </a>
   );
 }

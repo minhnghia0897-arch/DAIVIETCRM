@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { InboxLive, type LiveConv, type LiveThread } from "@/components/crm/views/inbox-live";
+import { parseAttachments } from "@/lib/integrations/attachments";
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
@@ -99,7 +100,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         id: m.id,
         out: m.direction === "out",
         text: m.text,
-        files: Array.isArray(m.attachments) ? m.attachments.length : 0,
+        media: parseAttachments(m.attachments),
         at: m.occurred_at,
         status: m.status as LiveThread["messages"][number]["status"],
         error: m.error,

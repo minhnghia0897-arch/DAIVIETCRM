@@ -3840,3 +3840,17 @@ select:not([multiple]):not([size]) {
   color: var(--text-weak);
   font-size: 13px;
 }
+
+/* Ảnh, tệp khách gửi trong Hội thoại. */
+.cv-media {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cv-media-img img {
+  display: block;
+  max-width: min(260px, 100%);
+  max-height: 320px;
+  border-radius: 10px;
+  object-fit: cover;
+}
