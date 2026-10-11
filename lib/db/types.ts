@@ -1688,6 +1688,47 @@ export type Database = {
           },
         ];
       };
+      integration_sync_state: {
+        Row: {
+          created_at: string;
+          cursor_at: string | null;
+          key: string;
+          last_result: NonNullable<Json>;
+          last_run_at: string | null;
+          showroom_id: string;
+          start_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          cursor_at?: string | null;
+          key: string;
+          last_result?: NonNullable<Json>;
+          last_run_at?: string | null;
+          showroom_id: string;
+          start_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          cursor_at?: string | null;
+          key?: string;
+          last_result?: NonNullable<Json>;
+          last_run_at?: string | null;
+          showroom_id?: string;
+          start_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integration_sync_state_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       integrations: {
         Row: {
           config: NonNullable<Json>;
@@ -5133,6 +5174,7 @@ export type Database = {
         Returns: string;
       };
       create_telegram_link_code: { Args: Record<PropertyKey, never>; Returns: string };
+      cron_token_ok: { Args: { p_token: string }; Returns: boolean };
       current_price: { Args: { p_at?: string; p_variant_id: string }; Returns: number };
       current_showroom_id: { Args: Record<PropertyKey, never>; Returns: string };
       delete_contact_address: { Args: { p_id: string }; Returns: undefined };
@@ -5140,6 +5182,7 @@ export type Database = {
       delete_content_item: { Args: { p_id: string }; Returns: undefined };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       delete_tag: { Args: { p_tag_id: string }; Returns: undefined };
+      dispatch_messenger_reconcile: { Args: Record<PropertyKey, never>; Returns: undefined };
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };

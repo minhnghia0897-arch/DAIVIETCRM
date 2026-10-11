@@ -69,6 +69,8 @@ export interface MessengerItem {
   externalId: string;
   eventType: "message" | "message_echo" | "postback";
   item: z.infer<typeof item>;
+  /** Tin đọc lại qua Graph API vì webhook bị lỡ (không có thì là tin webhook). */
+  via?: "reconcile";
 }
 
 /**

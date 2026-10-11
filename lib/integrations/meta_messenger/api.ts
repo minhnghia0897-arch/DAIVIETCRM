@@ -96,6 +96,71 @@ export async function subscribePage(pageId: string, pageToken: string, fetchImpl
   });
 }
 
+export interface GraphConversation {
+  id: string;
+  updated_time?: string;
+  participants?: { data?: { id?: string; name?: string }[] };
+}
+
+/**
+ * Hội thoại Messenger của Page, mới cập nhật đứng trước (dùng cho việc đọc lại tin bị lỡ). Meta đòi Page access token
+ * có pages_manage_metadata, pages_read_engagement, pages_messaging; không lọc được theo thời gian nên đọc từng trang.
+ */
+export async function pageConversations(
+  pageId: string,
+  pageToken: string,
+  after?: string,
+  fetchImpl: typeof fetch = fetch,
+) {
+  return call<{ data?: GraphConversation[]; paging?: { cursors?: { after?: string }; next?: string } }>(
+    fetchImpl,
+    `${pageId}/conversations`,
+    pageToken,
+    {
+      query: {
+        platform: "messenger",
+        fields: "id,updated_time,participants",
+        limit: "25",
+        ...(after ? { after } : {}),
+      },
+    },
+  );
+}
+
+export interface GraphAttachment {
+  id?: string;
+  mime_type?: string;
+  name?: string;
+  image_data?: { url?: string; preview_url?: string };
+  video_data?: { url?: string; preview_url?: string };
+  file_url?: string;
+}
+
+export interface GraphMessage {
+  id: string;
+  created_time?: string;
+  from?: { id?: string; name?: string };
+  to?: { data?: { id?: string }[] };
+  message?: string;
+  sticker?: string;
+  attachments?: { data?: GraphAttachment[] };
+}
+
+/** Các tin gần nhất của một hội thoại. Meta chỉ cho đọc chi tiết 20 tin cuối. */
+export async function conversationMessages(
+  conversationId: string,
+  pageToken: string,
+  fetchImpl: typeof fetch = fetch,
+) {
+  return call<{ data?: GraphMessage[] }>(fetchImpl, `${conversationId}/messages`, pageToken, {
+    query: {
+      fields:
+        "id,created_time,from,to,message,sticker,attachments{id,mime_type,name,image_data,video_data,file_url}",
+      limit: "20",
+    },
+  });
+}
+
 /**
  * Tên khách theo PSID. Hồ sơ người dùng (GET /{psid}) chỉ trả tên khi ứng dụng có tính năng Business Asset User Profile
  * Access hoặc khách có vai trò trong ứng dụng; không được thì thử danh sách hội thoại của Page (người tham gia có kèm

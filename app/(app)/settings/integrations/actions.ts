@@ -10,6 +10,7 @@ import { configErrors } from "@/lib/integrations/connection";
 import {
   GraphError,
   graphErrorMessage,
+  pageConversations,
   pageOfToken,
   subscribeErrorMessage,
   subscribePage,
@@ -206,7 +207,18 @@ const PROBES: Record<string, Probe> = {
     } catch (e) {
       return { error: subscribeErrorMessage(e) };
     }
-    return { done: "token đúng Page, Page đã đăng ký gửi tin về CRM", replyMode: cfg.replyMode };
+    // Đọc lại tin bị lỡ (mỗi 2 phút) cần thêm pages_read_engagement. Thiếu thì vẫn kết nối, chỉ báo để Owner lấy token
+    // mới có quyền đó.
+    let reread = "CRM đọc lại được tin bị lỡ";
+    try {
+      await pageConversations(cfg.pageId, cfg.pageToken!);
+    } catch (e) {
+      reread =
+        e instanceof GraphError && e.code === -1
+          ? "chưa kiểm được việc đọc lại tin bị lỡ vì không gọi được Meta"
+          : "chưa đọc lại được tin bị lỡ vì token thiếu quyền pages_read_engagement";
+    }
+    return { done: `token đúng Page, Page đã đăng ký gửi tin về CRM; ${reread}`, replyMode: cfg.replyMode };
   },
   // Làm mới token ngay (kiểm App Secret và refresh token), rồi kiểm token thuộc đúng OA đã khai.
   [ZALO_KEY]: async (d, showroomId) => {
