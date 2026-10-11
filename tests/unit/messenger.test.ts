@@ -13,8 +13,10 @@ import {
 import { replyWindow, timeLeft } from "@/lib/integrations/meta_messenger/window";
 import {
   firstPageId,
+  metaSignedForm,
   parseMessengerWebhook,
   verifySignature,
+  webhookShape,
 } from "@/lib/integrations/meta_messenger/webhook";
 
 const SECRET = "app-secret-thu";
@@ -39,6 +41,42 @@ describe("chữ ký webhook Messenger", () => {
     expect(verifySignature(body, null, SECRET)).toBe(false);
     expect(verifySignature(body, "sha1=abc", SECRET)).toBe(false);
     expect(verifySignature(body, "sha256=zz", SECRET)).toBe(false);
+  });
+});
+
+describe("chữ ký webhook Messenger có chữ tiếng Việt", () => {
+  // Meta ký trên bản đã đổi ký tự ngoài ASCII sang \uXXXX, còn thân gửi đi có thể giữ nguyên chữ có dấu.
+  const raw = JSON.stringify(
+    hook([msg({ text: "Nghĩa gửi ảnh 😇 cho chị", is_echo: true, app_id: 263902037430900 })]),
+  );
+  const signedByMeta = `sha256=${createHmac("sha256", SECRET)
+    .update(raw.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`))
+    .digest("hex")}`;
+  it("nhận chữ ký Meta tính trên bản \\uXXXX", () => {
+    expect(raw).toContain("Nghĩa");
+    expect(verifySignature(raw, signedByMeta, SECRET)).toBe(true);
+  });
+  it("vẫn nhận chữ ký tính trên thân nguyên văn", () => {
+    expect(verifySignature(raw, sign(raw), SECRET)).toBe(true);
+  });
+  it("sai secret hoặc sửa nội dung có dấu thì vẫn từ chối", () => {
+    expect(verifySignature(raw, signedByMeta, "khac")).toBe(false);
+    expect(verifySignature(raw.replace("Nghĩa", "Nghia"), signedByMeta, SECRET)).toBe(false);
+  });
+  it("đổi đúng dạng Meta: chữ thường, cặp thay thế của emoji", () => {
+    expect(metaSignedForm("äöå")).toBe("\\u00e4\\u00f6\\u00e5");
+    expect(metaSignedForm("😇")).toBe("\\ud83d\\ude07");
+    expect(metaSignedForm("abc")).toBe("abc");
+  });
+});
+
+describe("tóm tắt webhook khi chữ ký sai", () => {
+  it("chỉ có loại sự kiện, bản sao, mã ứng dụng; không có nội dung hay PSID", () => {
+    const shape = webhookShape(
+      hook([msg({ is_echo: true, app_id: 263902037430900 }), { read: { watermark: 1 } }]),
+    );
+    expect(shape).toEqual({ kinds: ["message", "read"], echo: true, appIds: ["263902037430900"] });
+    expect(JSON.stringify(shape)).not.toMatch(/Chào|9001/);
   });
 });
 

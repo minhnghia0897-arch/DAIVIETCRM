@@ -9,6 +9,7 @@ import {
   firstPageId,
   parseMessengerWebhook,
   verifySignature,
+  webhookShape,
 } from "@/lib/integrations/meta_messenger/webhook";
 
 // Webhook của Meta cho Page (Messenger). CLAUDE.md 10.1: kiểm chữ ký, lưu thô vào webhook_events trước, trả 200
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         signature_valid: false,
         status: "ignored",
         error: "sai chữ ký X-Hub-Signature-256",
-        payload: { bytes: raw.length },
+        payload: { bytes: raw.length, ascii: !/[^\x00-\x7f]/.test(raw), ...webhookShape(json) },
       },
       { onConflict: "provider,external_id", ignoreDuplicates: true },
     );

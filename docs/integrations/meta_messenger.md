@@ -79,8 +79,13 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 
 ## CRM làm gì (đã viết)
 
-- **Nhận tin:** webhook kiểm `X-Hub-Signature-256` bằng App Secret trên đúng chuỗi byte nhận được; sai chữ ký thì chỉ
-  ghi dấu vết (không lưu nội dung) và trả `401`. Đúng thì ghi từng tin vào `webhook_events` (chống trùng theo mã tin),
+- **Nhận tin:** webhook kiểm `X-Hub-Signature-256` bằng App Secret trên đúng chuỗi byte nhận được, và trên bản đã đổi
+  mọi ký tự ngoài ASCII sang `\uXXXX` chữ thường: tài liệu "Validate Payloads" của Meta ghi chữ ký tính trên bản
+  thoát Unicode ("äöå" thành "\u00e4\u00f6\u00e5"). Thiếu bước này thì tin có chữ tiếng Việt (hay gặp ở tin nhân viên
+  trả lời trong hộp thư Facebook) bị coi sai chữ ký; ngày 11/10/2026 NGHIA ghi 93 lần như vậy. Sai chữ ký thì chỉ ghi
+  dấu vết (không lưu nội dung; có loại sự kiện, có phải bản sao tin của Page, mã ứng dụng gửi) và trả `401`.
+- **Tin nhân viên trả lời ngoài CRM:** Meta gửi bản sao (`message_echoes`, `app_id` là hộp thư Page khi gửi từ Meta
+  Business Suite hoặc ứng dụng Messenger); CRM ghi là tin đi "từ Page" vào đúng hội thoại. Đúng thì ghi từng tin vào `webhook_events` (chống trùng theo mã tin),
   trả `200`, xử lý ngay sau khi trả lời; job mỗi phút (`messenger-backlog`) xử lý lại tin còn sót.
 - **Khách và lead:** tin đầu từ người lạ tạo khách với định danh `fb_psid`, căn cứ đồng ý chăm sóc trên kênh Messenger
   (khách tự nhắn), và lead nguồn "Tin nhắn Facebook" rồi phân như mọi lead. Khách đã có lead mở (hoặc thất bại chưa quá
