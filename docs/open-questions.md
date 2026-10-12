@@ -70,3 +70,27 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     - Khi nào bật AI cho Zalo: Zalo OA chưa kết nối, tài liệu Zalo chưa đọc được từ môi trường này.
     - Tỷ giá quy đổi chi phí mặc định 26.500 đồng/USD, anh sửa theo ngân hàng ở Cài đặt, Tích hợp, Trợ lý AI.
     - Ảnh đại diện khách Messenger (câu hỏi ngày 12/10): xin quyền Business Asset User Profile Access hay giữ chữ cái đầu.
+48. **Màn Khách chạy dữ liệu thật (12/10/2026):** migration `20261012000400_customers_live.sql`, màn `/customers` và hồ sơ khách 360 `/customers/[id]`. Giai đoạn vòng đời tính tự động, không sửa tay:
+    - **Đang hỏi:** mới nhắn hỏi, chưa có lead.
+    - **Lead:** khách là người đặt hoặc người nhận của một lead.
+    - **Khách mới:** có đơn đã cọc tới đã lắp.
+    - **Đang sử dụng:** có đơn hoàn tất, là người đặt hoặc người nhận.
+    - **Khách thân:** từ 2 đơn hoàn tất, hoặc hộ có từ 2 đơn hoàn tất.
+    - **Ngủ đông:** không tương tác quá số ngày ở Cài đặt, Bán hàng (mặc định 180) và không có đơn đang mở.
+    - **Có rủi ro:** đơn đang đổi trả, hoặc việc bảo hành đang mở.
+    - **Ngừng liên hệ:** khách yêu cầu ngừng mọi liên hệ.
+
+    Giai đoạn tính lại ngay khi có sự kiện, lead, đơn, việc bảo hành, đồng ý mới, và một lần mỗi đêm lúc 02:10. Người xem được khách gồm cả người bán đơn của khách. Hồ sơ khách 360 có:
+    - Gọi: chỉ người giữ lead của khách, hoặc người xem được mọi số. Giữ bất ngờ và Ngừng liên hệ chặn ở server.
+    - Sửa tên, nơi sống, tỉnh, quan hệ trong hộ.
+    - Bật tắt đồng ý theo mục đích và kênh, và Ngừng mọi liên hệ.
+    - Ngày quan trọng.
+    - Mở lead mới cho khách cũ (tái bán): khách đang có lead mở thì dùng lead đó.
+    - Trích xuất dữ liệu một khách thành file JSON: cần quyền `lead.export` (mặc định chỉ Owner), có ghi nhật ký.
+
+    Còn mở:
+    - (a) "Khách thân" chưa tính khách giới thiệu người khác, vì lead chưa có cột người giới thiệu (`referrer_contact_id`, CLAUDE.md mục 6); cần thêm khi làm nguồn Giới thiệu.
+    - (b) Xử lý yêu cầu xóa dữ liệu (ẩn danh hóa khách, giữ chứng từ đơn theo luật kế toán) chưa làm, cần anh chốt giữ những gì.
+    - (c) Gắn khách vào hộ, tạo hộ chưa có màn thật (menu Hộ gia đình đang ẩn); hộ hiện chỉ đọc.
+    - (d) Mặc định 180 ngày không tương tác thì Ngủ đông: anh muốn đổi không.
+    - (e) Gọi từ hồ sơ khách cần khách chưa từ chối "Chăm sóc, Gọi điện". Gọi mời mua thêm cho khách không có đơn đang mở chưa bắt buộc đồng ý tiếp thị (giao diện chỉ nhắc).

@@ -1,4 +1,7 @@
 import { HANDOFF_LABEL } from "@/lib/ai/labels";
+import { CHANNEL_LABEL, PURPOSE_LABEL } from "@/lib/cdp/lifecycle";
+import { formatMoney } from "@/lib/format";
+import { ORDER_STATUS_LIVE } from "@/lib/sales/order-labels";
 import { formatDue } from "@/lib/tasks/view";
 
 import { LEAD_STAGE_LABEL, leadSourceLabel } from "./labels";
@@ -39,6 +42,31 @@ const KIND: Record<string, string> = {
   ai_handoff: "Trợ lý AI",
   ai_takeover: "Trợ lý AI",
   ai_release: "Trợ lý AI",
+  consent_changed: "Đồng ý",
+  contact_updated: "Thông tin khách",
+  contact_renamed: "Thông tin khách",
+  address_saved: "Thông tin khách",
+  quote_sent: "Báo giá",
+  quote_viewed: "Báo giá",
+  quote_accepted: "Báo giá",
+  order_status_changed: "Đơn hàng",
+  payment_recorded: "Thanh toán",
+  payment_confirmed: "Thanh toán",
+  payment_rejected: "Thanh toán",
+  delivery_step: "Giao lắp",
+  warranty_created: "Bảo hành",
+};
+
+const DELIVERY_STEP: Record<string, string> = {
+  stock_issued: "Đã xuất kho, gán serial",
+  scheduled: "Đã hẹn lịch giao lắp",
+  handover_sent: "Đã gửi bàn giao cho khách",
+};
+
+const PAYMENT_TYPE: Record<string, string> = {
+  deposit: "tiền cọc",
+  balance: "tiền còn lại",
+  refund: "hoàn tiền",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -167,6 +195,63 @@ export function describeEvent(
       const text = str(payload.text) || (payload.file ? "Ảnh đính kèm" : "");
       return { kind, text: `${text}${from}`, ...(str(payload.file) ? { file: str(payload.file) } : {}) };
     }
+    case "consent_changed": {
+      const purpose =
+        PURPOSE_LABEL[str(payload.purpose) as keyof typeof PURPOSE_LABEL] ?? str(payload.purpose);
+      const channel =
+        CHANNEL_LABEL[str(payload.channel) as keyof typeof CHANNEL_LABEL] ?? str(payload.channel);
+      if (payload.purpose === "care" && payload.channel === "all")
+        return {
+          kind,
+          text: payload.granted ? "Khách cho liên hệ lại" : "Khách yêu cầu ngừng mọi liên hệ",
+        };
+      return {
+        kind,
+        text: `${payload.granted ? "Khách đồng ý" : "Khách rút đồng ý"}: ${purpose}, ${channel}`,
+      };
+    }
+    case "contact_updated":
+      return { kind, text: "Sửa nơi sống, tỉnh, quan hệ trong hộ" };
+    case "contact_renamed":
+      return { kind, text: "Đổi tên khách" };
+    case "address_saved":
+      return { kind, text: "Lưu địa chỉ giao hàng" };
+    case "quote_sent":
+      return {
+        kind,
+        text: `Gửi báo giá ${str(payload.code)}${typeof payload.total === "number" ? `, ${formatMoney(payload.total)}` : ""}`,
+      };
+    case "quote_viewed":
+      return { kind, text: `Khách mở báo giá ${str(payload.code)}` };
+    case "quote_accepted":
+      return { kind, text: `Khách đồng ý báo giá ${str(payload.code)}` };
+    case "order_status_changed":
+      return {
+        kind,
+        text: `Đơn ${str(payload.code)}: ${ORDER_STATUS_LIVE[str(payload.to)]?.label ?? str(payload.to)}`,
+      };
+    case "payment_recorded":
+    case "payment_confirmed":
+    case "payment_rejected": {
+      const verb =
+        type === "payment_recorded"
+          ? payload.type === "refund"
+            ? "Ghi hoàn tiền"
+            : "Ghi nhận"
+          : type === "payment_confirmed"
+            ? "Xác nhận tiền về"
+            : "Từ chối khoản";
+      const what = payload.type === "refund" ? "" : ` ${PAYMENT_TYPE[str(payload.type)] ?? "thanh toán"}`;
+      const amount = typeof payload.amount === "number" ? ` ${formatMoney(payload.amount)}` : "";
+      return { kind, text: `${verb}${what}${amount}, đơn ${str(payload.code)}` };
+    }
+    case "delivery_step":
+      return {
+        kind,
+        text: `Đơn ${str(payload.code)}: ${DELIVERY_STEP[str(payload.step)] ?? "cập nhật bước giao lắp"}`,
+      };
+    case "warranty_created":
+      return { kind, text: `Tạo phiếu bảo hành cho đơn ${str(payload.code)}` };
     case "task_done": {
       const label = TASK_TYPE_LABEL[str(payload.type)] ?? "Việc";
       return { kind, text: `Xong: ${label}${str(payload.outcome) ? ` (${str(payload.outcome)})` : ""}` };

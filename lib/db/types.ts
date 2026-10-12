@@ -573,6 +573,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "calls_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "calls_lead_id_fkey";
             columns: ["lead_id"];
             isOneToOne: false;
@@ -887,10 +894,24 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "consents_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "consents_provided_by_contact_id_fkey";
             columns: ["provided_by_contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "consents_provided_by_contact_id_fkey";
+            columns: ["provided_by_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -1009,6 +1030,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "contact_addresses_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "contact_addresses_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
@@ -1075,6 +1103,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "contact_identities_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "contact_identities_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
@@ -1126,6 +1161,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "contact_notes_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "contact_notes_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
@@ -1162,6 +1204,13 @@ export type Database = {
             columns: ["contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_tags_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -1235,6 +1284,13 @@ export type Database = {
             columns: ["contact_via_contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contacts_contact_via_contact_id_fkey";
+            columns: ["contact_via_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -1453,6 +1509,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "conversations_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "conversations_lead_id_fkey";
             columns: ["lead_id"];
             isOneToOne: false;
@@ -1476,6 +1539,7 @@ export type Database = {
           open_tasks: number;
           orders_count: number;
           owned_products: NonNullable<Json>;
+          owner_id: string | null;
           showroom_id: string;
           stage: string;
           stage_since: string;
@@ -1489,6 +1553,7 @@ export type Database = {
           open_tasks?: number;
           orders_count?: number;
           owned_products?: NonNullable<Json>;
+          owner_id?: string | null;
           showroom_id: string;
           stage: string;
           stage_since?: string;
@@ -1502,6 +1567,7 @@ export type Database = {
           open_tasks?: number;
           orders_count?: number;
           owned_products?: NonNullable<Json>;
+          owner_id?: string | null;
           showroom_id?: string;
           stage?: string;
           stage_since?: string;
@@ -1514,6 +1580,20 @@ export type Database = {
             columns: ["contact_id"];
             isOneToOne: true;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_lifecycle_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: true;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_lifecycle_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {
@@ -1709,6 +1789,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "events_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "events_household_id_fkey";
             columns: ["household_id"];
             isOneToOne: false;
@@ -1821,6 +1908,13 @@ export type Database = {
             columns: ["contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "important_dates_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -2195,6 +2289,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "leads_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "leads_lost_reason_id_fkey";
             columns: ["lost_reason_id"];
             isOneToOne: false;
@@ -2213,6 +2314,13 @@ export type Database = {
             columns: ["recipient_contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_recipient_contact_id_fkey";
+            columns: ["recipient_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -2841,6 +2949,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "orders_buyer_contact_id_fkey";
+            columns: ["buyer_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "orders_lead_id_fkey";
             columns: ["lead_id"];
             isOneToOne: false;
@@ -2859,6 +2974,13 @@ export type Database = {
             columns: ["recipient_contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_recipient_contact_id_fkey";
+            columns: ["recipient_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -3593,6 +3715,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "quotes_buyer_contact_id_fkey";
+            columns: ["buyer_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "quotes_lead_id_fkey";
             columns: ["lead_id"];
             isOneToOne: false;
@@ -3611,6 +3740,13 @@ export type Database = {
             columns: ["recipient_contact_id"];
             isOneToOne: false;
             referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quotes_recipient_contact_id_fkey";
+            columns: ["recipient_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
             referencedColumns: ["id"];
           },
           {
@@ -3714,6 +3850,7 @@ export type Database = {
           bank_info: string | null;
           deposit_min_amount: number;
           deposit_min_pct: number;
+          dormant_days: number;
           hold_days: number;
           post_delivery_call_days: number;
           quote_valid_days: number;
@@ -3725,6 +3862,7 @@ export type Database = {
           bank_info?: string | null;
           deposit_min_amount?: number;
           deposit_min_pct?: number;
+          dormant_days?: number;
           hold_days?: number;
           post_delivery_call_days?: number;
           quote_valid_days?: number;
@@ -3736,6 +3874,7 @@ export type Database = {
           bank_info?: string | null;
           deposit_min_amount?: number;
           deposit_min_pct?: number;
+          dormant_days?: number;
           hold_days?: number;
           post_delivery_call_days?: number;
           quote_valid_days?: number;
@@ -4469,6 +4608,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "tasks_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "tasks_lead_id_fkey";
             columns: ["lead_id"];
             isOneToOne: false;
@@ -4983,6 +5129,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "warranties_owner_contact_id_fkey";
+            columns: ["owner_contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "warranties_serial_unit_id_fkey";
             columns: ["serial_unit_id"];
             isOneToOne: false;
@@ -5099,6 +5252,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "events_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "events_household_id_fkey";
             columns: ["household_id"];
             isOneToOne: false;
@@ -5161,10 +5321,61 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "contact_identities_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_list";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "contact_identities_showroom_id_fkey";
             columns: ["showroom_id"];
             isOneToOne: false;
             referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_list: {
+        Row: {
+          country_of_residence: string | null;
+          flags: string[] | null;
+          full_name: string | null;
+          household_id: string | null;
+          id: string | null;
+          last_interaction_at: string | null;
+          lifecycle_stage: string | null;
+          open_tasks: number | null;
+          orders_count: number | null;
+          owned_products: Json | null;
+          owner_id: string | null;
+          owner_name: string | null;
+          province: string | null;
+          relation_in_household: string | null;
+          showroom_id: string | null;
+          stage_since: string | null;
+          total_paid: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contacts_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contacts_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_lifecycle_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -5451,6 +5662,7 @@ export type Database = {
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
       expire_campaign_budget_requests: { Args: { p_campaign: string; p_note: string }; Returns: undefined };
       expire_quotes: { Args: Record<PropertyKey, never>; Returns: number };
+      export_contact_data: { Args: { p_contact: string }; Returns: Json };
       finish_ai_run: {
         Args: {
           p_action?: string;
@@ -5553,6 +5765,7 @@ export type Database = {
         Args: { p_lead_id: string; p_showroom_id: string; p_title: string };
         Returns: undefined;
       };
+      open_customer_lead: { Args: { p_contact: string; p_note?: string }; Returns: Json };
       order_blockers: { Args: { p_order_id: string }; Returns: string[] };
       order_deposit_min: {
         Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] };
@@ -5611,6 +5824,9 @@ export type Database = {
         Args: { p_chat_id: number; p_code: string; p_telegram_user_id: number; p_username?: string };
         Returns: string;
       };
+      refresh_all_customer_lifecycles: { Args: Record<PropertyKey, never>; Returns: number };
+      refresh_customer_lifecycle: { Args: { p_contact: string }; Returns: string };
+      refresh_order_contacts: { Args: { p_order_id: string }; Returns: undefined };
       release_expired_holds: { Args: Record<PropertyKey, never>; Returns: number };
       release_order_reservations: { Args: { p_order_id: string; p_reason: string }; Returns: undefined };
       rename_contact: { Args: { p_contact_id: string; p_name: string }; Returns: undefined };
@@ -5635,6 +5851,16 @@ export type Database = {
       save_product: { Args: { p: Json }; Returns: string };
       save_sales_settings: { Args: { p: Json }; Returns: undefined };
       save_stock_document: { Args: { p: Json }; Returns: string };
+      set_consent: {
+        Args: {
+          p_channel: string;
+          p_contact: string;
+          p_granted: boolean;
+          p_purpose: string;
+          p_source?: string;
+        };
+        Returns: undefined;
+      };
       set_contact_note_pinned: { Args: { p_id: string; p_pinned: boolean }; Returns: undefined };
       set_conversation_done: { Args: { p_conversation_id: string; p_done: boolean }; Returns: undefined };
       set_integration_secret: { Args: { p_key: string; p_name: string; p_value: string }; Returns: string };
@@ -5681,6 +5907,10 @@ export type Database = {
       };
       telegram_user: { Args: { p_telegram_user_id: number }; Returns: string };
       toggle_contact_tag: { Args: { p_contact_id: string; p_tag_id: string }; Returns: boolean };
+      update_contact_profile: {
+        Args: { p_contact: string; p_country: string; p_province: string; p_relation: string };
+        Returns: undefined;
+      };
       update_delivery: {
         Args: { p_handover?: boolean; p_note: string; p_order_id: string; p_scheduled_on: string };
         Returns: undefined;

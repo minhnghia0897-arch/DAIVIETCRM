@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 
-// Cài đặt, Bán hàng bản thật: mức cọc, giữ hàng, hạn báo giá, thông tin chuyển khoản, giới hạn giảm theo vai trò.
+// Cài đặt, Bán hàng bản thật: mức cọc, giữ hàng, hạn báo giá, thông tin chuyển khoản, ngày Ngủ đông, giới hạn giảm
+// theo vai trò.
 
 type Result = { ok: boolean; message: string };
 
@@ -15,6 +16,7 @@ export interface SalesSettingsValue {
   holdDays: number;
   quoteValidDays: number;
   postDeliveryCallDays: number;
+  dormantDays: number;
   bankInfo: string;
 }
 
@@ -121,6 +123,19 @@ export function SalesSettingsLive({
               disabled={readOnly}
               value={v.postDeliveryCallDays}
               onChange={(e) => setV({ ...v, postDeliveryCallDays: Number(e.target.value) })}
+              className={FIELD}
+            />
+          </label>
+          <label className="c-lbl">
+            Khách Ngủ đông khi không tương tác quá (ngày)
+            <input
+              aria-label="Ngủ đông sau (ngày)"
+              type="number"
+              min={30}
+              max={1095}
+              disabled={readOnly}
+              value={v.dormantDays}
+              onChange={(e) => setV({ ...v, dormantDays: Number(e.target.value) })}
               className={FIELD}
             />
           </label>

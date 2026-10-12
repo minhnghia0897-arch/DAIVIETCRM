@@ -1009,6 +1009,7 @@ pnpm db:types       # sinh type
 | Lead và cơ hội (12/10) | Một menu **Lead**: lead đã có đủ giai đoạn tới đặt cọc, thắng nên lead chính là cơ hội. Bản thật ẩn menu Cơ hội và Hộ gia đình ở giai đoạn này (bản demo giữ nguyên); dữ liệu hộ vẫn giữ | `lib/nav.ts` (`demoOnly`) |
 | AI tự trả lời (12/10) | AI trả lời trước tin Messenger, Zalo mọi lúc, bật tắt theo kênh; chỉ chuyển người khi khẩn cấp hoặc cần gọi (cộng sức khỏe, xin giảm giá, AI không biết); khách cần gọi tự thành lead; AI báo giá niêm yết và khuyến mãi đang chạy, không tự giảm | `ai_runs`, `ai_knowledge`, `conversations.ai_paused_*`, migration `20261012000300_ai_auto_reply.sql`, `lib/ai/`, Cài đặt, Trợ lý AI, mục 10.7 |
 | Telegram | Nơi làm việc nội bộ của đội thay nhóm Zalo; không nhắn khách trên Telegram (khách vẫn qua Zalo OA, điện thoại). Việc gắn với khách, đơn phải về hồ sơ CRM | `telegram_bot` (mục 10.3), `docs/integrations/telegram_bot.md` |
+| Khách chạy dữ liệu thật (12/10) | Vòng đời khách tính tự động từ lead, đơn, việc bảo hành, đồng ý, thời gian không tương tác (Ngủ đông sau số ngày ở Cài đặt, Bán hàng, mặc định 180); người bán đơn xem được khách của đơn; hồ sơ 360 sửa thông tin, đồng ý, Ngừng liên hệ, ngày quan trọng, mở lead tái bán, trích xuất dữ liệu (`lead.export`) | `refresh_customer_lifecycle`, view `customer_list`, `set_consent`, `open_customer_lead`, `export_contact_data` (migration `20261012000400_customers_live.sql`), `lib/cdp/lifecycle.ts`, `docs/open-questions.md` #48 |
 
 ### Còn mở
 
