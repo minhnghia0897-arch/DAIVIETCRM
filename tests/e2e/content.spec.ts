@@ -45,11 +45,14 @@ test("Marketing thêm bài, chuyển cột; lên lịch bị chặn khi thiếu 
   // Kéo thả sang Viết kịch bản.
   await card.dragTo(column(page, "Viết kịch bản"));
   await expect(column(page, "Viết kịch bản").getByRole("listitem", { name: TITLE })).toBeVisible();
+  // Thẻ đổi cột ngay trên màn rồi mới lưu: chờ lưu xong để thông báo sau không đè thông báo của bước kế tiếp.
+  await expect(page.getByRole("status")).toContainText("Đã chuyển sang Viết kịch bản");
 
   await card.getByLabel(`Chuyển ${TITLE} sang`).selectOption("review");
   await expect(column(page, "Chờ duyệt").getByRole("listitem", { name: TITLE })).toContainText(
     "Chưa kiểm nội dung",
   );
+  await expect(page.getByRole("status")).toContainText("Đã chuyển sang Chờ duyệt");
 
   // Lên lịch khi chưa có giờ đăng: báo lỗi, mở bài để bổ sung.
   await card.getByLabel(`Chuyển ${TITLE} sang`).selectOption("scheduled");

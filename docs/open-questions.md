@@ -98,3 +98,15 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     - Môi trường làm việc chặn mọi tên miền OpenAI. Đặc tả API đọc trên GitHub chính thức; giá, chính sách dữ liệu đọc qua công cụ tìm kiếm. Anh mở quyền truy cập `developers.openai.com` (Cài đặt môi trường, Network access) nếu muốn em đối chiếu trực tiếp.
     - Chưa gọi thử OpenAI thật; lần đầu là khi anh dán key trên trang thật. Nếu báo lỗi mô hình (404) thì chọn GPT-6 Luna hoặc báo em.
     - OpenAI giữ nhật ký chống lạm dụng tới 30 ngày (gồm lời nhắc đã che số và câu trả lời), giống Anthropic; muốn không lưu thì phải xin OpenAI duyệt Zero Data Retention.
+50. **Lead dạng bảng theo giai đoạn (Kanban) trong menu Lead (12/10/2026, anh yêu cầu):** `/leads?layout=board`, nút "Danh sách / Bảng theo giai đoạn" ở đầu màn Lead.
+    - Bảy cột: Mới, Đã liên hệ, Đã tư vấn demo, Đã gửi báo giá, Đã đặt cọc, Chốt đơn, Thất bại.
+    - Cột Chốt đơn, Thất bại chỉ giữ lead đóng trong 30 ngày.
+    - Thẻ ghi nơi ở, nguồn, hạn gọi, số thông tin bắt buộc còn thiếu, người giữ, giá trị (tổng đơn đang có, chưa có đơn thì báo giá gần nhất).
+    - Lọc như danh sách: cả showroom hoặc của tôi, thị trường, nguồn, tên.
+    - Kéo thả trên máy tính, ô "Chuyển sang" trên điện thoại. Chỉ kéo tay được Mới → Đã liên hệ → Đã tư vấn demo (cần đủ bốn thông tin) và Thất bại (cần lý do). Từ Đã gửi báo giá trở đi tự sinh từ báo giá và đơn. Không kéo lùi.
+    - Không đổi database.
+
+    Còn mở:
+    - (a) Anh có muốn kéo lùi (ví dụ Demo về Đã liên hệ) không. Hiện chặn để phễu và chỉ số chuyển đổi giữ đúng.
+    - (b) Chưa có số ngày lead nằm ở mỗi giai đoạn trên thẻ (cần ghi thời điểm đổi giai đoạn vào lead).
+
