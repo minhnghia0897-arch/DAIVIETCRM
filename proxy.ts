@@ -38,6 +38,8 @@ export async function proxy(request: NextRequest) {
     path === "/privacy" ||
     path === "/terms" ||
     path === "/data-deletion" ||
+    // Trang giữ ấm máy chủ (app/warm/page.tsx), database gọi định kỳ không kèm phiên.
+    path === "/warm" ||
     // Webhook của nhà cung cấp gọi vào không có phiên đăng nhập; mỗi route tự kiểm chữ ký hoặc mã bí mật
     // (CLAUDE.md mục 10.1). Đẩy về /login sẽ làm mất tin.
     path.startsWith("/api/webhooks/") ||
