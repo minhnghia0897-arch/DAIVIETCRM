@@ -12,3 +12,11 @@ for (const [path, heading] of [
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
   });
 }
+
+// Trang giữ ấm máy chủ: database gọi định kỳ không kèm phiên, nên không được chuyển về trang đăng nhập.
+test("/warm trả về ngay khi chưa đăng nhập", async ({ page }) => {
+  const res = await page.goto("/warm");
+  expect(res?.status()).toBe(200);
+  await expect(page).toHaveURL(/\/warm$/);
+  await expect(page.getByText("ok", { exact: true })).toBeVisible();
+});
