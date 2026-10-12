@@ -51,6 +51,15 @@ describe("vai trò Marketing", () => {
   });
 });
 
+describe("menu bản thật", () => {
+  it("chỉ giữ Lead, ẩn Cơ hội và Hộ gia đình (Owner chốt 12/10/2026)", () => {
+    const hrefs = visibleTabs(perms("owner")).map((t) => t.href);
+    expect(hrefs).toContain("/leads");
+    expect(hrefs).not.toContain("/opportunities");
+    expect(hrefs).not.toContain("/households");
+  });
+});
+
 describe("tiền và chỉ số", () => {
   it("đọc số tiền người dùng gõ", () => {
     expect(parseMoney("20.000.000")).toBe(20_000_000);

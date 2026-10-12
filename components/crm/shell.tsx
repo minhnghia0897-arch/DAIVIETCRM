@@ -47,7 +47,7 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { Switch } from "@/components/ui/switch";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import type { AiAnswer, AiView } from "@/lib/demo/ai-answers";
-import { NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
+import { IS_DEMO, NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
 import type { NoticeFeed } from "@/lib/notify/notice";
 import { NoticeList } from "./notices";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
@@ -414,7 +414,8 @@ export function ShellFrame({
   const GO: Record<string, string> = {
     h: "/home",
     t: "/tasks",
-    c: "/opportunities",
+    l: "/leads",
+    ...(IS_DEMO ? { c: "/opportunities" } : {}),
     d: "/orders",
     k: "/customers",
     i: "/inbox",

@@ -68,9 +68,10 @@ Không gửi khóa, token qua chat hay email; anh tự dán vào CRM ở phần 
 
 - **Nhận tin:** kiểm chữ ký, lưu thô vào `webhook_events` (chống trùng theo mã tin), trả `200`, xử lý ngay sau đó; job
   mỗi phút (`zalo-backlog`) xử lý tin còn sót. Sự kiện đã xem, theo dõi không lưu.
-- **Khách và lead:** tin đầu từ người lạ tạo khách với định danh `zalo_user_id`, căn cứ chăm sóc trên kênh Zalo OA (khách
-  tự nhắn), lead nguồn "Zalo OA" rồi phân như mọi lead; khách có lead mở thì nối vào lead đó. Phần nhận tin dùng chung
-  với Messenger (`ingest_channel_message`).
+- **Khách và lead (đổi 12/10/2026):** tin đầu từ người lạ tạo khách với định danh `zalo_user_id`, căn cứ chăm sóc trên
+  kênh Zalo OA (khách tự nhắn) và hội thoại, **chưa tạo lead** ("khách đang hỏi"): hội thoại chia cho telesale đang trực,
+  Sale admin, Owner bấm Chuyển thành lead (nguồn "Zalo OA") khi thấy tiềm năng; khách có lead mở thì nối vào lead đó.
+  Phần nhận tin dùng chung với Messenger (`ingest_channel_message`).
 - **Khách chia sẻ số qua form:** số được chuẩn hóa, thêm vào định danh của khách, thị trường suy theo đầu số khi chưa
   rõ; tên tạm đổi thành tên khách gửi. Số đang thuộc khách khác thì **không gộp tự động**, tạo việc "kiểm tra gộp hồ
   sơ" cho người có quyền gộp.

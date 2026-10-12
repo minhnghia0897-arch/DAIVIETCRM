@@ -19,9 +19,9 @@ function friendly(code: string | undefined, message?: string): string {
     return "Số này đang thuộc một khách khác. Sale admin gộp hai hồ sơ nếu là cùng một người.";
   switch (code) {
     case "42501":
-      return "Anh chị chỉ sửa được khách của lead mình đang giữ.";
+      return "Anh chị chỉ sửa được khách mình đang phụ trách.";
     case "P0002":
-      return "Không còn khách hoặc ghi chú này, hoặc anh chị không còn giữ lead.";
+      return "Không còn khách hoặc ghi chú này, hoặc anh chị không còn phụ trách khách này.";
     case "22023":
       return "Dữ liệu chưa đúng, kiểm lại rồi lưu.";
     default:
@@ -217,4 +217,65 @@ export async function setConversationDone(input: z.infer<typeof doneSchema>): Pr
   });
   if (error) return { ok: false, message: friendly(error.code, error.message) };
   return done(p.done ? "Đã đánh dấu xong, khách nhắn lại sẽ tự mở" : "Đã mở lại hội thoại");
+}
+
+const convAssignSchema = z.object({ conversationId: z.uuid(), assigneeId: z.uuid().nullable() });
+
+/**
+ * Giao, chuyển khách đang hỏi (hội thoại chưa có lead) cho nhân viên. Hội thoại đã có lead thì giao lead (assignLeads).
+ * Cần lead.assign, kiểm ở database (assign_conversation, migration 20261012000200_inquiries.sql).
+ */
+export async function assignConversation(input: z.infer<typeof convAssignSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = convAssignSchema.safeParse(input);
+  if (!p.success) return { ok: false, message: "Chọn lại nhân viên." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("assign_conversation", {
+    p_conversation: p.data.conversationId,
+    p_assignee: p.data.assigneeId as string,
+  });
+  if (error)
+    return {
+      ok: false,
+      message:
+        error.code === "42501"
+          ? "Anh chị chưa được cấp quyền giao khách."
+          : error.code === "22023"
+            ? "Người này không nhận khách được, hoặc khách đã thành lead (giao lead thay vì giao hội thoại)."
+            : friendly(error.code, error.message),
+    };
+  return done(p.data.assigneeId ? "Đã giao khách" : "Đã bỏ người phụ trách");
+}
+
+const qualifySchema = z.object({ conversationId: z.uuid() });
+
+/**
+ * Chuyển khách đang hỏi thành lead (Sale admin, Owner: lead.assign). Lead giao cho người đang phụ trách hội thoại,
+ * không có ai thì chia vòng như lead mới (qualify_conversation, migration 20261012000200_inquiries.sql).
+ */
+export async function qualifyConversation(
+  input: z.infer<typeof qualifySchema>,
+): Promise<ActionResult & { leadId?: string }> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = qualifySchema.safeParse(input);
+  if (!p.success) return { ok: false, message: "Không tìm thấy hội thoại." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("qualify_conversation", {
+    p_conversation: p.data.conversationId,
+  });
+  if (error)
+    return {
+      ok: false,
+      message:
+        error.code === "42501"
+          ? "Chỉ Sale admin, Owner chuyển khách thành lead."
+          : error.code === "22023"
+            ? "Hội thoại chưa gắn hồ sơ khách, chưa chuyển thành lead được."
+            : friendly(error.code, error.message),
+    };
+  revalidatePath("/inbox");
+  revalidatePath("/leads");
+  return { ok: true, message: "Đã chuyển thành lead", leadId: data ?? undefined };
 }

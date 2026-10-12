@@ -3,6 +3,8 @@
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { IS_DEMO } from "@/lib/nav";
+
 // Ô tìm nhanh kiểu Ctrl/⌘ + K của Slack: gõ tên khách, mã đơn, tên hộ hoặc tên màn hình rồi Enter để mở.
 // Chỉ liệt kê những gì người dùng được xem; danh sách do shell truyền vào theo quyền.
 
@@ -22,7 +24,8 @@ export const SHORTCUTS: [string, string][] = [
   ["/", "Vào ô tìm kiếm trên đầu trang"],
   ["G rồi H", "Trang chủ"],
   ["G rồi T", "Việc cần làm"],
-  ["G rồi C", "Cơ hội"],
+  ["G rồi L", "Lead"],
+  ...(IS_DEMO ? ([["G rồi C", "Cơ hội"]] as [string, string][]) : []),
   ["G rồi D", "Đơn hàng"],
   ["G rồi K", "Khách"],
   ["G rồi I", "Hội thoại"],

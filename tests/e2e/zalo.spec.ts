@@ -147,6 +147,14 @@ test("tin Zalo vào Hội thoại chung; trả lời tin tư vấn miễn phí t
 });
 
 test("khách gửi số qua form Zalo: số vào hồ sơ, dòng hoạt động không lộ số", async ({ page }) => {
+  // Tin Zalo không tự thành lead (Owner chốt 12/10/2026): Sale admin chuyển khách đang hỏi thành lead trước, để sự
+  // kiện khách gửi số sau đó nằm trên dòng hoạt động của lead.
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page.getByRole("button", { name: new RegExp(NAME) }).click();
+  await page.getByRole("button", { name: "Chuyển thành lead" }).click();
+  await expect(page.getByRole("link", { name: "Mở hồ sơ lead" })).toBeVisible();
+
   expect(
     await post(page, {
       event_name: "user_submit_info",
@@ -155,7 +163,6 @@ test("khách gửi số qua form Zalo: số vào hồ sơ, dòng hoạt động 
       info: { name: NAME, phone: "0912 345 678" },
     }),
   ).toBe(200);
-  await login(page, USERS.saleAdmin);
   await page.goto("/inbox");
   await page.getByRole("button", { name: new RegExp(NAME) }).click();
   await expect(

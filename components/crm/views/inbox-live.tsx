@@ -11,6 +11,7 @@ import {
   Search,
   RotateCcw,
   SendHorizontal,
+  UserPlus,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -114,6 +115,8 @@ export function InboxLive({
   setDone,
   toggleTag,
   createTag,
+  assignConv,
+  qualify,
 }: {
   convs: LiveConv[];
   selectedId: string | null;
@@ -139,6 +142,10 @@ export function InboxLive({
   setDone?: (input: { conversationId: string; done: boolean }) => Promise<Result>;
   toggleTag?: (input: { contactId: string; tagId: string }) => Promise<Result>;
   createTag?: (input: { contactId: string; label: string }) => Promise<Result>;
+  /** Giao khách đang hỏi (hội thoại chưa có lead) cho nhân viên; null khi không có quyền giao. */
+  assignConv?: (input: { conversationId: string; assigneeId: string | null }) => Promise<Result>;
+  /** Chuyển khách đang hỏi thành lead (Sale admin, Owner); không truyền khi không có quyền. */
+  qualify?: (input: { conversationId: string }) => Promise<Result>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -332,6 +339,7 @@ export function InboxLive({
                     {x.done ? " · Đã xong" : ""}
                   </span>
                   <span className="cv-chips">
+                    {x.leadId ? null : <span className="cv-tag cv-inquiry">Đang hỏi</span>}
                     <span className={`cv-staff ${x.holder ? "" : "is-none"}`}>
                       <UserRound size={11} aria-hidden />
                       {x.holder ?? "Chưa giao"}
@@ -375,7 +383,12 @@ export function InboxLive({
                 <span className="min-w-0">
                   <b className="tg-title">{c.name}</b>
                   <span className="tg-sub">
-                    {CH[c.channel].label} · {c.holder ? `${c.holder} giữ lead` : "Chưa giao"}
+                    {CH[c.channel].label} ·{" "}
+                    {c.leadId
+                      ? c.holder
+                        ? `${c.holder} giữ lead`
+                        : "Chưa giao"
+                      : `Khách đang hỏi · ${c.holder ? `${c.holder} phụ trách` : "chưa giao"}`}
                     {c.done ? <span className="cv-st is-ok"> · Đã xong</span> : null}
                     {win ? (
                       <span
@@ -404,7 +417,7 @@ export function InboxLive({
                   </span>
                 </span>
               </div>
-              {assignees && assign && c.leadId ? (
+              {assignees && (c.leadId ? assign : assignConv) ? (
                 <label className="tg-pill cv-assign">
                   <UserRound size={15} aria-hidden />
                   <select
@@ -415,12 +428,14 @@ export function InboxLive({
                       const to = e.target.value || null;
                       const name = assignees.find((a) => a.id === to)?.name;
                       act(() =>
-                        assign({
-                          leadIds: [c.leadId!],
-                          assigneeId: to,
-                          assigneeName: name,
-                          reason: "Giao từ Hội thoại",
-                        }),
+                        c.leadId
+                          ? assign!({
+                              leadIds: [c.leadId],
+                              assigneeId: to,
+                              assigneeName: name,
+                              reason: "Giao từ Hội thoại",
+                            })
+                          : assignConv!({ conversationId: c.id, assigneeId: to }),
                       );
                     }}
                   >
@@ -460,6 +475,15 @@ export function InboxLive({
                 <Link className="tg-pill cv-hbtn" href={`/leads/${c.leadId}`}>
                   <ExternalLink size={15} aria-hidden /> Mở hồ sơ lead
                 </Link>
+              ) : qualify && c.contactId ? (
+                <button
+                  type="button"
+                  className="tg-pill cv-hbtn is-blue"
+                  disabled={pending}
+                  onClick={() => act(() => qualify({ conversationId: c.id }))}
+                >
+                  <UserPlus size={15} aria-hidden /> Chuyển thành lead
+                </button>
               ) : null}
             </div>
 
@@ -599,12 +623,13 @@ export function InboxLive({
   );
 }
 
-type View = "all" | "need" | "mine" | "unassigned" | "done";
+type View = "all" | "need" | "mine" | "inquiry" | "unassigned" | "done";
 
 const VIEWS: [View, string][] = [
   ["all", "Tất cả"],
   ["need", "Cần trả lời"],
   ["mine", "Của tôi"],
+  ["inquiry", "Đang hỏi"],
   ["unassigned", "Chưa giao"],
   ["done", "Đã xong"],
 ];
@@ -620,6 +645,8 @@ function inView(x: LiveConv, v: View) {
       return needsReply(x);
     case "mine":
       return x.mine;
+    case "inquiry":
+      return !x.leadId;
     case "unassigned":
       return !x.holderId;
     case "done":

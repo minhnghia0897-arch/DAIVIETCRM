@@ -50,13 +50,13 @@ values ('4a000000-0000-4000-8000-000000000004', 'zalo_oa', 'connected', true, 'c
 select is(public.process_zalo_event(pg_temp.zalo('user_send_text', 'z.1', '7001', 'Shop ơi ghế còn không'), 'Lê Hoa'),
   'processed', 'tin đầu từ người lạ được xử lý');
 insert into t select 'conv', id::text from public.conversations where external_user_id = '7001';
-insert into t select 'holder', l.assigned_to::text from public.conversations c join public.leads l on l.id = c.lead_id
-  where c.external_user_id = '7001';
+-- Khách đang hỏi (20261012000200_inquiries): chưa có lead, hội thoại giao cho telesale đang trực.
+insert into t select 'holder', assigned_to::text from public.conversations where external_user_id = '7001';
 select is((select c.full_name from public.contacts c join public.contact_identities ci on ci.contact_id = c.id
            where ci.type = 'zalo_user_id' and ci.value = '7001'), 'Lê Hoa', 'tạo khách có định danh Zalo');
-select is((select l.source from public.conversations c join public.leads l on l.id = c.lead_id
-           where c.external_user_id = '7001'), 'zalo_oa', 'tạo lead nguồn Zalo OA');
-select ok((select v from t where k = 'holder') is not null, 'lead được phân cho người đang trực');
+select ok((select lead_id is null from public.conversations where external_user_id = '7001'),
+  'tin của người lạ không tự thành lead');
+select ok((select v from t where k = 'holder') is not null, 'hội thoại được chia cho người đang trực');
 select ok(exists (select 1 from public.consents c join public.conversations v on v.contact_id = c.contact_id
                   where v.external_user_id = '7001' and c.purpose = 'care' and c.channel = 'zalo_oa' and c.granted),
   'ghi căn cứ chăm sóc trên Zalo OA');
@@ -107,9 +107,14 @@ select is((select count(*)::int from public.messages m join public.conversations
            where c.external_user_id = '7001' and m.direction = 'out'), 1, 'bản sao không nhân đôi tin');
 select public.finish_channel_reply((select (v::jsonb ->> 'message_id')::uuid from t where k = 'r1'), 'z.out.1');
 select is((select status from public.messages where external_message_id = 'z.out.1'), 'sent', 'tin đã gửi');
-select ok((select first_contact_at is not null and stage = 'contacted' from public.leads l
-           join public.conversations c on c.lead_id = l.id where c.external_user_id = '7001'),
-  'tin đi đầu tiên dừng SLA');
+-- Sale admin chuyển thành lead sau khi đã trả lời: lead nguồn Zalo OA, tính là đã liên hệ.
+select pg_temp.login('11111111-1111-4111-8111-000000000002');
+select public.qualify_conversation((select v::uuid from t where k = 'conv'));
+select pg_temp.logout();
+select ok((select l.first_contact_at is not null and l.stage = 'contacted' and l.source = 'zalo_oa'
+                  and l.assigned_to::text = (select v from t where k = 'holder')
+           from public.leads l join public.conversations c on c.lead_id = l.id where c.external_user_id = '7001'),
+  'chuyển thành lead: nguồn Zalo OA, giao người đang trả lời, đã liên hệ');
 select is((select actor_id::text from public.events where type = 'zalo_out' and actor_type = 'user'
            and payload ->> 'message_id' = (select v::jsonb ->> 'message_id' from t where k = 'r1')),
   (select v from t where k = 'holder'), 'sự kiện tin đi ghi người gửi');

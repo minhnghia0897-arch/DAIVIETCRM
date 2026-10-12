@@ -3387,6 +3387,10 @@ section.border-b > .c-back {
   background: #eceff1;
   color: #607d8b;
 }
+/* Khách đang hỏi: hội thoại chưa có lead (Sale admin chuyển thành lead khi thấy tiềm năng). */
+.cv-tag.cv-inquiry {
+  --t: #b26a00;
+}
 .tg-item.is-on .cv-staff,
 .tg-item.is-on .cv-tag {
   background: rgba(255, 255, 255, 0.22);

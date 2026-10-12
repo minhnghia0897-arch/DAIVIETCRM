@@ -359,7 +359,7 @@ Mua cho ai (chính mình, hoặc người nhận là ai, quan hệ gì); ngườ
 | Nguồn (`source`) | Cách vào | Dữ liệu thu | Ghi chú |
 |---|---|---|---|
 | `meta_lead_ads` | Webhook trường `leadgen` của Page, sau đó gọi Graph API lấy `field_data` theo `leadgen_id` | Họ tên, SĐT, quốc gia đang sống, tỉnh người nhận, sản phẩm quan tâm, dịp tặng; `ad_id`, `adset_id`, `campaign_id`, `form_id`, `page_id`, `created_time` | Đề xuất câu hỏi form theo đúng các trường này. Giữ ID quảng cáo để tháng 2 đẩy chuyển đổi ngược về Meta |
-| `zalo_oa` | Webhook sự kiện OA (theo dõi OA, gửi tin, gửi thông tin) | `zalo_user_id`, tên hiển thị, nội dung tin đầu, SĐT nếu khách chia sẻ | Tin đầu tiên từ người lạ tạo lead mới; khách đã có thì nối vào hội thoại |
+| `zalo_oa` | Webhook sự kiện OA (theo dõi OA, gửi tin, gửi thông tin) | `zalo_user_id`, tên hiển thị, nội dung tin đầu, SĐT nếu khách chia sẻ | Tin đầu tiên từ người lạ tạo **khách đang hỏi** (khách và hội thoại, chưa phải lead), chia cho telesale đang trực trả lời; Sale admin chuyển thành lead khi thấy tiềm năng (mục 16). Khách đã có lead mở thì nối vào lead đó |
 | `hotline` | Webhook cuộc gọi đến của tổng đài (khi có `call_provider`; tháng 1 nhập tay) | Số gọi đến, thời điểm, máy nhánh nhận, trạng thái, ghi âm | Cuộc gọi nhỡ từ số lạ tự tạo lead, ưu tiên gọi lại |
 | `walk_in` | Sale admin hoặc telesale nhập nhanh | Họ tên, SĐT, sản phẩm đã xem, ghi chú | Tháng 2 thay bằng QR check-in |
 | `tiktok_live` | Nhập nhanh từ bình luận | Tên tài khoản, SĐT hoặc Zalo khách để lại, nội dung bình luận | Chưa có API chính thức ổn định cho bình luận live; không tự cào dữ liệu |
@@ -407,6 +407,7 @@ Showroom chưa có danh mục chuẩn. Seed bộ sau, đội dùng thử 2 tuầ
 - Quá SLA: thông báo trong ứng dụng cho sale admin, lead hiện ở mục "Quá hạn" trên trang chủ của sale admin.
 - Không có telesale trực: lead vào hàng "Chưa phân", báo sale admin.
 - Mọi lần giao, chuyển ghi activity `assignment`.
+- **Khách đang hỏi** (tin Messenger, Zalo của người lạ, chưa phải lead): hội thoại chia vòng cho người đang trực theo cùng điều kiện trên (`conversations.assigned_to`), không tính SLA lead; không ai trực thì người xem mọi hội thoại được báo, có người bật Trực thì chia lại. Sale admin, Owner (`lead.assign`) giao lại hội thoại và bấm **Chuyển thành lead**: lead giao cho người đang trả lời hội thoại, đã có tin trả lời thì tính là đã liên hệ, chưa thì tính SLA như lead mới.
 
 ---
 
@@ -991,6 +992,8 @@ pnpm db:types       # sinh type
 | Lead chờ khung gọi | Chưa giao cho tới đầu khung gọi của thị trường khách, không tính vào giới hạn N | Mục 7 |
 | Nhận lead | Theo quyền `lead.receive`, không theo tên vai trò | Mục 5, 7 |
 | MCP và AI | Tháng 2 MCP server bản chỉ đọc; tháng 3 trợ lý AI và tool ghi | Mục 10.7 |
+| Khách đang hỏi (12/10) | Không phải ai nhắn hỏi cũng mua: tin Messenger, Zalo của người lạ không tự thành lead, telesale đang trực trả lời; Sale admin, Owner chuyển thành lead khi thấy tiềm năng. Form quảng cáo Facebook, nhập tay, nhập file vẫn thành lead ngay. Lead đã tự tạo từ tin nhắn mà chưa có báo giá, đơn được đưa về khách đang hỏi (xóa mềm, có sự kiện `lead_reverted`) | `conversations.assigned_to`, `qualify_conversation`, `assign_conversation` (migration `20261012000200_inquiries.sql`), mục 6, 7 |
+| Lead và cơ hội (12/10) | Một menu **Lead**: lead đã có đủ giai đoạn tới đặt cọc, thắng nên lead chính là cơ hội. Bản thật ẩn menu Cơ hội và Hộ gia đình ở giai đoạn này (bản demo giữ nguyên); dữ liệu hộ vẫn giữ | `lib/nav.ts` (`demoOnly`) |
 | Telegram | Nơi làm việc nội bộ của đội thay nhóm Zalo; không nhắn khách trên Telegram (khách vẫn qua Zalo OA, điện thoại). Việc gắn với khách, đơn phải về hồ sơ CRM | `telegram_bot` (mục 10.3), `docs/integrations/telegram_bot.md` |
 
 ### Còn mở
