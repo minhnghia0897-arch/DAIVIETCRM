@@ -741,7 +741,15 @@ const MEDIA_LABEL: Record<Attachment["kind"], string> = {
 
 // Ảnh hiện ngay trong khung chat (bấm để mở to); video, tin thoại, tệp hiện thành link mở. Link của Meta, Zalo hết hạn
 // sau một thời gian: ảnh không tải được thì báo xem trên kênh gốc.
-export function MessageMedia({ items, channel, out }: { items: Attachment[]; channel: string; out: boolean }) {
+export function MessageMedia({
+  items,
+  channel,
+  out,
+}: {
+  items: Attachment[];
+  channel: string;
+  out: boolean;
+}) {
   return (
     <div className="cv-media">
       {items.map((a, i) =>
