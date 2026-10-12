@@ -206,7 +206,7 @@ export function ContentBoard({
       ) : null}
 
       {view === "board" ? (
-        <div className="overflow-x-auto pb-2">
+        <div className="c-hscroll overflow-x-auto pb-2">
           <div className="grid min-w-[1080px] grid-cols-6 gap-2">
             {CONTENT_STAGES.map((stage) => {
               const col = columnItems(shown, stage.key);
@@ -385,7 +385,7 @@ function WeekView({
           </button>
         </span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="c-hscroll overflow-x-auto">
         <div className="grid min-w-[840px] grid-cols-7 gap-2 p-2">
           {days.map((d, i) => {
             const list = dated

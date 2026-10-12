@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,7 +13,12 @@ import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import { PageHead } from "../parts";
 import { useShell } from "../shell-context";
 import { LayoutSwitch } from "./lead-board";
-import { LeadImport, type ImportActions } from "./lead-import";
+import type { ImportActions } from "./lead-import";
+
+// Nhập file chỉ tải khi bấm "Nhập file" (kèm thư viện chuẩn hóa số), để màn Lead mở nhẹ hơn.
+const LeadImport = dynamic(() => import("./lead-import").then((m) => m.LeadImport), {
+  loading: () => <p className="c-card c-cb c-lbl">Đang mở phần nhập file…</p>,
+});
 
 // Danh sách lead bản thật (route /leads): dữ liệu do server page đọc từ database dưới RLS, thao tác gọi server action.
 // Bố cục theo DESIGN.md 5.10: bộ lọc nhanh dạng pill giữ trên URL, chọn nhiều hàng thì hiện thanh giao hàng loạt.

@@ -272,7 +272,7 @@ export function LeadBoard({
         </section>
       ) : null}
 
-      <div className="overflow-x-auto pb-2" aria-busy={pending}>
+      <div className="c-hscroll overflow-x-auto pb-2" aria-busy={pending}>
         <div className="grid min-w-[1400px] grid-cols-7 gap-2" aria-label="Bảng lead theo giai đoạn">
           {BOARD_STAGES.map((stage) => {
             const col = cards.filter((c) => c.stage === stage);
