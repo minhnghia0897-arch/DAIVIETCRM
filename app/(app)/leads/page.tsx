@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 
+import { LeadBoard } from "@/components/crm/views/lead-board";
 import { LeadList, type LeadListRow, type LeadView } from "@/components/crm/views/lead-list";
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import { leadSourceLabel, LEAD_STAGE_LABEL } from "@/lib/leads/labels";
+import { slaBadge } from "@/lib/leads/sla-badge";
 import { localTime } from "@/lib/leads/windows";
 import { LEAD_VIEW } from "@/lib/nav";
 
-import { assignLeads, createLead } from "./actions";
+import { markLost } from "./[id]/actions";
+import { assignLeads, createLead, moveLeadStage } from "./actions";
+import { loadBoard } from "./board-data";
 import { checkImportPhones, importLeads } from "./import-actions";
 
 export const metadata: Metadata = { title: "Lead · Đại Việt CRM" };
@@ -38,6 +42,20 @@ export default async function Page({ searchParams }: PageProps<"/leads">) {
   const sourceKey = one("source");
   const q = one("q").trim().slice(0, 80);
   const now = new Date();
+
+  // Bảng theo giai đoạn (Kanban): cùng bộ lọc thị trường, nguồn, tên; "Của tôi" hoặc cả showroom.
+  if (one("layout") === "board") {
+    const filters = { mine: !teamView || asked === "mine", market, source: sourceKey, q };
+    return (
+      <LeadBoard
+        data={await loadBoard(user, filters, now)}
+        filters={filters}
+        teamView={teamView}
+        canMarkLost={user.permissions.has("lead.mark_lost")}
+        actions={{ moveLeadStage, markLost }}
+      />
+    );
+  }
   const nowIso = now.toISOString();
 
   const supabase = await createClient();
@@ -100,21 +118,7 @@ export default async function Page({ searchParams }: PageProps<"/leads">) {
     const owner = Array.isArray(l.owner) ? l.owner[0] : l.owner;
     const m = tzOf.get(buyer?.country_of_residence ?? "");
     const key = ((l.source_detail ?? {}) as { source_key?: string }).source_key;
-    const sla = (() => {
-      if (l.stage === "won" || l.stage === "lost") return null;
-      if (l.window_wait_until && new Date(l.window_wait_until) > now)
-        return {
-          tone: "ai" as const,
-          text: `Gọi lúc ${localTime(new Date(l.window_wait_until), m?.timezone ?? "Asia/Ho_Chi_Minh")}${m && m.country_code !== "VN" ? ` giờ ${m.name}` : ""}`,
-        };
-      if (l.first_contact_at) return { tone: "ok" as const, text: "Đã liên hệ" };
-      if (!l.assigned_to) return { tone: "warn" as const, text: "Chưa phân" };
-      if (!l.sla_due_at) return null;
-      const mins = Math.round((new Date(l.sla_due_at).getTime() - now.getTime()) / 60_000);
-      return mins < 0
-        ? { tone: "err" as const, text: `Quá ${-mins} phút` }
-        : { tone: mins < 2 ? ("warn" as const) : ("n" as const), text: `Còn ${mins} phút` };
-    })();
+    const sla = slaBadge(l, m, now);
     return {
       id: l.id,
       name: buyer?.full_name ?? "",

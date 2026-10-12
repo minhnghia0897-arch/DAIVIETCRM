@@ -145,3 +145,47 @@ export async function assignLeads(
       : `Đã chuyển ${n} lead về hàng Chưa phân`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Bảng Kanban: kéo lead sang Đã liên hệ hoặc Đã tư vấn, demo (CLAUDE.md mục 6). Thất bại đi qua mark_lead_lost (cần lý
+// do); từ Đã gửi báo giá trở đi chỉ sinh từ báo giá và đơn (trigger guard_lead_update chặn ở database).
+// ---------------------------------------------------------------------------
+
+const moveSchema = z.object({ leadId: z.uuid(), to: z.enum(["contacted", "demo"]) });
+
+export async function moveLeadStage(
+  input: z.infer<typeof moveSchema>,
+): Promise<{ ok: boolean; message: string }> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = moveSchema.parse(input);
+  const from = p.to === "contacted" ? ["new"] : ["new", "contacted"];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .update({ stage: p.to })
+    .eq("id", p.leadId)
+    .in("stage", from)
+    .select("id");
+  if (error)
+    return {
+      ok: false,
+      message:
+        error.code === "23514"
+          ? "Thiếu thông tin bắt buộc: mua cho ai, tỉnh người nhận, dịp, ngân sách. Điền ở hồ sơ lead rồi kéo lại."
+          : error.code === "42501"
+            ? "Lead này không do anh chị giữ, hoặc anh chị chưa được cấp quyền sửa lead."
+            : "Chưa chuyển được, thử lại sau ít phút.",
+    };
+  if (!data?.length)
+    return {
+      ok: false,
+      message: "Lead không còn ở giai đoạn chuyển được, hoặc anh chị không sửa được lead này.",
+    };
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${p.leadId}`);
+  return {
+    ok: true,
+    message: p.to === "demo" ? "Đã chuyển sang Đã tư vấn, demo" : "Đã chuyển sang Đã liên hệ",
+  };
+}

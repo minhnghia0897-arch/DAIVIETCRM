@@ -11,6 +11,7 @@ import { PROVINCES_ALL } from "@/lib/demo/sales-catalog";
 import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import { PageHead } from "../parts";
 import { useShell } from "../shell-context";
+import { LayoutSwitch } from "./lead-board";
 import { LeadImport, type ImportActions } from "./lead-import";
 
 // Danh sách lead bản thật (route /leads): dữ liệu do server page đọc từ database dưới RLS, thao tác gọi server action.
@@ -194,7 +195,8 @@ export function LeadList(props: {
           ) : null}
         </PageHead>
         <div className="c-cb">
-          <p className="c-lbl m-0">
+          <LayoutSwitch board={false} />
+          <p className="c-lbl mt-2 mb-0">
             {props.total} lead
             {props.total > rows.length ? `, đang hiện ${rows.length} đầu tiên` : ""}
             {view === "closed" ? ", mới đóng trước" : ", sắp theo hạn SLA"}
