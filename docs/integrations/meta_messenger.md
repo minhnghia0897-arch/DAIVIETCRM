@@ -43,8 +43,11 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   `GET /{message-id}` cần `pages_messaging`, `pages_manage_metadata`; mỗi tin có `id`, `created_time`, `from` (người
   hoặc Page), `to`, `message`, `sticker`, `attachments.data[]` (`image_data`, `video_data`, `file_url`, `mime_type`,
   `name`). Chỉ đọc được chi tiết **20 tin gần nhất** của mỗi hội thoại; tin cũ hơn báo "đã bị xóa".
-  Token CRM đang dùng trên NGHIA (lấy ở Messenger, Cài đặt API) **chưa có `pages_read_engagement`**: gọi `GET /me`
-  bị từ chối mã 100, nên phải lấy token mới (phần C).
+  Trên NGHIA, token CRM đang dùng (lấy ở Messenger, Cài đặt API) bị từ chối `GET /me` (mã 100, đòi
+  `pages_read_engagement`) nhưng **đọc được hội thoại và tin**: lượt đọc lại đầu tiên (12/10/2026 00:58 UTC) đọc 4 hội
+  thoại, thêm 3 tin bị lỡ (1 tin khách, 2 tin trả lời trên hộp thư Facebook, có ảnh), không tin nào trùng
+  (`byContent = 0`, tức mã tin Graph trùng `mid` của webhook). `pages_read_engagement` ở Standard Access dùng được
+  ngay cho Page của mình, không cần gửi xét duyệt.
 - **Khung 24 giờ:** được nhắn trong 24 giờ kể từ lần cuối khách tương tác (khách nhắn, bấm nút Bắt đầu, nhắn từ quảng
   cáo Click-to-Messenger…). Trong khung được gửi cả nội dung khuyến mãi.
 - **Ngoài 24 giờ:** chỉ còn thẻ **Human Agent**: nhân viên trả lời tay trong **7 ngày**, chỉ để giải quyết đúng việc
@@ -59,9 +62,6 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   có; chờ đọc tài liệu gốc.
 - Messenger có yêu cầu xác minh doanh nghiệp (Business Verification) cho trường hợp Page của chính mình hay không.
 - Thời hạn của Page access token khi lấy qua Facebook Login for Business.
-- Mã tin Graph (`id` của tin trong hội thoại) có trùng `mid` của webhook hay không. CRM chống trùng theo mã, rồi theo
-  nội dung (cùng chiều, cùng chữ, lệch dưới 5 giây với tin khách, dưới 90 giây với tin CRM gửi). Số tin nhận ra theo
-  nội dung ghi ở `integration_sync_state.last_result.byContent`: khác 0 thường xuyên nghĩa là hai mã khác nhau.
 
 ## Phần A. Owner chuẩn bị ngay (không cần chờ CRM)
 
@@ -112,9 +112,9 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
    select vault.create_secret('https://<tên miền CRM>', 'app_base_url', 'Địa chỉ CRM cho pg_cron gọi /api/cron/*');
    ```
 
-2. **Token có `pages_read_engagement`:** trong ứng dụng Meta, thêm quyền `pages_read_engagement` vào trường hợp sử
-   dụng Messenger (Trường hợp sử dụng › Tùy chỉnh › Quyền), rồi tạo lại Page access token ở Messenger › Cài đặt API
-   (bấm tạo token cho Page, đồng ý quyền mới). Cách khác: Graph API Explorer, chọn ứng dụng, lấy User access token có
+2. **Chỉ khi trang Tích hợp báo thiếu `pages_read_engagement`**, lấy token có quyền đó: trong ứng dụng Meta, thêm
+   quyền `pages_read_engagement` vào trường hợp sử dụng Messenger (Trường hợp sử dụng › Tùy chỉnh › Quyền), rồi tạo lại
+   Page access token ở Messenger › Cài đặt API (bấm tạo token cho Page, đồng ý quyền mới). Cách khác: Graph API Explorer, chọn ứng dụng, lấy User access token có
    `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement`, rồi chọn Page để đổi sang
    Page access token (token này hết hạn theo User token; muốn dùng lâu phải gia hạn User token trước).
 3. Dán token mới ở Cài đặt › Tích hợp › Tin nhắn Facebook, bấm **Lưu khóa và cấu hình**. Kết quả phải ghi "CRM đọc lại
