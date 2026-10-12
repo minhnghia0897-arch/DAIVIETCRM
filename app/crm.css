@@ -751,6 +751,7 @@
     display: grid;
     grid-template-columns: 270px minmax(0, 1fr) 340px;
     height: calc(100vh - 210px);
+    height: calc(100svh - 210px);
     min-height: 540px;
   }
   .c-ibl {
@@ -1006,6 +1007,7 @@
     position: sticky;
     top: 12px;
     height: calc(100vh - 150px);
+    height: calc(100svh - 150px);
     display: flex;
     flex-direction: column;
   }
@@ -1211,6 +1213,7 @@
     top: 0;
     align-self: flex-start;
     height: calc(100vh - 44px);
+    height: calc(100svh - 44px);
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
@@ -1988,6 +1991,7 @@ section.border-b > .c-back {
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr);
   height: calc(100vh - 150px);
+  height: calc(100svh - 150px);
   min-height: 560px;
   border-radius: 12px;
   overflow: hidden;
@@ -2613,6 +2617,7 @@ section.border-b > .c-back {
   .tg.has-info {
     grid-template-columns: 1fr;
     height: calc(100vh - 170px);
+    height: calc(100svh - 170px);
   }
   .tg.is-list .tg-main,
   .tg.is-chat .tg-side {
@@ -3232,6 +3237,7 @@ section.border-b > .c-back {
   }
   .tg.cv .tg-main {
     height: calc(100vh - 170px);
+    height: calc(100svh - 170px);
     min-height: 520px;
   }
   .tg.cv .cv-info {
@@ -3920,4 +3926,92 @@ select:not([multiple]):not([size]) {
 .lead-chat .tg-bubble {
   max-width: 88%;
   font-size: 14px;
+}
+
+/* Thanh tiến trình chuyển màn (components/crm/nav-progress.tsx): chạy chậm dần tới 90% cho tới khi màn mới hiện. */
+.c-navbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: 3px;
+  background: #36c5f0;
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+.c-navbar.is-run {
+  opacity: 1;
+  animation: c-navbar-run 10s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+.c-navbar.is-end {
+  animation: c-navbar-end 0.35s ease-out forwards;
+}
+@keyframes c-navbar-run {
+  from {
+    transform: scaleX(0.08);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
+}
+@keyframes c-navbar-end {
+  from {
+    opacity: 1;
+    transform: scaleX(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-navbar.is-run {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+  .c-navbar.is-end {
+    animation: none;
+  }
+}
+
+/* iPad, điện thoại (Owner chốt 12/10/2026: trang mượt hơn trên iPad):
+   - Chạm là bấm ngay, không chờ xem có phải chạm hai lần để phóng to; bỏ mảng xám nháy khi chạm.
+   - Khung cuộn bên trong (danh sách hội thoại, tin nhắn, menu, ô bật lên) cuộn tới cuối thì dừng, không kéo theo và
+     làm nảy cả trang.
+   - Bảng kéo ngang (bảng lead, lịch nội dung): vuốt ngang không làm Safari quay lại trang trước.
+   - Khung cao bằng màn hình dùng 100svh (phần nhìn thấy khi thanh công cụ Safari đang hiện) để khỏi cuộn hai tầng. */
+a,
+button,
+select,
+label,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.c-nav,
+.c-pop,
+.c-msgs,
+.c-feed,
+.c-inbox,
+.c-ibl,
+.c-convh,
+.tg-list,
+.tg-msgs,
+.tg-side,
+.lead-chat,
+.c-qs-list {
+  overscroll-behavior: contain;
+}
+.c-hscroll {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }

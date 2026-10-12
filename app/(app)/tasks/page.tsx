@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { CrmTasks, type LiveApproval, type LiveTask } from "@/components/crm/views/tasks";
+import { TasksLive, type LiveApproval, type LiveTask } from "@/components/crm/views/tasks-live";
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import { APPROVAL_TYPE_LABEL, dueGroup, formatDue } from "@/lib/tasks/view";
@@ -84,7 +84,7 @@ export default async function Page() {
   }));
 
   return (
-    <CrmTasks
+    <TasksLive
       live={{
         tasks: [...(open ?? []), ...(closed ?? [])].map(toLive),
         // Người đề xuất không tự duyệt được, trừ Owner (CLAUDE.md mục 4, approvals).

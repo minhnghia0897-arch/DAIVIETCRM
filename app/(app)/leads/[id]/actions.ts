@@ -32,6 +32,8 @@ function friendly(code: string | undefined, fallback = "Chưa lưu được, th�
 
 function done(leadId: string, message: string): ActionResult {
   revalidatePath(`/leads/${leadId}`);
+  // Danh sách và bảng lead (cùng route /leads) đọc lại giai đoạn, hạn gọi ngay trong lần trả lời này.
+  revalidatePath("/leads");
   revalidatePath("/tasks");
   return { ok: true, message };
 }

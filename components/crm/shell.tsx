@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -49,10 +50,12 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import type { AiAnswer, AiView } from "@/lib/demo/ai-answers";
 import { IS_DEMO, NAV_SECTIONS, NAV_TABS, SETTINGS_ITEMS, isLiveScreen, visibleTabs } from "@/lib/nav";
 import type { NoticeFeed } from "@/lib/notify/notice";
+import { NavProgress } from "./nav-progress";
 import { NoticeList } from "./notices";
 import { QuickSwitcher, type QuickItem } from "./quick-switcher";
 import { ShellContext } from "./shell-context";
 import { useLiveChanges } from "@/lib/db/use-live-changes";
+import { navStart } from "@/lib/nav-progress";
 
 // Khung ứng dụng theo bản mẫu: thanh trên (tìm kiếm, đồng hồ đôi, trợ lý AI, chuông, tài khoản),
 // thanh tab, vùng nội dung kèm khung trợ lý AI bên phải, thanh tiện ích dưới cùng.
@@ -126,6 +129,9 @@ export interface ShellProps {
 export function CrmLiveShell(props: ShellProps) {
   return (
     <ToastProvider>
+      <Suspense fallback={null}>
+        <NavProgress />
+      </Suspense>
       <ShellFrame {...props} useDemo={useNoDemo} />
     </ToastProvider>
   );
@@ -441,7 +447,10 @@ export function ShellFrame({
       } else if (Date.now() - goPrefix.current < 1200 && GO[e.key.toLowerCase()]) {
         goPrefix.current = 0;
         const href = GO[e.key.toLowerCase()];
-        if (tabs.some((t) => t.href === href || t.children?.some((c) => c.href === href))) router.push(href);
+        if (tabs.some((t) => t.href === href || t.children?.some((c) => c.href === href))) {
+          navStart();
+          router.push(href);
+        }
       }
     }
     window.addEventListener("keydown", onKey);
@@ -457,7 +466,10 @@ export function ShellFrame({
       label: t.label,
       hint: t.href.startsWith("/settings") ? "Cài đặt" : "Màn hình",
       group: "Màn hình" as const,
-      run: () => router.push(t.href),
+      run: () => {
+        navStart();
+        router.push(t.href);
+      },
     }));
     return [...pages, ...(demo?.quickItems() ?? [])];
   }
@@ -470,8 +482,10 @@ export function ShellFrame({
       return;
     }
     // Bản thật: tìm lead theo tên khách.
-    if (can("lead.view_own") || can("lead.view_all")) router.push(`/leads?q=${encodeURIComponent(t)}`);
-    else toast("Anh chị chưa được cấp quyền xem lead", "err");
+    if (can("lead.view_own") || can("lead.view_all")) {
+      navStart();
+      router.push(`/leads?q=${encodeURIComponent(t)}`);
+    } else toast("Anh chị chưa được cấp quyền xem lead", "err");
   }
 
   const ctxLine = demo ? demo.ctxLine(view, pathname) : "Trợ lý AI trên dữ liệu thật sẽ có từ tháng 3";

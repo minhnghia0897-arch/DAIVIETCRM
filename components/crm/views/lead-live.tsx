@@ -2,7 +2,7 @@
 
 import { Bot, Copy, Phone } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 
 import type { LeadChatMessage } from "@/app/(app)/leads/[id]/actions";
 import { useToast } from "@/components/ui/toast";
@@ -109,7 +109,13 @@ function missingInfo(d: LiveLeadData): string[] {
   return out;
 }
 
-export function LeadLive({ data: d, actions }: { data: LiveLeadData; actions: LiveLeadActions }) {
+type Optimistic = Partial<LiveLeadData> | ((cur: LiveLeadData) => LiveLeadData);
+
+export function LeadLive({ data, actions }: { data: LiveLeadData; actions: LiveLeadActions }) {
+  // Ô vừa chọn đổi ngay trên màn trong lúc lưu; lưu lỗi thì trả lại như cũ (useOptimistic hết hiệu lực khi xong).
+  const [d, patch] = useOptimistic(data, (cur, p: Optimistic) =>
+    typeof p === "function" ? p(cur) : { ...cur, ...p },
+  );
   const { can } = useShell();
   const toast = useToast();
   const [pending, start] = useTransition();
@@ -125,8 +131,9 @@ export function LeadLive({ data: d, actions }: { data: LiveLeadData; actions: Li
   const missing = missingInfo(d);
   const stageIdx = STAGE_ORDER.indexOf(d.stage);
 
-  function run(fn: () => Promise<Result>, after?: () => void) {
+  function run(fn: () => Promise<Result>, after?: () => void, optimistic?: Optimistic) {
     start(async () => {
+      if (optimistic) patch(optimistic);
       try {
         const r = await fn();
         toast(r.message, r.ok ? "ok" : "err");
@@ -348,7 +355,7 @@ type PartProps = {
   d: LiveLeadData;
   canEdit: boolean;
   pending: boolean;
-  run: (fn: () => Promise<Result>, after?: () => void) => void;
+  run: (fn: () => Promise<Result>, after?: () => void, optimistic?: Optimistic) => void;
   actions: LiveLeadActions;
 };
 
@@ -357,10 +364,11 @@ function InfoTable({ d, canEdit, pending, run, actions }: PartProps) {
   const [relation, setRelation] = useState(d.recipient?.relation ?? "");
   const [rname, setRname] = useState(d.recipient?.name ?? "");
   const save = (patch: Omit<Parameters<LiveLeadActions["updateLeadInfo"]>[0], "leadId">) =>
-    run(() => actions.updateLeadInfo({ leadId: d.id, ...patch }));
+    run(() => actions.updateLeadInfo({ leadId: d.id, ...patch }), undefined, patch);
 
   return (
-    <fieldset className="m-0 min-w-0 border-0 p-0" disabled={!canEdit || pending}>
+    // Không khóa cả bảng khi đang lưu: chọn tiếp ô khác được ngay, mỗi ô lưu riêng.
+    <fieldset className="m-0 min-w-0 border-0 p-0" disabled={!canEdit}>
       <legend className="mb-1 font-bold">Người đặt và người nhận</legend>
       <table className="c-rl">
         <tbody>
@@ -376,11 +384,14 @@ function InfoTable({ d, canEdit, pending, run, actions }: PartProps) {
               <select
                 id="li-market"
                 value={d.buyer.country}
-                onChange={(e) =>
-                  run(() =>
-                    actions.setBuyerMarket({ leadId: d.id, contactId: d.buyer.id, country: e.target.value }),
-                  )
-                }
+                onChange={(e) => {
+                  const country = e.target.value;
+                  run(
+                    () => actions.setBuyerMarket({ leadId: d.id, contactId: d.buyer.id, country }),
+                    undefined,
+                    (cur) => ({ ...cur, buyer: { ...cur.buyer, country } }),
+                  );
+                }}
                 className={SELECT}
               >
                 <option value="unknown">Chưa rõ</option>
@@ -403,7 +414,9 @@ function InfoTable({ d, canEdit, pending, run, actions }: PartProps) {
                     checked={buyFor === "self"}
                     onChange={() => {
                       setBuyFor("self");
-                      run(() => actions.setRecipient({ leadId: d.id, self: true }));
+                      run(() => actions.setRecipient({ leadId: d.id, self: true }), undefined, {
+                        buyFor: "self",
+                      });
                     }}
                   />
                   Chính mình
