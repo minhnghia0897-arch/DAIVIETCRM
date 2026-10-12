@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { slaBadge } from "@/lib/leads/sla-badge";
+import { boardSlaBadge, slaBadge } from "@/lib/leads/sla-badge";
 import { manualTargets, missingInfo, moveBlockReason } from "@/lib/leads/stages";
 
 // Bảng Kanban lead (12/10/2026): chỉ kéo tay được những bước CLAUDE.md mục 6 cho phép.
@@ -67,5 +67,13 @@ describe("nhãn hạn gọi", () => {
       text: "Quá 10 phút",
     });
     expect(slaBadge({ ...base, stage: "won" }, undefined, now)).toBeNull();
+  });
+
+  it("bảng theo giai đoạn bỏ nhãn Đã liên hệ, vẫn giữ nhãn còn phải gọi", () => {
+    expect(boardSlaBadge({ ...base, first_contact_at: "2026-10-12T02:00:00Z" }, undefined, now)).toBeNull();
+    expect(boardSlaBadge({ ...base, assigned_to: null }, undefined, now)?.text).toBe("Chưa phân");
+    expect(boardSlaBadge({ ...base, sla_due_at: "2026-10-12T02:50:00Z" }, undefined, now)?.text).toBe(
+      "Quá 10 phút",
+    );
   });
 });

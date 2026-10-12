@@ -30,3 +30,9 @@ export function slaBadge(
     ? { tone: "err", text: `Quá ${-mins} phút` }
     : { tone: mins < 2 ? "warn" : "n", text: `Còn ${mins} phút` };
 }
+
+/** Nhãn trên bảng theo giai đoạn: cột đã cho biết giai đoạn nên bỏ nhãn "Đã liên hệ", chỉ nhắc khi còn phải gọi. */
+export function boardSlaBadge(...args: Parameters<typeof slaBadge>): ReturnType<typeof slaBadge> {
+  const badge = slaBadge(...args);
+  return badge?.tone === "ok" ? null : badge;
+}

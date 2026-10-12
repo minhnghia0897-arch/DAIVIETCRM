@@ -4,7 +4,7 @@ import type { BoardCard, BoardData } from "@/components/crm/views/lead-board";
 import type { SessionUser } from "@/lib/auth/types";
 import { createClient } from "@/lib/db/server";
 import { leadSourceLabel } from "@/lib/leads/labels";
-import { slaBadge } from "@/lib/leads/sla-badge";
+import { boardSlaBadge } from "@/lib/leads/sla-badge";
 import { missingInfo } from "@/lib/leads/stages";
 
 const LIMIT = 600;
@@ -88,7 +88,7 @@ export async function loadBoard(
       source: (key && sourceLabel.get(key)) || leadSourceLabel(l.source),
       ownerName: owner?.full_name ?? null,
       value: orderValue.get(l.id) ?? quoteValue.get(l.id) ?? null,
-      sla: open ? slaBadge(l, tzOf.get(buyer?.country_of_residence ?? ""), now) : null,
+      sla: open ? boardSlaBadge(l, tzOf.get(buyer?.country_of_residence ?? ""), now) : null,
       missing: l.stage === "new" || l.stage === "contacted" ? missingInfo(l) : [],
       phoneInvalid: (l.flags ?? []).includes("phone_invalid"),
       // Cùng luật với database (sửa mọi lead, hoặc lead mình đang giữ); database vẫn kiểm lại khi chuyển.
