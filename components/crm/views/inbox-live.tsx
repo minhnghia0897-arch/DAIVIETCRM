@@ -44,6 +44,8 @@ export interface LiveConv {
   id: string;
   channel: Channel;
   name: string;
+  /** Ảnh đại diện kênh gửi về (Messenger), link https; null thì hiện chữ cái đầu. */
+  avatar: string | null;
   lastAt: string | null;
   lastInboundAt: string | null;
   unread: number;
@@ -306,7 +308,7 @@ export function InboxLive({
                 aria-current={x.id === c?.id}
                 onClick={() => open(x.id)}
               >
-                <ConvAvatar c={{ name: x.name, channel: CH[x.channel].avatar }} />
+                <ConvAvatar c={{ name: x.name, channel: CH[x.channel].avatar, avatar: x.avatar }} />
                 <span className="tg-item-b">
                   <span className="tg-item-r1">
                     <b>{x.name}</b>
@@ -369,7 +371,7 @@ export function InboxLive({
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <ConvAvatar c={{ name: c.name, channel: CH[c.channel].avatar }} size={38} />
+                <ConvAvatar c={{ name: c.name, channel: CH[c.channel].avatar, avatar: c.avatar }} size={38} />
                 <span className="min-w-0">
                   <b className="tg-title">{c.name}</b>
                   <span className="tg-sub">
@@ -484,7 +486,10 @@ export function InboxLive({
                     {!m.out ? (
                       <span className="tg-row-av">
                         {tail ? (
-                          <ConvAvatar c={{ name: c.name, channel: CH[c.channel].avatar }} size={34} />
+                          <ConvAvatar
+                            c={{ name: c.name, channel: CH[c.channel].avatar, avatar: c.avatar }}
+                            size={34}
+                          />
                         ) : null}
                       </span>
                     ) : null}

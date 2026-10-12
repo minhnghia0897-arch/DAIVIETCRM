@@ -1195,6 +1195,8 @@ export type Database = {
       };
       conversations: {
         Row: {
+          avatar_checked_at: string | null;
+          avatar_url: string | null;
           channel: string;
           contact_id: string | null;
           created_at: string;
@@ -1215,6 +1217,8 @@ export type Database = {
           can_see_conversation: boolean | null;
         };
         Insert: {
+          avatar_checked_at?: string | null;
+          avatar_url?: string | null;
           channel: string;
           contact_id?: string | null;
           created_at?: string;
@@ -1234,6 +1238,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          avatar_checked_at?: string | null;
+          avatar_url?: string | null;
           channel?: string;
           contact_id?: string | null;
           created_at?: string;
@@ -5051,6 +5057,8 @@ export type Database = {
           p_text: string;
         };
         Returns: {
+          avatar_checked_at: string | null;
+          avatar_url: string | null;
           channel: string;
           contact_id: string | null;
           created_at: string;

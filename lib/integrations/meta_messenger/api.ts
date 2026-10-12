@@ -202,6 +202,28 @@ export async function userName(
 }
 
 /**
+ * Ảnh đại diện của khách theo PSID (User Profile API, trường profile_pic; link Meta cấp và hết hạn sau một thời gian).
+ * Hỏi riêng, không gộp với tên, để thiếu quyền xem ảnh thì việc lấy tên vẫn chạy. Khách không có ảnh công khai thì
+ * `url` null; Meta từ chối thì kèm mã lỗi để chẩn đoán.
+ */
+export async function userAvatar(
+  psid: string,
+  pageToken: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ url: string | null; error?: number }> {
+  try {
+    const r = await call<{ profile_pic?: string }>(fetchImpl, psid, pageToken, {
+      query: { fields: "profile_pic" },
+    });
+    const url =
+      typeof r.profile_pic === "string" && r.profile_pic.startsWith("https://") ? r.profile_pic : null;
+    return { url };
+  } catch (e) {
+    return { url: null, error: e instanceof GraphError ? e.code : -1 };
+  }
+}
+
+/**
  * Lỗi khi đăng ký Page gửi tin về CRM (bước kết nối). Lý do hay gặp nhất là ứng dụng chưa có webhook đã xác minh, nên
  * nói rõ cách xử lý và kèm nguyên văn câu lỗi của Meta để chẩn đoán (màn chỉ Owner thấy, không chứa token).
  */
