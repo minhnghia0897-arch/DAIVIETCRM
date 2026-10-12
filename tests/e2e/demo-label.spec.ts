@@ -14,6 +14,8 @@ test("nhãn Dữ liệu mô phỏng chỉ hiện ở màn còn mô phỏng", asy
     "/home",
     "/tasks",
     "/leads/33333333-3333-4333-8333-000000000002",
+    "/customers",
+    "/customers/22222222-2222-4222-8222-000000000003",
     "/chat",
     "/inbox",
     "/settings/notifications",

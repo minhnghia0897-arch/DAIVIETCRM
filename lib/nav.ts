@@ -51,6 +51,7 @@ export const LIVE_SCREENS = [
   "/home",
   "/tasks",
   "/leads",
+  "/customers",
   "/chat",
   "/inbox",
   "/marketing",

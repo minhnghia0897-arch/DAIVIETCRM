@@ -8,7 +8,7 @@ test("telesale chỉ thấy khách và đơn của mình, không thấy giá v�
   await login(page, USERS.thao);
   await page.goto("/customers");
   await expect(page.getByRole("heading", { name: "Khách của tôi" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Trần Văn Nam" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Nguyễn Thị Thu" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Phạm Ngọc Lan" })).toHaveCount(0);
 
   await page.goto("/orders");

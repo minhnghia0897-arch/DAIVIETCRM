@@ -24,6 +24,7 @@ export default async function Page() {
         holdDays: s?.hold_days ?? 14,
         quoteValidDays: s?.quote_valid_days ?? 7,
         postDeliveryCallDays: s?.post_delivery_call_days ?? 3,
+        dormantDays: s?.dormant_days ?? 180,
         bankInfo: s?.bank_info ?? "",
       }}
       roles={(roles ?? [])

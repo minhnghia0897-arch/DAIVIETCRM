@@ -33,7 +33,7 @@ const OWNER_SCREENS: [string, string][] = [
   ["/orders", "Đơn hàng"],
   ["/products", "Sản phẩm"],
   ["/settings/sales", "Cọc, giữ hàng, báo giá"],
-  ["/customers/c-nam", "Trần Văn Nam"],
+  ["/customers/22222222-2222-4222-8222-000000000003", "Phạm Ngọc Lan"],
   ["/team/targets", "Đội ngũ: chỉ tiêu"],
   ["/team/absences", "Đội ngũ: nghỉ và trực"],
   ["/team/coaching", "Đội ngũ: kèm cặp"],
