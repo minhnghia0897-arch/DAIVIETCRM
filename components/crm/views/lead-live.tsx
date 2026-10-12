@@ -1,14 +1,17 @@
 "use client";
 
-import { Copy, Phone } from "lucide-react";
+import { Bot, Copy, Phone } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import type { LeadChatMessage } from "@/app/(app)/leads/[id]/actions";
 import { useToast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/switch";
 import { PROVINCES_ALL } from "@/lib/demo/sales-catalog";
 import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import { LocTag, Steps } from "../parts";
 import { useShell } from "../shell-context";
+import { MessageMedia } from "./inbox-live";
 
 // Hồ sơ lead bản thật (route /leads/[id]): dữ liệu do server page đọc từ database, mọi thao tác gọi server action.
 // Bố cục bám bản mô phỏng lead-profile.tsx; phần báo giá, hộ, AI chưa có dữ liệu thật nên chưa hiện.
@@ -50,6 +53,14 @@ export interface LiveLeadData {
   tasks: { id: string; label: string; due: string; overdue: boolean }[];
   dates: { id: string; label: string; date: string; who: string }[];
   activity: { id: string; kind: string; text: string; actor: string; time: string; file?: string }[];
+  /** Hội thoại Messenger, Zalo của người đặt hoặc của lead, chỉ những hội thoại người xem đọc được (RLS). */
+  conversations: {
+    id: string;
+    channel: string;
+    name: string | null;
+    lastAt: string | null;
+    unread: number;
+  }[];
 }
 
 export interface LiveLeadActions {
@@ -78,6 +89,9 @@ export interface LiveLeadActions {
   moveToDemo(i: { leadId: string }): Promise<Result>;
   markLost(i: { leadId: string; reasonKey: string }): Promise<Result>;
   addImportantDate(i: { leadId: string; contactId: string; label: string; date: string }): Promise<Result>;
+  loadConversation(i: {
+    conversationId: string;
+  }): Promise<{ ok: true; messages: LeadChatMessage[]; more: boolean } | { ok: false; message: string }>;
 }
 
 const STAGE_ORDER = ["new", "contacted", "demo", "quoted", "deposit", "won"];
@@ -302,6 +316,7 @@ export function LeadLive({ data: d, actions }: { data: LiveLeadData; actions: Li
 
             <div className="min-w-0 space-y-3">
               <p className="c-lbl m-0">Nguồn: {d.sourceLabel}</p>
+              <LeadConversations d={d} load={actions.loadConversation} />
               <div>
                 <b>Việc đang mở</b>
                 {d.tasks.length ? (
@@ -779,6 +794,135 @@ function ActivityList({ d, canEdit, pending, run, actions }: PartProps) {
         </ul>
       ) : (
         <p className="c-lbl m-0">Chưa có hoạt động. Cuộc gọi, tin nhắn, ghi chú sẽ hiện ở đây.</p>
+      )}
+    </div>
+  );
+}
+
+// Tin Messenger, Zalo của khách xem ngay trên hồ sơ để đối chiếu với thông tin đã ghi (chỉ đọc); trả lời thì mở
+// sang màn Hội thoại. Tin chỉ tải khi bấm xem.
+function LeadConversations({ d, load }: { d: LiveLeadData; load: LiveLeadActions["loadConversation"] }) {
+  const { can } = useShell();
+  const toast = useToast();
+  const [open, setOpen] = useState<string | null>(null);
+  const [thread, setThread] = useState<{ id: string; messages: LeadChatMessage[]; more: boolean } | null>(
+    null,
+  );
+  const [loading, start] = useTransition();
+  const canInbox = can("message.zalo_send") || can("message.messenger_send") || can("message.view_all");
+
+  function toggle(id: string) {
+    if (open === id) {
+      setOpen(null);
+      return;
+    }
+    setOpen(id);
+    if (thread?.id === id) return;
+    start(async () => {
+      try {
+        const r = await load({ conversationId: id });
+        if (r.ok) setThread({ id, messages: r.messages, more: r.more });
+        else {
+          toast(r.message, "err");
+          setOpen(null);
+        }
+      } catch {
+        toast("Chưa tải được tin nhắn, thử lại sau ít phút.", "err");
+        setOpen(null);
+      }
+    });
+  }
+
+  return (
+    <div>
+      <b>Hội thoại</b>
+      {d.conversations.length ? (
+        <ul className="mt-1 mb-0 list-none space-y-2 p-0" aria-label="Hội thoại của khách">
+          {d.conversations.map((c) => {
+            const shown = open === c.id && thread?.id === c.id ? thread : null;
+            return (
+              <li key={c.id}>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`c-pill ${c.channel === "Zalo OA" ? "is-info" : "is-n"}`}>
+                    {c.channel}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {c.name ?? d.buyer.name}
+                    {c.lastAt ? <span className="c-lbl"> · tin cuối {c.lastAt}</span> : null}
+                  </span>
+                  {c.unread ? <span className="c-pill is-err">{c.unread} chưa đọc</span> : null}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    className="c-btn"
+                    aria-expanded={open === c.id}
+                    disabled={loading && open === c.id}
+                    onClick={() => toggle(c.id)}
+                  >
+                    {open === c.id ? "Ẩn tin" : "Xem tin"}
+                  </button>
+                  {canInbox ? (
+                    <Link href={`/inbox?c=${c.id}`} className="c-btn is-ghost">
+                      Mở trong Hội thoại
+                    </Link>
+                  ) : null}
+                </div>
+                {open === c.id ? (
+                  shown ? (
+                    // Khung xếp ngược (CSS lead-chat) nên mở ra là thấy tin mới nhất, ảnh tải xong cũng không đẩy lệch.
+                    <div
+                      className="lead-chat mt-2"
+                      role="log"
+                      aria-label={`Tin ${c.channel} của ${c.name ?? d.buyer.name}`}
+                    >
+                      <div>
+                        {shown.more ? (
+                          <p className="c-lbl m-0 mb-1 text-center">
+                            Đang hiện 50 tin gần nhất, tin cũ hơn xem ở màn Hội thoại.
+                          </p>
+                        ) : null}
+                        {shown.messages.length ? (
+                          shown.messages.map((m) => (
+                            <div key={m.id} className={`tg-row ${m.out ? "is-out" : "is-in"} has-tail`}>
+                              <div className={`tg-bubble cv-msg ${m.ai ? "is-agent" : ""}`}>
+                                {m.ai ? (
+                                  <b className="tg-from cv-agent">
+                                    <Bot size={14} aria-hidden /> Agent AI
+                                  </b>
+                                ) : m.out && m.by ? (
+                                  <b className="tg-from">{m.by}</b>
+                                ) : null}
+                                {m.text ? <p className="tg-text">{m.text}</p> : null}
+                                {m.media.length ? (
+                                  <MessageMedia items={m.media} channel={c.channel} out={m.out} />
+                                ) : null}
+                                <span className="tg-meta">
+                                  <span className="tg-time">
+                                    {m.failed ? "Chưa gửi được · " : ""}
+                                    {m.time}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="c-lbl m-0 text-center">Hội thoại chưa có tin.</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="c-lbl m-0 mt-1" role="status">
+                      Đang tải tin…
+                    </p>
+                  )
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="c-lbl m-0">Khách chưa nhắn qua Messenger hay Zalo OA.</p>
       )}
     </div>
   );

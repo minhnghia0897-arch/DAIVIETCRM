@@ -15,6 +15,7 @@ import { formatDue } from "@/lib/tasks/view";
 import {
   addImportantDate,
   addNote,
+  loadConversation,
   logCall,
   markLost,
   moveToDemo,
@@ -44,7 +45,7 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
   if (!lead || !lead.buyer) notFound();
 
   const contactIds = [lead.contact_id, lead.recipient_contact_id].filter(Boolean) as string[];
-  const [identities, occasions, budgets, outcomes, lostReasons, markets, events, tasks, dates] =
+  const [identities, occasions, budgets, outcomes, lostReasons, markets, events, tasks, dates, convs] =
     await Promise.all([
       supabase
         .from("contact_identity_display")
@@ -76,6 +77,13 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
         .select("id, contact_id, type, date")
         .in("contact_id", contactIds)
         .order("date"),
+      // Hội thoại Messenger, Zalo của người đặt hoặc gắn với lead này; RLS chỉ trả hội thoại người xem được đọc.
+      supabase
+        .from("conversations")
+        .select("id, channel, display_name, last_message_at, unread_count")
+        .or(`lead_id.eq.${lead.id},contact_id.eq.${lead.contact_id}`)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(5),
     ]);
 
   // Tên người trong dòng hoạt động và trong payload giao lead.
@@ -200,6 +208,13 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
       who: d.contact_id === lead.contact_id ? lead.buyer!.full_name : (lead.recipient?.full_name ?? ""),
     })),
     activity,
+    conversations: (convs.data ?? []).map((c) => ({
+      id: c.id,
+      channel: c.channel === "zalo" ? "Zalo OA" : "Messenger",
+      name: c.display_name,
+      lastAt: c.last_message_at ? formatDue(c.last_message_at, now) : null,
+      unread: c.unread_count,
+    })),
   };
 
   return (
@@ -215,6 +230,7 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
         moveToDemo,
         markLost,
         addImportantDate,
+        loadConversation,
       }}
     />
   );

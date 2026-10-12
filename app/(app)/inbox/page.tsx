@@ -29,6 +29,9 @@ import {
 
 export const metadata: Metadata = { title: "Hội thoại · Đại Việt CRM" };
 
+const CONV_SELECT =
+  "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, assigned_to, contact_id, ai_paused_at, ai_pause_reason, contacts(full_name, country_of_residence)";
+
 // Hội thoại chung mọi kênh (Messenger, Zalo OA). RLS chỉ trả hội thoại của lead mình đang giữ, hoặc khách đang hỏi
 // (chưa có lead) được giao cho mình, trừ người có message.view_all (CLAUDE.md mục 5, 6).
 export default async function Page({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
@@ -42,12 +45,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
   const { data: convs } = await supabase
     .from("conversations")
-    .select(
-      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, assigned_to, contact_id, ai_paused_at, ai_pause_reason, contacts(full_name, country_of_residence)",
-    )
+    .select(CONV_SELECT)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
-  const list = convs ?? [];
+  let list = convs ?? [];
+  // Mở từ hồ sơ lead (?c=): hội thoại cũ ngoài 100 dòng đầu vẫn mở được; RLS vẫn kiểm người xem.
+  if (c && /^[0-9a-f-]{36}$/i.test(c) && !list.some((x) => x.id === c)) {
+    const { data: one } = await supabase.from("conversations").select(CONV_SELECT).eq("id", c).maybeSingle();
+    if (one) list = [one, ...list];
+  }
   const leadIds = list.map((x) => x.lead_id).filter((x): x is string => Boolean(x));
   const contactIds = [...new Set(list.map((x) => x.contact_id).filter((x): x is string => Boolean(x)))];
   const canAssign = user.permissions.has("lead.assign") && !user.viewAs;

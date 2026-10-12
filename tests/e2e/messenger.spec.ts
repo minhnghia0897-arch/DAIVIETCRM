@@ -317,6 +317,21 @@ test("tin đến tạo hội thoại; sale admin trả lời trong khung 24 gi�
   await page.getByRole("link", { name: "Mở hồ sơ lead" }).click();
   await expect(page.getByText("Lead vào từ Tin nhắn Facebook").first()).toBeVisible();
   await expect(page.getByText("Chuyển từ hội thoại Messenger thành lead").first()).toBeVisible();
+
+  // Hồ sơ lead mở được hội thoại để đối chiếu: xem tin ngay trên hồ sơ, rồi mở sang màn Hội thoại để trả lời.
+  const convs = page.getByRole("list", { name: "Hội thoại của khách" });
+  await expect(convs.getByText("Messenger")).toBeVisible();
+  await convs.getByRole("button", { name: "Xem tin" }).click();
+  const chat = page.getByRole("log", { name: /Tin Messenger của/ });
+  await expect(chat.getByText("Chào shop, ghế DV-X9 còn hàng không?")).toHaveCount(1);
+  await expect(chat.getByText("Dạ còn ạ, chị ở tỉnh nào để em báo phí giao?")).toBeVisible();
+  await convs.getByRole("button", { name: "Ẩn tin" }).click();
+  await expect(chat).toHaveCount(0);
+  await convs.getByRole("link", { name: "Mở trong Hội thoại" }).click();
+  await expect(page).toHaveURL(/\/inbox\?c=/);
+  await expect(
+    page.getByRole("log", { name: "Tin nhắn" }).getByText("Chào shop, ghế DV-X9 còn hàng không?"),
+  ).toBeVisible();
 });
 
 test("tin mới hiện ngay trên màn đang mở, không cần tải lại trang (Realtime)", async ({ page, browser }) => {
