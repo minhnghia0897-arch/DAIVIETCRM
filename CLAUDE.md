@@ -693,7 +693,7 @@ Bảng `integrations` (mỗi showroom một dòng cho mỗi `key`):
 | `telegram_bot` | Thông báo Telegram cho nhân viên | Vận hành | Tháng 2 | Telegram Bot API, webhook, Mini App | Ra: thông báo việc cho nhân viên (rút gọn hoặc chi tiết theo lựa chọn từng người). Vào: nút thao tác nhanh, trả lời tin thành ghi chú trên hồ sơ, ảnh chuyển khoản thành khoản chờ xác nhận | Bot tạo qua BotFather, token trong Vault; tên miền HTTPS; không gửi số điện thoại, nội dung tin của khách; chỉ nhân viên đã tự liên kết |
 | `file_storage` | Lưu video bàn giao | Vận hành | Tháng 2 | Supabase Storage (mặc định) hoặc Google Drive | Lưu video, ảnh lắp đặt | Bucket riêng tư, link ký ngắn hạn |
 | `ai_speech` | Chuyển ghi âm thành văn bản | AI | Tháng 3 | API chuyển giọng nói tiếng Việt | Vào: ghi âm. Ra: bản chép | Cần tổng đài có ghi âm; bật tắt được |
-| `ai_llm` | Trợ lý AI | AI | **Tháng 1** (tự trả lời tin nhắn, chốt 12/10); tóm tắt, chấm lead, gộp hộ: tháng 3 | Claude Messages API (`docs/integrations/ai_llm.md`) | Ra: tin trả lời khách trên Messenger, Zalo OA | API key Anthropic trong Vault; không gửi số điện thoại, email, giấy tờ tùy thân sang mô hình (che trước khi gửi); bật tắt theo kênh; giới hạn chi phí tháng; tự trả lời là ngoại lệ của "mọi kết quả AI là đề xuất có người xác nhận" (mục 10.7) |
+| `ai_llm` | Trợ lý AI | AI | **Tháng 1** (tự trả lời tin nhắn, chốt 12/10); tóm tắt, chấm lead, gộp hộ: tháng 3 | Claude Messages API hoặc OpenAI Responses API (ChatGPT), Owner chọn theo mô hình (`docs/integrations/ai_llm.md`) | Ra: tin trả lời khách trên Messenger, Zalo OA | API key Anthropic hoặc OpenAI trong Vault; không gửi số điện thoại, email, giấy tờ tùy thân sang mô hình (che trước khi gửi); bật tắt theo kênh; giới hạn chi phí tháng; tự trả lời là ngoại lệ của "mọi kết quả AI là đề xuất có người xác nhận" (mục 10.7) |
 
 ### 10.4 Chi tiết các đấu nối tháng 1
 
@@ -882,7 +882,7 @@ lib/
   cdp/             # identities, consents, events, lifecycle, important dates
   tasks/           # tasks, task_rules, approvals, notifications
   sales/           # pricing.ts (hàm định giá), inventory.ts, orders.ts, quotes.ts, warranty.ts
-  ai/              # tự trả lời tin nhắn: anthropic.ts (Messages API), prompt.ts, mask.ts, models.ts (giá), auto-reply.ts
+  ai/              # tự trả lời tin nhắn: provider.ts (lớp chung), anthropic.ts (Claude), openai.ts (ChatGPT), errors.ts, prompt.ts, mask.ts, models.ts (mô hình, giá), auto-reply.ts
   kpi/             # definitions.ts (định nghĩa chỉ số), compute.ts, rollup.ts
   integrations/registry.ts, meta_lead_ads/, zalo_oa/, call_provider/{provider.ts, external.ts, mock.ts}, email_smtp/
   db/              # client, types sinh từ Supabase
@@ -1009,6 +1009,7 @@ pnpm db:types       # sinh type
 | Lead và cơ hội (12/10) | Một menu **Lead**: lead đã có đủ giai đoạn tới đặt cọc, thắng nên lead chính là cơ hội. Bản thật ẩn menu Cơ hội và Hộ gia đình ở giai đoạn này (bản demo giữ nguyên); dữ liệu hộ vẫn giữ | `lib/nav.ts` (`demoOnly`) |
 | AI tự trả lời (12/10) | AI trả lời trước tin Messenger, Zalo mọi lúc, bật tắt theo kênh; chỉ chuyển người khi khẩn cấp hoặc cần gọi (cộng sức khỏe, xin giảm giá, AI không biết); khách cần gọi tự thành lead; AI báo giá niêm yết và khuyến mãi đang chạy, không tự giảm | `ai_runs`, `ai_knowledge`, `conversations.ai_paused_*`, migration `20261012000300_ai_auto_reply.sql`, `lib/ai/`, Cài đặt, Trợ lý AI, mục 10.7 |
 | Telegram | Nơi làm việc nội bộ của đội thay nhóm Zalo; không nhắn khách trên Telegram (khách vẫn qua Zalo OA, điện thoại). Việc gắn với khách, đơn phải về hồ sơ CRM | `telegram_bot` (mục 10.3), `docs/integrations/telegram_bot.md` |
+| ChatGPT (12/10) | Trợ lý AI chạy bằng Claude hoặc ChatGPT; mỗi lúc một nhà cung cấp, chọn theo mô hình ở Cài đặt, Tích hợp (mặc định ChatGPT là GPT-6.1 Sol); chung kiến thức, luật chuyển người, giới hạn chi phí. OpenAI là bên thứ ba nhận tin khách đã che số; CRM gửi `store: false` | `lib/ai/provider.ts`, `lib/ai/openai.ts`, `lib/ai/models.ts`, khóa `ai_llm_openai_api_key`, `docs/integrations/ai_llm.md` |
 | Khách chạy dữ liệu thật (12/10) | Vòng đời khách tính tự động từ lead, đơn, việc bảo hành, đồng ý, thời gian không tương tác (Ngủ đông sau số ngày ở Cài đặt, Bán hàng, mặc định 180); người bán đơn xem được khách của đơn; hồ sơ 360 sửa thông tin, đồng ý, Ngừng liên hệ, ngày quan trọng, mở lead tái bán, trích xuất dữ liệu (`lead.export`) | `refresh_customer_lifecycle`, view `customer_list`, `set_consent`, `open_customer_lead`, `export_contact_data` (migration `20261012000400_customers_live.sql`), `lib/cdp/lifecycle.ts`, `docs/open-questions.md` #48 |
 
 ### Còn mở

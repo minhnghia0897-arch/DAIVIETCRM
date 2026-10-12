@@ -24,9 +24,17 @@ let graphConversations: unknown[] = [];
 // Ảnh đại diện Meta trả cho khách chính (PSID); khách khác không có ảnh công khai.
 const AVATAR = "https://example.com/anh-dai-dien-tran-mai.jpg";
 const graphMessages = new Map<string, unknown[]>();
-// Máy chủ AI giả (Messages API): chạy app với ANTHROPIC_BASE_URL=http://127.0.0.1:4012 và E2E_AI_MOCK=1.
+// Máy chủ AI giả (Claude Messages API và OpenAI Responses API cùng một cổng): chạy app với
+// ANTHROPIC_BASE_URL=http://127.0.0.1:4012, OPENAI_BASE_URL=http://127.0.0.1:4012 và E2E_AI_MOCK=1.
 let aiMock: http.Server | null = null;
 const aiRequests: { messages: { content: string }[]; system: { text: string }[] }[] = [];
+const openaiRequests: {
+  model: string;
+  store: boolean;
+  instructions: string;
+  input: { content: string }[];
+  text: { format: { type: string; strict: boolean } };
+}[] = [];
 const AI_PSID = `${PSID}5`;
 
 test.beforeAll(async () => {
@@ -93,17 +101,7 @@ test.beforeAll(async () => {
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify(obj));
       };
-      if (req.headers["x-api-key"] !== "sk-ant-thu")
-        return json(401, {
-          type: "error",
-          error: { type: "authentication_error", message: "invalid x-api-key" },
-        });
-      if (req.method === "GET" && req.url?.startsWith("/v1/models/"))
-        return json(200, { id: req.url.split("/").pop(), display_name: "Claude Sonnet 5.5", type: "model" });
-      if (req.method === "POST" && req.url === "/v1/messages") {
-        const body = JSON.parse(raw);
-        aiRequests.push(body);
-        const turn: string = body.messages[0].content;
+      const decide = (turn: string) => {
         const lastCustomer =
           turn
             .split("\n")
@@ -125,6 +123,59 @@ test.beforeAll(async () => {
               create_lead: false,
               summary: "Khách hỏi giá ghế DV-X9",
             };
+        return decision;
+      };
+      // OpenAI: khóa trong header Authorization, lỗi dạng { error: { message, type, param, code } }.
+      if (req.headers.authorization) {
+        if (req.headers.authorization !== "Bearer sk-openai-thu")
+          return json(401, {
+            error: {
+              message: "Incorrect API key",
+              type: "invalid_request_error",
+              param: null,
+              code: "invalid_api_key",
+            },
+          });
+        if (req.method === "GET" && req.url?.startsWith("/v1/models/"))
+          return json(200, { id: req.url.split("/").pop(), object: "model", owned_by: "openai" });
+        if (req.method === "POST" && req.url === "/v1/responses") {
+          const body = JSON.parse(raw);
+          openaiRequests.push(body);
+          return json(200, {
+            id: "resp_thu",
+            object: "response",
+            status: "completed",
+            output: [
+              {
+                type: "message",
+                role: "assistant",
+                content: [{ type: "output_text", text: JSON.stringify(decide(body.input[0].content)) }],
+              },
+            ],
+            usage: {
+              input_tokens: 1500,
+              input_tokens_details: { cached_tokens: 1000, cache_write_tokens: 0 },
+              output_tokens: 90,
+              output_tokens_details: { reasoning_tokens: 20 },
+              total_tokens: 1590,
+            },
+          });
+        }
+        return json(404, {
+          error: { message: "not found", type: "invalid_request_error", param: null, code: null },
+        });
+      }
+      if (req.headers["x-api-key"] !== "sk-ant-thu")
+        return json(401, {
+          type: "error",
+          error: { type: "authentication_error", message: "invalid x-api-key" },
+        });
+      if (req.method === "GET" && req.url?.startsWith("/v1/models/"))
+        return json(200, { id: req.url.split("/").pop(), display_name: "Claude Sonnet 5.5", type: "model" });
+      if (req.method === "POST" && req.url === "/v1/messages") {
+        const body = JSON.parse(raw);
+        aiRequests.push(body);
+        const decision = decide(body.messages[0].content);
         return json(200, {
           id: "msg_thu",
           type: "message",
@@ -831,4 +882,36 @@ test("Trợ lý AI tự trả lời; khách để số thì chuyển người, t
   await page.goto("/settings/ai");
   await page.getByRole("switch", { name: /AI tự trả lời Tin nhắn Facebook/ }).uncheck();
   await expect(page.getByRole("status")).toContainText("Đã tắt AI tự trả lời");
+});
+
+test("Trợ lý AI đổi sang ChatGPT: dán khóa OpenAI, kiểm khóa, hỏi thử qua Responses API", async ({
+  page,
+}) => {
+  test.skip(!process.env.E2E_AI_MOCK, "Cần chạy app với OPENAI_BASE_URL trỏ tới máy chủ AI giả");
+  await login(page, USERS.owner);
+  await page.goto("/settings/integrations");
+  const row = page.getByRole("listitem", { name: "Trợ lý AI" });
+  await row.getByRole("button", { name: "Kết nối lại" }).click();
+  const form = row.getByRole("form", { name: "Kết nối nhanh Trợ lý AI" });
+  // Chọn mô hình ChatGPT thì ô khóa đổi sang khóa OpenAI.
+  await form.getByLabel("Mô hình AI (Claude hoặc ChatGPT)").selectOption("gpt-6.1-sol");
+  await expect(form.getByLabel(/API key Anthropic/)).toHaveCount(0);
+  await form.getByLabel(/API key OpenAI/).fill("sk-openai-thu");
+  await form.getByRole("button", { name: /Lưu khóa/ }).click();
+  await expect(page.getByRole("status")).toContainText("API key OpenAI dùng được ChatGPT GPT-6.1 Sol");
+  expect(await page.content()).not.toContain("sk-openai-thu");
+
+  await page.goto("/settings/ai");
+  await expect(page.getByText(/Mô hình: ChatGPT GPT-6.1 Sol/)).toBeVisible();
+  await page.getByLabel("Tin của khách để hỏi thử").fill("Ghế DV-X9 giá bao nhiêu?");
+  await page.getByRole("button", { name: "Hỏi thử" }).click();
+  await expect(page.getByRole("region", { name: "AI trả lời thử" })).toContainText("trợ lý tự động");
+  if (aiMock) {
+    const last = openaiRequests.at(-1)!;
+    expect(last.model).toBe("gpt-6.1-sol");
+    // Không để OpenAI lưu câu trả lời; JSON đúng mẫu nghiêm ngặt; kiến thức Owner viết nằm trong lời dặn.
+    expect(last.store).toBe(false);
+    expect(last.text.format).toMatchObject({ type: "json_schema", strict: true });
+    expect(last.instructions).toContain("8:30 tới 21:00");
+  }
 });

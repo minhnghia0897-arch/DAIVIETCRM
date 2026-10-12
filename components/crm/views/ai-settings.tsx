@@ -153,13 +153,15 @@ export function AiSettingsLive({
         <div className="c-cb space-y-3 text-sm">
           {status.connected ? (
             <p className="text-text-weak">
-              Mô hình: {status.model}. AI trả lời trước mọi tin của khách trên kênh được bật; chuyển cho nhân
-              viên khi khẩn cấp, khách cần gọi, hỏi sức khỏe, xin giảm giá hoặc AI không biết. Khách để số,
-              xin gọi, muốn mua thì tự thành lead và tính hạn gọi như lead mới.
+              Mô hình: {status.model}. Đổi giữa Claude và ChatGPT ở Cài đặt, Tích hợp, mục Trợ lý AI. AI trả
+              lời trước mọi tin của khách trên kênh được bật; chuyển cho nhân viên khi khẩn cấp, khách cần
+              gọi, hỏi sức khỏe, xin giảm giá hoặc AI không biết. Khách để số, xin gọi, muốn mua thì tự thành
+              lead và tính hạn gọi như lead mới.
             </p>
           ) : (
             <p className="text-text-weak">
-              Chưa kết nối Trợ lý AI. Owner dán API key Anthropic ở{" "}
+              Chưa kết nối Trợ lý AI. Owner chọn mô hình Claude hoặc ChatGPT và dán API key tương ứng
+              (Anthropic hoặc OpenAI) ở{" "}
               <Link href="/settings/integrations" className="underline">
                 Cài đặt, Tích hợp
               </Link>

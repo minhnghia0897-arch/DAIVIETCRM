@@ -2,12 +2,17 @@
 
 Owner chốt 12/10/2026: AI trả lời trước mọi tin Messenger, Zalo trên kênh Owner bật, chỉ chuyển cho người khi khẩn cấp hoặc khách cần gọi điện; bật tắt được. Khách cần gọi (để số, xin gọi, muốn mua) thì tự thành lead. AI được báo giá niêm yết và khuyến mãi đang chạy, không tự giảm. AI trả lời mọi lúc, kể cả trong ca.
 
+Cùng ngày Owner chốt thêm: AI chạy được bằng **Claude** (Anthropic) hoặc **ChatGPT** (OpenAI). Mỗi lúc chỉ một nhà cung cấp trả lời khách; chọn mô hình nào thì dùng nhà cung cấp đó (`lib/ai/models.ts`), đổi được ở Cài đặt, Tích hợp. Mô hình ChatGPT khuyên dùng là GPT-6.1 Sol. Hai bên dùng chung lời dặn, kiến thức, luật chuyển người, mẫu JSON, giới hạn chi phí; chỉ lớp gọi khác nhau (`lib/ai/provider.ts`, `lib/ai/anthropic.ts`, `lib/ai/openai.ts`).
+
 ![Hội thoại có tin AI và thanh AI chuyển cho nhân viên](assets/ai-inbox.png)
 
 ## Owner làm gì
 
-1. Tạo API key ở [console.anthropic.com](https://console.anthropic.com) (Settings, API keys). Đặt hạn mức chi tiêu tháng của tài khoản Anthropic để chặn thêm một lớp.
-2. CRM: Cài đặt, Tích hợp, **Trợ lý AI**, Kết nối, dán key, đánh dấu đã làm xong các bước chuẩn bị, Lưu khóa. CRM hỏi thông tin mô hình để kiểm key (không tốn token). Không gửi key qua chat.
+1. Tạo API key:
+   - Dùng Claude: ở [console.anthropic.com](https://console.anthropic.com) (Settings, API keys).
+   - Dùng ChatGPT: ở [platform.openai.com](https://platform.openai.com) (API keys). Gói ChatGPT Plus, Business của ứng dụng ChatGPT không gồm API; tài khoản API thêm phương thức thanh toán và trả tiền riêng ([help.openai.com](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform)).
+   - Đặt hạn mức chi tiêu tháng của tài khoản nhà cung cấp để chặn thêm một lớp.
+2. CRM: Cài đặt, Tích hợp, **Trợ lý AI**, Kết nối (hoặc Kết nối lại), chọn **Mô hình AI**, dán key của đúng nhà cung cấp (ô khóa đổi theo mô hình), đánh dấu đã làm xong các bước chuẩn bị, Lưu khóa. CRM hỏi thông tin mô hình để kiểm key (không tốn token). Không gửi key qua chat. Muốn đổi Claude sang ChatGPT hoặc ngược lại: bấm Kết nối lại, chọn mô hình khác, dán key của bên kia; key cũ vẫn giữ trong kho bí mật để đổi lại khi cần.
 3. Cài đặt, **Trợ lý AI**:
    - Viết **Kiến thức cho AI**: địa chỉ, giờ mở cửa, giao lắp, bảo hành, đổi trả, đặt cọc (không ghi số tài khoản), khách ở nước ngoài mua tặng, cách chọn ghế.
    - **Hỏi thử** vài câu khách hay hỏi, sửa kiến thức tới khi AI trả lời đúng.
@@ -22,7 +27,7 @@ Owner chốt 12/10/2026: AI trả lời trước mọi tin Messenger, Zalo trên
 | Webhook nhận tin, lưu, trả 200, xử lý tin rồi chờ khách nhắn xong (6 giây) | `app/api/webhooks/meta`, `zalo`; `autoReplyAfterInbound` |
 | Mở lượt: AI có phụ trách không, tin cuối là của khách, chưa quá 30 phút, chưa có lượt, kênh cho nhắn, ngân sách | `start_ai_run` |
 | Nạp kiến thức, sản phẩm, giá, ưu đãi, chính sách kênh online, ca kế tiếp, 30 tin gần nhất; che số điện thoại, email, dãy số dài | `lib/ai/context.ts`, `lib/ai/prompt.ts`, `lib/ai/mask.ts` |
-| Hỏi mô hình, nhận JSON đúng mẫu: `reply` / `handoff` / `none` | `lib/ai/anthropic.ts`, `lib/ai/auto-reply.ts` |
+| Hỏi mô hình (Claude hoặc ChatGPT theo mô hình đang chọn), nhận JSON đúng mẫu: `reply` / `handoff` / `none` | `lib/ai/provider.ts`, `lib/ai/anthropic.ts`, `lib/ai/openai.ts`, `lib/ai/auto-reply.ts` |
 | Luật cứng sau khi mô hình trả lời: tin cuối có số thì chuyển người và tạo lead; cần gọi, muốn mua thì tạo lead; trả lời rỗng thì chuyển người | `parseDecision` |
 | Gửi tin (kiểm lại ngay trước khi gửi: nhân viên vừa Tiếp quản thì thôi) | `queue_ai_reply`, `deliverQueuedReply` |
 | Chuyển người: AI dừng ở hội thoại, tạo lead (giao người đang trực, tính SLA) hoặc việc gọi lại, báo người phụ trách | `ai_handoff` |
@@ -115,8 +120,50 @@ Bảng giá nằm ở `lib/ai/models.ts`; giá đổi thì sửa ở đó.
 - Zalo có sản phẩm chatbot OA riêng nên trả lời tự động là cách dùng được hỗ trợ.
 - Các điểm này **chưa kiểm chứng** trên trang tài liệu; kiểm lại khi kết nối Zalo.
 
+## ChatGPT (OpenAI): điểm đã kiểm chứng (đọc ngày 12/10/2026)
+
+Môi trường làm việc chặn các tên miền của OpenAI (`platform.openai.com`, `developers.openai.com`, `openai.com`, `api.openai.com`). Em đọc:
+- **Đặc tả OpenAPI chính thức** [github.com/openai/openai-openapi](https://github.com/openai/openai-openapi) (`openapi.yaml`, phiên bản 2.3.0), mở được qua GitHub.
+- Trang giá, trang dữ liệu, trang mã lỗi của OpenAI qua công cụ tìm kiếm giới hạn tên miền chính thức (không mở trực tiếp được). **Giá và chính sách dữ liệu nên kiểm lại** khi mở được trang gốc, hoặc anh kiểm giúp.
+- Chưa gọi thử API thật từ môi trường này. Kiểm thử chạy bằng máy chủ giả theo đúng đặc tả; lần gọi thật đầu tiên là khi Owner dán key trên CRM chạy trên Vercel.
+
+**Responses API** (đặc tả, `POST /v1/responses`):
+- Máy chủ `https://api.openai.com/v1`, khóa trong header `Authorization: Bearer <key>`.
+- CRM gửi `model`, `instructions` (lời dặn và dữ liệu showroom), `input` (một tin `user`: hội thoại đã che số), `max_output_tokens` 2048 (gồm token suy nghĩ), `reasoning.effort` = `low`.
+- JSON đúng mẫu: `text.format = { type: "json_schema", name, schema, strict: true }`. Mẫu `DECISION_SCHEMA` đã có mọi trường bắt buộc và `additionalProperties: false`.
+- `store`: **mặc định là true**, lưu câu trả lời ít nhất 30 ngày. CRM luôn gửi `store: false`.
+- `prompt_cache_key` = mã showroom để các lượt cùng showroom dùng lại bộ nhớ đệm phần đầu lời nhắc. OpenAI tự giữ đệm phần đầu giống nhau; với mô hình mới, bộ nhớ đệm giữ tới 24 giờ (`prompt_cache_retention` chỉ còn `24h`).
+- Kết quả: `status` (`completed`, `incomplete`, `failed`…), `incomplete_details.reason` (`max_output_tokens`, `content_filter`…), `output[]` gồm mục `reasoning` và mục `message` có `content` loại `output_text` hoặc `refusal`. CRM chỉ đọc khi `completed` và không có `refusal`; còn lại chuyển người.
+- `usage`: `input_tokens` (gồm cả phần đọc, ghi bộ nhớ đệm), `input_tokens_details.cached_tokens`, `input_tokens_details.cache_write_tokens`, `output_tokens` (gồm `output_tokens_details.reasoning_tokens`). CRM tách phần đọc, ghi đệm khỏi token vào thường để tính đúng giá.
+- Kiểm key: `GET /v1/models/{model}`, không tốn token.
+- Lỗi dạng `{ error: { message, type, param, code } }`.
+
+**Mã mô hình** (đặc tả, `ModelIdsShared`): `gpt-6.1-sol`, `gpt-6-luna`, `gpt-6-astra` (cùng các mô hình cũ hơn).
+
+**Giá** ([pricing](https://developers.openai.com/api/docs/pricing)), USD cho mỗi triệu token, lời nhắc tới 272.000 token, mức xử lý thường (vào / ghi đệm / đọc đệm / ra):
+
+| Mô hình | Vào | Ghi đệm | Đọc đệm | Ra |
+|---|---|---|---|---|
+| GPT-6.1 Sol | 2 | 2,50 | 0,10 | 10 |
+| GPT-6 Luna | 0,10 | 0,125 | 0,01 | 0,50 |
+| GPT-6 Astra | 10 | 12,50 | 1 | 50 |
+
+Trang changelog ghi giá đọc đệm của Sol là 0,20 USD; trang giá và trang so sánh mô hình ghi 0,10 USD. CRM dùng 0,10. Bảng giá nằm ở `lib/ai/models.ts`.
+
+**Lỗi** ([error codes](https://developers.openai.com/api/docs/guides/error-codes)):
+- 401: khóa sai.
+- 429 kèm loại `insufficient_quota` hoặc mã `credit_balance_exhausted`, `project_spend_limit_exceeded`, `organization_usage_limit_exceeded`: hết tiền hoặc chạm hạn mức. Thử lại không giúp gì, nên CRM đặt đấu nối sang Lỗi và báo Owner.
+- 429 khác (gọi quá nhanh), 5xx, mạng lỗi: thử lại một lần sau 2 giây.
+- 401, 403, 404, hết tiền: đặt đấu nối sang Lỗi. Mọi lỗi khác: chuyển hội thoại cho người.
+
+**Dữ liệu** ([your data](https://developers.openai.com/api/docs/guides/your-data)):
+- Dữ liệu gửi qua `/v1/responses` không dùng để huấn luyện.
+- Nhật ký chống lạm dụng giữ tới 30 ngày, có thể gồm lời nhắc và câu trả lời. `store: false` không tắt nhật ký này (Zero Data Retention phải xin OpenAI duyệt).
+- Giống Claude: CRM che số điện thoại, email, dãy số dài trước khi gửi, không gửi giá vốn hay số tài khoản.
+
 ## Kiểm thử
 
 - `supabase/tests/ai_auto_reply.test.sql` (31 bài).
 - `tests/unit/ai-auto-reply.test.ts`.
-- e2e cuối `tests/e2e/messenger.spec.ts`, máy chủ AI giả ở cổng 4012. Chạy app với `ANTHROPIC_BASE_URL=http://127.0.0.1:4012 AI_DEBOUNCE_MS=800` và `E2E_AI_MOCK=1`.
+- `tests/unit/ai-openai.test.ts`: chọn nhà cung cấp theo mô hình, khóa theo nhà cung cấp, Responses API, đọc token, lỗi.
+- e2e cuối `tests/e2e/messenger.spec.ts`, máy chủ AI giả (Claude và OpenAI) ở cổng 4012. Chạy app với `ANTHROPIC_BASE_URL=http://127.0.0.1:4012 OPENAI_BASE_URL=http://127.0.0.1:4012 AI_DEBOUNCE_MS=800` và `E2E_AI_MOCK=1`.

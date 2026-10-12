@@ -5,15 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/types";
 import { deliverQueuedReply } from "@/lib/integrations/deliver";
 
-import {
-  AiError,
-  aiErrorMessage,
-  createMessage,
-  type MessageRequest,
-  type MessageResponse,
-} from "./anthropic";
+import { AiError, aiErrorMessage, isFatalAiError } from "./errors";
 import { loadAiData, loadTurns, type AiData } from "./context";
-import { aiCost, aiModel, type AiUsage } from "./models";
+import { aiCost, aiModel, aiProvider, type AiUsage } from "./models";
 import {
   buildData,
   buildTurnPrompt,
@@ -23,6 +17,7 @@ import {
   type AiDecision,
   type HandoffReason,
 } from "./prompt";
+import { askModel, type AiAnswer, type AiAsk } from "./provider";
 
 // AI tự trả lời tin nhắn (Owner chốt 12/10/2026, docs/integrations/ai_llm.md). Mỗi lượt: database mở lượt và kiểm luật
 // (start_ai_run), server nạp dữ liệu, hỏi mô hình, gửi tin trả lời qua kênh (queue_ai_reply + deliverQueuedReply), chuyển
@@ -50,36 +45,20 @@ interface StartedRun {
 
 type Started = StartedRun | { skip: string };
 
-export function aiRequest(model: string, data: AiData, turnText: string): MessageRequest {
+/** Một lượt hỏi AI, giống nhau cho mọi nhà cung cấp (lib/ai/provider.ts). */
+export function aiAsk(model: string, data: AiData, turnText: string, showroomId: string): AiAsk {
   return {
     model,
-    // Gồm cả phần suy nghĩ của mô hình (tính vào max_tokens); tin trả lời tối đa khoảng 600 ký tự.
-    max_tokens: 2048,
-    system: [
-      { type: "text", text: INSTRUCTIONS },
-      // Dữ liệu showroom ít đổi: đánh dấu để nhà cung cấp giữ trong bộ nhớ đệm, các lượt sau rẻ hơn.
-      { type: "text", text: buildData(data.knowledge, data.catalog), cache_control: { type: "ephemeral" } },
-    ],
-    messages: [{ role: "user", content: turnText }],
-    output_config: { effort: "low", format: { type: "json_schema", schema: DECISION_SCHEMA } },
+    instructions: INSTRUCTIONS,
+    data: buildData(data.knowledge, data.catalog),
+    turn: turnText,
+    schema: DECISION_SCHEMA,
+    cacheKey: `showroom-${showroomId}`,
   };
 }
 
-export function usageOf(res: MessageResponse): AiUsage {
-  const u = res.usage ?? {};
-  return {
-    input_tokens: u.input_tokens ?? 0,
-    output_tokens: u.output_tokens ?? 0,
-    cache_read_tokens: u.cache_read_input_tokens ?? 0,
-    cache_write_tokens: u.cache_creation_input_tokens ?? 0,
-  };
-}
-
-export function decisionOf(res: MessageResponse, lastHasPhone: boolean): AiDecision | null {
-  // Mô hình từ chối hoặc hết chỗ viết thì JSON có thể dở dang: coi như không đọc được.
-  if (res.stop_reason === "refusal" || res.stop_reason === "max_tokens") return null;
-  const text = res.content?.find((b) => b.type === "text")?.text ?? "";
-  return parseDecision(text, lastHasPhone);
+export function decisionOf(answer: AiAnswer, lastHasPhone: boolean): AiDecision | null {
+  return answer.text === null ? null : parseDecision(answer.text, lastHasPhone);
 }
 
 export function rateOf(v: string | null | undefined): number {
@@ -93,11 +72,12 @@ function handoffText(onDuty: boolean) {
     : "Dạ em đã ghi nhận và chuyển cho nhân viên, nhân viên sẽ liên hệ anh/chị khi vào ca ạ.";
 }
 
-async function apiKeyOf(db: Db, showroomId: string): Promise<string | null> {
+/** Khóa API của nhà cung cấp ứng với mô hình đang chọn (Claude hoặc ChatGPT). */
+async function apiKeyOf(db: Db, showroomId: string, model: string): Promise<string | null> {
   const { data } = await db.rpc("get_integration_secret", {
     p_showroom: showroomId,
     p_key: "ai_llm",
-    p_name: "ai_llm_api_key",
+    p_name: aiProvider(model).secret,
   });
   return data ?? null;
 }
@@ -156,10 +136,10 @@ async function handleRun(db: Db, s: StartedRun, fetchImpl: typeof fetch, now: Da
     await finish("handed_off");
     return "handoff:budget";
   }
-  const key = await apiKeyOf(db, s.showroom_id);
+  const key = await apiKeyOf(db, s.showroom_id, model);
   if (!key) {
     await handoff("error");
-    await finish("failed", { error: "Chưa có API key của Trợ lý AI" });
+    await finish("failed", { error: `Chưa có API key ${aiProvider(model).vendor} của Trợ lý AI` });
     return "error:no_key";
   }
 
@@ -176,13 +156,13 @@ async function handleRun(db: Db, s: StartedRun, fetchImpl: typeof fetch, now: Da
     nextShift: data.nextShift,
   });
 
-  let res: MessageResponse;
+  let res: AiAnswer;
   try {
-    res = await createMessage(key, aiRequest(model, data, turn.text), fetchImpl);
+    res = await askModel(key, aiAsk(model, data, turn.text, s.showroom_id), fetchImpl);
   } catch (e) {
     const message = aiErrorMessage(e);
     // Khóa sai, hết tiền, không có quyền mô hình: dừng AI cả showroom và báo Owner (đấu nối sang Lỗi).
-    if (e instanceof AiError && [401, 402, 403, 404].includes(e.status))
+    if (isFatalAiError(e))
       await db.rpc("mark_integration_error", {
         p_showroom: s.showroom_id,
         p_key: "ai_llm",
@@ -192,7 +172,7 @@ async function handleRun(db: Db, s: StartedRun, fetchImpl: typeof fetch, now: Da
     await finish("failed", { error: message });
     return `error:${e instanceof AiError ? e.status : "unknown"}`;
   }
-  usage = usageOf(res);
+  usage = res.usage;
   const d = decisionOf(res, turn.lastHasPhone);
   if (!d) {
     await handoff("error");
@@ -286,18 +266,22 @@ export async function previewAiReply(
 ): Promise<
   { ok: true; decision: AiDecision; costVnd: number; model: string } | { ok: false; message: string }
 > {
-  const [{ data: cfg }, key, { count }] = await Promise.all([
+  const [{ data: cfg }, { count }] = await Promise.all([
     db.from("integrations").select("config").eq("showroom_id", showroomId).eq("key", "ai_llm").maybeSingle(),
-    apiKeyOf(db, showroomId),
     db
       .from("duty_sessions")
       .select("id", { count: "exact", head: true })
       .eq("showroom_id", showroomId)
       .is("ended_at", null),
   ]);
-  if (!key) return { ok: false, message: "Chưa có API key. Owner dán key ở Cài đặt, Tích hợp, Trợ lý AI." };
   const config = (cfg?.config ?? {}) as { model?: string; usdRate?: string };
   const model = aiModel(config.model).id;
+  const key = await apiKeyOf(db, showroomId, model);
+  if (!key)
+    return {
+      ok: false,
+      message: `Chưa có API key ${aiProvider(model).vendor}. Owner dán key ở Cài đặt, Tích hợp, Trợ lý AI.`,
+    };
   const now = new Date();
   const data = await loadAiData(db, showroomId, now);
   const turn = buildTurnPrompt([{ who: "customer", text: customerText, files: 0, at: now }], {
@@ -307,10 +291,10 @@ export async function previewAiReply(
     nextShift: data.nextShift,
   });
   try {
-    const res = await createMessage(key, aiRequest(model, data, turn.text), fetchImpl);
+    const res = await askModel(key, aiAsk(model, data, turn.text, showroomId), fetchImpl);
     const d = decisionOf(res, turn.lastHasPhone);
     if (!d) return { ok: false, message: "AI trả lời sai mẫu hoặc từ chối trả lời. Thử lại." };
-    return { ok: true, decision: d, costVnd: aiCost(model, usageOf(res), rateOf(config.usdRate)).vnd, model };
+    return { ok: true, decision: d, costVnd: aiCost(model, res.usage, rateOf(config.usdRate)).vnd, model };
   } catch (e) {
     return { ok: false, message: aiErrorMessage(e) };
   }

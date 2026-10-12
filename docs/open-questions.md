@@ -94,3 +94,7 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     - (c) Gắn khách vào hộ, tạo hộ chưa có màn thật (menu Hộ gia đình đang ẩn); hộ hiện chỉ đọc.
     - (d) Mặc định 180 ngày không tương tác thì Ngủ đông: anh muốn đổi không.
     - (e) Gọi từ hồ sơ khách cần khách chưa từ chối "Chăm sóc, Gọi điện". Gọi mời mua thêm cho khách không có đơn đang mở chưa bắt buộc đồng ý tiếp thị (giao diện chỉ nhắc).
+49. **Trợ lý AI chạy bằng ChatGPT (12/10/2026, anh chốt: chọn một nhà cung cấp, đổi được; mặc định GPT-6.1 Sol):** Owner chọn mô hình Claude hoặc ChatGPT ở Cài đặt, Tích hợp, Trợ lý AI và dán key của đúng nhà cung cấp; không đổi database. Còn mở:
+    - Môi trường làm việc chặn mọi tên miền OpenAI. Đặc tả API đọc trên GitHub chính thức; giá, chính sách dữ liệu đọc qua công cụ tìm kiếm. Anh mở quyền truy cập `developers.openai.com` (Cài đặt môi trường, Network access) nếu muốn em đối chiếu trực tiếp.
+    - Chưa gọi thử OpenAI thật; lần đầu là khi anh dán key trên trang thật. Nếu báo lỗi mô hình (404) thì chọn GPT-6 Luna hoặc báo em.
+    - OpenAI giữ nhật ký chống lạm dụng tới 30 ngày (gồm lời nhắc đã che số và câu trả lời), giống Anthropic; muốn không lưu thì phải xin OpenAI duyệt Zero Data Retention.

@@ -687,7 +687,6 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
   const { state, act } = useCrm();
   const { me } = useShell();
   const { live, run, pending } = useLive();
-  const needed = requiredSecrets(def);
   // Bản thật chưa có ứng dụng OAuth đứng tên showroom: ô chọn sau đăng nhập (Page, OA, form) nhập tay.
   const manualLogin: ConfigField[] = live
     ? loginFields(def).map((f) => ({
@@ -702,8 +701,12 @@ function QuickConnect({ def, st, onClose }: { def: Def; st: IntegrationState; on
   const allDone = def.prerequisites.every((p) => done.includes(p.key));
   const [values, setValues] = useState<Record<string, string>>({});
   const [cfg, setCfg] = useState<Record<string, unknown>>(() =>
-    Object.fromEntries(fields.map((f) => [f.key, st.config[f.key]]).filter(([, v]) => v !== undefined)),
+    Object.fromEntries(
+      fields.map((f) => [f.key, st.config[f.key] ?? f.default]).filter(([, v]) => v !== undefined),
+    ),
   );
+  // Khóa cần dán theo lựa chọn đang có trên form (Trợ lý AI: khóa của nhà cung cấp ứng với mô hình đang chọn).
+  const needed = requiredSecrets(def, { ...st.config, ...cfg });
   const [prereqOk, setPrereqOk] = useState(allDone);
   const [errors, setErrors] = useState<string[]>([]);
   const [login, setLogin] = useState<Record<string, unknown> | null>(null);
