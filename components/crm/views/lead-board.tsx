@@ -3,11 +3,12 @@
 import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 
 import { MarketTag, type MarketInfo } from "@/components/market-tag";
 import { PersonChip } from "@/components/person-chip";
 import { useToast } from "@/components/ui/toast";
+import { navStart } from "@/lib/nav-progress";
 import { formatMoneyShort } from "@/lib/format";
 import { LEAD_STAGE_LABEL } from "@/lib/leads/labels";
 import type { SlaTone } from "@/lib/leads/sla-badge";
@@ -78,6 +79,24 @@ export function LeadBoard({
   const [drag, setDrag] = useState<string | null>(null);
   const [losing, setLosing] = useState<BoardCard | null>(null);
   const [reason, setReason] = useState("");
+  // Thẻ sang cột mới ngay khi kéo, lưu chạy sau; lưu lỗi thì thẻ về chỗ cũ (useOptimistic hết hiệu lực khi xong).
+  const [cards, moveCard] = useOptimistic(data.cards, (cur, m: { id: string; stage: BoardStage }) =>
+    cur.map((c) =>
+      c.id === m.id
+        ? {
+            ...c,
+            stage: m.stage,
+            missing: m.stage === "contacted" ? c.missing : [],
+            editable: m.stage !== "lost",
+          }
+        : c,
+    ),
+  );
+
+  function go(href: string) {
+    navStart();
+    router.push(href);
+  }
 
   function hrefWith(changes: Record<string, string | null>) {
     const next = new URLSearchParams(params.toString());
@@ -89,15 +108,13 @@ export function LeadBoard({
     return s ? `${pathname}?${s}` : pathname;
   }
 
-  function run(fn: () => Promise<Result>, after?: () => void) {
+  function run(optimistic: { id: string; stage: BoardStage }, fn: () => Promise<Result>) {
     start(async () => {
+      moveCard(optimistic);
       try {
+        // Lệnh lưu làm mới dữ liệu /leads (revalidatePath) ngay trong lần trả lời, không cần tải lại thêm lần nữa.
         const r = await fn();
         toast(r.message, r.ok ? "ok" : "err");
-        if (r.ok) {
-          after?.();
-          router.refresh();
-        }
       } catch {
         toast("Chưa chuyển được, thử lại sau ít phút.", "err");
       }
@@ -115,10 +132,17 @@ export function LeadBoard({
       setLosing(card);
       return;
     }
-    if (to === "contacted" || to === "demo") run(() => actions.moveLeadStage({ leadId: card.id, to }));
+    // Thiếu bốn thông tin bắt buộc thì báo ngay, không chờ database (database vẫn kiểm lại khi lưu).
+    if (to === "demo" && card.missing.length)
+      return toast(
+        `Thiếu thông tin bắt buộc: ${card.missing.join(", ")}. Điền ở hồ sơ lead rồi kéo lại.`,
+        "err",
+      );
+    if (to === "contacted" || to === "demo")
+      run({ id: card.id, stage: to }, () => actions.moveLeadStage({ leadId: card.id, to }));
   }
 
-  const open = data.cards.filter((c) => c.stage !== "won" && c.stage !== "lost");
+  const open = cards.filter((c) => c.stage !== "won" && c.stage !== "lost");
   const openValue = open.reduce((s, c) => s + (c.value ?? 0), 0);
 
   return (
@@ -134,7 +158,7 @@ export function LeadBoard({
             role="search"
             onSubmit={(e) => {
               e.preventDefault();
-              router.push(hrefWith({ q: search.trim() || null }));
+              go(hrefWith({ q: search.trim() || null }));
             }}
           >
             <input
@@ -176,7 +200,7 @@ export function LeadBoard({
             <select
               aria-label="Thị trường"
               value={filters.market}
-              onChange={(e) => router.push(hrefWith({ market: e.target.value || null }))}
+              onChange={(e) => go(hrefWith({ market: e.target.value || null }))}
               className={SELECT}
             >
               <option value="">Mọi thị trường</option>
@@ -190,7 +214,7 @@ export function LeadBoard({
             <select
               aria-label="Nguồn"
               value={filters.source}
-              onChange={(e) => router.push(hrefWith({ source: e.target.value || null }))}
+              onChange={(e) => go(hrefWith({ source: e.target.value || null }))}
               className={`${SELECT} max-w-56`}
             >
               <option value="">Mọi nguồn</option>
@@ -217,10 +241,8 @@ export function LeadBoard({
               e.preventDefault();
               if (!reason) return toast("Chọn lý do thất bại.", "err");
               const id = losing.id;
-              run(
-                () => actions.markLost({ leadId: id, reasonKey: reason }),
-                () => setLosing(null),
-              );
+              setLosing(null);
+              run({ id, stage: "lost" }, () => actions.markLost({ leadId: id, reasonKey: reason }));
             }}
           >
             <span>
@@ -253,9 +275,9 @@ export function LeadBoard({
       <div className="overflow-x-auto pb-2" aria-busy={pending}>
         <div className="grid min-w-[1400px] grid-cols-7 gap-2" aria-label="Bảng lead theo giai đoạn">
           {BOARD_STAGES.map((stage) => {
-            const col = data.cards.filter((c) => c.stage === stage);
+            const col = cards.filter((c) => c.stage === stage);
             const sum = col.reduce((s, c) => s + (c.value ?? 0), 0);
-            const dragged = data.cards.find((c) => c.id === drag);
+            const dragged = cards.find((c) => c.id === drag);
             const allowed = dragged ? !moveBlockReason(dragged.stage, stage) : false;
             return (
               <section

@@ -3921,3 +3921,54 @@ select:not([multiple]):not([size]) {
   max-width: 88%;
   font-size: 14px;
 }
+
+/* Thanh tiến trình chuyển màn (components/crm/nav-progress.tsx): chạy chậm dần tới 90% cho tới khi màn mới hiện. */
+.c-navbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: 3px;
+  background: #36c5f0;
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+}
+.c-navbar.is-run {
+  opacity: 1;
+  animation: c-navbar-run 10s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+.c-navbar.is-end {
+  animation: c-navbar-end 0.35s ease-out forwards;
+}
+@keyframes c-navbar-run {
+  from {
+    transform: scaleX(0.08);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
+}
+@keyframes c-navbar-end {
+  from {
+    opacity: 1;
+    transform: scaleX(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-navbar.is-run {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+  .c-navbar.is-end {
+    animation: none;
+  }
+}

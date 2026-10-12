@@ -13,7 +13,7 @@ import { CrmLiveShell, type ShellProps } from "./shell";
 const DemoStore = dynamic(() => import("./demo-shell").then((m) => m.DemoStore));
 
 /** Màn thật còn dùng chung thành phần đọc kho mô phỏng (bỏ dần khi tách xong). */
-const NEEDS_DEMO_STORE = ["/tasks", "/settings/audit", "/settings/notifications", "/settings/integrations"];
+const NEEDS_DEMO_STORE = ["/settings/audit", "/settings/notifications", "/settings/integrations"];
 
 export function AppShell(props: Omit<ShellProps, "wrapContent">) {
   return (
