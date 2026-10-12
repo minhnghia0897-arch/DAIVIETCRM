@@ -143,10 +143,11 @@ test("đấu nối giai đoạn sau: form TikTok đưa lead thử vào CRM, kho 
 
   const ai = row(page, "Trợ lý AI");
   await ai.getByRole("button", { name: "Trợ lý AI", exact: true }).click();
-  await expect(ai.getByText(/Mọi kết quả AI là đề xuất có người xác nhận/)).toBeVisible();
+  await expect(ai.getByText(/không tự giảm giá, không tư vấn sức khỏe/)).toBeVisible();
   await ai.getByRole("tab", { name: "Cấu hình" }).click();
+  // Mặc định AI chưa tự trả lời kênh nào: Owner bật từng kênh.
   for (const box of await ai
-    .getByRole("group", { name: /Chức năng bật/ })
+    .getByRole("group", { name: /Tự trả lời trên kênh/ })
     .getByRole("checkbox")
     .all())
     await expect(box).not.toBeChecked();

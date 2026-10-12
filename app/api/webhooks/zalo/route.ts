@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { after } from "next/server";
 
+import { autoReplyAfterInbound } from "@/lib/ai/auto-reply";
 import { createAdminClient } from "@/lib/db/admin";
 import { zaloConfigForOa } from "@/lib/integrations/zalo_oa/config";
 import { processZaloEvent, storeZaloEvent } from "@/lib/integrations/zalo_oa/inbound";
@@ -17,6 +18,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Sau khi trả 200, AI tự trả lời có thể chạy thêm (chờ khách nhắn xong, hỏi mô hình, gửi tin).
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -60,6 +63,12 @@ export async function POST(req: Request) {
   } catch {
     return new Response("chưa lưu được", { status: 500 });
   }
-  if (id) after(() => processZaloEvent(admin, cfg, id, e));
+  if (id)
+    after(async () => {
+      await processZaloEvent(admin, cfg, id, e);
+      // Trợ lý AI trả lời tin của khách (nếu Owner bật cho Zalo).
+      if (e.event_name.startsWith("user_send_") && e.sender?.id)
+        await autoReplyAfterInbound(admin, cfg.showroomId, "zalo", [e.sender.id]);
+    });
   return new Response(null, { status: 200 });
 }

@@ -24,6 +24,10 @@ let graphConversations: unknown[] = [];
 // Ảnh đại diện Meta trả cho khách chính (PSID); khách khác không có ảnh công khai.
 const AVATAR = "https://example.com/anh-dai-dien-tran-mai.jpg";
 const graphMessages = new Map<string, unknown[]>();
+// Máy chủ AI giả (Messages API): chạy app với ANTHROPIC_BASE_URL=http://127.0.0.1:4012 và E2E_AI_MOCK=1.
+let aiMock: http.Server | null = null;
+const aiRequests: { messages: { content: string }[]; system: { text: string }[] }[] = [];
+const AI_PSID = `${PSID}5`;
 
 test.beforeAll(async () => {
   if (!process.env.E2E_GRAPH_MOCK) return;
@@ -61,6 +65,8 @@ test.beforeAll(async () => {
       }
       const thread = path.match(/^(t_[a-z]+)\/messages$/)?.[1];
       if (req.method === "GET" && thread) return reply({ data: graphMessages.get(thread) ?? [] });
+      // Khách của bài Trợ lý AI.
+      if (path.startsWith(AI_PSID)) return reply({ first_name: "Hoa", last_name: "Ngô" });
       // Khách thứ hai (người gửi PSID + "2") mang tên khác để không lẫn với "Trần Mai".
       if (path.startsWith(`${PSID}2`)) return reply({ first_name: "Hùng", last_name: "Lê" });
       // Khách chỉ có trong phần đọc lại tin bị lỡ (webhook không về).
@@ -77,7 +83,77 @@ test.beforeAll(async () => {
   });
 });
 
-test.afterAll(() => mock?.close());
+test.beforeAll(async () => {
+  if (!process.env.E2E_AI_MOCK) return;
+  aiMock = http.createServer((req, res) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => {
+      const json = (status: number, obj: unknown) => {
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify(obj));
+      };
+      if (req.headers["x-api-key"] !== "sk-ant-thu")
+        return json(401, {
+          type: "error",
+          error: { type: "authentication_error", message: "invalid x-api-key" },
+        });
+      if (req.method === "GET" && req.url?.startsWith("/v1/models/"))
+        return json(200, { id: req.url.split("/").pop(), display_name: "Claude Sonnet 5.5", type: "model" });
+      if (req.method === "POST" && req.url === "/v1/messages") {
+        const body = JSON.parse(raw);
+        aiRequests.push(body);
+        const turn: string = body.messages[0].content;
+        const lastCustomer =
+          turn
+            .split("\n")
+            .filter((l) => l.startsWith("[Khách"))
+            .at(-1) ?? "";
+        const decision = lastCustomer.includes("[số điện thoại]")
+          ? {
+              action: "handoff",
+              reply: "Dạ em đã chuyển cho nhân viên, nhân viên sẽ gọi chị ngay ạ.",
+              handoff_reason: "call_request",
+              create_lead: true,
+              summary: "Khách muốn được gọi tư vấn ghế DV-X9",
+            }
+          : {
+              action: "reply",
+              reply:
+                "Dạ em là trợ lý tự động của Showroom Đại Việt Q4. Ghế DV-X9 đang có giá niêm yết, chị ở tỉnh nào để em báo phí giao ạ?",
+              handoff_reason: "none",
+              create_lead: false,
+              summary: "Khách hỏi giá ghế DV-X9",
+            };
+        return json(200, {
+          id: "msg_thu",
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: JSON.stringify(decision) }],
+          stop_reason: "end_turn",
+          usage: {
+            input_tokens: 1200,
+            output_tokens: 90,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+          },
+        });
+      }
+      return json(404, { type: "error", error: { type: "not_found_error" } });
+    });
+  });
+  await new Promise<void>((ok, fail) => {
+    aiMock!.once("error", fail);
+    aiMock!.listen(4012, "127.0.0.1", () => ok());
+  }).catch(() => {
+    aiMock = null;
+  });
+});
+
+test.afterAll(() => {
+  mock?.close();
+  aiMock?.close();
+});
 
 test.beforeEach(async ({}, testInfo) => {
   test.skip(!process.env.E2E_GRAPH_MOCK, "Cần chạy app với META_GRAPH_BASE trỏ tới máy chủ Meta giả");
@@ -664,4 +740,95 @@ test("đọc lại tin bị lỡ: tin khách và trả lời trên hộp thư Fa
   await expect(log.getByText("Chào shop, ghế DV-X9 còn hàng không?")).toHaveCount(1);
   // Trang Hội thoại nhận link ảnh đại diện (máy chạy thử không ra mạng nên ảnh có thể về chữ cái đầu khi tải lỗi).
   expect(await page.content()).toContain(AVATAR);
+});
+
+test("Trợ lý AI tự trả lời; khách để số thì chuyển người, tự thành lead; Tiếp quản, Trả lại AI", async ({
+  page,
+}) => {
+  test.skip(!process.env.E2E_AI_MOCK, "Cần chạy app với ANTHROPIC_BASE_URL trỏ tới máy chủ AI giả");
+  const toAi = () => sent.filter((x) => (x.body as { recipient: { id: string } }).recipient.id === AI_PSID);
+
+  // Owner dán API key: CRM hỏi thông tin mô hình để kiểm khóa, không tốn token.
+  await login(page, USERS.owner);
+  await page.goto("/settings/integrations");
+  const row = page.getByRole("listitem", { name: "Trợ lý AI" });
+  await row
+    .getByRole("button", { name: /Kết nối/ })
+    .first()
+    .click();
+  const form = row.getByRole("form", { name: "Kết nối nhanh Trợ lý AI" });
+  await form.getByLabel(/API key Anthropic/).fill("sk-ant-thu");
+  await form.getByRole("checkbox").check();
+  await form.getByRole("button", { name: /Lưu khóa/ }).click();
+  await expect(page.getByRole("status")).toContainText("Trợ lý AI đã kết nối");
+  expect(await page.content()).not.toContain("sk-ant-thu");
+
+  // Bật tự trả lời Messenger, viết kiến thức, hỏi thử.
+  await page.goto("/settings/ai");
+  await page.getByRole("switch", { name: /AI tự trả lời Tin nhắn Facebook/ }).check();
+  await expect(page.getByRole("status")).toContainText("AI tự trả lời trên Tin nhắn Facebook");
+  await page.getByLabel("Tiêu đề kiến thức mới").fill("Giờ mở cửa");
+  await page.getByLabel("Nội dung kiến thức mới").fill("8:30 tới 21:00 mỗi ngày, kể cả Chủ nhật");
+  await page.getByRole("button", { name: "Thêm kiến thức" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã thêm kiến thức cho AI");
+  await page.getByLabel("Tin của khách để hỏi thử").fill("Ghế DV-X9 giá bao nhiêu?");
+  await page.getByRole("button", { name: "Hỏi thử" }).click();
+  await expect(page.getByRole("region", { name: "AI trả lời thử" })).toContainText("trợ lý tự động");
+  if (aiMock)
+    expect(
+      aiRequests
+        .at(-1)
+        ?.system.map((b) => b.text)
+        .join(""),
+    ).toContain("8:30 tới 21:00");
+
+  // Khách nhắn: AI trả lời trên Messenger, tin hiện nhãn Agent AI.
+  expect(await post(page, inbound(`m.ai1.${AI_PSID}`, "Ghế DV-X9 giá bao nhiêu ạ?", AI_PSID))).toBe(200);
+  if (mock) await expect.poll(() => toAi().length, { timeout: 25_000 }).toBe(1);
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Ngô Hoa/ })
+    .first()
+    .click();
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  await expect(log.getByText("Agent AI")).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByText("AI đang trả lời").first()).toBeVisible();
+
+  // Khách để số: mô hình chỉ thấy số đã che; AI báo khách rồi chuyển người, khách tự thành lead.
+  expect(
+    await post(page, inbound(`m.ai2.${AI_PSID}`, "Chị cần tư vấn, gọi chị số 0912 345 678 nhé", AI_PSID)),
+  ).toBe(200);
+  if (mock) await expect.poll(() => toAi().length, { timeout: 25_000 }).toBe(2);
+  if (aiMock) {
+    const last = JSON.stringify(aiRequests.at(-1));
+    expect(last).not.toContain("0912");
+    expect(last).toContain("[số điện thoại]");
+  }
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Ngô Hoa/ })
+    .first()
+    .click();
+  await expect(page.getByText(/AI chuyển cho nhân viên: Khách cần gọi điện/)).toBeVisible({
+    timeout: 25_000,
+  });
+  await expect(page.getByRole("link", { name: "Mở hồ sơ lead" })).toBeVisible();
+  await page.getByRole("button", { name: "Trả lại AI" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã trả lại cho AI");
+  await page.getByRole("button", { name: "Tiếp quản" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã tiếp quản");
+
+  // Hồ sơ lead ghi việc AI chuyển khách thành lead.
+  await page.getByRole("link", { name: "Mở hồ sơ lead" }).click();
+  await expect(page.getByText(/Trợ lý AI chuyển khách thành lead/).first()).toBeVisible();
+
+  // Tắt AI để các bài khác không bị AI trả lời.
+  await login(page, USERS.owner);
+  await page.goto("/settings/ai");
+  await page.getByRole("switch", { name: /AI tự trả lời Tin nhắn Facebook/ }).uncheck();
+  await expect(page.getByRole("status")).toContainText("Đã tắt AI tự trả lời");
 });

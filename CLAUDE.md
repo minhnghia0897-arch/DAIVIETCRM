@@ -83,10 +83,11 @@ Sản phẩm được coi là thành công khi đạt được sáu điều sau.
 12. Lịch ca trực cấu hình được (mục 7).
 9. Báo cáo cơ bản: lead theo nguồn, tỷ lệ gọi trong 5 phút, tỷ lệ liên hệ được, phễu giai đoạn, hiệu suất từng telesale.
 10. Nhật ký kiểm toán (audit log) cho mọi thao tác nhạy cảm.
+17. **Trợ lý AI tự trả lời tin nhắn (Owner chốt 12/10):** AI trả lời trước tin Messenger, Zalo trên kênh Owner bật, chuyển cho người khi khẩn cấp hoặc khách cần gọi, khách cần gọi thì tự thành lead (mục 10.7).
 
 ### Ngoài phạm vi tháng 1 (không tự ý làm)
 
-Các đấu nối ngoài tháng 1 trong mục 10.3 (chỉ khai báo trong sổ đăng ký và hiện "Sắp có" ở Cài đặt, không viết adapter), AI agent và tóm tắt cuộc gọi bằng AI, app giao lắp cho kỹ thuật viên và video bàn giao (giai đoạn 1 cập nhật bước giao tay trên đơn), trả góp, gộp hộ tự động, Kanban cơ hội, báo cáo nâng cao. Chừa sẵn chỗ trong mô hình dữ liệu nhưng không dựng màn hình.
+Các đấu nối ngoài tháng 1 trong mục 10.3 (chỉ khai báo trong sổ đăng ký và hiện "Sắp có" ở Cài đặt, không viết adapter), AI agent khác ngoài tự trả lời tin nhắn (tóm tắt cuộc gọi, chấm lead, gộp hộ), app giao lắp cho kỹ thuật viên và video bàn giao (giai đoạn 1 cập nhật bước giao tay trên đơn), trả góp, gộp hộ tự động, Kanban cơ hội, báo cáo nâng cao. Chừa sẵn chỗ trong mô hình dữ liệu nhưng không dựng màn hình.
 
 ---
 
@@ -692,7 +693,7 @@ Bảng `integrations` (mỗi showroom một dòng cho mỗi `key`):
 | `telegram_bot` | Thông báo Telegram cho nhân viên | Vận hành | Tháng 2 | Telegram Bot API, webhook, Mini App | Ra: thông báo việc cho nhân viên (rút gọn hoặc chi tiết theo lựa chọn từng người). Vào: nút thao tác nhanh, trả lời tin thành ghi chú trên hồ sơ, ảnh chuyển khoản thành khoản chờ xác nhận | Bot tạo qua BotFather, token trong Vault; tên miền HTTPS; không gửi số điện thoại, nội dung tin của khách; chỉ nhân viên đã tự liên kết |
 | `file_storage` | Lưu video bàn giao | Vận hành | Tháng 2 | Supabase Storage (mặc định) hoặc Google Drive | Lưu video, ảnh lắp đặt | Bucket riêng tư, link ký ngắn hạn |
 | `ai_speech` | Chuyển ghi âm thành văn bản | AI | Tháng 3 | API chuyển giọng nói tiếng Việt | Vào: ghi âm. Ra: bản chép | Cần tổng đài có ghi âm; bật tắt được |
-| `ai_llm` | Trợ lý AI | AI | Tháng 3 | API mô hình ngôn ngữ | Tóm tắt, chấm lead, soạn tin, gộp hộ | Không gửi số điện thoại đầy đủ hay giấy tờ tùy thân sang mô hình; mọi kết quả AI là đề xuất có người xác nhận; bật tắt từng chức năng |
+| `ai_llm` | Trợ lý AI | AI | **Tháng 1** (tự trả lời tin nhắn, chốt 12/10); tóm tắt, chấm lead, gộp hộ: tháng 3 | Claude Messages API (`docs/integrations/ai_llm.md`) | Ra: tin trả lời khách trên Messenger, Zalo OA | API key Anthropic trong Vault; không gửi số điện thoại, email, giấy tờ tùy thân sang mô hình (che trước khi gửi); bật tắt theo kênh; giới hạn chi phí tháng; tự trả lời là ngoại lệ của "mọi kết quả AI là đề xuất có người xác nhận" (mục 10.7) |
 
 ### 10.4 Chi tiết các đấu nối tháng 1
 
@@ -760,6 +761,17 @@ Không viết code, không cài thư viện, không dùng dịch vụ bên thứ
 Nếu sau này nhà cung cấp mở đường chính thức, cập nhật mục này và sổ đăng ký trước khi làm.
 
 ### 10.7 Khung AI (thiết kế từ giai đoạn 1, làm từ tháng 2)
+
+**Ngoại lệ đã chốt 12/10/2026: AI tự trả lời tin nhắn khách** (mức "tự làm", Owner bật theo kênh ở Cài đặt, Trợ lý AI; chi tiết `docs/integrations/ai_llm.md`):
+
+- AI trả lời trước mọi tin Messenger, Zalo trên kênh được bật, mọi lúc.
+- AI chuyển cho người khi: khẩn cấp; khiếu nại, bảo hành; khách cần gọi, muốn mua; hỏi sức khỏe; xin giảm giá; khách muốn gặp nhân viên; AI không biết.
+- Khách để số, xin gọi, muốn mua thì tự thành lead, giao người đang trực, tính SLA như lead mới.
+- AI chỉ dùng sản phẩm, giá niêm yết, ưu đãi, chính sách đang chạy và kiến thức Owner viết. AI không tự giảm giá, không gửi số tài khoản, luôn tự giới thiệu là trợ lý tự động.
+- Nhân viên **Tiếp quản** hoặc tự gửi tin thì AI dừng ở hội thoại đó; **Trả lại AI** để chạy lại.
+- Tin AI không tính là nhân viên đã liên hệ (không dừng SLA).
+- Mỗi lượt ghi `ai_runs`: lý do, token, chi phí. Chạm giới hạn chi phí tháng thì AI tự dừng và chuyển người.
+- AI chạy ở server bằng các hàm database riêng (`start_ai_run`, `queue_ai_reply`, `ai_handoff`). Các hàm này tự kiểm chế độ trả lời, đồng ý, giữ bất ngờ, khung nhắn miễn phí như khi nhân viên gửi.
 
 Đã chốt: tháng 2 dựng **MCP server bản chỉ đọc** (`mcp_server` trong sổ đăng ký, nhóm `ai`) làm nền cho trợ lý AI trong CRM; tháng 3 bật trợ lý AI (`ai_llm`) và các tool ghi. Giai đoạn 1 chỉ khai báo "Sắp có", không cài thư viện MCP, nhưng mọi nghiệp vụ phải đi qua lớp dùng chung (`lib/leads`, `lib/sales`, `lib/tasks`, `lib/cdp`) để MCP gọi lại đúng các hàm đó.
 
@@ -870,6 +882,7 @@ lib/
   cdp/             # identities, consents, events, lifecycle, important dates
   tasks/           # tasks, task_rules, approvals, notifications
   sales/           # pricing.ts (hàm định giá), inventory.ts, orders.ts, quotes.ts, warranty.ts
+  ai/              # tự trả lời tin nhắn: anthropic.ts (Messages API), prompt.ts, mask.ts, models.ts (giá), auto-reply.ts
   kpi/             # definitions.ts (định nghĩa chỉ số), compute.ts, rollup.ts
   integrations/registry.ts, meta_lead_ads/, zalo_oa/, call_provider/{provider.ts, external.ts, mock.ts}, email_smtp/
   db/              # client, types sinh từ Supabase
@@ -994,6 +1007,7 @@ pnpm db:types       # sinh type
 | MCP và AI | Tháng 2 MCP server bản chỉ đọc; tháng 3 trợ lý AI và tool ghi | Mục 10.7 |
 | Khách đang hỏi (12/10) | Không phải ai nhắn hỏi cũng mua: tin Messenger, Zalo của người lạ không tự thành lead, telesale đang trực trả lời; Sale admin, Owner chuyển thành lead khi thấy tiềm năng. Form quảng cáo Facebook, nhập tay, nhập file vẫn thành lead ngay. Lead đã tự tạo từ tin nhắn mà chưa có báo giá, đơn được đưa về khách đang hỏi (xóa mềm, có sự kiện `lead_reverted`) | `conversations.assigned_to`, `qualify_conversation`, `assign_conversation` (migration `20261012000200_inquiries.sql`), mục 6, 7 |
 | Lead và cơ hội (12/10) | Một menu **Lead**: lead đã có đủ giai đoạn tới đặt cọc, thắng nên lead chính là cơ hội. Bản thật ẩn menu Cơ hội và Hộ gia đình ở giai đoạn này (bản demo giữ nguyên); dữ liệu hộ vẫn giữ | `lib/nav.ts` (`demoOnly`) |
+| AI tự trả lời (12/10) | AI trả lời trước tin Messenger, Zalo mọi lúc, bật tắt theo kênh; chỉ chuyển người khi khẩn cấp hoặc cần gọi (cộng sức khỏe, xin giảm giá, AI không biết); khách cần gọi tự thành lead; AI báo giá niêm yết và khuyến mãi đang chạy, không tự giảm | `ai_runs`, `ai_knowledge`, `conversations.ai_paused_*`, migration `20261012000300_ai_auto_reply.sql`, `lib/ai/`, Cài đặt, Trợ lý AI, mục 10.7 |
 | Telegram | Nơi làm việc nội bộ của đội thay nhóm Zalo; không nhắn khách trên Telegram (khách vẫn qua Zalo OA, điện thoại). Việc gắn với khách, đơn phải về hồ sơ CRM | `telegram_bot` (mục 10.3), `docs/integrations/telegram_bot.md` |
 
 ### Còn mở

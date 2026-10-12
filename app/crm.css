@@ -3391,6 +3391,14 @@ section.border-b > .c-back {
 .cv-tag.cv-inquiry {
   --t: #b26a00;
 }
+/* Trợ lý AI đang tự trả lời hội thoại (DESIGN.md: tin của agent AI tím nhạt). */
+.cv-tag.cv-ai {
+  --t: #7c4dff;
+  gap: 3px;
+}
+.cv-pins.cv-ai-note {
+  background: #f3efff;
+}
 .tg-item.is-on .cv-staff,
 .tg-item.is-on .cv-tag {
   background: rgba(255, 255, 255, 0.22);

@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { after } from "next/server";
 
+import { autoReplyAfterInbound } from "@/lib/ai/auto-reply";
 import { createAdminClient } from "@/lib/db/admin";
 import { messengerConfigForPage, messengerConfigs } from "@/lib/integrations/meta_messenger/config";
 import { processMessengerEvents, storeMessengerItems } from "@/lib/integrations/meta_messenger/inbound";
@@ -19,6 +20,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Sau khi trả 200, AI tự trả lời có thể chạy thêm (chờ khách nhắn xong, hỏi mô hình, gửi tin).
+export const maxDuration = 60;
 
 function same(a: string, b: string): boolean {
   const x = Buffer.from(a);
@@ -87,6 +90,12 @@ export async function POST(req: Request) {
       );
     if ((count ?? 0) < items.length) return new Response("chưa lưu được", { status: 500 });
   }
-  if (ids.length) after(() => processMessengerEvents(admin, cfg, ids));
+  if (ids.length)
+    after(async () => {
+      await processMessengerEvents(admin, cfg, ids);
+      // Trợ lý AI trả lời tin của khách (nếu Owner bật cho Messenger).
+      const customers = items.filter((i) => i.eventType !== "message_echo").map((i) => i.item.sender.id);
+      await autoReplyAfterInbound(admin, cfg.showroomId, "messenger", customers);
+    });
   return new Response(null, { status: 200 });
 }
