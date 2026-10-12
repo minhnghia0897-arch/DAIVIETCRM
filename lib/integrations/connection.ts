@@ -57,11 +57,14 @@ export function loginFields(def: IntegrationDefinition) {
   return def.connectMode === "oauth" ? (def.configFields ?? []).filter((f) => f.fromLogin) : [];
 }
 
-/** Ô Owner phải tự điền khi kết nối nhanh: không có giá trị điền sẵn, không chọn được sau đăng nhập. */
+/**
+ * Ô Owner phải tự điền khi kết nối nhanh: không có giá trị điền sẵn, không chọn được sau đăng nhập; cộng ô đánh dấu
+ * `quick` (lựa chọn quyết định cần khóa nào).
+ */
 export function quickFields(def: IntegrationDefinition) {
   const login = new Set(loginFields(def).map((f) => f.key));
   return (def.configFields ?? []).filter(
-    (f) => f.default === undefined && !login.has(f.key) && f.kind !== "mapping",
+    (f) => f.quick || (f.default === undefined && !login.has(f.key) && f.kind !== "mapping"),
   );
 }
 
@@ -88,9 +91,12 @@ export function isOauthToken(def: IntegrationDefinition, name: string): boolean 
   return def.connectMode === "oauth" && /token/.test(name);
 }
 
-/** Khóa phải có trước khi kết nối. Đấu nối OAuth tự nhận token khi đăng nhập, chỉ cần khóa ký webhook. */
-export function requiredSecrets(def: IntegrationDefinition): string[] {
-  return def.secrets.filter((s) => !isOauthToken(def, s));
+/**
+ * Khóa phải có trước khi kết nối. Đấu nối OAuth tự nhận token khi đăng nhập, chỉ cần khóa ký webhook. Đấu nối có
+ * khóa theo cấu hình (Trợ lý AI: khóa của nhà cung cấp đang chọn) chỉ cần các khóa ứng với cấu hình đó.
+ */
+export function requiredSecrets(def: IntegrationDefinition, config: Record<string, unknown> = {}): string[] {
+  return def.secrets.filter((s) => !isOauthToken(def, s) && (def.secretRequired?.(s, config) ?? true));
 }
 
 export function configErrors(def: IntegrationDefinition, config: Record<string, unknown>): string[] {
@@ -113,7 +119,7 @@ export function configErrors(def: IntegrationDefinition, config: Record<string, 
 export function connectBlockers(def: IntegrationDefinition, st: IntegrationState): string[] {
   if (!def.connectMode) return ["Đấu nối này chưa có trong phiên bản hiện tại"];
   const out: string[] = [];
-  for (const s of requiredSecrets(def))
+  for (const s of requiredSecrets(def, st.config))
     if (!st.secrets[s]) out.push(`Chưa nhập ${def.secretLabels?.[s] ?? s}`);
   out.push(...configErrors(def, fillFromLogin(def, st.config)));
   return out;
@@ -122,7 +128,7 @@ export function connectBlockers(def: IntegrationDefinition, st: IntegrationState
 /** Phần còn thiếu viết gọn cho dòng tóm tắt: tên khóa bỏ phần giải thích, ô bỏ trống chỉ ghi tên ô. */
 export function missingSummary(def: IntegrationDefinition, st: IntegrationState): string[] {
   if (!def.connectMode) return [];
-  const out = requiredSecrets(def)
+  const out = requiredSecrets(def, st.config)
     .filter((s) => !st.secrets[s])
     .map((s) => (def.secretLabels?.[s] ?? s).replace(/\s*\(.*\)$/, ""));
   for (const e of configErrors(def, fillFromLogin(def, st.config))) out.push(e.replace(/: Chưa nhập$/, ""));

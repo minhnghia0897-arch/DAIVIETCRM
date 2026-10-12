@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { AI_MODEL_IDS, AI_MODELS, AI_PROVIDERS, aiProvider } from "@/lib/ai/models";
+
 // Sổ đăng ký đấu nối (CLAUDE.md mục 10.2, 10.3). Trang Cài đặt, Tích hợp đọc từ đây.
 // `implemented` cho biết đã có adapter thật hay chưa; bản demo mô phỏng kết nối cho mọi đấu nối có `connectMode`.
 // Đấu nối không có `connectMode` hiện "Sắp có" kèm điều kiện tiên quyết.
@@ -46,6 +48,8 @@ export interface ConfigField {
    * `options` là danh sách mô phỏng; khi chạy thật, server lấy danh sách qua API bằng token vừa nhận.
    */
   fromLogin?: boolean;
+  /** Hiện ở Kết nối nhanh dù đã có giá trị điền sẵn (lựa chọn quyết định cần khóa nào, như mô hình của Trợ lý AI). */
+  quick?: boolean;
 }
 
 export interface IntegrationDefinition {
@@ -65,6 +69,8 @@ export interface IntegrationDefinition {
   configFields?: readonly ConfigField[];
   /** Nhãn tiếng Việt cho từng khóa bí mật. */
   secretLabels?: Readonly<Record<string, string>>;
+  /** Khóa chỉ bắt buộc theo cấu hình (ví dụ khóa của nhà cung cấp AI đang chọn); không có thì mọi khóa đều bắt buộc. */
+  secretRequired?: (name: string, config: Record<string, unknown>) => boolean;
   /** Quyền CRM xin khi Owner đăng nhập OAuth. */
   oauthScopes?: string;
   /** Loại sự kiện ghi nhật ký khi bấm "Gửi dữ liệu thử". */
@@ -752,7 +758,7 @@ export const integrations = [
     key: "ai_llm",
     name: "Trợ lý AI",
     description:
-      "Tự trả lời tin nhắn Messenger, Zalo; chuyển cho nhân viên khi khẩn cấp hoặc khách cần gọi điện.",
+      "Tự trả lời tin nhắn Messenger, Zalo bằng Claude hoặc ChatGPT; chuyển cho nhân viên khi khẩn cấp hoặc khách cần gọi điện.",
     group: "ai",
     phase: "month_1",
     implemented: true,
@@ -769,7 +775,7 @@ export const integrations = [
       },
     ],
     configSchema: z.object({
-      model: z.enum(["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"], "Chọn mô hình"),
+      model: z.enum(AI_MODEL_IDS, "Chọn mô hình"),
       autoReply: z.array(z.enum(["messenger", "zalo"])).default([]),
       monthlyBudget: z.string().regex(/^\d{1,12}$/, "Giới hạn chi phí là số đồng"),
       // Không bắt buộc: bỏ trống thì server dùng tỷ giá mặc định (lib/ai/auto-reply.ts).
@@ -778,19 +784,19 @@ export const integrations = [
         .regex(/^\d{4,6}$/, "Tỷ giá là số đồng cho 1 USD")
         .optional(),
     }),
-    secrets: ["ai_llm_api_key"],
+    // Mỗi lúc một nhà cung cấp trả lời (Owner chốt 12/10/2026): chọn mô hình Claude hay ChatGPT là chọn nhà cung cấp,
+    // chỉ cần khóa API của nhà cung cấp đó.
+    secrets: [AI_PROVIDERS.anthropic.secret, AI_PROVIDERS.openai.secret],
+    secretRequired: (name, config) => aiProvider(config.model as string | undefined).secret === name,
     connectMode: "api_key",
     configFields: [
       {
         key: "model",
-        label: "Mô hình",
+        label: "Mô hình AI (Claude hoặc ChatGPT)",
         kind: "select",
         default: "claude-sonnet-5-5",
-        options: [
-          { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (cân bằng, khuyên dùng)" },
-          { value: "claude-haiku-5-5", label: "Claude Haiku 5.5 (nhanh, rẻ nhất)" },
-          { value: "claude-opus-5-5", label: "Claude Opus 5.5 (mạnh nhất, đắt nhất)" },
-        ],
+        quick: true,
+        options: AI_MODELS.map((m) => ({ value: m.id, label: m.label })),
       },
       {
         key: "autoReply",
@@ -817,9 +823,12 @@ export const integrations = [
         default: "26500",
       },
     ],
-    secretLabels: { ai_llm_api_key: "API key Anthropic (console.anthropic.com)" },
+    secretLabels: {
+      [AI_PROVIDERS.anthropic.secret]: AI_PROVIDERS.anthropic.secretLabel,
+      [AI_PROVIDERS.openai.secret]: AI_PROVIDERS.openai.secretLabel,
+    },
     testLabel: "Kiểm tra API key và mô hình",
-    note: "AI chỉ trả lời theo sản phẩm, giá, chính sách trong CRM và kiến thức Owner viết; không tự giảm giá, không tư vấn sức khỏe; số điện thoại được che trước khi gửi sang mô hình. Nhân viên bấm Tiếp quản để AI dừng ở một hội thoại.",
+    note: "Chọn mô hình Claude thì dán API key Anthropic, chọn ChatGPT thì dán API key OpenAI; đổi mô hình rồi bấm Kết nối lại để kiểm khóa. AI chỉ trả lời theo sản phẩm, giá, chính sách trong CRM và kiến thức Owner viết; không tự giảm giá, không tư vấn sức khỏe; số điện thoại được che trước khi gửi sang mô hình. Nhân viên bấm Tiếp quản để AI dừng ở một hội thoại.",
   },
 ] as const satisfies readonly IntegrationDefinition[];
 
