@@ -10,6 +10,7 @@ import { USERS, login } from "./helpers";
 
 const THU = "22222222-2222-4222-8222-000000000001";
 const LUC = "22222222-2222-4222-8222-000000000002";
+const LAN = "22222222-2222-4222-8222-000000000003";
 
 test("danh sách khách: đúng quyền xem, lọc theo thị trường, không còn nhãn mô phỏng", async ({ page }) => {
   await login(page, USERS.owner);
@@ -25,8 +26,9 @@ test("danh sách khách: đúng quyền xem, lọc theo thị trường, không 
   await expect(page).toHaveURL(/market=KR/);
   await expect(page.getByRole("link", { name: "Nguyễn Thị Thu" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Phạm Ngọc Lan" })).toHaveCount(0);
+});
 
-  // Telesale chỉ thấy khách thuộc lead mình giữ (người đặt và người nhận).
+test("telesale chỉ thấy khách thuộc lead mình giữ (người đặt và người nhận)", async ({ page }) => {
   await login(page, USERS.thao);
   await page.goto("/customers");
   await expect(page.getByRole("heading", { name: "Khách của tôi" })).toBeVisible();
@@ -48,15 +50,19 @@ test("hồ sơ khách: giữ bất ngờ chặn gọi người nhận, người 
   await page.getByRole("button", { name: "Gọi" }).click();
   await expect(page.getByText("+821012342290")).toBeVisible();
   await expect(page.getByRole("link", { name: "Ghi kết quả cuộc gọi ở hồ sơ lead" })).toBeVisible();
-
-  // Telesale không giữ lead của khách thì không mở được hồ sơ (soft 404 vì có khung chờ loading.tsx).
-  await login(page, USERS.an);
-  await page.goto(`/customers/${THU}`);
-  await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
-  await expect(page.getByText("Nguyễn Thị Thu")).toHaveCount(0);
+  // Telesale không có quyền xuất file: không có mục trích xuất dữ liệu.
+  await expect(page.getByRole("region", { name: "Dữ liệu và quyền riêng tư" })).toHaveCount(0);
 });
 
-test("đồng ý, ngừng liên hệ, ngày quan trọng, trích xuất dữ liệu", async ({ page }, testInfo) => {
+test("telesale không giữ lead của khách thì không mở được hồ sơ", async ({ page }) => {
+  // Lan thuộc lead do An giữ. Có khung chờ (loading.tsx) nên trang trả 200 rồi mới đổi sang màn "Không tìm thấy".
+  await login(page, USERS.thao);
+  await page.goto(`/customers/${LAN}`);
+  await expect(page.getByRole("heading", { name: "Không tìm thấy" })).toBeVisible();
+  await expect(page.getByText("Phạm Ngọc Lan")).toHaveCount(0);
+});
+
+test("đồng ý, ngừng liên hệ, ngày quan trọng, trích xuất dữ liệu", async ({ page, browser }, testInfo) => {
   test.skip(testInfo.project.name !== "laptop", "Ghi vào database, chỉ chạy một lần");
   const phone = `09${String(Date.now()).slice(-8)}`;
   const name = `Khách 360 ${phone.slice(-4)}`;
@@ -104,13 +110,13 @@ test("đồng ý, ngừng liên hệ, ngày quan trọng, trích xuất dữ li�
   await dates.getByRole("button", { name: "Lưu ngày" }).click();
   await expect(dates.getByText("15/03, hằng năm")).toBeVisible();
 
-  // Sale admin không có quyền xuất file: không có mục trích xuất. Owner trích xuất được, file có số đầy đủ.
-  await expect(page.getByRole("region", { name: "Dữ liệu và quyền riêng tư" })).toHaveCount(0);
+  // Owner trích xuất dữ liệu (quyền lead.export), file có số đầy đủ.
   const url = page.url();
-  await login(page, USERS.owner);
-  await page.goto(url);
-  const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Trích xuất dữ liệu của khách" }).click();
+  const owner = await browser.newPage();
+  await login(owner, USERS.owner);
+  await owner.goto(url);
+  const download = owner.waitForEvent("download");
+  await owner.getByRole("button", { name: "Trích xuất dữ liệu của khách" }).click();
   const file = await (await download).path();
   const data = JSON.parse(await readFile(file, "utf8"));
   expect(data.khach.ho_ten).toBe(name);
