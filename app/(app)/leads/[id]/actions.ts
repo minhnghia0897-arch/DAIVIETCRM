@@ -5,7 +5,9 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
+import { parseAttachments, type Attachment } from "@/lib/integrations/attachments";
 import { maskPhonesInText } from "@/lib/phone";
+import { formatDue } from "@/lib/tasks/view";
 
 import type { ActionResult } from "../../settings/types";
 
@@ -274,4 +276,70 @@ export async function addImportantDate(input: z.infer<typeof dateSchema>): Promi
   });
   if (error) return { ok: false, message: friendly(error.code) };
   return done(p.leadId, "Đã thêm ngày quan trọng");
+}
+
+// ---------------------------------------------------------------------------
+// Xem tin Messenger, Zalo của khách ngay trên hồ sơ lead để đối chiếu (chỉ đọc). RLS can_see_conversation quyết định
+// ai đọc được: người giữ lead của hội thoại, hoặc người có message.view_all; không mở thêm quyền nào.
+// ---------------------------------------------------------------------------
+
+const MESSAGE_LIMIT = 50;
+
+export interface LeadChatMessage {
+  id: string;
+  out: boolean;
+  text: string | null;
+  media: Attachment[];
+  time: string;
+  by: string | null;
+  ai: boolean;
+  failed: boolean;
+}
+
+export async function loadConversation(input: {
+  conversationId: string;
+}): Promise<{ ok: true; messages: LeadChatMessage[]; more: boolean } | { ok: false; message: string }> {
+  await requireUser();
+  const { conversationId } = z.object({ conversationId: z.uuid() }).parse(input);
+  const supabase = await createClient();
+
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("id, channel")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (!conv) return { ok: false, message: "Anh chị không xem được hội thoại này." };
+
+  // Lấy tin mới nhất rồi đảo lại theo thứ tự thời gian.
+  const { data: rows, error } = await supabase
+    .from("messages")
+    .select("id, direction, text, attachments, status, sent_by, sent_via, occurred_at, ai_run_id")
+    .eq("conversation_id", conv.id)
+    .order("occurred_at", { ascending: false })
+    .limit(MESSAGE_LIMIT + 1);
+  if (error) return { ok: false, message: "Chưa tải được tin nhắn, thử lại sau ít phút." };
+  const more = (rows ?? []).length > MESSAGE_LIMIT;
+  const msgs = (rows ?? []).slice(0, MESSAGE_LIMIT).reverse();
+
+  const senders = [...new Set(msgs.map((m) => m.sent_by).filter((x): x is string => Boolean(x)))];
+  const { data: staff } = senders.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", senders)
+    : { data: [] as { id: string; full_name: string }[] };
+  const now = new Date();
+  return {
+    ok: true,
+    more,
+    messages: msgs.map((m) => ({
+      id: m.id,
+      out: m.direction === "out",
+      text: m.text,
+      media: parseAttachments(m.attachments),
+      time: formatDue(m.occurred_at, now),
+      by:
+        staff?.find((p) => p.id === m.sent_by)?.full_name ??
+        (m.sent_via === "page" ? (conv.channel === "zalo" ? "Trên OA" : "Trên Page") : null),
+      ai: Boolean(m.ai_run_id),
+      failed: m.status === "failed",
+    })),
+  };
 }
