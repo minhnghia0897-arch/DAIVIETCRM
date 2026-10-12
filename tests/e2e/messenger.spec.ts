@@ -21,6 +21,8 @@ const sent: { path: string; body: unknown }[] = [];
 let meNeedsEngagement = false;
 // Hội thoại và tin Meta trả khi CRM đọc lại tin bị lỡ (bài "đọc lại tin bị lỡ").
 let graphConversations: unknown[] = [];
+// Ảnh đại diện Meta trả cho khách chính (PSID); khách khác không có ảnh công khai.
+const AVATAR = "https://example.com/anh-dai-dien-tran-mai.jpg";
 const graphMessages = new Map<string, unknown[]>();
 
 test.beforeAll(async () => {
@@ -48,6 +50,8 @@ test.beforeAll(async () => {
         sent.push({ path, body: JSON.parse(raw) });
         return reply({ recipient_id: PSID, message_id: `m_out_${sent.length}_${PSID}` });
       }
+      if (req.method === "GET" && url.searchParams.get("fields") === "profile_pic")
+        return reply(path === PSID ? { profile_pic: AVATAR } : {});
       if (req.method === "GET" && path === `${PAGE_ID}/conversations` && !url.searchParams.get("user_id")) {
         if (meNeedsEngagement) {
           res.writeHead(400, { "content-type": "application/json" });
@@ -622,6 +626,9 @@ test("đọc lại tin bị lỡ: tin khách và trả lời trên hộp thư Fa
   const first = await call(cron);
   expect(first.status).toBe(200);
   expect(first.body.runs[0]).toMatchObject({ conversations: 2, added: 3, byContent: 0 });
+  // Cùng lượt đó lấy ảnh đại diện: chỉ khách chính có ảnh công khai.
+  expect(first.body.runs[0].avatars).toMatchObject({ found: 1 });
+  expect(first.body.runs[0].avatars.checked).toBeGreaterThanOrEqual(3);
   // Lượt gọi dồn ngay sau đó bị bỏ, không đọc chồng.
   expect((await call(cron)).body.runs[0]).toMatchObject({ skipped: "too_soon" });
 
@@ -645,4 +652,6 @@ test("đọc lại tin bị lỡ: tin khách và trả lời trên hộp thư Fa
   // Ảnh nhân viên gửi trên hộp thư Facebook nằm trong đúng tin đó (ảnh thật hoặc dòng báo ảnh hết hạn).
   await expect(log.locator(".tg-row.is-out", { hasText: inboxReply }).locator(".cv-media")).toHaveCount(1);
   await expect(log.getByText("Chào shop, ghế DV-X9 còn hàng không?")).toHaveCount(1);
+  // Trang Hội thoại nhận link ảnh đại diện (máy chạy thử không ra mạng nên ảnh có thể về chữ cái đầu khi tải lỗi).
+  expect(await page.content()).toContain(AVATAR);
 });

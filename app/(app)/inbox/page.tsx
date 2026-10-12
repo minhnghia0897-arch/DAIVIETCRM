@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const { data: convs } = await supabase
     .from("conversations")
     .select(
-      "id, channel, status, display_name, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
+      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
@@ -92,6 +92,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     id: x.id,
     channel: x.channel === "zalo" ? "zalo" : "messenger",
     name: x.contacts?.full_name ?? x.display_name ?? "Khách",
+    avatar: x.avatar_url,
     lastAt: x.last_message_at,
     lastInboundAt: x.last_inbound_at,
     unread: x.unread_count,

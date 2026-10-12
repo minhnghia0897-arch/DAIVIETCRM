@@ -48,6 +48,10 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
   thoại, thêm 3 tin bị lỡ (1 tin khách, 2 tin trả lời trên hộp thư Facebook, có ảnh), không tin nào trùng
   (`byContent = 0`, tức mã tin Graph trùng `mid` của webhook). `pages_read_engagement` ở Standard Access dùng được
   ngay cho Page của mình, không cần gửi xét duyệt.
+- **Ảnh đại diện khách (User Profile API):** `GET /{psid}?fields=profile_pic`. Tài liệu ghi cần **Advanced Access
+  cho tính năng Business Asset User Profile Access** (xin qua App Review); `profile_pic` là link **hết hạn** sau một
+  thời gian; khách tạo tài khoản bằng số điện thoại thì báo mã 2018218 "No profile available"; không lấy được thì Meta
+  trả object rỗng. Tên khách cũng nằm sau tính năng này, nhưng trên NGHIA tên vẫn lấy được ở Standard Access.
 - **Khung 24 giờ:** được nhắn trong 24 giờ kể từ lần cuối khách tương tác (khách nhắn, bấm nút Bắt đầu, nhắn từ quảng
   cáo Click-to-Messenger…). Trong khung được gửi cả nội dung khuyến mãi.
 - **Ngoài 24 giờ:** chỉ còn thẻ **Human Agent**: nhân viên trả lời tay trong **7 ngày**, chỉ để giải quyết đúng việc
@@ -156,6 +160,11 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
   (`integration_sync_state.start_at`: lúc Owner khai Messenger lần đầu, kết nối lại không dời). Con trỏ và chỉ số đếm ở `integration_sync_state`. Lỗi (thiếu quyền, token hỏng) hiện
   ở trang Tích hợp và tự xóa khi lượt sau chạy tốt. Lúc kết nối hoặc bấm Gửi dữ liệu thử, CRM báo luôn token đã đọc lại
   được tin hay còn thiếu `pages_read_engagement`.
+- **Ảnh đại diện** (`lib/integrations/meta_messenger/avatars.ts`): sau mỗi lượt đọc lại tin, hỏi `profile_pic` cho tối
+  đa 10 hội thoại chưa kiểm hoặc kiểm quá 2 ngày (mới nhắn trước), lưu `conversations.avatar_url` (chỉ link https) và
+  `avatar_checked_at`. Meta từ chối thì giữ ảnh cũ, chỉ ghi giờ kiểm; mạng lỗi thì lượt sau hỏi lại. Kết quả đếm
+  (`avatars.checked`, `found`, mã lỗi gần nhất) nằm trong câu trả lời của route. Màn Hội thoại hiện ảnh ở danh sách,
+  đầu khung chat và cạnh tin khách; ảnh hết hạn hoặc không tải được thì về chữ cái đầu.
 - **Chạy thử trên máy:** đặt `META_GRAPH_BASE=http://127.0.0.1:4010/v25.0` cho server để gọi máy chủ Meta giả;
   `tests/e2e/messenger.spec.ts` dựng sẵn máy chủ giả (chạy với `E2E_GRAPH_MOCK=1`).
 

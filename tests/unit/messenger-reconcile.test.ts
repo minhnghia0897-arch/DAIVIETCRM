@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { conversationMessages, GraphError, pageConversations } from "@/lib/integrations/meta_messenger/api";
+import {
+  conversationMessages,
+  GraphError,
+  pageConversations,
+  userAvatar,
+} from "@/lib/integrations/meta_messenger/api";
 import {
   graphMessageToItem,
   graphTime,
@@ -200,5 +205,34 @@ describe("Graph API đọc lại tin", () => {
     });
     const r = await conversationMessages("t_1", "tok", fetchImpl as typeof fetch);
     expect(r.data?.[0]?.id).toBe("m_1");
+  });
+});
+
+describe("userAvatar", () => {
+  it("hỏi riêng trường profile_pic, chỉ nhận link https", async () => {
+    const ok = vi.fn(async (url: URL | RequestInfo) => {
+      const u = new URL(String(url));
+      expect(u.pathname).toBe(`/v25.0/${PSID}`);
+      expect(u.searchParams.get("fields")).toBe("profile_pic");
+      return Response.json({ profile_pic: "https://platform-lookaside.fbsbx.com/p.jpg" });
+    });
+    expect(await userAvatar(PSID, "tok", ok as typeof fetch)).toEqual({
+      url: "https://platform-lookaside.fbsbx.com/p.jpg",
+    });
+    const http = vi.fn(async () => Response.json({ profile_pic: "http://x.test/p.jpg" }));
+    expect(await userAvatar(PSID, "tok", http as typeof fetch)).toEqual({ url: null });
+    const none = vi.fn(async () => Response.json({}));
+    expect(await userAvatar(PSID, "tok", none as typeof fetch)).toEqual({ url: null });
+  });
+
+  it("Meta từ chối thì trả mã lỗi; mạng lỗi thì -1", async () => {
+    const denied = vi.fn(async () =>
+      Response.json({ error: { code: 10, message: "Business Asset User Profile Access" } }, { status: 400 }),
+    );
+    expect(await userAvatar(PSID, "tok", denied as typeof fetch)).toEqual({ url: null, error: 10 });
+    const down = vi.fn(async () => {
+      throw new Error("mạng");
+    });
+    expect(await userAvatar(PSID, "tok", down as typeof fetch)).toEqual({ url: null, error: -1 });
   });
 });
