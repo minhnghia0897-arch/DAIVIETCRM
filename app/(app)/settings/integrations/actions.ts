@@ -6,6 +6,8 @@ import { z } from "zod";
 import { requireWritable } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 import { createAdminClient } from "@/lib/db/admin";
+import { aiErrorMessage, getModel } from "@/lib/ai/anthropic";
+import { aiModel } from "@/lib/ai/models";
 import { configErrors } from "@/lib/integrations/connection";
 import {
   GraphError,
@@ -158,7 +160,7 @@ export async function checkIntegration(input: { key: string }): Promise<ActionRe
             connected_at: now,
             last_success_at: now,
             last_error: null,
-            reply_mode: r.replyMode ?? "crm",
+            reply_mode: d.supportsReplyMode ? (r.replyMode ?? "crm") : null,
           },
     )
     .eq("showroom_id", user.showroomId)
@@ -178,6 +180,40 @@ const short = (d: IntegrationDefinition, n: string) => (d.secretLabels?.[n] ?? n
 const missingMessage = (items: string[]) => ({ error: `Chưa đủ để kết nối: ${items.join(", ")}.` });
 
 const PROBES: Record<string, Probe> = {
+  // Khóa API dùng được mô hình đã chọn (hỏi thông tin mô hình, không tốn token).
+  ai_llm: async (d, showroomId) => {
+    const admin = createAdminClient();
+    const [{ data: key }, { data: row }] = await Promise.all([
+      admin.rpc("get_integration_secret", {
+        p_showroom: showroomId,
+        p_key: "ai_llm",
+        p_name: "ai_llm_api_key",
+      }),
+      admin
+        .from("integrations")
+        .select("config")
+        .eq("showroom_id", showroomId)
+        .eq("key", "ai_llm")
+        .maybeSingle(),
+    ]);
+    if (!key) return missingMessage([short(d, "ai_llm_api_key")]);
+    const cfg = (row?.config ?? {}) as { model?: string; autoReply?: string[] };
+    const model = aiModel(cfg.model);
+    try {
+      await getModel(key, model.id);
+    } catch (e) {
+      return { error: aiErrorMessage(e) };
+    }
+    const on = (cfg.autoReply ?? []).map((c) => (c === "zalo" ? "Zalo OA" : "Messenger"));
+    return {
+      done: `API key dùng được ${model.label.replace(/ \(.*\)$/, "")}; ${
+        on.length
+          ? `AI đang tự trả lời trên ${on.join(", ")}`
+          : "chưa bật tự trả lời kênh nào (bật ở Cài đặt, Trợ lý AI)"
+      }`,
+      replyMode: null,
+    };
+  },
   // Token phải thuộc đúng Page đã khai, rồi đăng ký Page gửi tin về webhook của CRM.
   [MESSENGER_KEY]: async (d, showroomId) => {
     const cfg = await messengerConfigForShowroom(createAdminClient(), showroomId);

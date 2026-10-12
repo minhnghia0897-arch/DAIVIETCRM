@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Bot,
   CheckCheck,
   Clock,
   ExternalLink,
@@ -59,6 +60,10 @@ export interface LiveConv {
   /** Nhân viên đã đánh dấu xong; khách nhắn lại thì tự mở. */
   done: boolean;
   tagIds: string[];
+  /** Trợ lý AI: "on" đang tự trả lời, "paused" đã dừng ở hội thoại này, null là kênh chưa bật AI. */
+  ai: "on" | "paused" | null;
+  /** Lý do AI dừng: takeover (Tiếp quản), handoff (AI chuyển), staff_reply (nhân viên tự gửi), existing. */
+  aiPause: string | null;
 }
 
 export interface LiveTag {
@@ -80,8 +85,20 @@ export interface LiveThread {
     by: string | null;
     /** "Trả lời tay" (Messenger ngoài 24 giờ), "Tin tính phí" (Zalo ngoài 48 giờ). */
     tag: string | null;
+    /** Tin do Trợ lý AI gửi. */
+    ai: boolean;
   }[];
+  /** Lần AI chuyển cho người gần nhất: lý do, tóm tắt nhu cầu cho nhân viên. */
+  handoff: { reason: string; summary: string | null; at: string } | null;
 }
+
+/** Vì sao AI dừng ở hội thoại (hiện cạnh tên khách). */
+const AI_PAUSE: Record<string, string> = {
+  takeover: "Nhân viên đã tiếp quản",
+  handoff: "AI đã chuyển cho nhân viên",
+  staff_reply: "Nhân viên đang trả lời",
+  existing: "Nhân viên đang trả lời",
+};
 
 const time = new Intl.DateTimeFormat("vi-VN", {
   timeZone: "Asia/Ho_Chi_Minh",
@@ -117,6 +134,7 @@ export function InboxLive({
   createTag,
   assignConv,
   qualify,
+  aiSwitch,
 }: {
   convs: LiveConv[];
   selectedId: string | null;
@@ -146,6 +164,8 @@ export function InboxLive({
   assignConv?: (input: { conversationId: string; assigneeId: string | null }) => Promise<Result>;
   /** Chuyển khách đang hỏi thành lead (Sale admin, Owner); không truyền khi không có quyền. */
   qualify?: (input: { conversationId: string }) => Promise<Result>;
+  /** Tiếp quản (on = false) hoặc Trả lại AI (on = true); không truyền khi không gửi được tin. */
+  aiSwitch?: (input: { conversationId: string; on: boolean }) => Promise<Result>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -339,6 +359,11 @@ export function InboxLive({
                     {x.done ? " · Đã xong" : ""}
                   </span>
                   <span className="cv-chips">
+                    {x.ai === "on" ? (
+                      <span className="cv-tag cv-ai">
+                        <Bot size={11} aria-hidden /> AI
+                      </span>
+                    ) : null}
                     {x.leadId ? null : <span className="cv-tag cv-inquiry">Đang hỏi</span>}
                     <span className={`cv-staff ${x.holder ? "" : "is-none"}`}>
                       <UserRound size={11} aria-hidden />
@@ -390,6 +415,13 @@ export function InboxLive({
                         : "Chưa giao"
                       : `Khách đang hỏi · ${c.holder ? `${c.holder} phụ trách` : "chưa giao"}`}
                     {c.done ? <span className="cv-st is-ok"> · Đã xong</span> : null}
+                    {c.ai === "on" ? <span className="cv-st is-ai"> · AI đang trả lời</span> : null}
+                    {c.ai === "paused" ? (
+                      <span className="cv-st">
+                        {" "}
+                        · {AI_PAUSE[c.aiPause ?? ""] ?? "AI đã dừng ở hội thoại này"}
+                      </span>
+                    ) : null}
                     {win ? (
                       <span
                         className={`cv-st ${win.mode === "response" ? "is-ok" : win.mode === "human_agent" ? "is-warn" : "is-err"}`}
@@ -453,6 +485,27 @@ export function InboxLive({
                   </select>
                 </label>
               ) : null}
+              {aiSwitch && c.ai === "on" ? (
+                <button
+                  type="button"
+                  className="tg-pill cv-hbtn is-blue"
+                  disabled={pending}
+                  title="AI dừng ở hội thoại này, anh chị trả lời"
+                  onClick={() => act(() => aiSwitch({ conversationId: c.id, on: false }))}
+                >
+                  <UserRound size={15} aria-hidden /> Tiếp quản
+                </button>
+              ) : aiSwitch && c.ai === "paused" ? (
+                <button
+                  type="button"
+                  className="tg-pill cv-hbtn"
+                  disabled={pending}
+                  title="AI trả lời tiếp từ tin sau của khách"
+                  onClick={() => act(() => aiSwitch({ conversationId: c.id, on: true }))}
+                >
+                  <Bot size={15} aria-hidden /> Trả lại AI
+                </button>
+              ) : null}
               {setDone ? (
                 <button
                   type="button"
@@ -498,6 +551,17 @@ export function InboxLive({
                   ))}
               </div>
             ) : null}
+            {c.ai === "paused" && c.aiPause === "handoff" && thread.handoff ? (
+              <div className="cv-pins cv-ai-note" aria-label="AI chuyển cho nhân viên">
+                <p className="cv-pin">
+                  <Bot size={13} aria-hidden />
+                  <span>
+                    <b>AI chuyển cho nhân viên: {thread.handoff.reason}.</b>
+                    {thread.handoff.summary ? ` ${thread.handoff.summary}` : ""}
+                  </span>
+                </p>
+              </div>
+            ) : null}
             <div className="tg-msgs" ref={msgs} role="log" aria-label="Tin nhắn">
               {thread.messages.map((m, i) => {
                 const next = thread.messages[i + 1];
@@ -517,8 +581,14 @@ export function InboxLive({
                         ) : null}
                       </span>
                     ) : null}
-                    <div className="tg-bubble cv-msg">
-                      {m.out && m.by ? <b className="tg-from">{m.by}</b> : null}
+                    <div className={`tg-bubble cv-msg ${m.ai ? "is-agent" : ""}`}>
+                      {m.ai ? (
+                        <b className="tg-from cv-agent">
+                          <Bot size={14} aria-hidden /> Agent AI
+                        </b>
+                      ) : m.out && m.by ? (
+                        <b className="tg-from">{m.by}</b>
+                      ) : null}
                       {m.text ? <p className="tg-text">{m.text}</p> : null}
                       {m.media.length ? (
                         <MessageMedia items={m.media} channel={CH[c.channel].label} out={m.out} />
@@ -583,7 +653,11 @@ export function InboxLive({
                 <div className="tg-compose-row">
                   <textarea
                     aria-label="Nội dung trả lời"
-                    placeholder={`Trả lời ${c.name} qua ${CH[c.channel].label}…`}
+                    placeholder={
+                      c.ai === "on"
+                        ? "AI đang trả lời khách. Anh chị gửi tin thì AI dừng ở hội thoại này…"
+                        : `Trả lời ${c.name} qua ${CH[c.channel].label}…`
+                    }
                     value={text}
                     rows={1}
                     maxLength={2000}

@@ -90,6 +90,161 @@ export type Database = {
           },
         ];
       };
+      ai_knowledge: {
+        Row: {
+          body: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          showroom_id: string;
+          sort: number;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          showroom_id: string;
+          sort?: number;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          showroom_id?: string;
+          sort?: number;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ai_runs: {
+        Row: {
+          action: string | null;
+          cache_read_tokens: number;
+          cache_write_tokens: number;
+          conversation_id: string;
+          cost_usd_micros: number;
+          cost_vnd: number;
+          created_at: string;
+          error: string | null;
+          finished_at: string | null;
+          handoff_reason: string | null;
+          id: string;
+          input_tokens: number;
+          lead_id: string | null;
+          model: string | null;
+          output_tokens: number;
+          reply_message_id: string | null;
+          showroom_id: string;
+          started_at: string;
+          status: string;
+          summary: string | null;
+          trigger_message_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          action?: string | null;
+          cache_read_tokens?: number;
+          cache_write_tokens?: number;
+          conversation_id: string;
+          cost_usd_micros?: number;
+          cost_vnd?: number;
+          created_at?: string;
+          error?: string | null;
+          finished_at?: string | null;
+          handoff_reason?: string | null;
+          id?: string;
+          input_tokens?: number;
+          lead_id?: string | null;
+          model?: string | null;
+          output_tokens?: number;
+          reply_message_id?: string | null;
+          showroom_id: string;
+          started_at?: string;
+          status?: string;
+          summary?: string | null;
+          trigger_message_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          action?: string | null;
+          cache_read_tokens?: number;
+          cache_write_tokens?: number;
+          conversation_id?: string;
+          cost_usd_micros?: number;
+          cost_vnd?: number;
+          created_at?: string;
+          error?: string | null;
+          finished_at?: string | null;
+          handoff_reason?: string | null;
+          id?: string;
+          input_tokens?: number;
+          lead_id?: string | null;
+          model?: string | null;
+          output_tokens?: number;
+          reply_message_id?: string | null;
+          showroom_id?: string;
+          started_at?: string;
+          status?: string;
+          summary?: string | null;
+          trigger_message_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_runs_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ai_runs_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ai_runs_reply_message_id_fkey";
+            columns: ["reply_message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ai_runs_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ai_runs_trigger_message_id_fkey";
+            columns: ["trigger_message_id"];
+            isOneToOne: true;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       approvals: {
         Row: {
           created_at: string;
@@ -1195,6 +1350,9 @@ export type Database = {
       };
       conversations: {
         Row: {
+          ai_pause_reason: string | null;
+          ai_paused_at: string | null;
+          ai_paused_by: string | null;
           assigned_at: string | null;
           assigned_to: string | null;
           avatar_checked_at: string | null;
@@ -1216,9 +1374,14 @@ export type Database = {
           status: string;
           unread_count: number;
           updated_at: string;
+          ai_channel_block: string | null;
+          ai_handles: boolean | null;
           can_see_conversation: boolean | null;
         };
         Insert: {
+          ai_pause_reason?: string | null;
+          ai_paused_at?: string | null;
+          ai_paused_by?: string | null;
           assigned_at?: string | null;
           assigned_to?: string | null;
           avatar_checked_at?: string | null;
@@ -1242,6 +1405,9 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          ai_pause_reason?: string | null;
+          ai_paused_at?: string | null;
+          ai_paused_by?: string | null;
           assigned_at?: string | null;
           assigned_to?: string | null;
           avatar_checked_at?: string | null;
@@ -1265,6 +1431,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "conversations_ai_paused_by_fkey";
+            columns: ["ai_paused_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "conversations_assigned_to_fkey";
             columns: ["assigned_to"];
@@ -2153,6 +2326,7 @@ export type Database = {
       };
       messages: {
         Row: {
+          ai_run_id: string | null;
           attachments: NonNullable<Json>;
           conversation_id: string;
           created_at: string;
@@ -2169,6 +2343,7 @@ export type Database = {
           text: string | null;
         };
         Insert: {
+          ai_run_id?: string | null;
           attachments?: NonNullable<Json>;
           conversation_id: string;
           created_at?: string;
@@ -2185,6 +2360,7 @@ export type Database = {
           text?: string | null;
         };
         Update: {
+          ai_run_id?: string | null;
           attachments?: NonNullable<Json>;
           conversation_id?: string;
           created_at?: string;
@@ -2201,6 +2377,13 @@ export type Database = {
           text?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "messages_ai_run_id_fkey";
+            columns: ["ai_run_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_runs";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "messages_conversation_id_fkey";
             columns: ["conversation_id"];
@@ -5016,6 +5199,23 @@ export type Database = {
       };
       add_lead_note: { Args: { p_lead_id: string; p_text: string }; Returns: number };
       advance_order: { Args: { p_order_id: string }; Returns: string };
+      ai_channel_block: {
+        Args: { p_conv: Database["public"]["Tables"]["conversations"]["Row"] };
+        Returns: string;
+      };
+      ai_handles: {
+        Args: { p_conv: Database["public"]["Tables"]["conversations"]["Row"] };
+        Returns: boolean;
+      };
+      ai_handoff: {
+        Args: { p_create_lead?: boolean; p_reason: string; p_run: string; p_summary?: string };
+        Returns: string;
+      };
+      ai_month_spend: { Args: { p_showroom: string }; Returns: number };
+      ai_release: { Args: { p_conversation: string }; Returns: undefined };
+      ai_reply_channels: { Args: Record<PropertyKey, never>; Returns: string[] };
+      ai_reply_channels_for: { Args: { p_showroom: string }; Returns: string[] };
+      ai_takeover: { Args: { p_conversation: string }; Returns: undefined };
       alert_sla_overdue: { Args: Record<PropertyKey, never>; Returns: number };
       apply_task_action: {
         Args: { p_action: string; p_minutes?: number; p_outcome?: string; p_task_id: string; p_user: string };
@@ -5060,6 +5260,41 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      assert_ai_switch: {
+        Args: { p_conversation: string };
+        Returns: {
+          ai_pause_reason: string | null;
+          ai_paused_at: string | null;
+          ai_paused_by: string | null;
+          assigned_at: string | null;
+          assigned_to: string | null;
+          avatar_checked_at: string | null;
+          avatar_url: string | null;
+          channel: string;
+          contact_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          display_name: string | null;
+          done_at: string | null;
+          done_by: string | null;
+          external_user_id: string;
+          id: string;
+          last_inbound_at: string | null;
+          last_message_at: string | null;
+          lead_id: string | null;
+          page_id: string;
+          showroom_id: string;
+          status: string;
+          unread_count: number;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "conversations";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       assert_channel_reply: {
         Args: {
           p_channel: string;
@@ -5070,6 +5305,9 @@ export type Database = {
           p_text: string;
         };
         Returns: {
+          ai_pause_reason: string | null;
+          ai_paused_at: string | null;
+          ai_paused_by: string | null;
           assigned_at: string | null;
           assigned_to: string | null;
           avatar_checked_at: string | null;
@@ -5206,12 +5444,24 @@ export type Database = {
       delete_content_item: { Args: { p_id: string }; Returns: undefined };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
       delete_tag: { Args: { p_tag_id: string }; Returns: undefined };
+      dispatch_ai_replies: { Args: Record<PropertyKey, never>; Returns: undefined };
       dispatch_messenger_reconcile: { Args: Record<PropertyKey, never>; Returns: undefined };
       dispatch_telegram_outbound: { Args: Record<PropertyKey, never>; Returns: undefined };
       effective_uid: { Args: Record<PropertyKey, never>; Returns: string };
       end_duty_for: { Args: { p_user: string }; Returns: boolean };
       expire_campaign_budget_requests: { Args: { p_campaign: string; p_note: string }; Returns: undefined };
       expire_quotes: { Args: Record<PropertyKey, never>; Returns: number };
+      finish_ai_run: {
+        Args: {
+          p_action?: string;
+          p_error?: string;
+          p_run: string;
+          p_status: string;
+          p_summary?: string;
+          p_usage?: Json;
+        };
+        Returns: undefined;
+      };
       finish_channel_reply: {
         Args: { p_error?: string; p_message: string; p_mid: string };
         Returns: undefined;
@@ -5311,6 +5561,7 @@ export type Database = {
       order_event: { Args: { p_order_id: string; p_payload: Json; p_type: string }; Returns: undefined };
       order_paid: { Args: { p_order_id: string }; Returns: Record<string, unknown> };
       pct_text: { Args: { p: number }; Returns: string };
+      pending_ai_conversations: { Args: { p_limit?: number }; Returns: string[] };
       persist_priced_order: { Args: { p: Json; p_actor: string }; Returns: string };
       persist_quote: { Args: { p: Json; p_actor: string }; Returns: string };
       post_stock_document: { Args: { p_doc_id: string }; Returns: string };
@@ -5324,6 +5575,7 @@ export type Database = {
       };
       purge_webhook_events: { Args: Record<PropertyKey, never>; Returns: number };
       qualify_conversation: { Args: { p_assignee?: string; p_conversation: string }; Returns: string };
+      queue_ai_reply: { Args: { p_run: string; p_text: string }; Returns: Json };
       queue_messenger_reply: {
         Args: { p_conversation: string; p_human_agent?: boolean; p_text: string };
         Returns: Json;
@@ -5403,6 +5655,7 @@ export type Database = {
         Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
         Returns: string;
       };
+      start_ai_run: { Args: { p_conversation: string }; Returns: Json };
       store_integration_token: {
         Args: { p_expires_at?: string; p_key: string; p_name: string; p_showroom: string; p_value: string };
         Returns: undefined;

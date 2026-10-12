@@ -751,16 +751,32 @@ export const integrations = [
   {
     key: "ai_llm",
     name: "Trợ lý AI",
-    description: "Tóm tắt, gợi ý việc tiếp theo, offer phù hợp và soạn tin; người duyệt trước khi dùng.",
+    description:
+      "Tự trả lời tin nhắn Messenger, Zalo; chuyển cho nhân viên khi khẩn cấp hoặc khách cần gọi điện.",
     group: "ai",
-    phase: "month_3",
-    implemented: false,
-    capabilities: ["ai_processing"],
-    prerequisites: [{ key: "ai_policy", label: "Đã thống nhất việc AI được làm và người duyệt" }],
+    phase: "month_1",
+    implemented: true,
+    liveCheck: true,
+    capabilities: ["ai_processing", "outbound_messages"],
+    prerequisites: [
+      {
+        key: "ai_policy",
+        label: "Đã viết kiến thức cho AI ở Cài đặt, Trợ lý AI (địa chỉ, giờ mở cửa, giao lắp…)",
+      },
+      {
+        key: "meta_auto_off",
+        label: "Đã tắt trả lời tự động trong Meta Business Suite, Zalo OA (tránh hai nơi cùng trả lời)",
+      },
+    ],
     configSchema: z.object({
-      model: z.enum(["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"], "Chọn mô hình"),
-      features: z.array(z.string()).default([]),
+      model: z.enum(["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"], "Chọn mô hình"),
+      autoReply: z.array(z.enum(["messenger", "zalo"])).default([]),
       monthlyBudget: z.string().regex(/^\d{1,12}$/, "Giới hạn chi phí là số đồng"),
+      // Không bắt buộc: bỏ trống thì server dùng tỷ giá mặc định (lib/ai/auto-reply.ts).
+      usdRate: z
+        .string()
+        .regex(/^\d{4,6}$/, "Tỷ giá là số đồng cho 1 USD")
+        .optional(),
     }),
     secrets: ["ai_llm_api_key"],
     connectMode: "api_key",
@@ -771,22 +787,19 @@ export const integrations = [
         kind: "select",
         default: "claude-sonnet-5-5",
         options: [
-          { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (cân bằng)" },
-          { value: "claude-opus-5-5", label: "Claude Opus 5.5 (mạnh nhất)" },
-          { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (nhanh, rẻ)" },
+          { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (cân bằng, khuyên dùng)" },
+          { value: "claude-haiku-5-5", label: "Claude Haiku 5.5 (nhanh, rẻ nhất)" },
+          { value: "claude-opus-5-5", label: "Claude Opus 5.5 (mạnh nhất, đắt nhất)" },
         ],
       },
       {
-        key: "features",
-        label: "Chức năng bật (mặc định tắt hết)",
+        key: "autoReply",
+        label: "Tự trả lời trên kênh (bỏ chọn hết là tắt AI)",
         kind: "checks",
         default: [],
         options: [
-          { value: "summary", label: "Tóm tắt hồ sơ khách, cuộc gọi" },
-          { value: "next_task", label: "Đề xuất việc tiếp theo" },
-          { value: "offer", label: "Đề xuất offer qua hàm định giá" },
-          { value: "draft", label: "Soạn tin nháp" },
-          { value: "household", label: "Đề xuất gộp hộ" },
+          { value: "messenger", label: "Tin nhắn Facebook (Messenger)" },
+          { value: "zalo", label: "Zalo OA" },
         ],
       },
       {
@@ -796,10 +809,17 @@ export const integrations = [
         placeholder: "2000000",
         default: "2000000",
       },
+      {
+        key: "usdRate",
+        label: "Tỷ giá quy đổi chi phí (đồng cho 1 USD, sửa theo ngân hàng)",
+        kind: "text",
+        placeholder: "26500",
+        default: "26500",
+      },
     ],
-    secretLabels: { ai_llm_api_key: "API key mô hình ngôn ngữ" },
-    testLabel: "Câu hỏi thử (đã che số điện thoại)",
-    note: "Mọi kết quả AI là đề xuất có người xác nhận; không gửi số điện thoại đầy đủ hay giấy tờ tùy thân sang mô hình.",
+    secretLabels: { ai_llm_api_key: "API key Anthropic (console.anthropic.com)" },
+    testLabel: "Kiểm tra API key và mô hình",
+    note: "AI chỉ trả lời theo sản phẩm, giá, chính sách trong CRM và kiến thức Owner viết; không tự giảm giá, không tư vấn sức khỏe; số điện thoại được che trước khi gửi sang mô hình. Nhân viên bấm Tiếp quản để AI dừng ở một hội thoại.",
   },
 ] as const satisfies readonly IntegrationDefinition[];
 

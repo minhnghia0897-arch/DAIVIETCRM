@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { InboxLive, type LiveConv, type LiveThread } from "@/components/crm/views/inbox-live";
+import { HANDOFF_LABEL } from "@/lib/ai/labels";
 import type { LiveSide, OrderSide } from "@/components/crm/views/inbox-live-side";
 import { PROVINCE_NAMES } from "@/lib/geo/provinces";
 import { extractFindings } from "@/lib/inbox/extract";
@@ -22,6 +23,7 @@ import {
   createContactTag,
   qualifyConversation,
   setConversationDone,
+  switchConversationAi,
   toggleContactTag,
 } from "./side-actions";
 
@@ -41,7 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const { data: convs } = await supabase
     .from("conversations")
     .select(
-      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, assigned_to, contact_id, contacts(full_name, country_of_residence)",
+      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, assigned_to, contact_id, ai_paused_at, ai_pause_reason, contacts(full_name, country_of_residence)",
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
@@ -49,30 +51,38 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const leadIds = list.map((x) => x.lead_id).filter((x): x is string => Boolean(x));
   const contactIds = [...new Set(list.map((x) => x.contact_id).filter((x): x is string => Boolean(x)))];
   const canAssign = user.permissions.has("lead.assign") && !user.viewAs;
-  const [{ data: leads }, { data: recent }, { data: tags }, { data: contactTags }, { data: assignees }] =
-    await Promise.all([
-      leadIds.length
-        ? supabase.from("leads").select("id, stage, assigned_to").in("id", leadIds)
-        : Promise.resolve({ data: [] as { id: string; stage: string; assigned_to: string | null }[] }),
-      list.length
-        ? supabase
-            .from("messages")
-            .select("conversation_id, direction, text, attachments")
-            .in(
-              "conversation_id",
-              list.map((x) => x.id),
-            )
-            .order("occurred_at", { ascending: false })
-            .limit(400)
-        : Promise.resolve({ data: [] }),
-      supabase.from("tags").select("id, label, color").order("sort"),
-      contactIds.length
-        ? supabase.from("contact_tags").select("contact_id, tag_id").in("contact_id", contactIds)
-        : Promise.resolve({ data: [] as { contact_id: string; tag_id: string }[] }),
-      canAssign
-        ? supabase.rpc("lead_assignees")
-        : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
-    ]);
+  const [
+    { data: leads },
+    { data: recent },
+    { data: tags },
+    { data: contactTags },
+    { data: assignees },
+    { data: aiChannels },
+  ] = await Promise.all([
+    leadIds.length
+      ? supabase.from("leads").select("id, stage, assigned_to").in("id", leadIds)
+      : Promise.resolve({ data: [] as { id: string; stage: string; assigned_to: string | null }[] }),
+    list.length
+      ? supabase
+          .from("messages")
+          .select("conversation_id, direction, text, attachments")
+          .in(
+            "conversation_id",
+            list.map((x) => x.id),
+          )
+          .order("occurred_at", { ascending: false })
+          .limit(400)
+      : Promise.resolve({ data: [] }),
+    supabase.from("tags").select("id, label, color").order("sort"),
+    contactIds.length
+      ? supabase.from("contact_tags").select("contact_id, tag_id").in("contact_id", contactIds)
+      : Promise.resolve({ data: [] as { contact_id: string; tag_id: string }[] }),
+    canAssign
+      ? supabase.rpc("lead_assignees")
+      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    // Kênh Trợ lý AI đang tự trả lời (Cài đặt, Trợ lý AI).
+    supabase.rpc("ai_reply_channels"),
+  ]);
   const tagsOf = (contactId: string | null) =>
     (contactTags ?? []).filter((t) => t.contact_id === contactId).map((t) => t.tag_id);
   const leadOf = (id: string | null) => leads?.find((l) => l.id === id);
@@ -111,6 +121,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     mine: holderOf(x) === user.id,
     done: x.status === "done",
     tagIds: tagsOf(x.contact_id),
+    ai: (aiChannels ?? []).includes(x.channel) ? (x.ai_paused_at ? "paused" : "on") : null,
+    aiPause: x.ai_pause_reason,
   }));
 
   const sel = rows.find((x) => x.id === c) ?? null;
@@ -118,14 +130,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   if (sel) {
     const { data: msgs } = await supabase
       .from("messages")
-      .select("id, direction, text, attachments, status, error, sent_by, sent_via, tag, occurred_at")
+      .select(
+        "id, direction, text, attachments, status, error, sent_by, sent_via, tag, occurred_at, ai_run_id",
+      )
       .eq("conversation_id", sel.id)
       .order("occurred_at", { ascending: true })
       .limit(300);
     const senders = [...new Set((msgs ?? []).map((m) => m.sent_by).filter((x): x is string => Boolean(x)))];
-    const { data: staff } = senders.length
-      ? await supabase.from("profiles").select("id, full_name").in("id", senders)
-      : { data: [] as { id: string; full_name: string }[] };
+    const [{ data: staff }, { data: handoff }] = await Promise.all([
+      senders.length
+        ? supabase.from("profiles").select("id, full_name").in("id", senders)
+        : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+      // Lần AI chuyển cho người gần nhất (lý do, tóm tắt nhu cầu cho nhân viên).
+      supabase
+        .from("ai_runs")
+        .select("handoff_reason, summary, started_at")
+        .eq("conversation_id", sel.id)
+        .eq("status", "handed_off")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
     thread = {
       id: sel.id,
       messages: (msgs ?? []).map((m) => ({
@@ -140,7 +165,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
           staff?.find((p) => p.id === m.sent_by)?.full_name ??
           (m.sent_via === "page" ? (sel.channel === "zalo" ? "Trên OA" : "Trên Page") : null),
         tag: m.tag === "HUMAN_AGENT" ? "Trả lời tay" : m.tag === "paid" ? "Tin tính phí" : null,
+        ai: Boolean(m.ai_run_id),
       })),
+      handoff: handoff
+        ? {
+            reason: HANDOFF_LABEL[handoff.handoff_reason ?? ""] ?? "AI chưa trả lời được",
+            summary: handoff.summary,
+            at: handoff.started_at,
+          }
+        : null,
     };
   }
 
@@ -200,6 +233,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       assign={assignLeads}
       assignConv={canAssign ? assignConversation : undefined}
       qualify={canAssign ? qualifyConversation : undefined}
+      aiSwitch={user.viewAs ? undefined : switchConversationAi}
       setDone={setConversationDone}
       toggleTag={toggleContactTag}
       createTag={createContactTag}

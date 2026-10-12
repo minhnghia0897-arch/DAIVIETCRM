@@ -172,7 +172,10 @@ export const PREREQ_ERRORS: Record<string, string> = {
   einvoice_provider: "Chưa chọn nhà cung cấp hóa đơn điện tử.",
   legal_entity: "Chưa chốt pháp nhân xuất hóa đơn nên chưa đăng ký được mã số thuế với nhà cung cấp.",
   recordings: "Tổng đài chưa có ghi âm để chép lời.",
-  ai_policy: "Chưa thống nhất việc AI được làm và người duyệt. Ghi rõ rồi mới bật trợ lý AI.",
+  ai_policy:
+    "Chưa có kiến thức cho AI. Viết địa chỉ, giờ mở cửa, giao lắp, bảo hành ở Cài đặt, Trợ lý AI trước khi bật.",
+  meta_auto_off:
+    "Trang Facebook hoặc Zalo OA còn bật trả lời tự động riêng. Tắt đi để khách không nhận hai câu trả lời.",
 };
 
 export function healthCheck(

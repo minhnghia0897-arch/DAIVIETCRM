@@ -1,3 +1,4 @@
+import { HANDOFF_LABEL } from "@/lib/ai/labels";
 import { formatDue } from "@/lib/tasks/view";
 
 import { LEAD_STAGE_LABEL, leadSourceLabel } from "./labels";
@@ -35,6 +36,9 @@ const KIND: Record<string, string> = {
   lead_qualified: "Lead mới",
   conversation_assignment: "Giao hội thoại",
   lead_reverted: "Khách đang hỏi",
+  ai_handoff: "Trợ lý AI",
+  ai_takeover: "Trợ lý AI",
+  ai_release: "Trợ lý AI",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -80,8 +84,20 @@ export function describeEvent(
     case "lead_qualified":
       return {
         kind,
-        text: `Chuyển từ hội thoại ${payload.channel === "zalo" ? "Zalo OA" : "Messenger"} thành lead`,
+        text:
+          payload.by === "ai"
+            ? `Trợ lý AI chuyển khách thành lead (${HANDOFF_LABEL[str(payload.reason)] ?? "khách cần gọi"})`
+            : `Chuyển từ hội thoại ${payload.channel === "zalo" ? "Zalo OA" : "Messenger"} thành lead`,
       };
+    case "ai_handoff":
+      return {
+        kind,
+        text: `Trợ lý AI chuyển cho nhân viên: ${HANDOFF_LABEL[str(payload.reason)] ?? "AI chưa trả lời được"}`,
+      };
+    case "ai_takeover":
+      return { kind, text: "Nhân viên tiếp quản hội thoại, AI dừng" };
+    case "ai_release":
+      return { kind, text: "Trả hội thoại lại cho Trợ lý AI" };
     case "conversation_assignment":
       return {
         kind,
@@ -99,7 +115,9 @@ export function describeEvent(
         text:
           payload.via === "page"
             ? "Trả lời khách trên Page Facebook"
-            : `Trả lời khách qua Messenger${payload.tag === "HUMAN_AGENT" ? " (trả lời tay ngoài 24 giờ)" : ""}`,
+            : payload.ai_run_id
+              ? "Trợ lý AI trả lời khách qua Messenger"
+              : `Trả lời khách qua Messenger${payload.tag === "HUMAN_AGENT" ? " (trả lời tay ngoài 24 giờ)" : ""}`,
       };
     case "zalo_in":
       return { kind, text: "Khách nhắn tin qua Zalo OA" };
@@ -109,7 +127,9 @@ export function describeEvent(
         text:
           payload.via === "page"
             ? "Trả lời khách trên ứng dụng Zalo OA"
-            : `Trả lời khách qua Zalo OA${payload.tag === "paid" ? " (tin tính phí ngoài 48 giờ)" : ""}`,
+            : payload.ai_run_id
+              ? "Trợ lý AI trả lời khách qua Zalo OA"
+              : `Trả lời khách qua Zalo OA${payload.tag === "paid" ? " (tin tính phí ngoài 48 giờ)" : ""}`,
       };
     case "identity_added":
       return {

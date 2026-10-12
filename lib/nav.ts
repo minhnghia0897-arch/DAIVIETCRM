@@ -61,6 +61,7 @@ export const LIVE_SCREENS = [
   "/settings/audit",
   "/settings/notifications",
   "/settings/integrations",
+  "/settings/ai",
   "/settings/shifts",
   "/settings/assignment",
   "/settings/markets",
@@ -195,6 +196,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { href: "/settings/catalog", label: "Danh mục", perm: "catalog.view" },
   { href: "/settings/sales", label: "Bán hàng", perm: "settings.integrations" },
   { href: "/settings/integrations", label: "Tích hợp", perm: "settings.integrations" },
+  { href: "/settings/ai", label: "Trợ lý AI", perm: "settings.integrations" },
   { href: "/settings/audit", label: "Nhật ký kiểm toán", perm: "audit.view" },
 ];
 

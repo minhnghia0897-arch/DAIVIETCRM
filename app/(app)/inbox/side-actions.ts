@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
+import { runAutoReply } from "@/lib/ai/auto-reply";
 import { requireUser } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
 import { maskPhone, maskPhonesInText, normalizePhone } from "@/lib/phone";
 
@@ -278,4 +281,37 @@ export async function qualifyConversation(
   revalidatePath("/inbox");
   revalidatePath("/leads");
   return { ok: true, message: "Đã chuyển thành lead", leadId: data ?? undefined };
+}
+
+const aiSwitchSchema = z.object({ conversationId: z.uuid(), on: z.boolean() });
+
+/**
+ * Tiếp quản (AI dừng ở hội thoại, nhân viên trả lời) hoặc Trả lại AI (AI trả lời tiếp từ tin chưa trả lời của khách).
+ * Ai gửi được tin trên kênh của hội thoại thì bấm được (ai_takeover, ai_release; migration 20261012000300).
+ */
+export async function switchConversationAi(input: z.infer<typeof aiSwitchSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = aiSwitchSchema.safeParse(input);
+  if (!p.success) return { ok: false, message: "Không tìm thấy hội thoại." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc(p.data.on ? "ai_release" : "ai_takeover", {
+    p_conversation: p.data.conversationId,
+  });
+  if (error)
+    return {
+      ok: false,
+      message:
+        error.message === "ai_off"
+          ? "Trợ lý AI đang tắt trên kênh này. Owner bật ở Cài đặt, Trợ lý AI."
+          : error.code === "42501"
+            ? "Anh chị chưa được cấp quyền trả lời khách trên kênh này."
+            : friendly(error.code, error.message),
+    };
+  if (p.data.on) {
+    // Khách đang chờ trả lời thì AI trả lời luôn (sau khi trả kết quả cho người bấm).
+    after(() => runAutoReply(createAdminClient(), p.data.conversationId).then(() => undefined));
+  }
+  revalidatePath("/inbox");
+  return { ok: true, message: p.data.on ? "Đã trả lại cho AI" : "Đã tiếp quản, AI dừng ở hội thoại này" };
 }

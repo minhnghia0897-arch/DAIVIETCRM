@@ -48,7 +48,7 @@ describe("kết nối đấu nối", () => {
     // Page và form chọn sau khi đăng nhập nên chỉ còn thiếu khóa.
     expect(missingSummary(meta, initialState(meta))).toEqual(["App Secret của ứng dụng Meta"]);
     const ai = getIntegration("ai_llm");
-    // AI mặc định không bật chức năng nào; vẫn kết nối được khi đủ mô hình, giới hạn chi phí và khóa.
+    // AI mặc định chưa tự trả lời kênh nào; vẫn kết nối được khi đủ mô hình, giới hạn chi phí và khóa (tỷ giá có mặc định).
     expect(
       connectBlockers(ai, {
         ...initialState(ai),

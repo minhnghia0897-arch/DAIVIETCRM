@@ -6,11 +6,7 @@ import { z } from "zod";
 import { requireUser, requireWritable } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
-import { graphErrorMessage, sendText } from "@/lib/integrations/meta_messenger/api";
-import { messengerConfigForShowroom } from "@/lib/integrations/meta_messenger/config";
-import { sendCsText, zaloErrorMessage } from "@/lib/integrations/zalo_oa/api";
-import { zaloConfigForShowroom } from "@/lib/integrations/zalo_oa/config";
-import { ensureZaloToken } from "@/lib/integrations/zalo_oa/token";
+import { deliverQueuedReply } from "@/lib/integrations/deliver";
 
 import type { ActionResult } from "../settings/types";
 
@@ -83,31 +79,12 @@ async function sendZaloReply(input: z.output<typeof sendSchema>): Promise<Action
   });
   if (error || !data) return rpcFailure(error, "Zalo");
   const q = data as { message_id: string; user_id: string };
-
-  const admin = createAdminClient();
-  const cfg = await zaloConfigForShowroom(admin, user.showroomId);
-  let mid = "";
-  let fail: string | null = null;
-  const token = cfg
-    ? await ensureZaloToken(admin, cfg)
-    : { ok: false as const, message: "Zalo OA chưa kết nối." };
-  if (!token.ok) fail = token.message;
-  else {
-    try {
-      ({ messageId: mid } = await sendCsText({
-        accessToken: token.accessToken,
-        userId: q.user_id,
-        text: input.text.trim(),
-      }));
-    } catch (e) {
-      fail = zaloErrorMessage(e);
-    }
-  }
-  await admin.rpc("finish_channel_reply", {
-    p_message: q.message_id,
-    p_mid: mid,
-    p_error: fail ?? undefined,
-  });
+  const fail = await deliverQueuedReply(
+    createAdminClient(),
+    user.showroomId,
+    { messageId: q.message_id, channel: "zalo", userId: q.user_id },
+    input.text.trim(),
+  );
   revalidatePath("/inbox");
   return fail ? { ok: false, message: fail } : { ok: true, message: "Đã gửi" };
 }
@@ -133,31 +110,18 @@ async function sendMessengerReply(input: {
     messaging_type: "RESPONSE" | "MESSAGE_TAG";
     tag: string | null;
   };
-
-  const admin = createAdminClient();
-  const cfg = await messengerConfigForShowroom(admin, user.showroomId);
-  let mid = "";
-  let fail: string | null = null;
-  if (!cfg?.pageToken) fail = "Chưa có Page access token. Owner kết nối lại ở Cài đặt, Tích hợp.";
-  else {
-    try {
-      ({ mid } = await sendText({
-        pageToken: cfg.pageToken,
-        psid: q.psid,
-        text: text.trim(),
-        messagingType: q.messaging_type,
-        tag: q.tag === "HUMAN_AGENT" ? "HUMAN_AGENT" : null,
-        metadata: `crm:${q.message_id}`,
-      }));
-    } catch (e) {
-      fail = graphErrorMessage(e);
-    }
-  }
-  await admin.rpc("finish_channel_reply", {
-    p_message: q.message_id,
-    p_mid: mid,
-    p_error: fail ?? undefined,
-  });
+  const fail = await deliverQueuedReply(
+    createAdminClient(),
+    user.showroomId,
+    {
+      messageId: q.message_id,
+      channel: "messenger",
+      userId: q.psid,
+      messagingType: q.messaging_type,
+      tag: q.tag === "HUMAN_AGENT" ? "HUMAN_AGENT" : null,
+    },
+    text.trim(),
+  );
   revalidatePath("/inbox");
   return fail ? { ok: false, message: fail } : { ok: true, message: "Đã gửi" };
 }
