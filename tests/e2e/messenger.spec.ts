@@ -181,10 +181,15 @@ test("tin đến tạo hội thoại; sale admin trả lời trong khung 24 gi�
   await expect(log.getByText("✓")).toBeVisible();
   if (mock) expect(sent.at(-1)?.body).toMatchObject({ recipient: { id: PSID }, messaging_type: "RESPONSE" });
 
-  // Hồ sơ lead ghi tin nhắn trên dòng hoạt động, không lộ nội dung tin.
+  // Tin nhắn không tự thành lead (Owner chốt 12/10/2026): Sale admin thấy tiềm năng thì chuyển thành lead.
+  await expect(page.getByText(/Khách đang hỏi/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Chuyển thành lead" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã chuyển thành lead");
+
+  // Hồ sơ lead ghi việc chuyển thành lead trên dòng hoạt động, không lộ nội dung tin.
   await page.getByRole("link", { name: "Mở hồ sơ lead" }).click();
   await expect(page.getByText("Lead vào từ Tin nhắn Facebook").first()).toBeVisible();
-  await expect(page.getByText("Trả lời khách qua Messenger").first()).toBeVisible();
+  await expect(page.getByText("Chuyển từ hội thoại Messenger thành lead").first()).toBeVisible();
 });
 
 test("tin mới hiện ngay trên màn đang mở, không cần tải lại trang (Realtime)", async ({ page, browser }) => {
@@ -462,7 +467,12 @@ test("chuyển hội thoại thì form Lên đơn điền lại đúng khách đ
   const form = side.getByRole("form", { name: "Lên đơn" });
   const head = side.locator(".cv-info-top b").first();
 
+  // Khách thứ hai vừa nhắn nên là khách đang hỏi: chưa lên đơn được cho tới khi chuyển thành lead.
   await buttons.nth(0).click();
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  await expect(side.getByText(/Khách đang hỏi, chưa phải lead/)).toBeVisible();
+  await page.getByRole("button", { name: "Chuyển thành lead" }).click();
+  await expect(page.getByRole("link", { name: "Mở hồ sơ lead" })).toBeVisible();
   const first = (await head.innerText()).trim();
   await side.getByRole("tab", { name: /Lên đơn/ }).click();
   await expect(form.getByLabel("Họ tên người đặt")).toHaveValue(first);

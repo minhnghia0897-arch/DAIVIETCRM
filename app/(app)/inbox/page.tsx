@@ -17,12 +17,18 @@ import { vnMonthStart } from "@/lib/integrations/zalo_oa/window";
 
 import { assignLeads } from "../leads/actions";
 import { markConversationRead, sendReply } from "./actions";
-import { createContactTag, setConversationDone, toggleContactTag } from "./side-actions";
+import {
+  assignConversation,
+  createContactTag,
+  qualifyConversation,
+  setConversationDone,
+  toggleContactTag,
+} from "./side-actions";
 
 export const metadata: Metadata = { title: "Hội thoại · Đại Việt CRM" };
 
-// Hội thoại chung mọi kênh (Messenger, Zalo OA). RLS chỉ trả hội thoại của lead mình đang giữ, trừ người có
-// message.view_all (CLAUDE.md mục 5).
+// Hội thoại chung mọi kênh (Messenger, Zalo OA). RLS chỉ trả hội thoại của lead mình đang giữ, hoặc khách đang hỏi
+// (chưa có lead) được giao cho mình, trừ người có message.view_all (CLAUDE.md mục 5, 6).
 export default async function Page({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const user = await requireAnyPermission([
     "message.zalo_send",
@@ -35,7 +41,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const { data: convs } = await supabase
     .from("conversations")
     .select(
-      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, contact_id, contacts(full_name, country_of_residence)",
+      "id, channel, status, display_name, avatar_url, last_inbound_at, last_message_at, unread_count, lead_id, assigned_to, contact_id, contacts(full_name, country_of_residence)",
     )
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(100);
@@ -69,14 +75,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     ]);
   const tagsOf = (contactId: string | null) =>
     (contactTags ?? []).filter((t) => t.contact_id === contactId).map((t) => t.tag_id);
-  const holderIds = [
-    ...new Set((leads ?? []).map((l) => l.assigned_to).filter((x): x is string => Boolean(x))),
-  ];
+  const leadOf = (id: string | null) => leads?.find((l) => l.id === id);
+  // Người phụ trách: người giữ lead; khách đang hỏi (chưa có lead) thì người được giao hội thoại.
+  const holderOf = (x: (typeof list)[number]) =>
+    x.lead_id ? (leadOf(x.lead_id)?.assigned_to ?? null) : x.assigned_to;
+  const holderIds = [...new Set(list.map(holderOf).filter((x): x is string => Boolean(x)))];
   const { data: people } = holderIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", holderIds)
     : { data: [] as { id: string; full_name: string }[] };
   const nameOf = (id: string | null | undefined) => people?.find((p) => p.id === id)?.full_name ?? null;
-  const leadOf = (id: string | null) => leads?.find((l) => l.id === id);
 
   const last = new Map<string, { out: boolean; text: string }>();
   for (const m of recent ?? []) {
@@ -99,9 +106,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     preview: last.get(x.id) ?? null,
     leadId: x.lead_id,
     contactId: x.contact_id,
-    holderId: leadOf(x.lead_id)?.assigned_to ?? null,
-    holder: nameOf(leadOf(x.lead_id)?.assigned_to),
-    mine: leadOf(x.lead_id)?.assigned_to === user.id,
+    holderId: holderOf(x),
+    holder: nameOf(holderOf(x)),
+    mine: holderOf(x) === user.id,
     done: x.status === "done",
     tagIds: tagsOf(x.contact_id),
   }));
@@ -191,6 +198,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       tags={tags ?? []}
       assignees={canAssign ? (assignees ?? []).map((a) => ({ id: a.id, name: a.full_name })) : null}
       assign={assignLeads}
+      assignConv={canAssign ? assignConversation : undefined}
+      qualify={canAssign ? qualifyConversation : undefined}
       setDone={setConversationDone}
       toggleTag={toggleContactTag}
       createTag={createContactTag}

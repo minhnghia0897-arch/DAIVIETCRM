@@ -2,7 +2,7 @@
 -- Chạy: pnpm test:rls. Dữ liệu giả: Owner …0001, sale admin …0002, telesale Thảo …0003, An …0004 (cả hai đang trực).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(47);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -49,16 +49,20 @@ values ('4a000000-0000-4000-8000-000000000004', 'meta_messenger', 'connected', t
 select is(public.process_messenger_event(pg_temp.hook('m.1', '9001', 'Chào shop, ghế DV-X9 giá bao nhiêu?'), 'Trần Mai'),
   'processed', 'tin đầu từ người lạ được xử lý');
 insert into t select 'conv', id::text from public.conversations where external_user_id = '9001';
-insert into t select 'lead', lead_id::text from public.conversations where external_user_id = '9001';
-insert into t select 'holder', assigned_to::text from public.leads where id = (select v::uuid from t where k = 'lead');
+-- Khách đang hỏi (20261012000200_inquiries): chưa có lead, hội thoại giao cho telesale đang trực.
+insert into t select 'holder', assigned_to::text from public.conversations where external_user_id = '9001';
 
 select is((select c.full_name from public.contacts c join public.contact_identities ci on ci.contact_id = c.id
            where ci.type = 'fb_psid' and ci.value = '9001'), 'Trần Mai', 'tạo khách có định danh Facebook');
-select is((select source from public.leads where id = (select v::uuid from t where k = 'lead')), 'meta_messenger',
-  'tạo lead nguồn Tin nhắn Facebook');
+select ok((select lead_id is null from public.conversations where external_user_id = '9001')
+          and not exists (select 1 from public.leads l join public.conversations c on c.contact_id = l.contact_id
+                          where c.external_user_id = '9001'),
+  'tin của người lạ không tự thành lead');
 select ok((select v from t where k = 'holder') in ('11111111-1111-4111-8111-000000000003',
                                                    '11111111-1111-4111-8111-000000000004'),
-  'lead được phân cho người đang trực');
+  'hội thoại được chia cho người đang trực');
+select is((select c.lifecycle_stage from public.contacts c join public.conversations v on v.contact_id = c.id
+           where v.external_user_id = '9001'), 'stranger', 'khách đang hỏi ở giai đoạn Người lạ');
 select ok(exists (select 1 from public.consents c join public.conversations v on v.contact_id = c.contact_id
                   where v.external_user_id = '9001' and c.purpose = 'care' and c.channel = 'messenger' and c.granted),
   'ghi căn cứ chăm sóc trên kênh Messenger');
@@ -70,11 +74,11 @@ select is(public.process_messenger_event((select id from public.webhook_events w
 
 select is(public.process_messenger_event(pg_temp.hook('m.2', '9001', 'Shop ơi')), 'processed', 'tin thứ hai');
 select is((select count(*)::int from public.leads where contact_id =
-           (select contact_id from public.conversations where external_user_id = '9001')), 1,
-  'tin tiếp theo không tạo lead mới');
+           (select contact_id from public.conversations where external_user_id = '9001')), 0,
+  'tin tiếp theo cũng không tạo lead');
 select is((select unread_count from public.conversations where external_user_id = '9001'), 2, 'hai tin chưa đọc');
-select is((select count(*)::int from public.notifications where type = 'message_in'), 0,
-  'không báo lại khi hội thoại đang có tin chưa đọc');
+select is((select string_agg(user_id::text, ',') from public.notifications where type = 'message_in'),
+  (select v from t where k = 'holder'), 'báo người được giao một lần, tin sau khi chưa đọc không báo lại');
 
 select is(public.process_messenger_event(pg_temp.hook('m.3', '9002', 'x', page => '999')), 'ignored',
   'Page chưa kết nối thì bỏ qua');
@@ -122,11 +126,30 @@ select throws_ok(format($$ select public.queue_messenger_reply(%L, '   ') $$, (s
 select pg_temp.logout();
 select public.finish_messenger_reply((select (v::jsonb ->> 'message_id')::uuid from t where k = 'r1'), 'm.out.1');
 select is((select status from public.messages where external_message_id = 'm.out.1'), 'sent', 'gửi xong ghi mã tin');
-select ok((select first_contact_at is not null and stage = 'contacted' from public.leads
-           where id = (select v::uuid from t where k = 'lead')), 'tin đi đầu tiên dừng SLA, lead sang Đã liên hệ');
 select is((select actor_id::text from public.events where type = 'messenger_out'
-           and lead_id = (select v::uuid from t where k = 'lead')), (select v from t where k = 'holder'),
+           and payload ->> 'conversation_id' = (select v from t where k = 'conv')), (select v from t where k = 'holder'),
   'sự kiện tin đi ghi người gửi');
+
+-- ---------------------------------------------------------------------------
+-- Chuyển thành lead
+-- ---------------------------------------------------------------------------
+select pg_temp.login((select v::uuid from t where k = 'holder'));
+select throws_ok(format($$ select public.qualify_conversation(%L) $$, (select v from t where k = 'conv')),
+  '42501', null, 'telesale không tự chuyển khách đang hỏi thành lead');
+select pg_temp.login('11111111-1111-4111-8111-000000000002');
+insert into t select 'lead', public.qualify_conversation((select v::uuid from t where k = 'conv'))::text;
+select is((select assigned_to::text from public.leads where id = (select v::uuid from t where k = 'lead')),
+  (select v from t where k = 'holder'), 'Sale admin chuyển thành lead: lead giao cho người đang trả lời');
+select ok((select first_contact_at is not null and stage = 'contacted' and sla_due_at is null from public.leads
+           where id = (select v::uuid from t where k = 'lead')), 'đã trả lời khách nên lead tính là Đã liên hệ');
+select ok((select source = 'meta_messenger' from public.leads where id = (select v::uuid from t where k = 'lead'))
+          and (select lead_id::text from public.conversations where external_user_id = '9001') = (select v from t where k = 'lead'),
+  'lead nguồn Tin nhắn Facebook, gắn vào hội thoại');
+select is((select c.lifecycle_stage from public.contacts c join public.conversations v on v.contact_id = c.id
+           where v.external_user_id = '9001'), 'lead', 'khách sang giai đoạn Lead');
+select is(public.qualify_conversation((select v::uuid from t where k = 'conv'))::text, (select v from t where k = 'lead'),
+  'bấm lại không tạo lead thứ hai');
+select pg_temp.logout();
 
 -- Bản sao "echo" của tin CRM gửi không tạo tin thứ hai.
 select is(public.process_messenger_event(pg_temp.hook('m.out.1', '9001', 'Dạ em chào chị', echo => true,

@@ -1195,6 +1195,8 @@ export type Database = {
       };
       conversations: {
         Row: {
+          assigned_at: string | null;
+          assigned_to: string | null;
           avatar_checked_at: string | null;
           avatar_url: string | null;
           channel: string;
@@ -1217,6 +1219,8 @@ export type Database = {
           can_see_conversation: boolean | null;
         };
         Insert: {
+          assigned_at?: string | null;
+          assigned_to?: string | null;
           avatar_checked_at?: string | null;
           avatar_url?: string | null;
           channel: string;
@@ -1238,6 +1242,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          assigned_at?: string | null;
+          assigned_to?: string | null;
           avatar_checked_at?: string | null;
           avatar_url?: string | null;
           channel?: string;
@@ -1259,6 +1265,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "conversations_contact_id_fkey";
             columns: ["contact_id"];
@@ -5057,6 +5070,8 @@ export type Database = {
           p_text: string;
         };
         Returns: {
+          assigned_at: string | null;
+          assigned_to: string | null;
           avatar_checked_at: string | null;
           avatar_url: string | null;
           channel: string;
@@ -5139,6 +5154,7 @@ export type Database = {
         };
       };
       assert_writer: { Args: Record<PropertyKey, never>; Returns: string };
+      assign_conversation: { Args: { p_assignee: string; p_conversation: string }; Returns: undefined };
       assign_leads: {
         Args: { p_assignee: string; p_lead_ids: string[]; p_reason?: string };
         Returns: number;
@@ -5307,6 +5323,7 @@ export type Database = {
         Returns: string;
       };
       purge_webhook_events: { Args: Record<PropertyKey, never>; Returns: number };
+      qualify_conversation: { Args: { p_assignee?: string; p_conversation: string }; Returns: string };
       queue_messenger_reply: {
         Args: { p_conversation: string; p_human_agent?: boolean; p_text: string };
         Returns: Json;
@@ -5352,8 +5369,10 @@ export type Database = {
       reusable_lead_for: { Args: { p_contact: string }; Returns: string };
       reveal_identity: { Args: { p_identity_id: string; p_lead_id?: string }; Returns: string };
       revoke_my_telegram_link: { Args: Record<PropertyKey, never>; Returns: boolean };
+      route_conversation: { Args: { p_conversation: string }; Returns: string };
       route_lead: { Args: { p_lead_id: string }; Returns: string };
       route_no_receiver_leads: { Args: { p_showroom_id: string }; Returns: number };
+      route_unassigned_conversations: { Args: { p_showroom_id: string }; Returns: number };
       route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
       save_campaign: { Args: { p: Json }; Returns: string };
       save_combo: { Args: { p: Json }; Returns: string };

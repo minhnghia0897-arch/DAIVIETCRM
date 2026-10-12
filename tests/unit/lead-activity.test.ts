@@ -27,6 +27,25 @@ describe("dòng hoạt động của lead", () => {
     );
   });
 
+  it("khách đang hỏi: chuyển thành lead, giao hội thoại, lead tin nhắn đưa về khách đang hỏi", () => {
+    expect(describeEvent("lead_qualified", { channel: "messenger" }, ctx)).toEqual({
+      kind: "Lead mới",
+      text: "Chuyển từ hội thoại Messenger thành lead",
+    });
+    expect(describeEvent("lead_qualified", { channel: "zalo" }, ctx).text).toBe(
+      "Chuyển từ hội thoại Zalo OA thành lead",
+    );
+    expect(describeEvent("conversation_assignment", { to: "u1", reason: "auto" }, ctx).text).toBe(
+      "Giao hội thoại cho Thảo (người đang trực)",
+    );
+    expect(describeEvent("conversation_assignment", { to: null }, ctx).text).toBe(
+      "Bỏ người phụ trách hội thoại",
+    );
+    expect(describeEvent("lead_reverted", {}, ctx).text).toBe(
+      "Lead tự tạo từ tin nhắn được đưa về khách đang hỏi",
+    );
+  });
+
   it("ghi chú từ Telegram kèm ảnh", () => {
     expect(describeEvent("note", { channel: "telegram", file: "a/b.jpg" }, ctx)).toEqual({
       kind: "Ghi chú",

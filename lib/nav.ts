@@ -10,12 +10,17 @@ export const NAV_SECTIONS: { key: NavSection; label: string }[] = [
   { key: "admin", label: "Quản trị" },
 ];
 
+/** Bản demo tĩnh (GitHub Pages, DEMO_EXPORT=1) giữ đủ menu của bản mẫu; bản thật ẩn các màn đã bỏ. */
+export const IS_DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
+
 export interface NavTab {
   href: string;
   label: string;
   section: NavSection;
   anyOf: string[];
   ready: boolean;
+  /** Chỉ hiện ở bản demo: màn mô phỏng của bản mẫu mà bản thật không dùng. */
+  demoOnly?: boolean;
   /** Tab gom nhiều màn hình: hiện thành tab con, mỗi tab con theo quyền riêng. */
   children?: { href: string; label: string; perm: string }[];
 }
@@ -96,12 +101,15 @@ export const NAV_TABS: NavTab[] = [
     anyOf: ["lead.view_own", "lead.view_all"],
     ready: true,
   },
+  // Owner chốt 12/10/2026: lead đã có đủ giai đoạn tới đặt cọc, thắng (lead chính là cơ hội), nên bản thật chỉ giữ
+  // menu Lead; hộ gia đình ẩn ở giai đoạn này (dữ liệu hộ vẫn giữ).
   {
     href: "/opportunities",
     label: "Cơ hội",
     section: "sales",
     anyOf: ["lead.view_own", "lead.view_all"],
     ready: true,
+    demoOnly: true,
   },
   {
     href: "/households",
@@ -109,6 +117,7 @@ export const NAV_TABS: NavTab[] = [
     section: "sales",
     anyOf: ["lead.view_own", "lead.view_all"],
     ready: true,
+    demoOnly: true,
   },
   {
     href: "/orders",
@@ -190,7 +199,9 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 ];
 
 export function visibleTabs(perms: ReadonlySet<string>): NavTab[] {
-  return NAV_TABS.filter((t) => t.ready && (t.anyOf.length === 0 || t.anyOf.some((p) => perms.has(p))))
+  return NAV_TABS.filter(
+    (t) => t.ready && (!t.demoOnly || IS_DEMO) && (t.anyOf.length === 0 || t.anyOf.some((p) => perms.has(p))),
+  )
     .map((t) => {
       if (!t.children) return t;
       // Tab gom: chỉ giữ tab con có quyền, tab chính trỏ tới tab con đầu tiên được xem.

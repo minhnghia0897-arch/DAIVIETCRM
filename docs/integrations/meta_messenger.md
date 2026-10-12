@@ -139,11 +139,13 @@ showroom nên bản này kết nối bằng cách dán khóa; khi có Facebook L
 - **Tin nhân viên trả lời ngoài CRM:** Meta gửi bản sao (`message_echoes`, `app_id` là hộp thư Page khi gửi từ Meta
   Business Suite hoặc ứng dụng Messenger); CRM ghi là tin đi "từ Page" vào đúng hội thoại. Đúng thì ghi từng tin vào `webhook_events` (chống trùng theo mã tin),
   trả `200`, xử lý ngay sau khi trả lời; job mỗi phút (`messenger-backlog`) xử lý lại tin còn sót.
-- **Khách và lead:** tin đầu từ người lạ tạo khách với định danh `fb_psid`, căn cứ đồng ý chăm sóc trên kênh Messenger
-  (khách tự nhắn), và lead nguồn "Tin nhắn Facebook" rồi phân như mọi lead. Khách đã có lead mở (hoặc thất bại chưa quá
-  30 ngày) thì nối vào lead đó. Tên khách lấy từ Graph API nếu Meta cho; không được thì để "Khách Messenger" kèm 4 số cuối.
-- **Ai xem:** người có `message.view_all` thấy mọi hội thoại; người khác chỉ thấy hội thoại của lead mình đang giữ.
-  Chuyển lead đi thì mất quyền xem ngay.
+- **Khách và lead (đổi 12/10/2026):** tin đầu từ người lạ tạo khách với định danh `fb_psid`, căn cứ đồng ý chăm sóc
+  trên kênh Messenger (khách tự nhắn) và hội thoại, **chưa tạo lead** ("khách đang hỏi"). Hội thoại chia vòng cho
+  telesale đang trực (`conversations.assigned_to`); Sale admin, Owner bấm **Chuyển thành lead** khi thấy tiềm năng,
+  lead nguồn "Tin nhắn Facebook" giao cho người đang trả lời. Khách đã có lead mở (hoặc thất bại chưa quá 30 ngày) thì
+  nối vào lead đó. Tên khách lấy từ Graph API nếu Meta cho; không được thì để "Khách Messenger" kèm 4 số cuối.
+- **Ai xem:** người có `message.view_all` thấy mọi hội thoại; người khác thấy hội thoại của lead mình đang giữ, hoặc
+  hội thoại khách đang hỏi được giao cho mình. Chuyển lead, chuyển hội thoại đi thì mất quyền xem ngay.
 - **Trả lời:** cần quyền `message.messenger_send` (mặc định Owner, Sale admin, Telesale). Database kiểm: khung 24 giờ
   (gửi dạng trả lời), từ 24 giờ tới 7 ngày chỉ khi nhân viên đánh dấu tự trả lời đúng việc khách hỏi (thẻ
   `HUMAN_AGENT`), quá 7 ngày không gửi; chế độ trả lời (chỉ đọc khi trả lời ở công cụ khác); đồng ý chưa bị rút; khách

@@ -157,7 +157,15 @@ export function InboxLiveSide({
             <Addresses side={side} run={run} pending={pending} />
           </div>
         ) : tab === "order" ? (
-          <OrderTab side={side} channel={channel} />
+          side.lead ? (
+            <OrderTab side={side} channel={channel} />
+          ) : (
+            // Khách đang hỏi: báo giá, đơn đi theo lead (nguồn quảng cáo, người bán), nên chuyển thành lead trước.
+            <p className="cv-empty">
+              Khách đang hỏi, chưa phải lead. Sale admin bấm Chuyển thành lead ở đầu hội thoại rồi mới lên
+              đơn, báo giá.
+            </p>
+          )
         ) : (
           <Notes side={side} run={run} pending={pending} />
         )}

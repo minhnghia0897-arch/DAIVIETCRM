@@ -32,6 +32,9 @@ const KIND: Record<string, string> = {
   zalo_in: "Zalo",
   zalo_out: "Zalo",
   identity_added: "Định danh",
+  lead_qualified: "Lead mới",
+  conversation_assignment: "Giao hội thoại",
+  lead_reverted: "Khách đang hỏi",
 };
 
 const MERGE_REASON: Record<string, string> = {
@@ -74,6 +77,20 @@ export function describeEvent(
         : "";
       return { kind, text: `Chưa gọi khi hết hạn${late ? `, trễ ${late} phút` : ""}${who}` };
     }
+    case "lead_qualified":
+      return {
+        kind,
+        text: `Chuyển từ hội thoại ${payload.channel === "zalo" ? "Zalo OA" : "Messenger"} thành lead`,
+      };
+    case "conversation_assignment":
+      return {
+        kind,
+        text: payload.to
+          ? `Giao hội thoại cho ${who(payload.to)}${payload.reason === "auto" ? " (người đang trực)" : ""}`
+          : "Bỏ người phụ trách hội thoại",
+      };
+    case "lead_reverted":
+      return { kind, text: "Lead tự tạo từ tin nhắn được đưa về khách đang hỏi" };
     case "messenger_in":
       return { kind, text: "Khách nhắn tin qua Messenger" };
     case "messenger_out":
