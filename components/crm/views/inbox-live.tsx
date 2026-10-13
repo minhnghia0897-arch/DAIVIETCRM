@@ -137,6 +137,7 @@ export function InboxLive({
   side = null,
   blockers,
   paidThisMonth,
+  humanAgent = false,
   send,
   markRead,
   tags = [],
@@ -158,6 +159,11 @@ export function InboxLive({
   blockers: Record<Channel, string | null>;
   /** Tin Zalo tính phí đã gửi trong tháng. */
   paidThisMonth: number;
+  /**
+   * Messenger ngoài 24 giờ: Owner cho nhân viên trả lời tay bằng thẻ Human Agent (Cài đặt, Tích hợp). Mặc định tắt:
+   * quá 24 giờ thì không gửi qua CRM để Page không bị Meta hạn chế (database cũng chặn).
+   */
+  humanAgent?: boolean;
   send: (input: { conversationId: string; text: string; confirm: boolean }) => Promise<Result>;
   markRead: (input: { conversationId: string }) => Promise<void>;
   /** Danh mục thẻ của showroom. */
@@ -334,9 +340,14 @@ export function InboxLive({
   const win = c?.channel === "messenger" ? replyWindow(c.lastInboundAt, now) : null;
   const zwin = c?.channel === "zalo" ? zaloWindow(c.lastInboundAt, now) : null;
   const blocker = c ? blockers[c.channel] : null;
+  // Messenger quá 24 giờ mà Owner chưa cho trả lời tay: khóa ô soạn, nhắc gọi điện.
+  const past24 = win?.mode === "human_agent" && !humanAgent;
   // Cần xác nhận trước khi gửi: Messenger ngoài 24 giờ (trả lời tay), Zalo ngoài 48 giờ (tin tính phí).
-  const needConfirm = win?.mode === "human_agent" || zwin?.mode === "paid";
-  const closed = win?.mode === "closed" || zwin?.mode === "closed";
+  const needConfirm = (win?.mode === "human_agent" && humanAgent) || zwin?.mode === "paid";
+  const closed = win?.mode === "closed" || past24 || zwin?.mode === "closed";
+  // Sắp hết khung 24 giờ: nhắc xin số hoặc mời khách sang Zalo OA trước khi hết (CLAUDE.md 10.5).
+  const closingSoon =
+    win?.mode === "response" && win.endsAt.getTime() - now.getTime() < 2 * 3_600_000 ? win : null;
 
   function act(fn: () => Promise<Result>) {
     start(async () => {
@@ -563,14 +574,16 @@ export function InboxLive({
                     ) : null}
                     {win ? (
                       <span
-                        className={`cv-st ${win.mode === "response" ? "is-ok" : win.mode === "human_agent" ? "is-warn" : "is-err"}`}
+                        className={`cv-st ${win.mode === "response" ? (closingSoon ? "is-warn" : "is-ok") : win.mode === "human_agent" && humanAgent ? "is-warn" : "is-err"}`}
                       >
                         {" · "}
                         {win.mode === "response"
                           ? `Khung 24 giờ ${timeLeft(win.endsAt, now)}`
-                          : win.mode === "human_agent"
+                          : win.mode === "human_agent" && humanAgent
                             ? `Hết khung 24 giờ, trả lời tay ${timeLeft(win.endsAt, now)}`
-                            : "Đã hết khung nhắn tin"}
+                            : win.mode === "human_agent"
+                              ? "Đã hết khung 24 giờ"
+                              : "Đã hết khung nhắn tin"}
                       </span>
                     ) : null}
                     {zwin ? (
@@ -777,10 +790,12 @@ export function InboxLive({
             {blocker ? (
               <p className="tg-readonly">{blocker}.</p>
             ) : closed ? (
-              <p className="tg-readonly">
+              <p className={`tg-readonly ${past24 ? "cv-warn" : ""}`} role={past24 ? "alert" : undefined}>
                 {c.channel === "zalo"
                   ? "Khách chưa nhắn cho OA nên chưa gửi được tin tư vấn. Gọi điện hoặc mời khách nhắn OA."
-                  : "Đã quá 7 ngày sau tin cuối của khách, Messenger không cho nhắn nữa. Gọi điện hoặc chờ khách nhắn lại."}
+                  : past24
+                    ? "Khách nhắn lần cuối đã quá 24 giờ. Để Page không bị Meta hạn chế, không gửi tin Messenger qua CRM nữa. Gọi điện cho khách hoặc chờ khách nhắn lại."
+                    : "Đã quá 7 ngày sau tin cuối của khách, Messenger không cho nhắn nữa. Gọi điện hoặc chờ khách nhắn lại."}
               </p>
             ) : (
               <form
@@ -790,6 +805,13 @@ export function InboxLive({
                   submit();
                 }}
               >
+                {closingSoon ? (
+                  <p className="cv-warn px-2 pb-1 text-sm" role="status">
+                    Còn {timeLeft(closingSoon.endsAt, now).replace(/^còn /, "")} là hết khung 24 giờ. Sau đó
+                    CRM không gửi được tin Messenger cho khách này: xin số điện thoại hoặc mời khách nhắn Zalo
+                    OA trước khi hết giờ.
+                  </p>
+                ) : null}
                 {needConfirm ? (
                   <label className="flex items-start gap-2 px-2 pb-1 text-sm">
                     <input

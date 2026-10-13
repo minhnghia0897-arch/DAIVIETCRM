@@ -299,13 +299,31 @@ export const integrations = [
       },
       { key: "one_reply_place", label: "Page này không còn được trả lời ở Pancake hoặc công cụ khác" },
     ],
-    configSchema: z.object({ pageId: digits("ID Page là dãy số") }),
+    configSchema: z.object({
+      pageId: digits("ID Page là dãy số"),
+      humanAgent: z.enum(["off", "on"]).optional(),
+    }),
     secrets: ["messenger_app_secret", "messenger_page_access_token", "messenger_verify_token"],
     // Chưa có ứng dụng đăng nhập Facebook đứng tên showroom (câu hỏi mở 6): Owner dán Page access token lấy trong
     // ứng dụng Meta. Khi có Facebook Login for Business thì đổi sang "oauth".
     connectMode: "api_key",
     configFields: [
       { key: "pageId", label: "ID Page Facebook", kind: "text", placeholder: "Ví dụ 104857300000001" },
+      // Owner chốt 13/10/2026: mặc định không gửi tin ngoài 24 giờ để Page không bị Meta hạn chế. Database kiểm
+      // (queue_messenger_reply); Trợ lý AI luôn chỉ nhắn trong 24 giờ.
+      {
+        key: "humanAgent",
+        label: "Khách nhắn lần cuối quá 24 giờ",
+        kind: "select",
+        default: "off",
+        options: [
+          { value: "off", label: "Không gửi qua CRM (an toàn, mặc định)" },
+          {
+            value: "on",
+            label: "Cho nhân viên trả lời tay tới 7 ngày (thẻ Human Agent, cần Meta duyệt quyền)",
+          },
+        ],
+      },
     ],
     secretLabels: {
       messenger_app_secret: "App Secret của ứng dụng Meta (kiểm chữ ký webhook)",

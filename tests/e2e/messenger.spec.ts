@@ -229,14 +229,14 @@ async function post(page: Page, body: unknown, secret = APP_SECRET) {
   );
 }
 
-const inbound = (mid: string, text: string, sender = PSID) => ({
+const inbound = (mid: string, text: string, sender = PSID, at = Date.now()) => ({
   object: "page",
   entry: [
     {
       id: PAGE_ID,
-      time: Date.now(),
+      time: at,
       messaging: [
-        { sender: { id: sender }, recipient: { id: PAGE_ID }, timestamp: Date.now(), message: { mid, text } },
+        { sender: { id: sender }, recipient: { id: PAGE_ID }, timestamp: at, message: { mid, text } },
       ],
     },
   ],
@@ -351,6 +351,23 @@ test("tin mới hiện ngay trên màn đang mở, không cần tải lại tran
   await other.close();
   // Hỏi định kỳ đã bỏ (5 phút mới hỏi lại): tin hiện được trong vài giây chỉ có thể nhờ Realtime.
   await expect(log.getByText("Shop ơi còn đó không?")).toBeVisible({ timeout: 15_000 });
+});
+
+test("khách nhắn lần cuối quá 24 giờ: không gửi tin Messenger qua CRM, có cảnh báo", async ({ page }) => {
+  // Khách riêng của bài này, nhắn lần cuối 30 giờ trước. Mặc định Owner chưa cho trả lời tay ngoài 24 giờ.
+  const opener = `Quá 24 giờ ${PSID}`;
+  expect(await post(page, inbound(`m.old.${PSID}`, opener, `${PSID}3`, Date.now() - 30 * 3_600_000))).toBe(
+    200,
+  );
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  const item = page.getByRole("list", { name: "Danh sách hội thoại" }).getByRole("button", { name: opener });
+  await expect(item).toBeVisible({ timeout: 15_000 });
+  await item.click();
+  await expect(page.getByRole("log", { name: "Tin nhắn" }).getByText(opener)).toBeVisible();
+  await expect(page.getByText("Đã hết khung 24 giờ")).toBeVisible();
+  await expect(page.getByText(/quá 24 giờ\. Để Page không bị Meta hạn chế/)).toBeVisible();
+  await expect(page.getByLabel("Nội dung trả lời")).toHaveCount(0);
 });
 
 test("ảnh khách gửi hiện trong khung chat; bấm Enter hai lần chỉ gửi một tin", async ({ page }) => {

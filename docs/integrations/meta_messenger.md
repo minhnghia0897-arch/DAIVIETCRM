@@ -57,6 +57,12 @@ Các điểm dưới đây kiểm lại ngày 08/10/2026 và đọc trực tiế
 - **Ngoài 24 giờ:** chỉ còn thẻ **Human Agent**: nhân viên trả lời tay trong **7 ngày**, chỉ để giải quyết đúng việc
   khách hỏi, cấm tin tự động và nội dung không liên quan. Các thẻ `CONFIRMED_EVENT_UPDATE`, `ACCOUNT_UPDATE`,
   `POST_PURCHASE_UPDATE` đã ngừng từ 10/02/2026, không dùng.
+- **Ngoài 24 giờ trên CRM (Owner chốt 13/10/2026):** mặc định **không gửi**, kể cả nhân viên trả lời tay, để Page không
+  bị Meta hạn chế. Hội thoại hiện "Đã hết khung 24 giờ", ô soạn khóa và nhắc gọi điện; còn dưới 2 giờ thì nhắc xin số
+  hoặc mời khách sang Zalo OA. Database chặn ở `queue_messenger_reply` (mã `window_24h`, migration
+  `20261013000100_messenger_24h_only.sql`). Owner bật lại ở Cài đặt, Tích hợp, Tin nhắn Facebook, ô "Khách nhắn lần
+  cuối quá 24 giờ" khi ứng dụng Meta đã được duyệt dùng thẻ Human Agent. Trợ lý AI luôn chỉ nhắn trong 24 giờ
+  (`ai_channel_block`), không theo ô này.
 
 ## Chưa kiểm
 

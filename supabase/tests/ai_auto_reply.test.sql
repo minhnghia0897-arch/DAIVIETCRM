@@ -5,7 +5,7 @@
 -- Dữ liệu giả: Owner …0001, sale admin …0002, telesale Thảo …0003, An …0004 (cả hai đang trực).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(33);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -151,6 +151,18 @@ select pg_temp.inbound('ai.5', '9904');
 update public.ai_runs set cost_vnd = 200000 where id = (select v::uuid from t where k = 'run');
 select ok((public.start_ai_run((select id from public.conversations where external_user_id = '9904')) ->> 'budget_exceeded')::boolean,
   'chạm giới hạn chi phí tháng thì đánh dấu hết ngân sách');
+
+-- Khung 24 giờ của Messenger: khách nhắn lần cuối quá 24 giờ thì AI không mở lượt; hết khung đúng lúc AI đang soạn thì
+-- database không cho gửi (tránh Page bị Meta hạn chế).
+select pg_temp.inbound('ai.7', '9906');
+update public.conversations set last_inbound_at = now() - interval '25 hours' where external_user_id = '9906';
+select is(public.start_ai_run((select id from public.conversations where external_user_id = '9906')) ->> 'skip',
+  'window_closed', 'khách nhắn lần cuối quá 24 giờ: AI không trả lời');
+select pg_temp.inbound('ai.8', '9907');
+insert into t select 'run8', public.start_ai_run((select id from public.conversations where external_user_id = '9907')) ->> 'run_id';
+update public.conversations set last_inbound_at = now() - interval '25 hours' where external_user_id = '9907';
+select throws_ok(format($$ select public.queue_ai_reply(%L, 'Dạ em chào chị') $$, (select v from t where k = 'run8')),
+  'P0001', 'window_closed', 'hết khung 24 giờ trong lúc AI soạn: không gửi');
 
 -- Tắt AI cho kênh: hội thoại không còn do AI phụ trách, Trả lại AI bị từ chối.
 update public.integrations set config = config || '{"autoReply":[]}' where key = 'ai_llm';

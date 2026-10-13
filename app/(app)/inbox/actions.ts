@@ -17,6 +17,8 @@ import type { ActionResult } from "../settings/types";
 const REASON: Record<string, string> = {
   window_closed:
     "Đã quá 7 ngày sau tin cuối của khách, Messenger không cho nhắn nữa. Mời khách nhắn lại hoặc gọi điện.",
+  window_24h:
+    "Khách nhắn lần cuối đã quá 24 giờ. Để Page không bị Meta hạn chế, CRM không gửi tin Messenger ngoài 24 giờ. Gọi điện hoặc chờ khách nhắn lại.",
   human_agent_only:
     "Đã quá 24 giờ sau tin cuối của khách: chỉ gửi được khi nhân viên tự trả lời đúng việc khách hỏi (đánh dấu Trả lời tay).",
   reply_mode_external: "Kênh này đang được trả lời ở công cụ khác, CRM chỉ đọc.",
