@@ -1,6 +1,9 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { requireWritable } from "@/lib/auth/session";
@@ -22,6 +25,9 @@ import { MESSENGER_KEY, messengerConfigForShowroom } from "@/lib/integrations/me
 import { oaOfToken, zaloErrorMessage } from "@/lib/integrations/zalo_oa/api";
 import { ZALO_KEY, zaloConfigForShowroom } from "@/lib/integrations/zalo_oa/config";
 import { ensureZaloToken } from "@/lib/integrations/zalo_oa/token";
+import { linkBase, telegramApi, TelegramError, type TelegramApi } from "@/lib/integrations/telegram_bot/api";
+import { BOT_COMMANDS } from "@/lib/integrations/telegram_bot/commands";
+import { TELEGRAM_KEY, telegramConfig } from "@/lib/integrations/telegram_bot/config";
 import { integrations, type IntegrationDefinition } from "@/lib/integrations/registry";
 
 import type { ActionResult } from "../types";
@@ -146,7 +152,7 @@ export async function checkIntegration(input: { key: string }): Promise<ActionRe
   if (!probe)
     return { ok: false, message: `Bộ nối ${d.name} chưa được viết, chưa kiểm tra được kết nối thật.` };
 
-  const r = await probe(d, user.showroomId);
+  const r = await probe(d, user.showroomId, user.id);
   const supabase = await createClient();
   const now = new Date().toISOString();
   await supabase
@@ -175,12 +181,117 @@ export async function checkIntegration(input: { key: string }): Promise<ActionRe
 type Probe = (
   d: IntegrationDefinition,
   showroomId: string,
+  userId: string,
 ) => Promise<{ error: string } | { done: string; replyMode: string | null }>;
+
+/** Lỗi Telegram viết bằng lời Owner hiểu được, kèm cách xử lý. Không bao giờ có token trong câu. */
+function telegramErrorMessage(e: unknown): string {
+  if (e instanceof TelegramError) {
+    if (e.code === 401 || e.code === 404)
+      return "Token không đúng hoặc đã bị thu hồi. Mở @BotFather, chọn bot, lấy token mới rồi dán lại.";
+    if (e.code === 400 && /https|webhook/i.test(e.message))
+      return "Telegram không nhận địa chỉ CRM này làm webhook. Mở CRM bằng tên miền https rồi kết nối lại.";
+    if (e.code === 429) return "Telegram đang giới hạn số lần gọi, đợi một phút rồi kết nối lại.";
+    return "Telegram từ chối yêu cầu. Kiểm tra lại token và thử lại sau ít phút.";
+  }
+  return "Không gọi được Telegram, thử lại sau ít phút.";
+}
 
 const short = (d: IntegrationDefinition, n: string) => (d.secretLabels?.[n] ?? n).replace(/\s*\(.*\)$/, "");
 const missingMessage = (items: string[]) => ({ error: `Chưa đủ để kết nối: ${items.join(", ")}.` });
 
 const PROBES: Record<string, Probe> = {
+  // Token đúng (getMe), nối webhook về CRM kèm mã bí mật, đăng ký menu lệnh, rồi gửi tin thử tới người bấm nếu họ đã
+  // liên kết Telegram. Mã bí mật webhook Owner để trống thì CRM tự tạo và cất vào kho bí mật.
+  [TELEGRAM_KEY]: async (d, showroomId, userId) => {
+    const admin = createAdminClient();
+    const cfg = await telegramConfig(admin);
+    if (!cfg?.token) return missingMessage([short(d, "telegram_bot_token")]);
+    let api: TelegramApi;
+    try {
+      api = telegramApi(cfg.token);
+    } catch {
+      return { error: "Token không đúng dạng. Token lấy ở @BotFather có dạng 123456789:ABC…" };
+    }
+    let me: { username?: string };
+    try {
+      me = await api.call<{ username?: string }>("getMe");
+    } catch (e) {
+      return { error: telegramErrorMessage(e) };
+    }
+
+    let secret = cfg.webhookSecret;
+    if (!secret) {
+      secret = randomBytes(24).toString("hex");
+      const { error } = await (
+        await createClient()
+      ).rpc("set_integration_secret", {
+        p_key: TELEGRAM_KEY,
+        p_name: "telegram_webhook_secret",
+        p_value: secret,
+      });
+      if (error) return { error: "Không lưu được mã bí mật webhook vào kho bí mật. Thử lại sau ít phút." };
+    }
+
+    // Địa chỉ CRM Owner đang mở (Vercel gửi kèm tên miền thật qua x-forwarded-host). Telegram chỉ nhận https.
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const base = linkBase(host ? `${h.get("x-forwarded-proto") ?? "https"}://${host}` : null);
+    if (!base)
+      return {
+        error:
+          "Telegram chỉ gửi tin về địa chỉ https. Mở CRM bằng tên miền https (ví dụ daivietcrmq4.vercel.app) rồi kết nối lại.",
+      };
+    try {
+      await api.call("setWebhook", {
+        url: `${base}/api/webhooks/telegram`,
+        secret_token: secret,
+        allowed_updates: ["message", "callback_query", "my_chat_member"],
+        drop_pending_updates: true,
+      });
+      await api.call("setMyCommands", { commands: BOT_COMMANDS });
+    } catch (e) {
+      return { error: telegramErrorMessage(e) };
+    }
+
+    // Tên bot thật dùng để dựng link liên kết https://t.me/<bot>?start=<mã>.
+    if (me.username) {
+      const { data: row } = await admin
+        .from("integrations")
+        .select("config")
+        .eq("showroom_id", showroomId)
+        .eq("key", TELEGRAM_KEY)
+        .maybeSingle();
+      await admin
+        .from("integrations")
+        .update({ config: { ...((row?.config ?? {}) as Record<string, unknown>), botUsername: me.username } })
+        .eq("showroom_id", showroomId)
+        .eq("key", TELEGRAM_KEY);
+    }
+
+    const { data: link } = await admin
+      .from("telegram_links")
+      .select("chat_id")
+      .eq("user_id", userId)
+      .is("revoked_at", null)
+      .maybeSingle();
+    let test = "anh chị liên kết Telegram ở Cài đặt, Thông báo Telegram để nhận tin";
+    if (link) {
+      try {
+        await api.call("sendMessage", {
+          chat_id: link.chat_id,
+          text: "Bot đã nối với CRM. Gõ /viec, /lead, /giaohang, /cskh để xem nhanh việc, lead, đơn giao, khách cần chăm sóc.",
+        });
+        test = "đã gửi tin thử tới Telegram của anh chị";
+      } catch {
+        test = "chưa gửi được tin thử, kiểm tra anh chị chưa chặn bot";
+      }
+    }
+    return {
+      done: `bot @${me.username ?? "?"} gửi tin về CRM, menu đã có lệnh /viec, /lead, /giaohang, /cskh; ${test}`,
+      replyMode: null,
+    };
+  },
   // Khóa API của nhà cung cấp ứng với mô hình đã chọn (Claude hoặc ChatGPT) dùng được mô hình đó (hỏi thông tin mô
   // hình, không tốn token).
   ai_llm: async (d, showroomId) => {

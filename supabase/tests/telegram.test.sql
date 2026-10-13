@@ -2,7 +2,7 @@
 -- của mình, bot làm thay người dùng đúng quyền như trên CRM, khóa người dùng thì thu hồi liên kết, gán nhóm cần quyền.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(28);
 
 create function pg_temp.login(uid uuid, view_as uuid default null) returns void language plpgsql as $$
 begin
@@ -115,6 +115,14 @@ select throws_ok($$ select public.set_telegram_group(-100123, 'care') $$,
 select pg_temp.as_service();
 update public.profiles set is_active = false where id = '11111111-1111-4111-8111-000000000003';
 select is(public.telegram_user(1001), null, 'khóa người dùng thì Telegram của họ không còn làm được gì');
+
+-- Đẩy tin qua CRM trên Vercel (migration 20261013000200): chỉ cron gọi được, và bot chưa kết nối thì không gọi gì.
+select ok(not has_function_privilege('anon', 'public.dispatch_telegram_outbound()', 'execute'),
+  'khách lạ không gọi được hàm đẩy tin Telegram');
+select ok(not has_function_privilege('authenticated', 'public.dispatch_telegram_outbound()', 'execute'),
+  'người đăng nhập không gọi được hàm đẩy tin Telegram');
+update public.integrations set status = 'not_connected' where key = 'telegram_bot';
+select lives_ok($$ select public.dispatch_telegram_outbound() $$, 'bot chưa kết nối thì hàm đẩy tin bỏ qua, không lỗi');
 
 select * from finish();
 rollback;

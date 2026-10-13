@@ -4,22 +4,13 @@ import { formatMoney } from "@/lib/format";
 import { ORDER_STATUS_LIVE } from "@/lib/sales/order-labels";
 import { formatDue } from "@/lib/tasks/view";
 
+import { TASK_TYPE_LABEL } from "../tasks/labels.ts";
 import { LEAD_STAGE_LABEL, leadSourceLabel } from "./labels";
 
 // Dòng hoạt động của hồ sơ lead đọc từ view activities (bảng events, CLAUDE.md mục 4). Hàm thuần đổi một sự kiện
 // thành một dòng tiếng Việt; tên người được truyền vào vì payload chỉ giữ mã người dùng.
 
-export const TASK_TYPE_LABEL: Record<string, string> = {
-  first_contact: "Liên hệ đầu tiên",
-  callback: "Hẹn gọi lại",
-  post_delivery_call: "Gọi hỏi thăm sau giao",
-  consumable_reminder: "Nhắc thay lõi",
-  occasion_reminder: "Nhắc dịp tặng",
-  reactivation: "Làm nóng lại",
-  delivery_step: "Bước giao lắp",
-  warranty_followup: "Theo dõi bảo hành",
-  data_fix: "Sửa dữ liệu",
-};
+export { TASK_TYPE_LABEL } from "../tasks/labels.ts";
 
 const KIND: Record<string, string> = {
   lead_created: "Lead mới",

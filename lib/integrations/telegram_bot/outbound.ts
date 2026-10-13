@@ -49,15 +49,24 @@ export const vnTime = (iso: string | Date) =>
     hour12: false,
   }).format(new Date(iso));
 
-/** Nút dưới tin: chỉ thao tác nhanh. "Mở CRM" cần địa chỉ HTTPS thật, chưa có trong đợt chạy thử. */
-export function keyboardFor(facts: NotifyFacts, level: NotifyPrefs["level"]): InlineButton[][] {
+/**
+ * Nút dưới tin: thao tác nhanh (Xong, Hẹn lại 1 giờ) và nút mở thẳng màn CRM liên quan. Nút mở chỉ có khi biết địa
+ * chỉ CRM https (`base`, xem linkBase); không có thì chỉ còn thao tác nhanh.
+ */
+export function keyboardFor(
+  facts: NotifyFacts,
+  level: NotifyPrefs["level"],
+  base: string | null = null,
+): InlineButton[][] {
   const { buttons } = formatNotify(facts, level);
   const row = buttons.flatMap<InlineButton>((b) =>
     b.kind === "task_done"
       ? [{ text: b.label, callback_data: `t:done:${b.taskId}` }]
       : b.kind === "task_snooze"
         ? [{ text: b.label, callback_data: `t:snz:${b.taskId}` }]
-        : [],
+        : b.kind === "open" && base
+          ? [{ text: b.label, url: `${base}${b.path}` }]
+          : [],
   );
   return row.length ? [row] : [];
 }
@@ -157,6 +166,7 @@ export async function notifyUser(
   userId: string,
   facts: Omit<NotifyFacts, "to" | "at">,
   ref: { leadId?: string | null; taskId?: string | null } = {},
+  base: string | null = null,
 ): Promise<boolean> {
   const { data: link } = await db
     .from("telegram_links")
@@ -173,7 +183,7 @@ export async function notifyUser(
     prefs.level === "full" && ref.leadId ? await leadSummary(db, ref.leadId) : ({} as Partial<NotifyFacts>);
   const full: NotifyFacts = { ...facts, ...extra, to: userId, at: now };
   const { text } = formatNotify(full, prefs.level);
-  const keyboard = keyboardFor(full, prefs.level);
+  const keyboard = keyboardFor(full, prefs.level, base);
   let sent: { message_id: number };
   try {
     sent = await api.call<{ message_id: number }>("sendMessage", {
@@ -310,7 +320,13 @@ export async function initialCursor(db: Db): Promise<OutboundCursor> {
   };
 }
 
-export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor): Promise<OutboundCursor> {
+export async function pollOutbound(
+  db: Db,
+  api: TelegramApi,
+  cur: OutboundCursor,
+  /** Địa chỉ CRM cho nút Mở dưới tin (null thì chỉ có nút thao tác nhanh). */
+  base: string | null = null,
+): Promise<OutboundCursor> {
   const next = { ...cur };
   // Danh sách người theo quyền dùng lại trong cả vòng quét, tránh hỏi database lặp.
   const permCache = new Map<string, string[]>();
@@ -428,11 +444,18 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
       // Người đề xuất không tự duyệt được nên không cần báo.
       if (uid === a.requested_by) continue;
       await trySend("tin chờ duyệt", () =>
-        notifyUser(db, api, uid, {
-          event: "approval_needed",
-          what: APPROVAL_WHAT[a.type],
-          path: "/tasks",
-        }),
+        notifyUser(
+          db,
+          api,
+          uid,
+          {
+            event: "approval_needed",
+            what: APPROVAL_WHAT[a.type],
+            path: "/tasks",
+          },
+          {},
+          base,
+        ),
       );
     }
   }
@@ -504,12 +527,19 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     if (!a.requested_by || a.requested_by_type !== "user") continue;
     const requester = a.requested_by;
     await trySend("tin kết quả duyệt", () =>
-      notifyUser(db, api, requester, {
-        event: "approval_result",
-        what: APPROVAL_WHAT[a.type],
-        ok: a.status === "approved",
-        path: "/tasks",
-      }),
+      notifyUser(
+        db,
+        api,
+        requester,
+        {
+          event: "approval_result",
+          what: APPROVAL_WHAT[a.type],
+          ok: a.status === "approved",
+          path: "/tasks",
+        },
+        {},
+        base,
+      ),
     );
   }
 
@@ -529,14 +559,65 @@ export async function pollOutbound(db: Db, api: TelegramApi, cur: OutboundCursor
     const name = integrations.find((d) => d.key === r.key)?.name ?? r.key;
     for (const uid of owners) {
       await trySend("tin đấu nối lỗi", () =>
-        notifyUser(db, api, uid, {
-          event: "integration_error",
-          integration: name,
-          path: "/settings/integrations",
-        }),
+        notifyUser(
+          db,
+          api,
+          uid,
+          {
+            event: "integration_error",
+            integration: name,
+            path: "/settings/integrations",
+          },
+          {},
+          base,
+        ),
       );
     }
   }
 
   return next;
+}
+
+/**
+ * Một lượt đẩy tin: đọc con trỏ quét của showroom (lần đầu bắt đầu từ hiện tại, không gửi dồn dữ liệu cũ), quét và
+ * gửi, rồi lưu con trỏ để lượt sau tiếp đúng chỗ. Dùng chung cho route /api/cron/telegram-outbound (pg_cron gọi mỗi
+ * phút) và Edge Function telegram-outbound.
+ */
+export async function runTelegramOutbound(
+  db: Db,
+  cfg: { showroomId: string; token: string | null },
+  api: TelegramApi,
+  base: string | null = null,
+): Promise<{ skipped: string } | { ok: true; cursor: OutboundCursor }> {
+  if (!cfg.token) return { skipped: "chưa cấu hình bot Telegram" };
+  const { data: saved } = await db
+    .from("telegram_outbound_state")
+    .select("last_event_id, last_task_check, last_approval_at, last_decision_at, last_integration_error_at")
+    .eq("showroom_id", cfg.showroomId)
+    .maybeSingle();
+  const cursor = saved
+    ? {
+        lastEventId: Number(saved.last_event_id),
+        lastTaskCheck: saved.last_task_check,
+        lastApprovalAt: saved.last_approval_at,
+        lastDecisionAt: saved.last_decision_at,
+        lastIntegrationErrorAt: saved.last_integration_error_at,
+      }
+    : await initialCursor(db);
+
+  const next = await pollOutbound(db, api, cursor, base);
+
+  const { error } = await db.from("telegram_outbound_state").upsert(
+    {
+      showroom_id: cfg.showroomId,
+      last_event_id: next.lastEventId,
+      last_task_check: next.lastTaskCheck,
+      last_approval_at: next.lastApprovalAt,
+      last_decision_at: next.lastDecisionAt,
+      last_integration_error_at: next.lastIntegrationErrorAt,
+    },
+    { onConflict: "showroom_id" },
+  );
+  if (error) throw new Error("không lưu được con trỏ quét");
+  return { ok: true, cursor: next };
 }

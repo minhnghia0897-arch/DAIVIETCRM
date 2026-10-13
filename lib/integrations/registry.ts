@@ -649,7 +649,7 @@ export const integrations = [
     webhookPath: "/api/webhooks/telegram",
     name: "Thông báo Telegram cho nhân viên",
     description:
-      "Bot báo lead mới, giờ hẹn, việc chờ duyệt, đơn đổi trạng thái lên Telegram; nút Mở CRM mở Mini App trên điện thoại.",
+      "Bot báo lead mới, giờ hẹn, việc chờ duyệt lên Telegram; lệnh /viec, /lead, /giaohang, /cskh xem nhanh việc, lead, đơn giao, khách cần chăm sóc.",
     group: "operations",
     phase: "month_2",
     implemented: true,
@@ -663,20 +663,34 @@ export const integrations = [
           "Đã chốt: tin chỉ báo có việc hoặc tên gọi ngắn, không số điện thoại, không nội dung tin khách",
       },
     ],
+    // Tên bot CRM tự đọc từ Telegram khi kết nối (getMe), Owner không phải gõ.
     configSchema: z.object({
       botUsername: z
-        .string()
-        .regex(/^[A-Za-z0-9_]{2,29}bot$/i, "Tên bot kết thúc bằng bot, ví dụ DaiVietQ4Bot"),
+        .union([
+          z.literal(""),
+          z.string().regex(/^[A-Za-z0-9_]{2,29}bot$/i, "Tên bot kết thúc bằng bot, ví dụ DaiVietQ4Bot"),
+        ])
+        .optional(),
     }),
     secrets: ["telegram_bot_token", "telegram_webhook_secret"],
+    // Mã bí mật webhook để trống thì CRM tự tạo khi kết nối; Owner chỉ cần dán token.
+    secretRequired: (s) => s !== "telegram_webhook_secret",
     connectMode: "api_key",
-    configFields: [{ key: "botUsername", label: "Tên bot", kind: "text", placeholder: "DaiVietQ4Bot" }],
+    configFields: [
+      {
+        key: "botUsername",
+        label: "Tên bot",
+        kind: "text",
+        placeholder: "Để trống, CRM tự điền khi kết nối",
+      },
+    ],
     secretLabels: {
       telegram_bot_token: "Token của bot (từ @BotFather)",
-      telegram_webhook_secret: "Mã bí mật webhook (tự đặt, Telegram gửi kèm mỗi lần gọi về)",
+      telegram_webhook_secret: "Mã bí mật webhook (để trống thì CRM tự tạo)",
     },
-    testLabel: "Tin thử gửi tới Telegram của Owner",
-    note: "Mỗi nhân viên tự liên kết Telegram ở Cài đặt, Thông báo Telegram. Tin không chứa số điện thoại hay nội dung tin nhắn của khách; muốn xem chi tiết thì bấm Mở CRM.",
+    testLabel: "Kiểm tra bot, nối webhook, đăng ký lệnh và gửi tin thử tới Telegram của anh chị",
+    liveCheck: true,
+    note: "Mỗi nhân viên tự liên kết Telegram ở Cài đặt, Thông báo Telegram. Tin không chứa số điện thoại hay nội dung tin nhắn của khách; muốn xem chi tiết thì bấm nút mở CRM dưới tin.",
   },
   {
     key: "file_storage",
