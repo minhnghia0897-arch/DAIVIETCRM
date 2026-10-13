@@ -82,9 +82,12 @@ const vnDate = (d: Date) => new Date(d.getTime() + VN).toISOString().slice(0, 10
 const fmt = (o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false, ...o });
 const hhmmF = fmt({ hour: "2-digit", minute: "2-digit" });
-const ddmmF = fmt({ day: "2-digit", month: "2-digit" });
 const hhmm = (iso: string) => hhmmF.format(new Date(iso));
-const ddmm = (iso: string) => ddmmF.format(new Date(iso));
+/** "13/10" theo giờ VN. Không dùng Intl vi-VN cho ngày vì tùy bản ICU nó ra "13-10" hoặc "13/10". */
+const ddmm = (iso: string) => {
+  const d = vnDate(new Date(iso));
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+};
 /** Giờ nếu là hôm nay, ngày nếu là hôm khác. */
 const when = (iso: string, now: Date) =>
   vnDate(new Date(iso)) === vnDate(now) ? hhmm(iso) : `${ddmm(iso)} ${hhmm(iso)}`;
@@ -146,7 +149,7 @@ async function viec(db: Db, v: Viewer, now: Date, base: string | null): Promise<
   const head = `Việc hôm nay ${ddmm(now.toISOString())} · ${tasks.length} việc${overdue ? ` (${overdue} quá hạn)` : ""}${done ? ` · đã xong ${done}` : ""}`;
   if (!tasks.length)
     return {
-      text: `${head}\nAnh chị không còn việc nào trong hôm nay.`,
+      text: `Việc hôm nay ${ddmm(now.toISOString())}${done ? ` · đã xong ${done}` : ""}\nAnh chị không còn việc nào trong hôm nay.`,
       keyboard: base ? [[{ text: "Mở Việc cần làm", url: `${base}/tasks` }]] : [],
     };
 
@@ -411,7 +414,7 @@ async function cskh(db: Db, v: Viewer, now: Date, base: string | null): Promise<
     });
   }
 
-  const head = `Khách cần chăm sóc · 3 ngày gần nhất · ${items.length} việc`;
+  const head = `Khách cần chăm sóc · 3 ngày gần nhất · ${items.length} khách`;
   if (!items.length)
     return { text: `${head}\nKhông có khách nào cần chăm sóc trong 3 ngày gần nhất.`, keyboard: [] };
   const shown = items.slice(0, LIMIT);
