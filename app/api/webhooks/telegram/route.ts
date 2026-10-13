@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { createAdminClient } from "@/lib/db/admin";
-import { telegramApi } from "@/lib/integrations/telegram_bot/api";
+import { linkBase, telegramApi } from "@/lib/integrations/telegram_bot/api";
 import { telegramConfig } from "@/lib/integrations/telegram_bot/config";
 import { handleUpdate } from "@/lib/integrations/telegram_bot/inbound";
 
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
 
   const api = telegramApi(cfg.token);
   cachedBotUsername ??= cfg.botUsername ?? (await api.call<{ username: string }>("getMe")).username;
-  await handleUpdate(admin, api, cachedBotUsername, update);
+  // Nút mở link dưới tin trả lời lệnh trỏ về đúng địa chỉ CRM mà Telegram đang gọi.
+  await handleUpdate(admin, api, cachedBotUsername, update, linkBase(new URL(req.url).origin));
   return new Response(null, { status: 200 });
 }

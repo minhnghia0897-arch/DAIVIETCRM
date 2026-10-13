@@ -1,6 +1,7 @@
 # Thông báo Telegram cho nhân viên (`telegram_bot`)
 
-Trạng thái: **bản demo đã dựng** (06/10/2026), bản thật chờ duyệt (`docs/open-questions.md` mục 29).
+Trạng thái: **bản demo đã dựng** (06/10/2026); **bản thật nối được** (13/10/2026): Owner dán token là CRM tự đăng ký
+webhook, menu lệnh và mã bí mật; đẩy tin chạy qua CRM trên Vercel như Messenger, Zalo.
 
 ## Mục đích
 
@@ -22,7 +23,7 @@ báo việc, làm nhanh và trao đổi.
 | Telegram → CRM | Bấm nút Xong, Hẹn lại 1 giờ dưới tin | Việc trong `tasks` đổi trạng thái, ghi `task_done` |
 | Telegram → CRM | Trả lời (reply) vào tin báo về lead hoặc đơn | Ghi chú trên hồ sơ lead ("Qua Telegram: …"), số điện thoại gõ vào bị che |
 | Telegram → CRM | Gửi ảnh chuyển khoản kèm số tiền vào tin của một đơn | Khoản thanh toán `recorded` kèm ảnh chứng từ, vào hàng chờ xác nhận; người ghi không tự xác nhận |
-| Telegram → CRM | Lệnh `/viec` | Bot trả danh sách việc đang mở của chính người đó |
+| Telegram → CRM | Lệnh `/viec`, `/lead`, `/giaohang`, `/cskh` (mục *Lệnh xem nhanh*) | Không đổi dữ liệu; bot trả danh sách theo quyền vào tin riêng, nút mở thẳng màn CRM |
 | Mini App | Việc, lead (gọi, ghi kết quả), đơn, duyệt, tìm | Như thao tác trên CRM |
 
 Tin không gắn với khách hay đơn (trò chuyện chung) **không** lưu vào hồ sơ. Mọi thao tác từ Telegram đi qua đúng hàm
@@ -49,8 +50,10 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 | Mini App | `/m` (`components/crm/views/mini-app.tsx`) |
 | Ghi ngược từ Telegram (trả lời, ảnh, lệnh) | `components/crm/telegram-in.ts`, thao tác `tgReply` |
 | Bộ nối thật | `lib/integrations/telegram_bot/` (`api.ts`, `config.ts`, `inbound.ts`, `outbound.ts`) |
+| Lệnh xem nhanh | `lib/integrations/telegram_bot/commands.ts` (`BOT_COMMANDS`, `runBotCommand`) |
 | Nhận tin (bản thật) | `app/api/webhooks/telegram/route.ts` |
-| Đẩy tin (bản thật) | `supabase/functions/telegram-outbound/`, chạy theo lịch `pg_cron` |
+| Đẩy tin (bản thật) | `app/api/cron/telegram-outbound/route.ts`, `pg_cron` gọi mỗi phút (migration `20261013000200`). Bản Edge Function `supabase/functions/telegram-outbound/` giữ cho môi trường chạy hẳn trên Supabase, dùng chung `runTelegramOutbound` |
+| Kết nối tự động | `app/(app)/settings/integrations/actions.ts`, `PROBES.telegram_bot`: chạy sau khi Owner bấm Lưu khóa |
 | Database | `supabase/migrations/20261007000100_telegram.sql`: `telegram_links`, `telegram_link_codes`, `telegram_groups`, `telegram_messages`, `notification_prefs`, hàm `telegram_*`, bucket `telegram-attachments`. `20261007000200_telegram_live.sql`: cột `quiet_on`, bảng `telegram_outbound_state`, hàm `dispatch_telegram_outbound`, lịch cron |
 | Chạy thử | `node scripts/telegram-bot.mts run \| run-inbound \| link <email> \| demo-lead <email> \| demo-flow <email> \| setup \| webhook-set <url> \| webhook-off`. `demo-flow` dựng một lượt đủ các loại tin đang chạy để kiểm tra một lần cài đặt mới có thông suốt không (có đặt đấu nối sang trạng thái lỗi, nhớ kết nối lại sau khi thử) |
 | Sổ đăng ký | `lib/integrations/registry.ts`, mục `telegram_bot` |
@@ -94,10 +97,21 @@ Bấm Start trong Telegram là xong. Mức chi tiết, sự kiện muốn nhận
 người chỉ sửa được của mình). Người có `settings.integrations` thấy thêm danh sách nhóm Telegram của đội.
 Tên bot đọc từ `integrations.config.botUsername`; chưa khai thì trang chỉ chỗ cho Owner điền ở Tích hợp.
 
-**2. Nhận tin bằng webhook.** Owner dán token và mã bí mật webhook ở Cài đặt → Tích hợp (vào Supabase Vault), rồi
-`node scripts/telegram-bot.mts webhook-set https://<tên miền>`. Route kiểm `X-Telegram-Bot-Api-Secret-Token` bằng so
-sánh thời gian không đổi; sai mã trả 401 và không đọc nội dung. Chưa có tên miền HTTPS thì vẫn chạy `getUpdates` bằng
-lệnh `run`. Lưu ý: `proxy.ts` phải cho `/api/webhooks/` đi qua, vì Telegram gọi vào không có phiên đăng nhập.
+**2. Nhận tin bằng webhook.** Owner chỉ dán **token** ở Cài đặt → Tích hợp → Thông báo Telegram rồi bấm **Lưu khóa**
+(token vào Supabase Vault). CRM tự làm phần còn lại, theo thứ tự, dừng ở bước đầu tiên lỗi và báo bằng câu tiếng Việt:
+
+1. `getMe` kiểm token, lấy tên bot, lưu vào `integrations.config.botUsername` (trang liên kết dùng tên này).
+2. Chưa có mã bí mật webhook thì sinh ngẫu nhiên 48 ký tự hex và lưu Vault (`telegram_webhook_secret`); Owner không
+   phải tự nghĩ mã. Ô này vẫn sửa được ở drawer nếu muốn đặt tay.
+3. `setWebhook` về `https://<địa chỉ CRM đang mở>/api/webhooks/telegram` kèm `secret_token`, `allowed_updates`
+   (`message`, `callback_query`, `my_chat_member`), `drop_pending_updates`. Địa chỉ phải là HTTPS (Telegram không
+   nhận http), nên phải bấm Lưu khóa trên bản đã triển khai, không phải máy chạy thử.
+4. `setMyCommands` đăng ký menu bốn lệnh (`BOT_COMMANDS`).
+5. Người bấm đã liên kết Telegram thì bot gửi một tin thử cho chính người đó.
+
+Route webhook kiểm `X-Telegram-Bot-Api-Secret-Token` bằng so sánh thời gian không đổi; sai mã trả 401 và không đọc
+nội dung. Lưu ý: `proxy.ts` phải cho `/api/webhooks/` đi qua, vì Telegram gọi vào không có phiên đăng nhập. Máy chạy
+thử chưa có HTTPS thì vẫn dùng `getUpdates` bằng `node scripts/telegram-bot.mts run`.
 
 **3. Nhóm của đội ở màn Nhóm nội bộ.** `/chat` liệt kê đúng các nhóm Telegram bot đang ở (`telegram_groups`):
 tên nhóm, công dụng, trạng thái (Chờ gán, Đang dùng, Ngưng, Bot đã rời nhóm), ai gán và lúc nào, cùng những tin
@@ -109,17 +123,37 @@ Nhóm `status = 'lost'` phải thêm bot vào nhóm lại trên Telegram mới g
 bot và tin trả lời tin của bot. Màn Nhóm nội bộ vì vậy là màn kiểm soát, không phải bản sao hộp chat; màn có nói rõ
 điều này cho người dùng.
 
-**4. Đẩy tin bằng việc nền.** `pg_cron` gọi `public.dispatch_telegram_outbound()` mỗi phút; hàm này đọc hai khóa
-trong Vault (`edge_functions_base_url`, `edge_functions_service_key`) rồi gọi Edge Function `telegram-outbound`.
-Thiếu một trong hai khóa thì hàm im lặng, cron không báo lỗi. Con trỏ quét nằm ở `telegram_outbound_state` nên lần
-chạy sau tiếp đúng chỗ lần trước dừng. Khi lịch này đã chạy, script chạy thử phải dùng `run-inbound` để không gửi
-trùng tin.
+**4. Đẩy tin bằng việc nền.** `pg_cron` gọi `public.dispatch_telegram_outbound()` mỗi phút. Từ migration
+`20261013000200` hàm này chỉ chạy khi bot đã kết nối (`integrations.status = 'connected'`, đang bật), rồi gọi route
+`/api/cron/telegram-outbound` của CRM bằng đúng cách Messenger, Zalo, Trợ lý AI đang dùng: địa chỉ CRM trong Vault
+(`app_base_url`) và mã tự sinh `cron_invoke_token`, route kiểm lại qua `cron_token_ok` (thiếu mã thì 401). Thiếu khóa
+Vault thì hàm im lặng. Con trỏ quét nằm ở `telegram_outbound_state` nên lần chạy sau tiếp đúng chỗ lần trước dừng.
+Khi lịch này đã chạy, script chạy thử phải dùng `run-inbound` để không gửi trùng tin. Nút "Mở" dưới tin trỏ về địa
+chỉ CRM (`linkBase`): Telegram từ chối nút có link http, nên ở máy chạy thử tin không có nút mở.
 
 Màn Nhóm nội bộ cho mọi người trong showroom đọc danh sách nhóm (migration `20261007000300`); trước đó chỉ
 `settings.integrations` đọc được nên màn trống với telesale. Tin bot gửi riêng cho một người thì chỉ người đó đọc.
 
-Thứ tự cài một môi trường mới: đặt hai khóa Vault cho việc nền → Owner dán token, mã bí mật webhook và tên bot ở
-Tích hợp → `webhook-set` → nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.
+Thứ tự cài một môi trường mới: Vault đã có `app_base_url` và `cron_invoke_token` (chung với Messenger, Zalo) → Owner
+tạo bot ở BotFather, dán token ở Tích hợp, bấm Lưu khóa → nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.
+
+### Lệnh xem nhanh (Owner chốt 13/10/2026)
+
+Gõ trong tin riêng với bot, hoặc chọn ở nút Menu. Gõ trong nhóm (`/lead@<bot>`) thì bot vẫn trả vào **tin riêng** của
+người hỏi và chỉ báo trong nhóm "Đã gửi vào tin riêng…", để danh sách khách không lộ ra cả nhóm. Người chưa liên
+kết hoặc tài khoản CRM đã khóa thì bot chỉ nhắc liên kết.
+
+| Lệnh | Nội dung | Phạm vi theo quyền | Nút dưới tin |
+|---|---|---|---|
+| `/viec` | Việc đang mở hạn tới hết hôm nay (giờ VN), việc quá hạn đánh dấu "(quá hạn)", số việc đã xong hôm nay | Việc giao cho chính người hỏi | Xong, Dời 1 giờ cho 5 việc đầu; Mở Việc cần làm |
+| `/lead` | Lead nhận hoặc được giao trong 3 ngày gần nhất: giai đoạn, nguồn, cờ quá hạn gọi; cả showroom thì thêm người giữ | `lead.view_all` cả showroom, `lead.view_own` của mình | Mở từng lead |
+| `/giaohang` | Đơn giao trong 7 ngày: đã giao, lắp trong 7 ngày qua; hẹn giao từ nay tới 7 ngày tới (trễ hẹn đánh dấu); sẵn sàng giao hoặc đang giao mà chưa hẹn ngày | `order.view_all` mọi đơn, `order.view_own` đơn mình bán | Mở từng đơn |
+| `/cskh` | Khách nhắn trong 3 ngày gần nhất mà tin cuối là của khách (chưa ai trả lời, hội thoại chưa xong); việc chăm sóc (gọi hỏi thăm sau giao, nhắc thay lõi, theo dõi bảo hành, nhắc dịp tặng, làm nóng lại) hạn trong 3 ngày qua tới hết hôm nay | Hội thoại: `message.view_all` hoặc hội thoại mình giữ; việc: của mình, `lead.view_all` thì cả showroom | **Hội thoại**: mở thẳng hội thoại trong màn Hội thoại để đọc và trả lời khách; khách không có hội thoại thì mở Hồ sơ khách |
+
+Mỗi danh sách tối đa 15 dòng, kèm tổng số. Tên khách theo mức người hỏi chọn ở Cài đặt → Thông báo Telegram:
+**Rút gọn** không có tên (chỉ loại việc, giai đoạn, mã đơn), **Chi tiết** và **Đầy đủ** có tên gọi ngắn
+(`shortCustomer`). Không mức nào có số điện thoại, địa chỉ hay nội dung tin của khách; tiêu đề việc ở mức Đầy đủ đi qua
+`maskPhonesInText`. Bấm nút mở CRM vẫn phải đăng nhập và kiểm quyền như mọi màn khác.
 
 ## Đã kiểm theo tài liệu chính thức (07/10/2026)
 
@@ -142,5 +176,6 @@ Nguồn: `core.telegram.org/bots/api`, `core.telegram.org/bots/features`, `core.
 ## Điều kiện tiên quyết (Owner chuẩn bị)
 
 - Tạo bot qua BotFather, đặt tên hiển thị, lưu token vào Vault (`telegram_bot_token`) qua màn Tích hợp.
-- Tên miền thật có HTTPS cho webhook `/api/webhooks/telegram` và Mini App (câu hỏi mở 1 ở `CLAUDE.md`).
+- Địa chỉ CRM có HTTPS cho webhook `/api/webhooks/telegram` và Mini App. Tạm dùng địa chỉ Vercel; đổi sang tên miền
+  riêng (câu hỏi mở 1 ở `CLAUDE.md`) thì bấm Lưu khóa lại ở Tích hợp để đăng ký lại webhook.
 - Đăng ký Mini App cho bot, trỏ về địa chỉ `/m` của CRM.

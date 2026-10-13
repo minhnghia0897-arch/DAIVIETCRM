@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { telegramApi } from "@/lib/integrations/telegram_bot/api";
+import { linkBase, telegramApi } from "@/lib/integrations/telegram_bot/api";
+import { BOT_COMMANDS, isBotCommand, vnDayStart } from "@/lib/integrations/telegram_bot/commands";
 import { parseCommand, PURPOSES, reasonVi } from "@/lib/integrations/telegram_bot/inbound";
 import { isChatGone, keyboardFor } from "@/lib/integrations/telegram_bot/outbound";
 import { TelegramError } from "@/lib/integrations/telegram_bot/api";
@@ -52,6 +53,22 @@ describe("tin gửi đi", () => {
 
   it("tin lead mới không có nút mở CRM khi chưa có địa chỉ thật", () => {
     expect(keyboardFor({ event: "lead_assigned", to: "u", at: "1", path: "/leads/x" }, "detail")).toEqual([]);
+  });
+
+  it("có địa chỉ CRM https thì thêm nút mở thẳng màn liên quan", () => {
+    expect(
+      keyboardFor(
+        { event: "lead_assigned", to: "u", at: "1", path: "/leads/x" },
+        "detail",
+        "https://daivietcrmq4.vercel.app",
+      ),
+    ).toEqual([[{ text: "Mở và gọi", url: "https://daivietcrmq4.vercel.app/leads/x" }]]);
+  });
+
+  it("chỉ dùng địa chỉ https cho nút link (Telegram từ chối cả tin nếu link là localhost)", () => {
+    expect(linkBase("https://daivietcrmq4.vercel.app/")).toBe("https://daivietcrmq4.vercel.app");
+    expect(linkBase("http://localhost:3000")).toBeNull();
+    expect(linkBase(null)).toBeNull();
   });
 
   it("không nhận token sai định dạng", () => {
@@ -141,5 +158,30 @@ describe("chat không gửi được nữa", () => {
       false,
     );
     expect(isChatGone(new Error("mạng hỏng"))).toBe(false);
+  });
+});
+
+describe("lệnh xem nhanh /viec /lead /giaohang /cskh", () => {
+  it("menu lệnh đúng quy định của Telegram: tên chữ thường, mô tả tiếng Việt không quá 256 ký tự", () => {
+    expect(BOT_COMMANDS.map((c) => c.command)).toEqual(["viec", "lead", "giaohang", "cskh"]);
+    for (const c of BOT_COMMANDS) {
+      expect(c.command).toMatch(/^[a-z0-9_]{1,32}$/);
+      expect(c.description.length).toBeGreaterThan(0);
+      expect(c.description.length).toBeLessThanOrEqual(256);
+    }
+  });
+
+  it("nhận lệnh gõ trong nhóm có @tên_bot", () => {
+    const c = parseCommand("/cskh@DaiVietQ4Bot", "DaiVietQ4Bot");
+    expect(c?.cmd).toBe("cskh");
+    expect(isBotCommand(c!.cmd)).toBe(true);
+    expect(isBotCommand("gan")).toBe(false);
+  });
+
+  it("đầu ngày tính theo giờ Việt Nam", () => {
+    // 03:00 sáng 13/10 giờ VN là 20:00 ngày 12/10 giờ UTC; đầu ngày 13/10 giờ VN là 17:00 ngày 12/10 UTC.
+    const now = new Date("2026-10-12T20:00:00Z");
+    expect(vnDayStart(now).toISOString()).toBe("2026-10-12T17:00:00.000Z");
+    expect(vnDayStart(now, 1).toISOString()).toBe("2026-10-13T17:00:00.000Z");
   });
 });

@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { maskPhonesInText } from "../../phone/index.ts";
 import type { Database } from "../../db/types.ts";
-import { tgUpdate, type TelegramApi, type TgMessage, type TgUpdate } from "./api.ts";
+import { TelegramError, tgUpdate, type TelegramApi, type TgMessage, type TgUpdate } from "./api.ts";
+import { isBotCommand, runBotCommand } from "./commands.ts";
 
 // Telegram → CRM. Mỗi tin Telegram gửi về được lưu thô vào webhook_events trước (chống xử lý trùng theo update_id),
 // rồi mới xử lý. Mọi việc làm thay nhân viên đi qua hàm database telegram_* (kiểm liên kết, kiểm quyền như trên CRM,
@@ -27,7 +28,7 @@ const PURPOSE_LABEL: Record<string, string> = {
 };
 
 const HELP_PRIVATE =
-  "Trả lời (reply) vào một tin báo về lead để lưu ghi chú vào hồ sơ; gửi ảnh kèm chú thích cũng được. Gõ /viec để xem việc đang mở.";
+  "Lệnh xem nhanh: /viec việc hôm nay, /lead lead 3 ngày gần nhất, /giaohang đơn giao trong 7 ngày, /cskh khách cần chăm sóc. Trả lời (reply) vào một tin báo về lead để lưu ghi chú vào hồ sơ; gửi ảnh kèm chú thích cũng được.";
 const ASSIGN_HINT =
   "Nhóm chưa được gán công dụng. Owner gõ: /gan chung | /gan giaohang | /gan cskh | /gan thongbao";
 
@@ -53,6 +54,8 @@ export async function handleUpdate(
   api: TelegramApi,
   botUsername: string,
   raw: unknown,
+  /** Địa chỉ CRM cho nút mở link dưới tin trả lời lệnh (lib/integrations/telegram_bot/api.ts, linkBase). */
+  base: string | null = null,
 ): Promise<void> {
   const parsed = tgUpdate.safeParse(raw);
   const updateId = String((raw as { update_id?: unknown })?.update_id ?? "");
@@ -74,7 +77,7 @@ export async function handleUpdate(
   let err: string | null = null;
   try {
     if (!parsed.success) status = "ignored";
-    else if (!(await route(db, api, botUsername, parsed.data))) status = "ignored";
+    else if (!(await route(db, api, botUsername, parsed.data, base))) status = "ignored";
   } catch (e) {
     status = "failed";
     err = e instanceof Error ? e.message.slice(0, 500) : "lỗi không rõ";
@@ -86,10 +89,16 @@ export async function handleUpdate(
     .eq("external_id", updateId);
 }
 
-async function route(db: Db, api: TelegramApi, bot: string, u: TgUpdate): Promise<boolean> {
+async function route(
+  db: Db,
+  api: TelegramApi,
+  bot: string,
+  u: TgUpdate,
+  base: string | null,
+): Promise<boolean> {
   if (u.my_chat_member) return onMembership(db, api, u.my_chat_member);
   if (u.callback_query) return onButton(db, api, u.callback_query);
-  if (u.message) return onMessage(db, api, bot, u.message);
+  if (u.message) return onMessage(db, api, bot, u.message, base);
   return false;
 }
 
@@ -146,7 +155,7 @@ async function onButton(db: Db, api: TelegramApi, q: NonNullable<TgUpdate["callb
   return Boolean(m);
 }
 
-async function onMessage(db: Db, api: TelegramApi, bot: string, m: TgMessage) {
+async function onMessage(db: Db, api: TelegramApi, bot: string, m: TgMessage, base: string | null) {
   if (m.migrate_to_chat_id) {
     await db.from("telegram_groups").update({ chat_id: m.migrate_to_chat_id }).eq("chat_id", m.chat.id);
     return true;
@@ -208,26 +217,30 @@ async function onMessage(db: Db, api: TelegramApi, bot: string, m: TgMessage) {
     return true;
   }
 
-  if (cmd?.cmd === "viec") {
-    const { data: userId } = await db.rpc("telegram_user", { p_telegram_user_id: from.id });
-    if (!userId) {
+  // Lệnh xem nhanh /viec, /lead, /giaohang, /cskh: trả lời vào tin riêng của người hỏi (kể cả khi gõ trong nhóm), để
+  // danh sách khách, việc không lộ ra nhóm.
+  if (cmd && isBotCommand(cmd.cmd)) {
+    const r = await runBotCommand(db, from.id, cmd.cmd, base);
+    if (!r) {
       await reply(api, m, reasonVi("42501", "not linked"));
       return true;
     }
-    const { data: tasks } = await db
-      .from("tasks")
-      .select("title, due_at")
-      .eq("assigned_to", userId)
-      .eq("status", "open")
-      .order("due_at")
-      .limit(6);
-    const list = (tasks ?? []).slice(0, 5).map((t) => `• ${t.title}`);
-    await api.call("sendMessage", {
-      chat_id: from.id,
-      text: list.length
-        ? `Việc đang mở:\n${list.join("\n")}${(tasks ?? []).length > 5 ? "\n…" : ""}`
-        : "Anh chị không còn việc nào đang mở.",
-    });
+    try {
+      await api.call("sendMessage", {
+        chat_id: from.id,
+        text: r.text,
+        ...(r.keyboard.length ? { reply_markup: { inline_keyboard: r.keyboard } } : {}),
+      });
+    } catch (e) {
+      if (!(e instanceof TelegramError) || isPrivate) throw e;
+      await reply(
+        api,
+        m,
+        "Bot chưa nhắn riêng được cho anh chị: mở tin riêng với bot, bấm Start rồi gõ lại lệnh.",
+      );
+      return true;
+    }
+    if (!isPrivate) await reply(api, m, "Đã gửi vào tin riêng của anh chị với bot.");
     return true;
   }
 
