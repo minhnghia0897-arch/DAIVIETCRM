@@ -16,8 +16,8 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import { useLiveChanges } from "@/lib/db/use-live-changes";
@@ -33,9 +33,20 @@ import { InboxLiveSide, type LiveSide } from "./inbox-live-side";
 // Messenger: trả lời trong 24 giờ, tới 7 ngày chỉ nhân viên trả lời tay (thẻ Human Agent). Zalo: miễn phí 48 giờ,
 // ngoài đó vẫn gửi được nhưng tính phí theo hạn mức gói OA nên phải xác nhận. Luật thật kiểm ở database; giao diện chỉ
 // hiện đồng hồ và nhắc. Tin mới đến qua Supabase Realtime.
+// Chuyển hội thoại tức thì như Pancake: bấm là đổi ngay (đổi địa chỉ bằng history, không tải lại trang), tin và cột
+// phải lấy từ bộ nhớ tạm trên máy nếu đã mở hoặc đã tải sẵn (rê chuột, chạm, 3 hội thoại đầu), đồng thời tải bản mới
+// qua app/api/inbox/thread. Bản trang vẽ lại (sau khi lưu, khi Realtime báo) luôn được ưu tiên nếu mới hơn.
 
 type Result = { ok: boolean; message: string };
 type Channel = "messenger" | "zalo";
+/** Tin và cột phải của một hội thoại trong bộ nhớ tạm; `ver` tăng mỗi lần ghi để bản mới hơn thắng. */
+type Entry = { thread: LiveThread; side: LiveSide | null; ver: number };
+type Store = { ver: number; map: Record<string, Entry> };
+
+/** Tải lại hội thoại đang có trong bộ nhớ tạm khi đã quá lâu hoặc Realtime báo có thay đổi. */
+const FRESH_MS = 15_000;
+/** Số hội thoại tải sẵn cùng lúc tối đa. */
+const MAX_INFLIGHT = 3;
 
 const CH: Record<Channel, { label: string; avatar: "Facebook" | "Zalo" }> = {
   messenger: { label: "Messenger", avatar: "Facebook" },
@@ -110,7 +121,9 @@ const day = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
   month: "2-digit",
 });
-const vnDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+// Dùng lại một bộ định dạng: toLocaleDateString tạo bộ mới mỗi lần, chậm khi danh sách có hàng trăm dòng.
+const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+const vnDate = (iso: string) => ymd.format(new Date(iso));
 
 function when(iso: string | null, now: Date) {
   if (!iso) return "";
@@ -169,6 +182,7 @@ export function InboxLive({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const urlC = useSearchParams().get("c");
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("all");
   const [channel, setChannel] = useState<"" | Channel>("");
@@ -179,11 +193,119 @@ export function InboxLive({
   const [pending, start] = useTransition();
   const [now, setNow] = useState(() => new Date());
   const msgs = useRef<HTMLDivElement>(null);
-  const c = convs.find((x) => x.id === selectedId) ?? null;
+  // Hội thoại đang mở theo địa chỉ (?c=). Bấm chọn thì đổi ngay ở lượt vẽ khẩn (`picked`), không chờ Next.js cập nhật
+  // địa chỉ; địa chỉ đổi xong (hoặc bấm Quay lại của trình duyệt) thì theo địa chỉ.
+  const [picked, setPicked] = useState<{ id: string | null } | null>(null);
+  const [seenUrl, setSeenUrl] = useState(urlC);
+  if (seenUrl !== urlC) {
+    setSeenUrl(urlC);
+    setPicked(null);
+  }
+  const c = convs.find((x) => x.id === (picked ? picked.id : urlC)) ?? null;
+
+  // Bộ nhớ tạm theo hội thoại. Bản trang gửi xuống (selectedId) ghi vào ngay khi tới.
+  const [store, setStore] = useState<Store>(() => ({
+    ver: 1,
+    map: selectedId && thread ? { [selectedId]: { thread, side, ver: 1 } } : {},
+  }));
+  const [seen, setSeen] = useState({ thread, side });
+  if (seen.thread !== thread || seen.side !== side) {
+    setSeen({ thread, side });
+    if (selectedId && thread)
+      setStore((s) => ({
+        ver: s.ver + 1,
+        map: { ...s.map, [selectedId]: { thread, side, ver: s.ver + 1 } },
+      }));
+  }
+  const [failed, setFailed] = useState<Record<string, string>>({});
+  // Hội thoại vừa mở có tin chưa đọc: ẩn số chưa đọc ngay, không chờ lưu xong (tin mới đến làm số đổi thì hiện lại).
+  const [cleared, setCleared] = useState<Record<string, number>>({});
+  const entry = c ? (store.map[c.id] ?? null) : null;
+  const shown = entry?.thread ?? null;
+  const side2 = entry?.side ?? null;
+
+  const verRef = useRef(store.ver);
+  const fetchedAt = useRef(new Map<string, number>());
+  const inflight = useRef(new Set<string>());
+  const staleSince = useRef(0);
+  useEffect(() => {
+    verRef.current = store.ver;
+  }, [store.ver]);
+  useEffect(() => {
+    if (selectedId && thread) fetchedAt.current.set(selectedId, Date.now());
+  }, [selectedId, thread]);
+
+  const load = useCallback(async (id: string) => {
+    if (inflight.current.has(id)) return;
+    inflight.current.add(id);
+    const startVer = verRef.current;
+    const startAt = Date.now();
+    try {
+      const res = await fetch(`/api/inbox/thread?c=${encodeURIComponent(id)}`, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      const body = (await res.json().catch(() => null)) as
+        { thread: LiveThread; side: LiveSide | null } | { error: string } | null;
+      if (!res.ok || !body || !("thread" in body)) {
+        const message =
+          body && "error" in body ? body.error : "Chưa tải được tin nhắn, kiểm tra mạng rồi thử lại.";
+        setFailed((f) => ({ ...f, [id]: message }));
+        return;
+      }
+      fetchedAt.current.set(id, startAt);
+      setFailed((f) => {
+        if (!(id in f)) return f;
+        const next = { ...f };
+        delete next[id];
+        return next;
+      });
+      // Bản trang tới sau khi bắt đầu tải là mới hơn: giữ bản trang.
+      setStore((s) =>
+        (s.map[id]?.ver ?? 0) > startVer
+          ? s
+          : {
+              ver: s.ver + 1,
+              map: { ...s.map, [id]: { thread: body.thread, side: body.side, ver: s.ver + 1 } },
+            },
+      );
+    } catch {
+      setFailed((f) => ({ ...f, [id]: "Chưa tải được tin nhắn, kiểm tra mạng rồi thử lại." }));
+    } finally {
+      inflight.current.delete(id);
+    }
+  }, []);
+
+  /** Có sẵn thì thôi; `fresh` thì tải lại khi bản đang có đã cũ. Tải sẵn bỏ qua khi đang tải nhiều. */
+  const ensure = useCallback(
+    (id: string, fresh: boolean) => {
+      const has = Boolean(store.map[id]);
+      if (!fresh && (has || inflight.current.size >= MAX_INFLIGHT)) return;
+      const at = fetchedAt.current.get(id) ?? 0;
+      if (has && at > staleSince.current && Date.now() - at < FRESH_MS) return;
+      void load(id);
+    },
+    [store.map, load],
+  );
+
+  // Tải sẵn vài hội thoại đầu danh sách để lần bấm đầu tiên cũng hiện ngay.
+  const top = convs
+    .slice(0, 3)
+    .map((x) => x.id)
+    .join(",");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const id of top.split(",")) if (id) ensure(id, false);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tin mới của khách: Realtime báo khi hội thoại, tin nhắn đổi (RLS chỉ gửi dòng mình được xem) rồi tải lại từ
   // server; không hỏi lại định kỳ cho đỡ tốn lượt gọi. Đồng hồ khung giờ chạy mỗi 30 giây.
-  useLiveChanges("inbox", [{ table: "messages" }, { table: "conversations" }], () => router.refresh());
+  useLiveChanges("inbox", [{ table: "messages" }, { table: "conversations" }], () => {
+    staleSince.current = Date.now();
+    router.refresh();
+  });
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
@@ -191,7 +313,7 @@ export function InboxLive({
 
   useEffect(() => {
     msgs.current?.scrollTo({ top: msgs.current.scrollHeight });
-  }, [thread?.messages.length, thread?.id]);
+  }, [shown?.messages.length, shown?.id]);
 
   // Mở hội thoại có tin chưa đọc thì đánh dấu đã đọc.
   const unread = c?.unread ?? 0;
@@ -225,9 +347,20 @@ export function InboxLive({
   }
 
   function open(id: string) {
+    if (id === c?.id) return;
     setText("");
     setConfirm(false);
-    router.push(`/inbox?c=${id}`);
+    const x = convs.find((v) => v.id === id);
+    if (x?.unread) setCleared((r) => ({ ...r, [id]: x.unread }));
+    setPicked({ id });
+    // Đổi địa chỉ không tải lại trang (Next.js đồng bộ với useSearchParams); nút Quay lại của trình duyệt vẫn đúng.
+    window.history.pushState(null, "", `/inbox?c=${id}`);
+    ensure(id, true);
+  }
+
+  function closeChat() {
+    setPicked({ id: null });
+    window.history.pushState(null, "", "/inbox");
   }
 
   // Chặn gửi trùng: Enter có thể bấm lại (hoặc bộ gõ tiếng Việt bắn Enter hai lần) khi tin trước còn đang gửi.
@@ -268,7 +401,7 @@ export function InboxLive({
 
   return (
     <section
-      className={`tg cv ${c && side ? "" : "cv-2"} ${c ? "is-chat" : "is-list"}`}
+      className={`tg cv ${c && (side2 || (!entry && c.contactId)) ? "" : "cv-2"} ${c ? "is-chat" : "is-list"}`}
       aria-labelledby="inbox-title"
     >
       <h1 id="inbox-title" className="sr-only">
@@ -334,6 +467,12 @@ export function InboxLive({
                 className={`tg-item ${x.id === c?.id ? "is-on" : ""}`}
                 aria-current={x.id === c?.id}
                 onClick={() => open(x.id)}
+                // Tải sẵn khi rê chuột, chạm hoặc chuyển tiêu điểm tới, để lúc bấm tin đã có.
+                onPointerEnter={(e) => {
+                  if (e.pointerType === "mouse") ensure(x.id, false);
+                }}
+                onPointerDown={() => ensure(x.id, false)}
+                onFocus={() => ensure(x.id, false)}
               >
                 <ConvAvatar c={{ name: x.name, channel: CH[x.channel].avatar, avatar: x.avatar }} />
                 <span className="tg-item-b">
@@ -346,7 +485,7 @@ export function InboxLive({
                       {x.preview?.out ? <span className="tg-prev-from">Mình: </span> : null}
                       {x.preview?.text}
                     </span>
-                    {x.unread > 0 ? (
+                    {x.unread > 0 && cleared[x.id] !== x.unread ? (
                       <span className="tg-badge" aria-label={`${x.unread} tin chưa đọc`}>
                         {x.unread}
                       </span>
@@ -390,7 +529,7 @@ export function InboxLive({
       </div>
 
       <div className="tg-main">
-        {!c || !thread ? (
+        {!c ? (
           <p className="tg-readonly">Chọn một hội thoại ở bên trái để đọc và trả lời.</p>
         ) : (
           <>
@@ -400,7 +539,7 @@ export function InboxLive({
                   type="button"
                   className="tg-ib tg-mback"
                   aria-label="Về danh sách hội thoại"
-                  onClick={() => router.push("/inbox")}
+                  onClick={closeChat}
                 >
                   <ArrowLeft size={18} />
                 </button>
@@ -540,9 +679,9 @@ export function InboxLive({
               ) : null}
             </div>
 
-            {side?.notes.some((n) => n.pinned) ? (
+            {side2?.notes.some((n) => n.pinned) ? (
               <div className="cv-pins" aria-label="Ghi chú ghim">
-                {side.notes
+                {side2.notes
                   .filter((n) => n.pinned)
                   .map((n) => (
                     <p key={n.id} className="cv-pin">
@@ -551,20 +690,36 @@ export function InboxLive({
                   ))}
               </div>
             ) : null}
-            {c.ai === "paused" && c.aiPause === "handoff" && thread.handoff ? (
+            {c.ai === "paused" && c.aiPause === "handoff" && shown?.handoff ? (
               <div className="cv-pins cv-ai-note" aria-label="AI chuyển cho nhân viên">
                 <p className="cv-pin">
                   <Bot size={13} aria-hidden />
                   <span>
-                    <b>AI chuyển cho nhân viên: {thread.handoff.reason}.</b>
-                    {thread.handoff.summary ? ` ${thread.handoff.summary}` : ""}
+                    <b>AI chuyển cho nhân viên: {shown.handoff.reason}.</b>
+                    {shown.handoff.summary ? ` ${shown.handoff.summary}` : ""}
                   </span>
                 </p>
               </div>
             ) : null}
-            <div className="tg-msgs" ref={msgs} role="log" aria-label="Tin nhắn">
-              {thread.messages.map((m, i) => {
-                const next = thread.messages[i + 1];
+            <div className="tg-msgs" ref={msgs} role="log" aria-label="Tin nhắn" aria-busy={!shown}>
+              {!shown ? (
+                failed[c.id] ? (
+                  <p className="tg-readonly" role="alert">
+                    {failed[c.id]}{" "}
+                    <button type="button" className="c-link" onClick={() => void load(c.id)}>
+                      Thử lại
+                    </button>
+                  </p>
+                ) : (
+                  <div className="cv-skel-msgs" role="status" aria-label="Đang tải tin nhắn">
+                    {["is-in", "is-in", "is-out", "is-in", "is-out"].map((k, i) => (
+                      <span key={i} className={`c-skel ${k}`} />
+                    ))}
+                  </div>
+                )
+              ) : null}
+              {shown?.messages.map((m, i) => {
+                const next = shown.messages[i + 1];
                 const tail = !next || next.out !== m.out;
                 return (
                   <div
@@ -684,14 +839,24 @@ export function InboxLive({
           </>
         )}
       </div>
-      {c && side ? (
+      {c && side2 ? (
         <InboxLiveSide
-          side={side}
+          side={side2}
           channel={CH[c.channel].label}
           tagging={
             toggleTag && createTag ? { all: tags, on: c.tagIds, toggle: toggleTag, create: createTag } : null
           }
         />
+      ) : c && !entry && c.contactId ? (
+        <aside className="tg-info cv-info" aria-label="Thông tin khách" aria-busy>
+          <div className="cv-skel-side" role="status" aria-label="Đang tải thông tin khách">
+            <span className="c-skel is-title" />
+            <span className="c-skel is-line" />
+            <span className="c-skel is-line" />
+            <span className="c-skel is-tile" />
+            <span className="c-skel is-line" />
+          </div>
+        </aside>
       ) : null}
     </section>
   );

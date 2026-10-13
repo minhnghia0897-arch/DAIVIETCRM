@@ -3811,6 +3811,40 @@ select:not([multiple]):not([size]) {
 .c-skel.is-line:nth-child(3n) {
   width: 64%;
 }
+/* Khung chờ tin nhắn và cột phải khi mở hội thoại chưa có trên máy (components/crm/views/inbox-live.tsx). */
+.cv-skel-msgs {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 100%;
+  padding: 8px 0;
+}
+.cv-skel-msgs .c-skel {
+  display: block;
+  width: 46%;
+  height: 36px;
+  border-radius: 16px;
+}
+.cv-skel-msgs .c-skel:nth-child(2) {
+  width: 60%;
+}
+.cv-skel-msgs .c-skel.is-out {
+  align-self: flex-end;
+  width: 38%;
+}
+.cv-skel-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.cv-skel-side .c-skel {
+  display: block;
+}
+.cv-skel-side .c-skel.is-title {
+  width: 60%;
+}
 @keyframes c-skel {
   from {
     background-position: 100% 0;

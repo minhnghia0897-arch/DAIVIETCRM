@@ -603,6 +603,11 @@ test("chuyển hội thoại thì form Lên đơn điền lại đúng khách đ
   // Khách thứ hai nhắn tới (người gửi khác) để có hai hội thoại.
   expect(await post(page, inbound(`m.sw.${PSID}`, `Khách thứ hai ${PSID}`, `${PSID}2`))).toBe(200);
   await login(page, USERS.saleAdmin);
+  // Bấm chuyển hội thoại lấy tin qua đường tải nhanh, không vẽ lại cả trang.
+  const fast: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/inbox/thread?c=")) fast.push(r.url());
+  });
   await page.goto("/inbox");
   const buttons = page.getByRole("list", { name: "Danh sách hội thoại" }).getByRole("button");
   const side = page.getByRole("complementary", { name: "Thông tin khách" });
@@ -627,6 +632,15 @@ test("chuyển hội thoại thì form Lên đơn điền lại đúng khách đ
   await expect(side.getByRole("tab", { name: /Lên đơn/ })).toHaveAttribute("aria-selected", "true");
   await expect(form.getByLabel("Họ tên người đặt")).toHaveValue(second);
   await expect(form.getByLabel("Ghi chú đơn")).toHaveValue("");
+  expect(fast.length).toBeGreaterThan(0);
+
+  // Nút Quay lại, Tiến của trình duyệt đi đúng giữa các hội thoại đã mở.
+  const log = page.getByRole("log", { name: "Tin nhắn" });
+  await page.goBack();
+  await expect(head).toHaveText(first);
+  await expect(log).toHaveAttribute("aria-busy", "false");
+  await page.goForward();
+  await expect(head).toHaveText(second);
 });
 
 test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, thu khi giao, xuất kho serial, hoàn tất bảo hành", async ({
@@ -704,14 +718,25 @@ test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, 
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];
+  let id: string | null = null;
   for (const who of [USERS.thao, USERS.an]) {
     await login(page, who);
     await page.goto("/inbox");
     // Chờ màn Hội thoại hiện xong (có khung chờ khi tải) rồi mới xem có hội thoại hay không.
     await expect(page.getByRole("heading", { name: "Hội thoại", level: 1 })).toBeAttached();
-    seen.push(await page.getByRole("button", { name: /Trần Mai/ }).isVisible());
+    const item = page.getByRole("button", { name: /Trần Mai/ });
+    const visible = await item.isVisible();
+    seen.push(visible);
+    if (visible) {
+      await item.click();
+      await expect(page).toHaveURL(/\/inbox\?c=/);
+      id = new URL(page.url()).searchParams.get("c");
+    }
   }
   expect(seen.filter(Boolean).length).toBe(1);
+  // Người không giữ lead gọi thẳng đường tải nhanh của màn Hội thoại cũng không đọc được tin.
+  await login(page, seen[0] ? USERS.an : USERS.thao);
+  expect((await page.request.get(`/api/inbox/thread?c=${id}`)).status()).toBe(404);
 });
 
 test("đọc lại tin bị lỡ: tin khách và trả lời trên hộp thư Facebook vào CRM, không nhân đôi", async ({
