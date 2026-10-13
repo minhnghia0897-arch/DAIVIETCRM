@@ -203,6 +203,8 @@ async function ask(page: Page, tgId: number, text: string, chat?: { id: number; 
   const [m] = await sentTo(tgId, before);
   // Không bao giờ có số điện thoại của khách trong tin (CLAUDE.md mục 5, 12).
   expect(m.text).not.toMatch(/\d{7,}/);
+  // Ngày luôn dạng 13/10, không lẫn 13-10 (Intl vi-VN ra dấu gạch tùy bản ICU).
+  expect(m.text).not.toMatch(/\b\d{2}-\d{2}\b/);
   return m;
 }
 
