@@ -2,7 +2,7 @@
 -- Chạy: pnpm test:rls. Dữ liệu giả: Owner …0001, sale admin …0002, telesale Thảo …0003, An …0004 (cả hai đang trực).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(48);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -160,8 +160,14 @@ select public.process_messenger_event(pg_temp.hook('m.out.2', '9001', 'Trả l�
 select is((select sent_via from public.messages where external_message_id = 'm.out.2'), 'page',
   'tin trả lời trên Page được ghi lại');
 
--- Khung giờ.
+-- Khung giờ. Mặc định (Owner chốt 13/10/2026) quá 24 giờ không gửi qua CRM, kể cả trả lời tay.
 update public.conversations set last_inbound_at = now() - interval '2 days' where external_user_id = '9001';
+select pg_temp.login((select v::uuid from t where k = 'holder'));
+select throws_ok(format($$ select public.queue_messenger_reply(%L, 'chào', true) $$, (select v from t where k = 'conv')),
+  'P0001', 'window_24h', 'mặc định quá 24 giờ không gửi qua CRM, kể cả trả lời tay');
+select pg_temp.logout();
+-- Owner bật trả lời tay ngoài 24 giờ (thẻ Human Agent, tới 7 ngày).
+update public.integrations set config = config || '{"humanAgent": "on"}' where key = 'meta_messenger';
 select pg_temp.login((select v::uuid from t where k = 'holder'));
 select throws_ok(format($$ select public.queue_messenger_reply(%L, 'chào') $$, (select v from t where k = 'conv')),
   'P0001', 'human_agent_only', 'quá 24 giờ chỉ trả lời tay bằng Human Agent');

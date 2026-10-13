@@ -64,7 +64,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     supabase.rpc("ai_reply_channels"),
     admin
       .from("integrations")
-      .select("key, status, reply_mode")
+      .select("key, status, reply_mode, config")
       .eq("showroom_id", user.showroomId)
       .in("key", [MESSENGER_KEY, ZALO_KEY]),
     admin
@@ -163,6 +163,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         zalo: blockerFor(ZALO_KEY, "message.zalo_send", "Zalo OA"),
       }}
       paidThisMonth={paidThisMonth ?? 0}
+      humanAgent={
+        (integs?.find((i) => i.key === MESSENGER_KEY)?.config as { humanAgent?: string } | null)
+          ?.humanAgent === "on"
+      }
       send={sendReply}
       markRead={markConversationRead}
       tags={tags ?? []}

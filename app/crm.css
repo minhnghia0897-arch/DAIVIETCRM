@@ -2555,6 +2555,14 @@ section.border-b > .c-back {
   text-align: center;
   color: #707579;
 }
+/* Cảnh báo khung nhắn Messenger: sắp hết 24 giờ, hoặc đã quá 24 giờ nên không gửi qua CRM. */
+.cv-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+.tg-readonly.cv-warn {
+  background: var(--warn-soft);
+}
 .tg-info {
   display: flex;
   flex-direction: column;
