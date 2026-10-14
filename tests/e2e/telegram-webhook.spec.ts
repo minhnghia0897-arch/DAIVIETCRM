@@ -236,6 +236,9 @@ test("nhân viên liên kết rồi gõ lệnh: bot trả lời vào tin riêng,
   expect(full.text).toMatch(/Chưa liên hệ lần nào|Đã liên hệ \d+ lần/);
   expect(full.text).toContain("Còn thiếu:");
   expect(full.text).toContain("Vào CRM");
+  // Owner chốt 14/10: mức Đầy đủ có họ tên đầy đủ và số dạng che (lead mẫu Nguyễn Thị Thu, số Hàn), không có số thật.
+  expect(full.text).toContain("Nguyễn Thị Thu (Hàn)");
+  expect(full.text).toMatch(/SĐT \+82 10•+\d{4}/);
 
   const viec = await ask(page, TG_THAO, "/viec");
   expect(viec.text).toContain("Việc hôm nay");

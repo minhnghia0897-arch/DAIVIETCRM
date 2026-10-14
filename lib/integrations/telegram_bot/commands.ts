@@ -2,13 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "../../db/types.ts";
 import { LEAD_STAGE_LABEL, leadSourceLabel } from "../../leads/labels.ts";
-import { shortCustomer, type NotifyLevel } from "../../notify/events.ts";
+import { fullCustomer, shortCustomer, type NotifyLevel } from "../../notify/events.ts";
 import { maskPhonesInText } from "../../phone/index.ts";
 import { LIFECYCLE_LABEL, type LifecycleStage } from "../../cdp/lifecycle.ts";
 import { formatMoney } from "../../format.ts";
 import { ORDER_STATUS_LIVE } from "../../sales/order-labels.ts";
 import { TASK_TYPE_LABEL } from "../../tasks/labels.ts";
 import type { InlineButton } from "./api.ts";
+import { channelName, contactIdentities } from "./identity.ts";
 import { windowText } from "./window-text.ts";
 
 // Lệnh xem nhanh trên Telegram (Owner chốt 13/10/2026): /viec, /lead, /giaohang, /cskh. Bot trả lời vào tin riêng của
@@ -100,8 +101,14 @@ const one = <T>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? 
 /** Tên gọi ngắn của khách theo mức người nhận chọn: Rút gọn thì không ghi tên. */
 function nameFor(v: Viewer, c: { full_name?: string | null; country_of_residence?: string | null } | null) {
   if (v.level === "short" || !c?.full_name) return null;
-  return shortCustomer(c.full_name, c.country_of_residence ?? undefined);
+  // Mức Đầy đủ ghi họ tên đầy đủ để sale nắm ngay khách là ai (Owner chốt 14/10/2026).
+  return v.level === "full"
+    ? fullCustomer(c.full_name, c.country_of_residence ?? undefined)
+    : shortCustomer(c.full_name, c.country_of_residence ?? undefined);
 }
+
+/** Dòng "khách là ai" (Facebook, Zalo, số dạng che): chỉ ở mức Đầy đủ, luôn đứng đầu các dòng phụ. */
+const idLine = (v: Viewer, line: string | null | undefined) => (v.level === "full" && line ? [line] : []);
 
 /** Tên riêng của nhân viên ("Nguyễn Thị Thảo" → "Thảo"), để ghi người giữ lead, người bán. */
 const staffName = (full: string) => full.trim().split(/\s+/).pop() ?? full;
@@ -316,7 +323,7 @@ async function viec(db: Db, v: Viewer, now: Date, base: string | null): Promise<
       .from("tasks")
       // prettier-ignore
       .select(
-        "id, type, title, due_at, lead_id, order_id, leads(stage, source, contacts!leads_contact_id_fkey(full_name, country_of_residence)), contacts(full_name, country_of_residence)",
+        "id, type, title, due_at, contact_id, lead_id, order_id, leads(stage, source, contact_id, contacts!leads_contact_id_fkey(full_name, country_of_residence)), contacts(full_name, country_of_residence)",
       )
       .eq("assigned_to", v.userId)
       .eq("status", "open")
@@ -343,7 +350,8 @@ async function viec(db: Db, v: Viewer, now: Date, base: string | null): Promise<
   const list = tasks.slice(0, LIMIT);
   // Tóm tắt lead chỉ đọc ở mức Đầy đủ (mức Chi tiết chỉ cần giai đoạn lead, đã có sẵn).
   const orderIds = [...new Set(list.map((t) => t.order_id).filter((x): x is string => Boolean(x)))];
-  const [facts, { data: orders }] = await Promise.all([
+  const contactOf = (t: (typeof list)[number]) => t.contact_id ?? one(t.leads)?.contact_id ?? null;
+  const [facts, { data: orders }, idents] = await Promise.all([
     v.level === "full"
       ? leadFacts(db, v.showroomId, [
           ...new Set(list.map((t) => t.lead_id).filter((x): x is string => Boolean(x))),
@@ -354,6 +362,9 @@ async function viec(db: Db, v: Viewer, now: Date, base: string | null): Promise<
       : Promise.resolve({
           data: [] as { id: string; code: string; status: string; balance_due: number | null }[],
         }),
+    v.level === "full"
+      ? contactIdentities(db, list.map(contactOf))
+      : Promise.resolve(new Map<string, string>()),
   ]);
   const orderOf = new Map((orders ?? []).map((o) => [o.id, o]));
   const blocks = list.map((t, i) => {
@@ -369,7 +380,9 @@ async function viec(db: Db, v: Viewer, now: Date, base: string | null): Promise<
         ? `Đơn ${o.code} · ${ORDER_STATUS_LIVE[o.status]?.label ?? o.status}${(o.balance_due ?? 0) > 0 ? ` · còn thu ${formatMoney(o.balance_due ?? 0)}` : ""}`
         : null;
     const title = maskPhonesInText(t.title).trim();
+    const cid = contactOf(t);
     return block(v.level, main, [
+      ...idLine(v, cid ? idents.get(cid) : null),
       context,
       title && title !== label ? `Việc: ${title}` : null,
       ...(t.lead_id ? leadLines(facts.get(t.lead_id), now).slice(0, 3) : []),
@@ -398,7 +411,7 @@ async function lead(db: Db, v: Viewer, now: Date, base: string | null): Promise<
   let q = db
     .from("leads")
     .select(
-      "id, stage, source, created_at, sla_due_at, first_contact_at, assigned_to, contacts!leads_contact_id_fkey(full_name, country_of_residence)",
+      "id, stage, source, created_at, sla_due_at, first_contact_at, assigned_to, contact_id, contacts!leads_contact_id_fkey(full_name, country_of_residence)",
     )
     .eq("showroom_id", v.showroomId)
     .is("deleted_at", null)
@@ -422,7 +435,7 @@ async function lead(db: Db, v: Viewer, now: Date, base: string | null): Promise<
   if (!leads.length) return { text: `${head}\nChưa có lead nào trong 3 ngày qua.`, keyboard: [] };
 
   const list = leads.slice(0, LIMIT);
-  const [holders, facts] = await Promise.all([
+  const [holders, facts, idents] = await Promise.all([
     team
       ? staffNames(
           db,
@@ -436,6 +449,12 @@ async function lead(db: Db, v: Viewer, now: Date, base: string | null): Promise<
           v.showroomId,
           list.map((l) => l.id),
         ),
+    v.level === "full"
+      ? contactIdentities(
+          db,
+          list.map((l) => l.contact_id),
+        )
+      : Promise.resolve(new Map<string, string>()),
   ]);
   const blocks = list.map((l, i) => {
     const name = nameFor(v, one(l.contacts));
@@ -447,7 +466,11 @@ async function lead(db: Db, v: Viewer, now: Date, base: string | null): Promise<
         : "";
     const who = team ? ` · ${l.assigned_to ? (holders.get(l.assigned_to) ?? "đã giao") : "chưa giao"}` : "";
     const main = `${i + 1}. ${name ? `${name} · ` : ""}${LEAD_STAGE_LABEL[l.stage] ?? l.stage}${sla} · ${leadSourceLabel(l.source)}${who}`;
-    return block(v.level, main, [...leadLines(facts.get(l.id), now), `Vào CRM ${when(l.created_at, now)}`]);
+    return block(v.level, main, [
+      ...idLine(v, idents.get(l.contact_id)),
+      ...leadLines(facts.get(l.id), now),
+      `Vào CRM ${when(l.created_at, now)}`,
+    ]);
   });
   const { text, shown } = pack(head, blocks, leads.length, v.level);
   return {
@@ -482,7 +505,7 @@ async function giaohang(db: Db, v: Viewer, now: Date, base: string | null): Prom
     .from("orders")
     // prettier-ignore
     .select(
-      "id, code, status, ship_province, seller_id, total, paid_amount, balance_due, is_gift, keep_surprise, recipient:contacts!orders_recipient_contact_id_fkey(full_name, country_of_residence), deliveries(scheduled_on, installed_at)",
+      "id, code, status, ship_province, seller_id, total, paid_amount, balance_due, is_gift, keep_surprise, buyer_contact_id, recipient_contact_id, buyer:contacts!orders_buyer_contact_id_fkey(full_name, country_of_residence), recipient:contacts!orders_recipient_contact_id_fkey(full_name, country_of_residence), deliveries(scheduled_on, installed_at)",
     )
     .eq("showroom_id", v.showroomId)
     .is("deleted_at", null)
@@ -527,7 +550,11 @@ async function giaohang(db: Db, v: Viewer, now: Date, base: string | null): Prom
 
   const list = rows.slice(0, LIMIT);
   const ids = list.map((o) => o.id);
-  const [{ data: items }, sellers] = await Promise.all([
+  // Người nhận của đơn Giữ bất ngờ: không ghi số, như trên CRM (CLAUDE.md mục 4, leads.keep_surprise).
+  const hidden = new Set(
+    list.filter((o) => o.keep_surprise && o.recipient_contact_id).map((o) => o.recipient_contact_id!),
+  );
+  const [{ data: items }, sellers, idents] = await Promise.all([
     v.level === "short"
       ? Promise.resolve({ data: [] as { order_id: string; name: string; qty: number; is_gift: boolean }[] })
       : db.from("order_items").select("order_id, name, qty, is_gift").in("order_id", ids).order("created_at"),
@@ -537,6 +564,13 @@ async function giaohang(db: Db, v: Viewer, now: Date, base: string | null): Prom
           list.map((o) => o.seller_id),
         )
       : Promise.resolve(new Map()),
+    v.level === "full"
+      ? contactIdentities(
+          db,
+          list.flatMap((o) => [o.buyer_contact_id, o.recipient_contact_id]),
+          hidden,
+        )
+      : Promise.resolve(new Map<string, string>()),
   ]);
   const itemsOf = new Map<string, string[]>();
   for (const it of items ?? []) {
@@ -562,7 +596,16 @@ async function giaohang(db: Db, v: Viewer, now: Date, base: string | null): Prom
       o.keep_surprise && "giữ bất ngờ, chưa liên hệ người nhận",
       team && o.seller_id && sellers.get(o.seller_id) && `người bán ${sellers.get(o.seller_id)}`,
     ].filter(Boolean);
+    // Người đặt (trả tiền, có thể ở nước khác) và người nhận (dòng chính) là hai người khác nhau thì ghi cả hai.
+    const twoPeople = o.recipient_contact_id && o.recipient_contact_id !== o.buyer_contact_id;
+    const buyerId = idents.get(o.buyer_contact_id);
+    const buyerLine = twoPeople
+      ? `Người đặt: ${nameFor(v, one(o.buyer)) ?? "khách"}${buyerId ? ` · ${buyerId}` : ""}`
+      : buyerId;
+    const recipientId = twoPeople && o.recipient_contact_id ? idents.get(o.recipient_contact_id) : undefined;
     return block(v.level, main, [
+      ...idLine(v, buyerLine),
+      ...idLine(v, recipientId ? `Người nhận · ${recipientId}` : null),
       its.length ? `${its.slice(0, 4).join(", ")}${its.length > 4 ? ", …" : ""}` : null,
       `Tổng ${formatMoney(o.total)} · ${(o.balance_due ?? 0) > 0 ? `đã thu ${formatMoney(o.paid_amount)}, còn thu ${formatMoney(o.balance_due ?? 0)}` : "đã thu đủ"}`,
       flags.length ? flags.join(" · ").replace(/^./, (c) => c.toUpperCase()) : null,
@@ -708,7 +751,7 @@ async function cskh(db: Db, v: Viewer, now: Date, base: string | null): Promise<
   ];
   const deep = v.level !== "short";
   const careOrderIds = [...new Set(taskItems.map((t) => t.order_id).filter((x): x is string => Boolean(x)))];
-  const [convRows, people, lifeRows, careOrders] = await Promise.all([
+  const [convRows, people, lifeRows, careOrders, idents] = await Promise.all([
     taskItems.some((t) => t.contact_id) && seeInbox
       ? db
           .from("conversations")
@@ -739,6 +782,7 @@ async function cskh(db: Db, v: Viewer, now: Date, base: string | null): Promise<
     deep && careOrderIds.length
       ? db.from("orders").select("id, code").in("id", careOrderIds)
       : Promise.resolve({ data: [] as { id: string; code: string }[] }),
+    v.level === "full" ? contactIdentities(db, contactIds) : Promise.resolve(new Map<string, string>()),
   ]);
   const orderCode = new Map((careOrders.data ?? []).map((o) => [o.id, o.code]));
   const convOf = new Map<string, string>();
@@ -779,6 +823,7 @@ async function cskh(db: Db, v: Viewer, now: Date, base: string | null): Promise<
       at,
       main: `${name ? `${name} · ` : ""}${CHANNEL[c.channel] ?? c.channel} · khách nhắn ${when(at, now)} (chờ ${span(now.getTime() - Date.parse(at))}), chưa trả lời`,
       extra: [
+        ...idLine(v, (c.contact_id && idents.get(c.contact_id)) || channelName(c.channel, c.display_name)),
         replyWindow(c.channel, at, now),
         c.lead
           ? `Lead: ${LEAD_STAGE_LABEL[c.lead.stage] ?? c.lead.stage}${holder ? ` · ${holder} giữ` : ""}`
@@ -800,6 +845,7 @@ async function cskh(db: Db, v: Viewer, now: Date, base: string | null): Promise<
       at: t.due_at,
       main: `${name ? `${name} · ` : ""}${label} · hạn ${ddmm(t.due_at)}${t.due_at < nowIso ? ` (quá hạn ${span(now.getTime() - Date.parse(t.due_at))})` : ""}`,
       extra: [
+        ...idLine(v, t.contact_id ? idents.get(t.contact_id) : null),
         [
           title && title !== label ? title : null,
           order ? `đơn ${order}` : null,
