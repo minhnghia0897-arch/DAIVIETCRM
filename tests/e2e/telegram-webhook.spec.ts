@@ -46,8 +46,10 @@ const calls: Call[] = [];
 let mock: http.Server | null = null;
 let messageId = 1000;
 
-test.beforeAll(async () => {
-  if (!process.env.E2E_TELEGRAM_MOCK) return;
+test.beforeAll(async ({}, testInfo) => {
+  // Chỉ bản laptop chạy các bài này (beforeEach bỏ qua bản phone). Bản phone mà cũng mở cổng 4013 thì hai tiến trình
+  // tranh nhau: bản phone giữ cổng rồi đóng ngay khi xong, bản laptop gọi vào cổng đã đóng.
+  if (!process.env.E2E_TELEGRAM_MOCK || testInfo.project.name !== "laptop") return;
   mock = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => (raw += c));
@@ -224,6 +226,16 @@ test("nhân viên liên kết rồi gõ lệnh: bot trả lời vào tin riêng,
 
   // Sale admin (lead.view_all): lead của cả showroom.
   expect((await ask(page, TG_ADMIN, "/lead")).text).toContain("Lead 3 ngày gần nhất của cả showroom");
+
+  // Sale admin (phiên đăng nhập hiện tại) chọn mức Đầy đủ: mỗi lead có thêm tóm tắt liên hệ, thông tin còn thiếu,
+  // giờ vào CRM; vẫn không có số điện thoại (ask kiểm).
+  await page.goto("/settings/notifications");
+  await page.getByRole("radio", { name: /Đầy đủ/ }).click();
+  await expect(page.getByRole("status")).toContainText("Đã chọn: Đầy đủ");
+  const full = await ask(page, TG_ADMIN, "/lead");
+  expect(full.text).toMatch(/Chưa liên hệ lần nào|Đã liên hệ \d+ lần/);
+  expect(full.text).toContain("Còn thiếu:");
+  expect(full.text).toContain("Vào CRM");
 
   const viec = await ask(page, TG_THAO, "/viec");
   expect(viec.text).toContain("Việc hôm nay");
