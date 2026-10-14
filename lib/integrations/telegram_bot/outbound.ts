@@ -11,6 +11,7 @@ import type { Database } from "../../db/types.ts";
 import { leadSourceLabel } from "../../leads/labels.ts";
 import { integrations } from "../registry.ts";
 import { TelegramError, type InlineButton, type TelegramApi } from "./api.ts";
+import { contactIdentities } from "./identity.ts";
 import { windowText } from "./window-text.ts";
 
 // CRM → Telegram: chọn đúng người nhận, viết tin theo mức chi tiết người đó chọn (lib/notify/events.ts), gửi, rồi ghi
@@ -98,7 +99,7 @@ export async function leadSummary(db: Db, leadId: string): Promise<Partial<Notif
     // Chuỗi select phải là một hằng liền mạch thì Supabase mới suy được kiểu trả về.
     // prettier-ignore
     .select(
-      "source, recipient_province, recipient_contact_id, keep_surprise, occasion_date, occasions(label), budget_ranges(label), contacts!leads_contact_id_fkey(country_of_residence)",
+      "contact_id, source, recipient_province, recipient_contact_id, keep_surprise, occasion_date, occasions(label), budget_ranges(label), contacts!leads_contact_id_fkey(country_of_residence)",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -113,11 +114,14 @@ export async function leadSummary(db: Db, leadId: string): Promise<Partial<Notif
     ? await db.from("markets").select("name, call_windows").eq("country_code", country).maybeSingle()
     : { data: null };
 
-  const { count } = await db
-    .from("events")
-    .select("id", { count: "exact", head: true })
-    .eq("lead_id", leadId)
-    .in("type", ["call", "zalo_out"]);
+  const [{ count }, ids] = await Promise.all([
+    db
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_id", leadId)
+      .in("type", ["call", "zalo_out"]),
+    contactIdentities(db, [lead.contact_id]),
+  ]);
 
   // Bốn thông tin bắt buộc ở cuộc gọi đầu (CLAUDE.md mục 6).
   const missing = [
@@ -128,6 +132,7 @@ export async function leadSummary(db: Db, leadId: string): Promise<Partial<Notif
   ].filter((x): x is string => Boolean(x));
 
   return {
+    identity: ids.get(lead.contact_id),
     source: leadSourceLabel(lead.source),
     budget: budget ?? undefined,
     occasion: occasion

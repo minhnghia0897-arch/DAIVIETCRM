@@ -279,7 +279,7 @@ function NotifyBody() {
                 [
                   "full",
                   "Đầy đủ",
-                  "Thêm tóm tắt hồ sơ để nắm tình huống ngay: nguồn, ngân sách, dịp, tỉnh người nhận, khung gọi tốt, số lần đã liên hệ, thông tin còn thiếu. Vẫn không có số điện thoại.",
+                  "Họ tên đầy đủ, tên Facebook, Zalo, số điện thoại dạng che (090•••215) và tóm tắt hồ sơ: nguồn, ngân sách, dịp, tỉnh người nhận, khung gọi tốt, số lần đã liên hệ, thông tin còn thiếu. Không có số đầy đủ hay nội dung tin của khách.",
                 ],
               ] as const
             ).map(([k, label, ex]) => (

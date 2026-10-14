@@ -33,8 +33,11 @@ nghiệp vụ của màn CRM (`components/crm/telegram-in.ts` ở bản demo; `l
 ## Nguyên tắc dữ liệu (CLAUDE.md mục 5, 12)
 
 - Tin **không bao giờ** chứa số điện thoại hay nội dung tin nhắn của khách, ở cả hai mức.
-- Mỗi người tự chọn mức: **Rút gọn** (chỉ báo có việc) hoặc **Chi tiết** (thêm tên gọi ngắn của khách, ví dụ "Thu (Hàn)",
-  sản phẩm, giờ hẹn, mã đơn). Không gửi họ tên đầy đủ.
+- Mỗi người tự chọn mức: **Rút gọn** (chỉ báo có việc), **Chi tiết** (thêm tên gọi ngắn của khách, ví dụ "Thu (Hàn)",
+  sản phẩm, giờ hẹn, mã đơn) hoặc **Đầy đủ**. Owner chốt 14/10/2026: ở mức Đầy đủ sale nắm được ngay khách là ai, nên
+  có **họ tên đầy đủ**, **tên Facebook, tên Zalo** (tên hiển thị của hội thoại) và **số điện thoại dạng che** như trên
+  CRM (`090•••215`, `+82 10••••4471`); người nhận của đơn Giữ bất ngờ không ghi số. Số đầy đủ và nội dung tin của
+  khách vẫn không bao giờ gửi qua Telegram (CLAUDE.md mục 10.3). Đọc ở `lib/integrations/telegram_bot/identity.ts`.
 - Muốn xem đầy đủ thì mở Mini App: đăng nhập và kiểm quyền như mọi màn khác (RLS, `has_perm`), xem số vẫn ghi nhật ký.
 - Sự kiện chỉ hiện trong cài đặt khi người đó có quyền liên quan (`lib/notify/events.ts`, `eventsFor`).
 - Giờ im lặng: tin vẫn tới nhưng không chuông.
@@ -158,7 +161,8 @@ hơn):
 - **Rút gọn**: một dòng mỗi mục, không tên khách (loại việc, giai đoạn, mã đơn).
 - **Chi tiết**: thêm tên gọi ngắn (`shortCustomer`), dòng đếm đầu tin (lead theo giai đoạn, số quá hạn gọi; đơn giao
   hôm nay, trễ hẹn, chưa hẹn ngày, tổng còn phải thu) và một dòng phụ quan trọng nhất mỗi mục.
-- **Đầy đủ**: mọi dòng phụ.
+- **Đầy đủ**: họ tên đầy đủ thay cho tên gọi ngắn, dòng phụ đầu tiên là khách là ai (tên Facebook, tên Zalo, số dạng
+  che; đơn có người đặt khác người nhận thì ghi cả hai), rồi mọi dòng phụ khác.
 
 | Lệnh | Dòng phụ (thứ tự ưu tiên; mức Chi tiết lấy dòng đầu) |
 |---|---|

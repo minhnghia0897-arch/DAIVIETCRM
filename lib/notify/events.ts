@@ -169,6 +169,8 @@ export interface NotifyFacts {
   /** Loại việc cần duyệt hoặc kết quả duyệt. */
   what?: string;
   // --- Phần dưới chỉ dùng cho mức "Đầy đủ": đủ để nắm tình huống mà không cần mở CRM. ---
+  /** Khách là ai: tên Facebook, Zalo, số điện thoại dạng che (`lib/integrations/telegram_bot/identity.ts`). */
+  identity?: string;
   /** Nguồn lead đã dịch sang tiếng Việt, ví dụ "Form quảng cáo Facebook". */
   source?: string;
   /** Khoảng ngân sách khách cho biết. */
@@ -206,11 +208,25 @@ export function shortCustomer(full?: string, market?: string): string {
 }
 
 /**
+ * Họ tên đầy đủ của khách cho mức "Đầy đủ" (Owner chốt 14/10/2026: sale nắm được ngay khách là ai). Vẫn bỏ mọi từ có
+ * chữ số như `shortCustomer`, vì nhân viên hay gõ cả số điện thoại vào ô tên.
+ */
+export function fullCustomer(full?: string, market?: string): string {
+  const words = (full ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !/\d/.test(w));
+  if (!words.length) return "khách";
+  return market === "KR" ? `${words.join(" ")} (Hàn)` : words.join(" ");
+}
+
+/**
  * Tóm tắt hồ sơ cho mức "Đầy đủ": đủ để nhân viên nắm tình huống ngay trên điện thoại, không phải mở CRM.
- * Vẫn không có số điện thoại, địa chỉ chi tiết hay nội dung tin của khách (CLAUDE.md mục 5, 12).
+ * Vẫn không có số điện thoại đầy đủ (chỉ dạng che), địa chỉ chi tiết hay nội dung tin của khách (CLAUDE.md mục 5, 12).
  */
 function caseSummary(f: NotifyFacts): string {
   const lines: string[] = [];
+  if (f.identity) lines.push(f.identity);
   if (f.source) lines.push(`Nguồn: ${f.source}`);
   if (f.budget) lines.push(`Ngân sách: ${f.budget}`);
   if (f.occasion) lines.push(`Dịp: ${f.occasion}`);
@@ -226,8 +242,8 @@ function caseSummary(f: NotifyFacts): string {
 
 /** Viết tin theo mức chi tiết. Không bao giờ ghi số điện thoại hay nội dung tin nhắn của khách. */
 export function formatNotify(f: NotifyFacts, level: NotifyLevel): { text: string; buttons: NotifyButton[] } {
-  const c = shortCustomer(f.customer, f.market);
   const full = level === "full";
+  const c = full ? fullCustomer(f.customer, f.market) : shortCustomer(f.customer, f.market);
   const d = level === "detail" || full;
   const more = full ? caseSummary(f) : "";
   const open = (label: string): NotifyButton => ({ kind: "open", label, path: f.path });

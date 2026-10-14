@@ -8,6 +8,7 @@ import {
   defaultPrefs,
   eventsFor,
   formatNotify,
+  fullCustomer,
   inQuietHours,
   pickKnownEvents,
   shortCustomer,
@@ -301,6 +302,22 @@ describe("mức Đầy đủ", () => {
     expect(formatNotify({ ...facts, customer: "Thu 0912345678" }, "full").text).not.toMatch(
       /\d{3}[ .-]?\d{3,}/,
     );
+  });
+
+  it("mức Đầy đủ ghi họ tên đầy đủ, tên Facebook và số dạng che; mức Chi tiết chỉ tên gọi ngắn", () => {
+    const withId = { ...facts, identity: "Facebook: Thu Nguyễn · SĐT +82 10••••4471" };
+    const full = formatNotify(withId, "full").text;
+    expect(full).toContain("Nguyễn Thị Thu (Hàn)");
+    expect(full).toContain("Facebook: Thu Nguyễn · SĐT +82 10••••4471");
+    const detail = formatNotify(withId, "detail").text;
+    expect(detail).toContain("Thu (Hàn)");
+    expect(detail).not.toContain("Nguyễn Thị");
+    expect(detail).not.toContain("Facebook:");
+  });
+
+  it("họ tên đầy đủ vẫn bỏ phần số nhân viên gõ lẫn vào ô tên", () => {
+    expect(fullCustomer("Chị Nguyễn Thị Thu 0912345678", "KR")).toBe("Chị Nguyễn Thị Thu (Hàn)");
+    expect(fullCustomer("0912345678")).toBe("khách");
   });
 
   it("mức Rút gọn và Chi tiết không kèm tóm tắt", () => {
