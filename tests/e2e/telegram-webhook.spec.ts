@@ -213,6 +213,8 @@ test("nhân viên liên kết rồi gõ lệnh: bot trả lời vào tin riêng,
 }) => {
   await link(page, USERS.thao, TG_THAO);
   await link(page, USERS.saleAdmin, TG_ADMIN);
+  // Đã liên kết mà bấm /start lại thì bot nhắc lệnh, không bảo liên kết lại.
+  expect((await ask(page, TG_THAO, "/start")).text).toContain("đã liên kết");
 
   // Telesale: chỉ lead của mình; nút mở thẳng hồ sơ lead trên CRM.
   const lead = await ask(page, TG_THAO, "/lead");
@@ -264,7 +266,12 @@ test("tài khoản Telegram chưa liên kết thì bot không trả dữ liệu 
   const stranger = 7_300_000 + RUN;
   const m = await ask(page, stranger, "/lead");
   expect(m.text).toContain("chưa liên kết");
-  expect(m.keyboard).toEqual([]);
+  expect(m.text).toContain("Tạo link liên kết");
+  // Chỉ có nút mở trang liên kết (phải đăng nhập CRM), không có dữ liệu lead nào.
+  expect(m.keyboard.map((b) => b.url)).toEqual([expect.stringMatching(/\/settings\/notifications$/)]);
+  // Gõ /start trống cũng được chỉ cách liên kết.
+  const start = await ask(page, stranger, "/start");
+  expect(start.text).toContain("Tạo link liên kết");
 });
 
 test("việc nền đẩy tin chạy được qua route cron của CRM", async ({ page }) => {

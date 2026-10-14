@@ -105,6 +105,23 @@ async function route(
 const reply = (api: TelegramApi, m: TgMessage, text: string) =>
   api.call("sendMessage", { chat_id: m.chat.id, text, reply_parameters: { message_id: m.message_id } });
 
+/** Chỉ cách liên kết cho người chưa liên kết (gõ /start trống hoặc gõ lệnh), kèm nút mở thẳng trang liên kết. */
+export const LINK_HOW =
+  "Tài khoản Telegram này chưa liên kết với CRM. Cách liên kết: mở CRM → Cài đặt → Thông báo Telegram → bấm Tạo link liên kết, bấm link đó rồi bấm Start ở bot. Đã liên kết mà vẫn thấy tin này thì tài khoản CRM có thể đã bị khóa, báo quản lý.";
+const replyLinkHow = (api: TelegramApi, m: TgMessage, base: string | null) =>
+  api.call("sendMessage", {
+    chat_id: m.chat.id,
+    text: LINK_HOW,
+    reply_parameters: { message_id: m.message_id },
+    ...(base
+      ? {
+          reply_markup: {
+            inline_keyboard: [[{ text: "Mở trang liên kết", url: `${base}/settings/notifications` }]],
+          },
+        }
+      : {}),
+  });
+
 async function onMembership(db: Db, api: TelegramApi, e: NonNullable<TgUpdate["my_chat_member"]>) {
   if (e.chat.type === "private") return false;
   const joined = ["member", "administrator"].includes(e.new_chat_member.status);
@@ -167,11 +184,10 @@ async function onMessage(db: Db, api: TelegramApi, bot: string, m: TgMessage, ba
 
   if (cmd?.cmd === "start" && isPrivate) {
     if (!cmd.arg) {
-      await reply(
-        api,
-        m,
-        "Chào anh chị. Để nhận việc từ CRM, mở CRM → Cài đặt → Thông báo Telegram và bấm liên kết.",
-      );
+      // Người đã liên kết bấm /start lại thì nhắc lệnh; người chưa liên kết thì chỉ cách liên kết.
+      const { data: linked } = await db.rpc("telegram_user", { p_telegram_user_id: from.id });
+      if (linked) await reply(api, m, `Tài khoản đã liên kết với CRM. ${HELP_PRIVATE}`);
+      else await replyLinkHow(api, m, base);
       return true;
     }
     const { data: userId } = await db.rpc("redeem_telegram_link_code", {
@@ -222,7 +238,7 @@ async function onMessage(db: Db, api: TelegramApi, bot: string, m: TgMessage, ba
   if (cmd && isBotCommand(cmd.cmd)) {
     const r = await runBotCommand(db, from.id, cmd.cmd, base);
     if (!r) {
-      await reply(api, m, reasonVi("42501", "not linked"));
+      await replyLinkHow(api, m, base);
       return true;
     }
     try {
