@@ -93,7 +93,8 @@ hàng), *nhắc tôi trong nhóm* và *mọi tin nhóm* (đội trao đổi trê
 
 **1. Nhân viên tự liên kết ở Cài đặt → Thông báo Telegram.** Bấm **Tạo link liên kết**: database sinh mã ngẫu nhiên
 (hàm `create_telegram_link_code`, chỉ giữ bản băm, một lần, 10 phút), trang dựng link `https://t.me/<bot>?start=<mã>`.
-Bấm Start trong Telegram là xong. Mức chi tiết, sự kiện muốn nhận, giờ im lặng lưu vào `notification_prefs` (RLS: mỗi
+Bấm Start trong Telegram là xong. Ai mở bot rồi gõ `/start` hay gõ lệnh khi chưa liên kết thì bot chỉ các bước này
+kèm nút mở thẳng trang liên kết (`LINK_HOW` trong `inbound.ts`). Mức chi tiết, sự kiện muốn nhận, giờ im lặng lưu vào `notification_prefs` (RLS: mỗi
 người chỉ sửa được của mình). Người có `settings.integrations` thấy thêm danh sách nhóm Telegram của đội.
 Tên bot đọc từ `integrations.config.botUsername`; chưa khai thì trang chỉ chỗ cho Owner điền ở Tích hợp.
 
