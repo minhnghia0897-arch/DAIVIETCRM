@@ -151,10 +151,25 @@ kết hoặc tài khoản CRM đã khóa thì bot chỉ nhắc liên kết.
 | `/giaohang` | Đơn giao trong 7 ngày: đã giao, lắp trong 7 ngày qua; hẹn giao từ nay tới 7 ngày tới (trễ hẹn đánh dấu); sẵn sàng giao hoặc đang giao mà chưa hẹn ngày | `order.view_all` mọi đơn, `order.view_own` đơn mình bán | Mở từng đơn |
 | `/cskh` | Khách nhắn trong 3 ngày gần nhất mà tin cuối là của khách (chưa ai trả lời, hội thoại chưa xong); việc chăm sóc (gọi hỏi thăm sau giao, nhắc thay lõi, theo dõi bảo hành, nhắc dịp tặng, làm nóng lại) hạn trong 3 ngày qua tới hết hôm nay | Hội thoại: `message.view_all` hoặc hội thoại mình giữ; việc: của mình, `lead.view_all` thì cả showroom | **Hội thoại**: mở thẳng hội thoại trong màn Hội thoại để đọc và trả lời khách; khách không có hội thoại thì mở Hồ sơ khách |
 
-Mỗi danh sách tối đa 15 dòng, kèm tổng số. Tên khách theo mức người hỏi chọn ở Cài đặt → Thông báo Telegram:
-**Rút gọn** không có tên (chỉ loại việc, giai đoạn, mã đơn), **Chi tiết** và **Đầy đủ** có tên gọi ngắn
-(`shortCustomer`). Không mức nào có số điện thoại, địa chỉ hay nội dung tin của khách; tiêu đề việc ở mức Đầy đủ đi qua
-`maskPhonesInText`. Bấm nút mở CRM vẫn phải đăng nhập và kiểm quyền như mọi màn khác.
+Mỗi danh sách tối đa 15 mục, kèm tổng số; tin dài thì dừng trước giới hạn 4096 ký tự của Telegram và ghi "còn N nữa".
+Nội dung theo mức người hỏi chọn ở Cài đặt → Thông báo Telegram (Owner 14/10/2026: muốn báo cáo qua Telegram chi tiết
+hơn):
+
+- **Rút gọn**: một dòng mỗi mục, không tên khách (loại việc, giai đoạn, mã đơn).
+- **Chi tiết**: thêm tên gọi ngắn (`shortCustomer`), dòng đếm đầu tin (lead theo giai đoạn, số quá hạn gọi; đơn giao
+  hôm nay, trễ hẹn, chưa hẹn ngày, tổng còn phải thu) và một dòng phụ quan trọng nhất mỗi mục.
+- **Đầy đủ**: mọi dòng phụ.
+
+| Lệnh | Dòng phụ (thứ tự ưu tiên; mức Chi tiết lấy dòng đầu) |
+|---|---|
+| `/viec` | Lead và giai đoạn, nguồn; hoặc đơn, trạng thái, còn thu · tiêu đề việc (đã che số) · nhu cầu, liên hệ, còn thiếu của lead |
+| `/lead` | Nhu cầu (ngân sách, dịp và ngày, tỉnh người nhận, giữ bất ngờ) · đã liên hệ mấy lần, lần cuối, hẹn gọi lại · bốn thông tin còn thiếu · khung gọi tốt theo thị trường (khách nước ngoài) · báo giá gần nhất và trạng thái · giờ vào CRM |
+| `/giaohang` | Các món (quà tặng ghi "tặng") · tổng, đã thu, còn thu · đơn quà tặng, giữ bất ngờ, người bán (khi xem cả showroom) |
+| `/cskh` | Còn bao lâu được nhắn (Messenger 24 giờ, Zalo miễn phí 48 giờ) · lead và người giữ, hoặc khách đang hỏi và người trả lời · vòng đời, số đơn, đã trả · sản phẩm đang dùng và hạn bảo hành |
+
+Không mức nào có số điện thoại, địa chỉ chi tiết (chỉ tỉnh) hay nội dung tin của khách; tiêu đề việc đi qua
+`maskPhonesInText`. Tóm tắt đọc gộp một lần cho cả danh sách, không đọc từng mục. Bấm nút mở CRM vẫn phải đăng nhập và
+kiểm quyền như mọi màn khác.
 
 ## Đã kiểm theo tài liệu chính thức (07/10/2026)
 

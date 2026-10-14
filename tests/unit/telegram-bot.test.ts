@@ -3,7 +3,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { linkBase, telegramApi } from "@/lib/integrations/telegram_bot/api";
-import { BOT_COMMANDS, isBotCommand, vnDayStart } from "@/lib/integrations/telegram_bot/commands";
+import {
+  block,
+  BOT_COMMANDS,
+  isBotCommand,
+  pack,
+  replyWindow,
+  span,
+  vnDayStart,
+} from "@/lib/integrations/telegram_bot/commands";
 import { parseCommand, PURPOSES, reasonVi } from "@/lib/integrations/telegram_bot/inbound";
 import { isChatGone, keyboardFor } from "@/lib/integrations/telegram_bot/outbound";
 import { TelegramError } from "@/lib/integrations/telegram_bot/api";
@@ -183,5 +191,48 @@ describe("lệnh xem nhanh /viec /lead /giaohang /cskh", () => {
     const now = new Date("2026-10-12T20:00:00Z");
     expect(vnDayStart(now).toISOString()).toBe("2026-10-12T17:00:00.000Z");
     expect(vnDayStart(now, 1).toISOString()).toBe("2026-10-13T17:00:00.000Z");
+  });
+});
+
+describe("lệnh xem nhanh: dựng tin theo mức chi tiết", () => {
+  const extra = ["Ngân sách 30–50tr · nhận ở Cần Thơ", "đã liên hệ 2 lần", null, "", "Còn thiếu: dịp mua"];
+
+  it("Rút gọn chỉ dòng chính; Chi tiết thêm dòng quan trọng nhất; Đầy đủ thêm hết, bỏ dòng rỗng", () => {
+    expect(block("short", "1. Mới", extra)).toBe("1. Mới");
+    expect(block("detail", "1. Mới", extra)).toBe("1. Mới\n   Ngân sách 30–50tr · nhận ở Cần Thơ");
+    expect(block("full", "1. Mới", extra).split("\n")).toEqual([
+      "1. Mới",
+      "   Ngân sách 30–50tr · nhận ở Cần Thơ",
+      "   Đã liên hệ 2 lần",
+      "   Còn thiếu: dịp mua",
+    ]);
+  });
+
+  it("tin dài thì dừng trước giới hạn 4096 ký tự của Telegram và ghi còn bao nhiêu mục", () => {
+    const blocks = Array.from({ length: 15 }, (_, i) => block("full", `${i + 1}. Mục`, ["x".repeat(400)]));
+    const { text, shown } = pack("Đầu tin", blocks, 40, "full");
+    expect(text.length).toBeLessThan(4096);
+    expect(shown).toBeLessThan(15);
+    expect(text).toContain(`còn ${40 - shown} nữa`);
+  });
+
+  it("mức Rút gọn nhắc cách đổi mức để thấy tên khách", () => {
+    expect(pack("Đầu", ["1. Mới"], 1, "short").text).toContain("Cài đặt → Thông báo Telegram");
+    expect(pack("Đầu", ["1. Mới"], 1, "full").text).not.toContain("Cài đặt");
+  });
+
+  it("khoảng thời gian dễ đọc", () => {
+    expect(span(40 * 60_000)).toBe("40 phút");
+    expect(span(3 * 3_600_000)).toBe("3 giờ");
+    expect(span(3 * 86_400_000)).toBe("3 ngày");
+  });
+
+  it("còn bao lâu được nhắn: Messenger 24 giờ, Zalo miễn phí 48 giờ", () => {
+    const now = new Date("2026-10-14T10:00:00Z");
+    const ago = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+    expect(replyWindow("messenger", ago(1), now)).toBe("Còn 23 giờ để trả lời qua Messenger");
+    expect(replyWindow("messenger", ago(25), now)).toContain("gọi điện");
+    expect(replyWindow("zalo", ago(24), now)).toBe("Còn 24 giờ nhắn Zalo miễn phí");
+    expect(replyWindow("zalo", ago(50), now)).toContain("tính phí");
   });
 });
