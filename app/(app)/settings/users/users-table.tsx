@@ -19,12 +19,25 @@ interface User {
   fullName: string;
   isActive: boolean;
   roleId: string;
+  email?: string | null;
+  /** Chưa đăng nhập lần nào (chưa nhận lời mời). */
+  pending?: boolean;
 }
 interface Role {
   id: string;
   name: string;
   isOwner: boolean;
+  key?: string;
 }
+
+type LinkResult = { ok: true; message: string; link: string } | { ok: false; message: string };
+
+// Việc chính của từng vai trò có sẵn, để Owner chọn đúng vị trí khi mời. Vai trò Owner tự tạo thêm không có mô tả.
+const ROLE_HINT: Record<string, string> = {
+  sale_admin: "Điều phối lead, giao việc, xác nhận tiền về, quản lý sản phẩm và kho, xem chỉ số cả đội.",
+  telesale: "Gọi, nhắn và chăm sóc lead được giao; tự nhận lead khi bật Trực; lên báo giá, đơn của mình.",
+  marketing: "Chiến dịch quảng cáo, chi phí, nội dung; không xem số điện thoại khách, không xuất file.",
+};
 interface Override {
   userId: string;
   key: string;
@@ -38,7 +51,8 @@ interface Perm {
 
 export interface UsersTableActions {
   changeRole: (userId: string, roleId: string) => Promise<ActionResult>;
-  inviteUser: (input: { email: string; fullName: string; roleId: string }) => Promise<ActionResult>;
+  inviteUser: (input: { email: string; fullName: string; roleId: string }) => Promise<LinkResult>;
+  issueLoginLink: (userId: string) => Promise<LinkResult>;
   resetOverrides: (userId: string) => Promise<ActionResult>;
   setPermissionOverride: (input: {
     userId: string;
@@ -59,12 +73,20 @@ export function UsersTable(props: {
   roleGrants: string[];
   permissions: Perm[];
 }) {
-  const { changeRole, inviteUser, resetOverrides, setPermissionOverride, setUserActive, startViewAs } =
-    props.actions;
+  const {
+    changeRole,
+    inviteUser,
+    issueLoginLink,
+    resetOverrides,
+    setPermissionOverride,
+    setUserActive,
+    startViewAs,
+  } = props.actions;
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
+  const [issued, setIssued] = useState<{ title: string; link: string; invite: boolean } | null>(null);
   const roleName = (id: string) => props.roles.find((r) => r.id === id)?.name ?? "";
 
   const run = (fn: () => Promise<{ ok: boolean; message: string }>) =>
@@ -73,11 +95,23 @@ export function UsersTable(props: {
       toast(res.message, res.ok ? "ok" : "err");
     });
 
+  // Tạo link xong thì mở hộp có link và nút Sao chép để gửi riêng qua Zalo, Telegram.
+  const runLink = (fn: () => Promise<LinkResult>, invite: boolean, after?: () => void) =>
+    startTransition(async () => {
+      const res = await fn();
+      if (!res.ok) {
+        toast(res.message, "err");
+        return;
+      }
+      after?.();
+      setIssued({ title: res.message, link: res.link, invite });
+    });
+
   return (
     <div className="space-y-3">
       <InviteCard
         roles={props.roles.filter((r) => !r.isOwner)}
-        onSubmit={(v) => run(() => inviteUser(v))}
+        onSubmit={(v, reset) => runLink(() => inviteUser(v), true, reset)}
         pending={pending}
       />
       <Card>
@@ -105,6 +139,9 @@ export function UsersTable(props: {
                   <tr key={u.id} className="h-10 border-t border-line-2 hover:bg-surface-2">
                     <td className="px-[14px] py-1 font-semibold">
                       <PersonChip name={u.fullName} />
+                      {u.email ? (
+                        <span className="block text-label font-normal text-text-weak">{u.email}</span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-1">
                       {props.canEditPermissions && !isOwnerRow ? (
@@ -128,9 +165,13 @@ export function UsersTable(props: {
                       )}
                     </td>
                     <td className="px-3 py-1">
-                      <Pill tone={u.isActive ? "ok" : "neutral"}>
-                        {u.isActive ? "Đang hoạt động" : "Đã khóa"}
-                      </Pill>
+                      {u.isActive && u.pending ? (
+                        <Pill tone="warn">Chưa vào CRM</Pill>
+                      ) : (
+                        <Pill tone={u.isActive ? "ok" : "neutral"}>
+                          {u.isActive ? "Đang hoạt động" : "Đã khóa"}
+                        </Pill>
+                      )}
                     </td>
                     <td className="tabular px-3 py-1">
                       +{plus} −{minus}
@@ -139,6 +180,21 @@ export function UsersTable(props: {
                       {props.canEditPermissions && !isOwnerRow ? (
                         <Button size="sm" variant="secondary" onClick={() => setEditing(u)}>
                           Chỉnh
+                        </Button>
+                      ) : null}{" "}
+                      {u.id !== props.meId && !isOwnerRow && u.isActive ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={pending}
+                          title={
+                            u.pending
+                              ? "Link mời mới khi link cũ hết hạn hoặc bị mất"
+                              : "Link đặt lại mật khẩu khi người này quên mật khẩu"
+                          }
+                          onClick={() => runLink(() => issueLoginLink(u.id), Boolean(u.pending))}
+                        >
+                          Tạo link vào CRM
                         </Button>
                       ) : null}{" "}
                       {u.id !== props.meId && !isOwnerRow && u.isActive ? (
@@ -185,6 +241,8 @@ export function UsersTable(props: {
         onConfirm={() => lockTarget && run(() => setUserActive(lockTarget.id, false))}
       />
 
+      {issued ? <LinkDialog {...issued} onClose={() => setIssued(null)} /> : null}
+
       {editing ? (
         <OverridesDrawer
           user={editing}
@@ -210,23 +268,27 @@ function InviteCard({
   pending,
 }: {
   roles: Role[];
-  onSubmit: (v: { email: string; fullName: string; roleId: string }) => void;
+  onSubmit: (v: { email: string; fullName: string; roleId: string }, reset: () => void) => void;
   pending: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [roleId, setRoleId] = useState(roles[0]?.id ?? "");
+  const hint = ROLE_HINT[roles.find((r) => r.id === roleId)?.key ?? ""];
   return (
     <Card>
       <CardHeader>
         <CardTitle>Mời người dùng</CardTitle>
       </CardHeader>
-      <CardBody>
+      <CardBody className="space-y-2">
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit({ email, fullName, roleId });
+            onSubmit({ email, fullName, roleId }, () => {
+              setEmail("");
+              setFullName("");
+            });
           }}
         >
           <label className="min-w-48 flex-1">
@@ -234,12 +296,13 @@ function InviteCard({
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
           </label>
           <label className="min-w-48 flex-1">
-            <span className="text-label text-text-weak">Email</span>
+            <span className="text-label text-text-weak">Email đăng nhập</span>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <label>
-            <span className="block text-label text-text-weak">Vai trò</span>
+            <span className="block text-label text-text-weak">Vị trí (vai trò)</span>
             <select
+              aria-label="Vai trò"
               className="h-9 rounded-control border border-line bg-surface px-2"
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
@@ -252,11 +315,77 @@ function InviteCard({
             </select>
           </label>
           <Button type="submit" disabled={pending}>
-            Gửi lời mời
+            Tạo link mời
           </Button>
         </form>
+        {hint ? <p className="text-label text-text-weak">{hint}</p> : null}
+        <p className="text-label text-text-weak">
+          CRM tạo tài khoản đúng vai trò và đưa anh chị một link. Gửi link riêng cho người được mời qua Zalo
+          hoặc Telegram; họ mở link, đặt mật khẩu rồi đăng nhập bằng email này.
+        </p>
       </CardBody>
     </Card>
+  );
+}
+
+/** Hộp hiện link vừa tạo: link chỉ hiện một lần ở đây, CRM không lưu lại. */
+function LinkDialog({
+  title,
+  link,
+  invite,
+  onClose,
+}: {
+  title: string;
+  link: string;
+  invite: boolean;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast("Đã sao chép link", "ok");
+    } catch {
+      toast("Không sao chép được, bấm giữ vào ô link để chép tay", "err");
+    }
+  };
+  return (
+    <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 space-y-3 rounded-card bg-surface p-4 shadow-pop">
+          <Dialog.Title className="text-card-title font-bold">{title}</Dialog.Title>
+          <Dialog.Description className="text-text-weak">
+            {invite
+              ? "Gửi link này riêng cho người được mời qua Zalo hoặc Telegram. Họ mở link, đặt mật khẩu (ít nhất 10 ký tự) rồi vào thẳng CRM."
+              : "Gửi link này riêng cho người đó. Mở link là vào màn đặt mật khẩu mới."}
+          </Dialog.Description>
+          <Input
+            readOnly
+            aria-label="Link vào CRM"
+            value={link}
+            onFocus={(e) => e.currentTarget.select()}
+            className="font-mono text-label"
+          />
+          <ul className="list-disc space-y-1 pl-5 text-label text-text-weak">
+            <li>
+              Link chỉ dùng được một lần và hết hạn sau khoảng 1 giờ. Hết hạn thì bấm Tạo link vào CRM ở dòng
+              của họ.
+            </li>
+            <li>Không đăng link vào nhóm chung: ai mở link trước sẽ vào được tài khoản này.</li>
+            {invite ? (
+              <li>Telesale: xếp vào ca ở Cài đặt, Ca trực; đặt chỉ tiêu ở Đội ngũ, Chỉ tiêu.</li>
+            ) : null}
+          </ul>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Đóng
+            </Button>
+            <Button onClick={copy}>Sao chép link</Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

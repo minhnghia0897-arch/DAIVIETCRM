@@ -19,6 +19,7 @@ const ACTION_LABEL: Record<string, string> = {
   "user_permission.update": "Đổi quyền riêng của người dùng",
   "user_permission.delete": "Bỏ quyền riêng của người dùng",
   "profile.invite": "Mời người dùng",
+  "profile.login_link": "Tạo link vào CRM cho người dùng",
   "profile.lock": "Khóa người dùng",
   "profile.unlock": "Mở khóa người dùng",
   "profile.role_change": "Đổi vai trò",

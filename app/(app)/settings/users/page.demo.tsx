@@ -7,13 +7,17 @@ import { STAFF } from "@/lib/demo/data";
 import { UsersTable } from "./users-table";
 
 const ROLES = [
-  { id: "owner", name: "Chủ hệ thống", isOwner: true },
-  { id: "sale_admin", name: "Sale admin", isOwner: false },
-  { id: "telesale", name: "Telesale", isOwner: false },
-  { id: "showroom", name: "Tiếp khách showroom", isOwner: false },
+  { id: "owner", key: "owner", name: "Chủ hệ thống", isOwner: true },
+  { id: "sale_admin", key: "sale_admin", name: "Sale admin", isOwner: false },
+  { id: "telesale", key: "telesale", name: "Telesale", isOwner: false },
+  { id: "showroom", key: "showroom", name: "Tiếp khách showroom", isOwner: false },
 ];
 
 const notSaved = async () => ({ ok: true as const, message: "Bản demo: thao tác không được lưu." });
+const noLink = async () => ({
+  ok: false as const,
+  message: "Bản demo: không tạo tài khoản, không tạo link.",
+});
 
 export default function Page() {
   return (
@@ -38,7 +42,8 @@ export default function Page() {
           }))}
           actions={{
             changeRole: notSaved,
-            inviteUser: notSaved,
+            inviteUser: noLink,
+            issueLoginLink: noLink,
             resetOverrides: notSaved,
             setPermissionOverride: notSaved,
             setUserActive: notSaved,
