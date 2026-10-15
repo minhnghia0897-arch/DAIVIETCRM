@@ -84,6 +84,11 @@ export interface LiveOrderDetail {
   warehouseId: string | null;
   warehouses: { id: string; name: string }[];
   reservedQty: number;
+  /** Doanh số của đơn cho người bán: giá trị sẽ tính và các dòng đã ghi trong sổ doanh số. */
+  sales: {
+    value: number;
+    credits: { kind: "sale" | "reversal"; amount: number; reason: string | null; month: string }[];
+  };
   codApproved: boolean;
   backorderUntil: string | null;
   blockers: string[];
@@ -435,6 +440,7 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
                   </tr>
                 </tbody>
               </table>
+              <SalesCredit order={o} />
             </div>
           </section>
           <section className="c-card" aria-label="Các khoản thanh toán">
@@ -509,6 +515,42 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Doanh số người bán được tính cho đơn: tiền hàng sau giảm, ghi khi khách cọc xong, trừ lại khi hủy, trả hàng. */
+function SalesCredit({ order: o }: { order: LiveOrderDetail }) {
+  const sale = o.sales.credits.find((c) => c.kind === "sale");
+  const reversal = o.sales.credits.find((c) => c.kind === "reversal");
+  const dead = o.status === "cancelled" || o.status === "returned";
+  return (
+    <div role="group" className="mt-2 border-t border-line-2 pt-2" aria-label="Doanh số của đơn">
+      <span className="flex justify-between gap-2">
+        <b>Doanh số của {o.seller}</b>
+        {sale ? (
+          <b className="tabular">{formatMoney(sale.amount)}</b>
+        ) : dead ? (
+          <span className="c-lbl">Không tính</span>
+        ) : (
+          <span className="tabular text-text-weak">{formatMoney(o.sales.value)}</span>
+        )}
+      </span>
+      <span className="c-lbl block">
+        {sale
+          ? `Đã tính vào tháng ${sale.month} khi khách cọc xong.`
+          : dead
+            ? "Đơn dừng trước khi khách cọc nên không tính doanh số."
+            : "Chưa tính: doanh số được ghi khi khách cọc xong (tiền hàng sau giảm, không gồm phí giao, lắp)."}
+      </span>
+      {reversal ? (
+        <span className="mt-1 flex justify-between gap-2 text-err">
+          <span>
+            Trừ lại tháng {reversal.month} ({reversal.reason ?? "Hủy đơn"})
+          </span>
+          <span className="tabular">−{formatMoney(Math.abs(reversal.amount))}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
