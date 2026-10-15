@@ -69,16 +69,21 @@ export const LIVE_SCREENS = [
   "/settings/catalog",
   "/settings/sales",
   "/team/absences",
+  "/team/people",
+  "/team/targets",
   "/orders",
   "/products",
   "/inventory",
   "/policies",
 ];
 
+/** Màn thật chỉ đúng đường dẫn này, còn màn con vẫn có thể mô phỏng (Tổng quan đội; Kèm cặp, Bàn giao còn mô phỏng). */
+const LIVE_EXACT = ["/team"];
+
 /** Màn đang mở có chạy dữ liệu thật không (bản demo tĩnh thì luôn là mô phỏng). */
 export function isLiveScreen(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return LIVE_SCREENS.some((s) => path === s || path.startsWith(`${s}/`));
+  return LIVE_EXACT.includes(path) || LIVE_SCREENS.some((s) => path === s || path.startsWith(`${s}/`));
 }
 
 export const NAV_TABS: NavTab[] = [

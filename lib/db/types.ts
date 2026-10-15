@@ -3845,6 +3845,73 @@ export type Database = {
           },
         ];
       };
+      sales_credits: {
+        Row: {
+          amount: number;
+          created_at: string;
+          created_by: string | null;
+          credited_at: string;
+          id: string;
+          kind: string;
+          month: string;
+          order_id: string;
+          reason: string | null;
+          seller_id: string | null;
+          showroom_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          created_by?: string | null;
+          credited_at?: string;
+          id?: string;
+          kind: string;
+          month: string;
+          order_id: string;
+          reason?: string | null;
+          seller_id?: string | null;
+          showroom_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          credited_at?: string;
+          id?: string;
+          kind?: string;
+          month?: string;
+          order_id?: string;
+          reason?: string | null;
+          seller_id?: string | null;
+          showroom_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sales_credits_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sales_credits_seller_id_fkey";
+            columns: ["seller_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sales_credits_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sales_settings: {
         Row: {
           bank_info: string | null;
@@ -4465,6 +4532,66 @@ export type Database = {
             columns: ["showroom_id"];
             isOneToOne: false;
             referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      targets: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          metric_key: string;
+          period: string;
+          period_start: string;
+          set_at: string;
+          set_by: string | null;
+          showroom_id: string;
+          target_value: number;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          metric_key: string;
+          period: string;
+          period_start: string;
+          set_at?: string;
+          set_by?: string | null;
+          showroom_id: string;
+          target_value: number;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          metric_key?: string;
+          period?: string;
+          period_start?: string;
+          set_at?: string;
+          set_by?: string | null;
+          showroom_id?: string;
+          target_value?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "targets_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "targets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -5615,6 +5742,7 @@ export type Database = {
       can_view_contact: { Args: { p_contact_id: string }; Returns: boolean };
       can_view_lead: { Args: { p_lead_id: string }; Returns: boolean };
       can_view_order: { Args: { p_order_id: string }; Returns: boolean };
+      can_view_sales_of: { Args: { p_user: string }; Returns: boolean };
       cancel_order: { Args: { p_order_id: string; p_reason: string }; Returns: undefined };
       cancel_stock_document: { Args: { p_doc_id: string }; Returns: undefined };
       check_content_stage: {
@@ -5842,6 +5970,19 @@ export type Database = {
       route_no_receiver_leads: { Args: { p_showroom_id: string }; Returns: number };
       route_unassigned_conversations: { Args: { p_showroom_id: string }; Returns: number };
       route_waiting_leads: { Args: Record<PropertyKey, never>; Returns: number };
+      sales_kpi_month: {
+        Args: { p_month: string };
+        Returns: {
+          full_name: string;
+          net: number;
+          orders: number;
+          reversed: number;
+          sold: number;
+          target: number;
+          user_id: string;
+        }[];
+      };
+      sales_month: { Args: { p_at: string; p_showroom: string }; Returns: string };
       save_campaign: { Args: { p: Json }; Returns: string };
       save_combo: { Args: { p: Json }; Returns: string };
       save_contact_address: { Args: { p: Json }; Returns: string };
@@ -5877,6 +6018,7 @@ export type Database = {
       set_order_warehouse: { Args: { p_order_id: string; p_warehouse_id: string }; Returns: undefined };
       set_policy_status: { Args: { p_policy_key: string; p_status: string }; Returns: undefined };
       set_price: { Args: { p_price: number; p_variant_id: string }; Returns: undefined };
+      set_sales_target: { Args: { p_month: string; p_user: string; p_value: number }; Returns: undefined };
       set_telegram_group: {
         Args: { p_active?: boolean; p_chat_id: number; p_purpose: string };
         Returns: string;

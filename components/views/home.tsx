@@ -2,6 +2,9 @@ import { LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 
 import { MarketTag, type MarketInfo } from "@/components/market-tag";
+import { Progress } from "@/components/progress";
+import { formatMoney } from "@/lib/format";
+import { monthLabel, monthParam, salesProgress } from "@/lib/sales/credits";
 
 // Trang chủ bản thật theo phong cách Telegram (07/10/2026, .tgx trong crm.css): nền xám nhạt, thẻ trắng bo tròn,
 // tiêu đề mục chữ xanh, ô số liệu nền xám, dòng lead có avatar tròn. Bố cục giữ như trước: số liệu, rồi hàng chờ.
@@ -39,16 +42,28 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase() || "?";
 
+export interface HomeSales {
+  userId: string;
+  month: string;
+  net: number;
+  orders: number;
+  target: number | null;
+  /** Có xem cả đội (kpi.team): thêm link sang bảng doanh số đội. */
+  team: boolean;
+}
+
 export function HomeView({
   teamView,
   rows,
   markets,
   now,
+  sales,
 }: {
   teamView: boolean;
   rows: HomeLeadRow[];
   markets: MarketInfo[];
   now: Date;
+  sales?: HomeSales | null;
 }) {
   const isOverdue = (l: HomeLeadRow) =>
     !l.firstContactAt && l.slaDueAt !== null && Date.parse(l.slaDueAt) < now.getTime();
@@ -93,6 +108,8 @@ export function HomeView({
           ) : null}
         </div>
       </section>
+
+      {sales ? <SalesCard s={sales} /> : null}
 
       <section className="c-card" aria-labelledby="home-queue">
         <div className="c-ch">
@@ -139,6 +156,50 @@ export function HomeView({
         )}
       </section>
     </div>
+  );
+}
+
+/** Doanh số đã cọc của chính mình trong tháng so với chỉ tiêu; bấm để xem từng đơn. */
+function SalesCard({ s }: { s: HomeSales }) {
+  const p = salesProgress(s.net, s.target);
+  return (
+    <section className="c-card" aria-labelledby="home-sales">
+      <div className="c-ch">
+        <h2 id="home-sales">Doanh số của tôi, {monthLabel(s.month).toLowerCase()}</h2>
+        <span className="ml-auto flex gap-3 text-[13px]">
+          {s.team ? (
+            <Link href={`/team?thang=${monthParam(s.month)}`} className="c-link">
+              Cả đội
+            </Link>
+          ) : null}
+          <Link href={`/team/people/${s.userId}?thang=${monthParam(s.month)}`} className="c-link">
+            Xem từng đơn
+          </Link>
+        </span>
+      </div>
+      <div className="c-cb flex flex-wrap items-center gap-x-6 gap-y-2 pt-0">
+        <span>
+          <span className="c-lbl block">Đã cọc</span>
+          <b className="tabular text-metric">{formatMoney(s.net)}</b>
+        </span>
+        <span>
+          <span className="c-lbl block">Chỉ tiêu</span>
+          <b className="tabular">{s.target ? formatMoney(s.target) : "Chưa đặt"}</b>
+        </span>
+        <span>
+          <span className="c-lbl block">Đơn đã cọc</span>
+          <b className="tabular">{s.orders}</b>
+        </span>
+        {p.ratio !== null ? (
+          <span>
+            <span className="c-lbl block">
+              {p.remaining ? `Còn thiếu ${formatMoney(p.remaining)}` : "Đã đạt chỉ tiêu"}
+            </span>
+            <Progress ratio={p.ratio} label="Doanh số so với chỉ tiêu" />
+          </span>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

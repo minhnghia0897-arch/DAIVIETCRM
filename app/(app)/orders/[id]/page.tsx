@@ -5,6 +5,7 @@ import { OrderLive, type LiveOrderDetail } from "@/components/crm/views/order-li
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
 import { createClient } from "@/lib/db/server";
+import { monthShort, orderSalesValue } from "@/lib/sales/credits";
 
 import {
   advanceOrder,
@@ -49,7 +50,7 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
     .maybeSingle();
   if (!o) notFound();
 
-  const [items, payments, delivery, warranties, warehouses, blockers, seller, phones, holds] =
+  const [items, payments, delivery, warranties, warehouses, blockers, seller, phones, holds, credits] =
     await Promise.all([
       supabase
         .from("order_items")
@@ -91,6 +92,8 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
         .eq("type", "phone")
         .limit(1),
       supabase.from("stock_reservations").select("qty").eq("order_id", id).is("released_at", null),
+      // Doanh số của đơn (sổ sales_credits): ai xem được đơn thì thấy đơn được tính bao nhiêu, vào tháng nào.
+      supabase.from("sales_credits").select("kind, amount, reason, month").eq("order_id", id),
     ]);
 
   const itemRows = items.data ?? [];
@@ -221,6 +224,15 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
     warehouseId: o.warehouse_id,
     warehouses: (warehouses.data ?? []).filter((w) => !w.is_display).map((w) => ({ id: w.id, name: w.name })),
     reservedQty: (holds.data ?? []).reduce((s, h) => s + h.qty, 0),
+    sales: {
+      value: orderSalesValue(o.subtotal, o.discount),
+      credits: (credits.data ?? []).map((c) => ({
+        kind: c.kind === "reversal" ? ("reversal" as const) : ("sale" as const),
+        amount: c.amount,
+        reason: c.reason,
+        month: monthShort(c.month),
+      })),
+    },
     codApproved: Boolean(o.cod_approved_at),
     backorderUntil: o.backorder_until,
     blockers: (blockers.data as string[] | null) ?? [],

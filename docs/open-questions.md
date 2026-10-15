@@ -110,3 +110,27 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     - (a) Anh có muốn kéo lùi (ví dụ Demo về Đã liên hệ) không. Hiện chặn để phễu và chỉ số chuyển đổi giữ đúng.
     - (b) Chưa có số ngày lead nằm ở mỗi giai đoạn trên thẻ (cần ghi thời điểm đổi giai đoạn vào lead).
 
+
+51. **Doanh số từng sale (15/10/2026, anh chốt bốn quy tắc):** migration `20261015000100_sales_credits.sql`.
+    - Tính khi khách cọc xong: đơn sang Đã cọc, hoặc đi thẳng Sẵn sàng giao (được duyệt thu khi giao). Mỗi đơn tính một lần.
+    - Doanh số một đơn = tiền hàng sau giảm giá (tạm tính trừ giảm), không gồm phí giao, phí lắp.
+    - Ghi cho người bán trên đơn (`orders.seller_id`), vào tháng cọc theo giờ showroom.
+    - Đơn đã tính mà bị hủy hoặc khách trả hàng: ghi một dòng âm vào tháng hủy; số các tháng trước giữ nguyên.
+    - Sổ `sales_credits` chỉ thêm, không sửa, không xóa; chỉ trigger trên đơn ghi. Đơn có sẵn trước migration được ghi lại theo lịch sử trạng thái.
+    - Chỉ tiêu doanh số tháng ở bảng `targets`, Owner đặt (`target.manage`) ở Đội ngũ, Chỉ tiêu; có nút chép chỉ tiêu tháng trước; mọi lần đặt có nhật ký kiểm toán.
+    - Màn thật:
+      - Hồ sơ đơn: "Doanh số của <người bán>" (đơn này được tính bao nhiêu, tháng nào, dòng trừ nếu hủy).
+      - Trang chủ: thẻ "Doanh số của tôi" so với chỉ tiêu.
+      - Đội ngũ, Tổng quan đội: bảng Từng người theo tháng.
+      - Hiệu suất của tôi, Hiệu suất cá nhân: từng đơn trong tháng, 6 tháng gần nhất.
+    - Ai thấy gì:
+      - Telesale chỉ thấy của mình.
+      - Sale admin (`kpi.team`) thấy người không phải quản lý, không thấy Owner, sale admin khác.
+      - Owner thấy mọi người.
+      - Ai xem được đơn thì thấy doanh số của đơn đó.
+
+    Còn mở:
+    - (a) Chỉ tiêu chưa tự trừ theo ngày nghỉ (mục 9.3 ghi tính theo tỷ lệ ngày làm thực tế). Anh muốn tự trừ không, hay Owner nhập số đã tính sẵn.
+    - (b) Đổi người bán, sửa giá của đơn sau khi đã cọc: sổ giữ số lúc cọc, không tự đổi. Cần đổi thì làm thêm thao tác "chuyển doanh số" có duyệt.
+    - (c) Màn Đội ngũ bản thật hiện chỉ có doanh số. Các chỉ số gọi, SLA, đủ thông tin, chốt theo lô lead (mục 9.4) sẽ nối dữ liệu thật ở bước sau; bản demo vẫn giữ để xem bố cục.
+    - (d) Chưa có doanh số trong lệnh Telegram. Anh muốn thêm lệnh xem doanh số tháng của mình không.

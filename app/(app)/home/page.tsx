@@ -6,6 +6,7 @@ import { HomeView } from "@/components/views/home";
 import { requireAnyPermission, requireUser } from "@/lib/auth/session";
 import { LEAD_VIEW, visibleTabs } from "@/lib/nav";
 import { createClient } from "@/lib/db/server";
+import { currentMonth } from "@/lib/sales/credits";
 
 export const metadata: Metadata = { title: "Trang chủ · Đại Việt CRM" };
 
@@ -29,15 +30,43 @@ export default async function HomePage() {
     .order("sla_due_at", { ascending: true, nullsFirst: false })
     .limit(50);
   if (!teamView) query = query.eq("assigned_to", user.id);
-  const [{ data: leads }, { data: markets }] = await Promise.all([
+  // Doanh số của chính mình tháng này (sổ sales_credits, chỉ tiêu targets): người bán thấy ngay mình được bao nhiêu.
+  const month = currentMonth();
+  const showSales = user.permissions.has("kpi.own") && user.permissions.has("order.create");
+  const [{ data: leads }, { data: markets }, credits, target] = await Promise.all([
     query,
     supabase.from("markets").select("country_code, name, color_token").eq("is_active", true),
+    showSales
+      ? supabase.from("sales_credits").select("kind, amount").eq("seller_id", user.id).eq("month", month)
+      : Promise.resolve({ data: null }),
+    showSales
+      ? supabase
+          .from("targets")
+          .select("target_value")
+          .eq("user_id", user.id)
+          .eq("period", "month")
+          .eq("period_start", month)
+          .eq("metric_key", "revenue_deposit")
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return (
     <HomeView
       teamView={teamView}
       markets={markets ?? []}
+      sales={
+        showSales
+          ? {
+              userId: user.id,
+              month,
+              net: (credits.data ?? []).reduce((n, c) => n + c.amount, 0),
+              orders: (credits.data ?? []).filter((c) => c.kind === "sale").length,
+              target: target.data?.target_value ?? null,
+              team: user.permissions.has("kpi.team"),
+            }
+          : null
+      }
       now={new Date()}
       rows={(leads ?? []).map((l) => ({
         id: l.id,

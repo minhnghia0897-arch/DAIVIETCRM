@@ -695,6 +695,11 @@ test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, 
     .click();
   await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();
   const orderUrl = page.url();
+  const orderCode = (await page.getByRole("heading", { name: /^Đơn Q4-/ }).innerText()).replace(/^Đơn /, "");
+  // Chưa cọc: hiện doanh số sẽ tính (tiền hàng sau giảm 49tr − 1tr, không gồm phí giao), chưa ghi vào tháng nào.
+  const credit = page.getByLabel("Doanh số của đơn");
+  await expect(credit).toContainText("48.000.000đ");
+  await expect(credit).toContainText("Chưa tính");
   await expect(page.getByRole("list", { name: "Điều kiện chưa đạt" })).toContainText("Tiền cọc");
   await page.getByRole("button", { name: "Ghi thanh toán" }).click();
   const pay = page.getByRole("form", { name: "Ghi thanh toán đơn" });
@@ -720,6 +725,8 @@ test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, 
   const steps = page.getByRole("region", { name: "Thao tác đơn" });
   await steps.getByRole("button", { name: "Chuyển sang Đã cọc, giữ hàng" }).click();
   await expect(page.getByText(/Đang giữ 1 sản phẩm/)).toBeVisible();
+  // Khách cọc xong: doanh số ghi cho người bán vào tháng này.
+  await expect(page.getByLabel("Doanh số của đơn")).toContainText("Đã tính vào tháng");
   await steps.getByRole("button", { name: "Chuyển sang Sẵn sàng giao" }).click();
   const issue = page.getByRole("form", { name: "Xuất kho giao hàng" });
   await issue.getByLabel("Serial DC302").fill(serial);
@@ -730,6 +737,12 @@ test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, 
   await steps.getByRole("button", { name: "Hoàn tất đơn" }).click();
   await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toContainText(serial);
   await expect(page.getByText("Đơn đã kết thúc.")).toBeVisible();
+
+  // Hiệu suất của người bán: đơn nằm trong danh sách doanh số từng đơn của tháng, đúng 48.000.000đ.
+  await page.goto("/team/people/11111111-1111-4111-8111-000000000002");
+  await expect(
+    page.getByRole("table", { name: "Doanh số từng đơn" }).getByRole("row").filter({ hasText: orderCode }),
+  ).toContainText("48.000.000đ");
 });
 
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
