@@ -3,6 +3,25 @@
 Các việc vận hành thường gặp trên bản thật (Vercel `daiviet_crm_q4`, Supabase NGHIA). Mục nào chưa có ở đây thì xem
 migration và `docs/integrations/` tương ứng.
 
+## Thêm người dùng, đặt lại mật khẩu
+
+Chỉ Owner (`settings.users`) làm được, ở **Cài đặt → Người dùng**. CRM không gửi email: chưa có SMTP riêng thì Supabase
+chỉ gửi thư cho thành viên nhóm dự án Supabase, nên lời mời đi bằng link Owner tự gửi.
+
+1. Ở "Mời người dùng", nhập họ tên, email đăng nhập và chọn vị trí (vai trò). Dòng gợi ý dưới ô cho biết vai trò đó làm
+   gì. Bấm **Tạo link mời**.
+2. CRM tạo tài khoản đúng vai trò và hiện một link. Bấm **Sao chép link** rồi gửi **riêng** cho người được mời qua Zalo
+   hoặc Telegram. Không đăng vào nhóm chung: ai mở link trước sẽ vào được tài khoản đó.
+3. Người được mời mở link, đặt mật khẩu (ít nhất 10 ký tự) và vào thẳng CRM. Lần sau đăng nhập bằng email và mật khẩu đó.
+4. Link chỉ dùng một lần và hết hạn sau khoảng 1 giờ (thời hạn mã email của Supabase Auth). Hết hạn hoặc làm mất thì bấm
+   **Tạo link vào CRM** ở dòng của người đó. Dòng ghi "Chưa vào CRM" khi người đó chưa đăng nhập lần nào.
+5. Quên mật khẩu: cũng bấm **Tạo link vào CRM**. Người đã vào CRM rồi thì link mở ra màn đặt mật khẩu mới.
+6. Sau khi người mới vào: telesale xếp vào ca ở **Cài đặt → Ca trực** (có ca và bật Trực mới được chia lead), đặt chỉ
+   tiêu ở **Đội ngũ → Chỉ tiêu**; cần quyền khác vai trò thì bấm **Chỉnh** ở dòng của họ.
+
+Mỗi lần mời, tạo link đều có trong Nhật ký kiểm toán; bản thân link không được lưu ở đâu. Khi đã cấu hình SMTP riêng
+(câu hỏi mở số 2 trong `CLAUDE.md`), có thể làm thêm nút gửi lời mời qua email.
+
 ## Giữ máy chủ không ngủ trong giờ làm
 
 - **Vì sao:** Vercel tắt máy chủ vẽ trang sau một lúc không có ai dùng; lần mở kế tiếp phải chờ máy chủ khởi động
