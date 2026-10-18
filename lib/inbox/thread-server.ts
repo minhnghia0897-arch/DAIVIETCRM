@@ -306,8 +306,7 @@ async function loadOrderSide(
     canQuote: !me.viewAs && me.permissions.has("quote.create") && Boolean(lead) && lead?.stage !== "lost",
     missing,
     catalog: loaded?.catalog ?? null,
-    // Sản phẩm chỉ làm quà tặng không bán lẻ: chỉ hiện ở dòng quà tặng kèm.
-    products: (loaded?.products ?? []).filter((p) => !loaded?.catalog.variants[p.variantId]?.giftOnly),
+    products: loaded?.products ?? [],
     gifts: loaded?.gifts ?? [],
     combos: loaded?.combos ?? [],
     context: ctx

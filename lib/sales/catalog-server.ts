@@ -16,8 +16,8 @@ export interface LoadedCatalog {
   catalog: PricingCatalog;
   /** SKU bán được, để hiện ở màn Lên đơn. */
   products: { variantId: string; sku: string; name: string; price: number }[];
-  /** SKU tặng kèm được khi lên đơn: sản phẩm chỉ làm quà tặng trước, rồi tới hàng đang bán. */
-  gifts: { variantId: string; sku: string; name: string; price: number; giftOnly: boolean }[];
+  /** Danh mục Quà tặng (sản phẩm chỉ làm quà tặng, màn /gifts): tặng kèm khi lên đơn, combo, khuyến mãi. */
+  gifts: { variantId: string; sku: string; name: string; value: number }[];
   combos: { id: string; code: string; name: string }[];
   /** Chính sách dạng chữ (thanh toán, bảo hành, đổi trả) đang áp, hiện trên báo giá. */
   notes: { type: string; name: string; text: string }[];
@@ -71,7 +71,7 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
   const gifts: LoadedCatalog["gifts"] = [];
   for (const v of variants.data ?? []) {
     const giftOnly = v.products.is_gift_only;
-    // Quà tặng không cần giá trong bảng giá; hàng bán thì phải có giá.
+    // Quà tặng không cần giá trong bảng giá (giá ở đó chỉ là giá trị tham khảo); hàng bán thì phải có giá.
     const price = priceOf.get(v.id) ?? (giftOnly ? 0 : undefined);
     if (price === undefined) continue;
     const name = v.name ? `${v.products.name} ${v.name}` : v.products.name;
@@ -84,13 +84,12 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
       ...(giftOnly ? { giftOnly: true } : {}),
     };
     const usable = v.is_active && v.products.status === "active" && !v.products.deleted_at;
-    if (usable && v.products.is_sellable && priceOf.has(v.id))
+    if (usable && giftOnly) gifts.push({ variantId: v.id, sku: v.sku, name, value: price });
+    else if (usable && v.products.is_sellable && priceOf.has(v.id))
       products.push({ variantId: v.id, sku: v.sku, name, price });
-    if (usable && (giftOnly || v.products.is_sellable))
-      gifts.push({ variantId: v.id, sku: v.sku, name, price, giftOnly });
   }
   products.sort((a, b) => a.sku.localeCompare(b.sku));
-  gifts.sort((a, b) => Number(b.giftOnly) - Number(a.giftOnly) || a.sku.localeCompare(b.sku));
+  gifts.sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
   const comboList: LoadedCatalog["combos"] = [];
   for (const c of combos.data ?? []) {

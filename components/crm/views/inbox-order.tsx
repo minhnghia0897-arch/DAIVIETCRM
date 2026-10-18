@@ -31,8 +31,8 @@ export interface OrderSide {
   missing: string[];
   catalog: PricingCatalog | null;
   products: { variantId: string; sku: string; name: string; price: number }[];
-  /** SKU tặng kèm được: sản phẩm chỉ làm quà tặng, rồi tới hàng đang bán (tính vào giới hạn giảm). */
-  gifts: { variantId: string; sku: string; name: string; price: number; giftOnly: boolean }[];
+  /** Danh mục Quà tặng (màn /gifts): quà tặng kèm giá 0đ. */
+  gifts: { variantId: string; sku: string; name: string; value: number }[];
   combos: { id: string; code: string; name: string }[];
   context: {
     showroomId: string;
@@ -175,7 +175,7 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
   ];
   const giftOptions = order.gifts.map((g) => ({
     value: `v:${g.variantId}`,
-    label: g.giftOnly ? `${g.name} · quà tặng` : `${g.name} · giá lẻ ${formatMoney(g.price)}`,
+    label: g.value ? `${g.name} · trị giá ${formatMoney(g.value)}` : g.name,
   }));
   const saleRows = f.rows.filter((r) => !r.gift);
   const giftRows = f.rows.filter((r) => r.gift);
@@ -732,17 +732,25 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
                       <Plus size={13} className="mr-1 inline" aria-hidden />
                       Thêm dòng
                     </button>
-                    {giftOptions.length ? (
-                      <button
-                        type="button"
-                        className="c-btn"
-                        onClick={() => addRow({ ref: giftOptions[0].value, gift: true })}
-                      >
-                        <Gift size={13} className="mr-1 inline" aria-hidden />
-                        Thêm quà tặng
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      className="c-btn"
+                      disabled={!giftOptions.length}
+                      onClick={() => addRow({ ref: giftOptions[0].value, gift: true })}
+                    >
+                      <Gift size={13} className="mr-1 inline" aria-hidden />
+                      Thêm quà tặng
+                    </button>
                   </span>
+                  {giftOptions.length ? null : (
+                    <p className="c-lbl m-0">
+                      Chưa có quà nào. Thêm quà ở{" "}
+                      <Link href="/gifts" className="c-link">
+                        Sản phẩm, Quà tặng
+                      </Link>
+                      .
+                    </p>
+                  )}
                   <label className="block c-lbl">
                     Giảm giá cả đơn
                     <span className="mt-0.5 flex gap-1.5">

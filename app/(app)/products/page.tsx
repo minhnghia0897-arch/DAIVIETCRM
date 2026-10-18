@@ -9,6 +9,7 @@ import { importProducts, saveProduct } from "./actions";
 export const metadata: Metadata = { title: "Sản phẩm · Đại Việt CRM" };
 
 // Danh mục sản phẩm thật: SKU, giá bán hiện hành (bảng giá mặc định). Không quản lý tồn kho (Owner chốt 18/10/2026).
+// Quà tặng có danh mục riêng ở /gifts.
 export default async function Page() {
   const user = await requirePermission("product.view");
   const supabase = await createClient();
@@ -31,24 +32,27 @@ export default async function Page() {
   const priceOf = new Map<string, number>();
   for (const p of prices.data ?? []) if (!priceOf.has(p.variant_id)) priceOf.set(p.variant_id, p.price);
 
-  const rows: LiveProduct[] = (variants.data ?? []).map((v) => ({
-    id: v.id,
-    sku: v.sku,
-    name: v.name ? `${v.products.name} ${v.name}` : v.products.name,
-    categoryId: v.products.category_id,
-    category: cats.data?.find((c) => c.id === v.products.category_id)?.name ?? null,
-    brand: v.products.brand,
-    description: v.products.description,
-    price: priceOf.get(v.id) ?? null,
-    warrantyMonths: v.products.warranty_months,
-    requiresInstallation: v.products.requires_installation,
-    installationCrewSize: v.products.installation_crew_size,
-    bulky: v.products.delivery_class === "bulky",
-    trackSerial: v.products.track_serial,
-    isSellable: v.products.is_sellable,
-    isGiftOnly: v.products.is_gift_only,
-    active: v.is_active && v.products.status === "active",
-  }));
+  // Quà tặng nằm ở danh mục Quà tặng riêng (/gifts), không lẫn vào sản phẩm bán.
+  const rows: LiveProduct[] = (variants.data ?? [])
+    .filter((v) => !v.products.is_gift_only)
+    .map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      name: v.name ? `${v.products.name} ${v.name}` : v.products.name,
+      categoryId: v.products.category_id,
+      category: cats.data?.find((c) => c.id === v.products.category_id)?.name ?? null,
+      brand: v.products.brand,
+      description: v.products.description,
+      price: priceOf.get(v.id) ?? null,
+      warrantyMonths: v.products.warranty_months,
+      requiresInstallation: v.products.requires_installation,
+      installationCrewSize: v.products.installation_crew_size,
+      bulky: v.products.delivery_class === "bulky",
+      trackSerial: v.products.track_serial,
+      isSellable: v.products.is_sellable,
+      isGiftOnly: v.products.is_gift_only,
+      active: v.is_active && v.products.status === "active",
+    }));
 
   return (
     <ProductsLive

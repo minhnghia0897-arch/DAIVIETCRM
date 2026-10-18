@@ -32,6 +32,7 @@ const OWNER_SCREENS: [string, string][] = [
   ["/inventory", "Số lượng bán"],
   ["/orders", "Đơn hàng"],
   ["/products", "Sản phẩm"],
+  ["/gifts", "Quà tặng"],
   ["/settings/sales", "Cọc, báo giá"],
   ["/customers/22222222-2222-4222-8222-000000000003", "Phạm Ngọc Lan"],
   ["/team/targets", "Đội ngũ: chỉ tiêu"],

@@ -71,6 +71,7 @@ export default async function Page() {
       }))}
       catalog={loaded.catalog}
       products={loaded.products}
+      gifts={loaded.gifts}
       categories={cats.data ?? []}
       roles={(roles.data ?? []).map((r) => ({ key: r.key, name: r.name }))}
       provinces={PROVINCE_NAMES}
