@@ -128,7 +128,7 @@ async function loadSide(
       : Promise.resolve({ data: null }),
     supabase
       .from("contact_identity_display")
-      .select("display_masked")
+      .select("display")
       .eq("contact_id", contactId)
       .eq("type", "phone"),
     supabase
@@ -174,7 +174,8 @@ async function loadSide(
       id: contactId,
       name: conv.contacts.full_name,
       country: conv.contacts.country_of_residence,
-      phones: (identities.data ?? []).map((i) => i.display_masked).filter((x): x is string => Boolean(x)),
+      // Số đầy đủ khi người xem được xem (quản lý, hoặc lead đang giao cho mình), không thì bản che.
+      phones: (identities.data ?? []).map((i) => i.display).filter((x): x is string => Boolean(x)),
     },
     canEdit,
     lead: l

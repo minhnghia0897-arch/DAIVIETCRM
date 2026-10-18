@@ -72,7 +72,7 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
       : Promise.resolve({ data: null }),
     supabase
       .from("contact_identity_display")
-      .select("display_masked")
+      .select("display")
       .eq("contact_id", o.buyer_contact_id)
       .eq("type", "phone")
       .limit(1),
@@ -116,7 +116,7 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
       id: o.buyer?.id ?? null,
       name: o.buyer?.full_name ?? "Khách",
       market: o.buyer?.country_of_residence ?? "unknown",
-      phone: phones.data?.[0]?.display_masked ?? null,
+      phone: phones.data?.[0]?.display ?? null,
     },
     self: !o.is_gift,
     recipient: o.recipient

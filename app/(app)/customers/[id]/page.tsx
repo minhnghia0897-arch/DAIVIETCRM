@@ -32,7 +32,8 @@ const IDENTITY_LABEL: Record<string, string> = {
 };
 
 // Hồ sơ khách 360 (CLAUDE.md 1.1, DESIGN.md 6.15) đọc database dưới phiên người đang đăng nhập: RLS chỉ trả khách
-// thuộc lead hoặc đơn người đó được xem. Số điện thoại chỉ có bản che; số đầy đủ lấy qua nút Gọi (reveal_identity).
+// thuộc lead hoặc đơn người đó được xem. Số điện thoại: database trả số đầy đủ cho người được xem (contact.phone_reveal,
+// hoặc lead đang giao cho mình), còn lại bản che; nút Gọi vẫn qua reveal_identity và ghi nhật ký.
 export default async function Page({ params }: PageProps<"/customers/[id]">) {
   const user = await requireAnyPermission(CUSTOMER_VIEW);
   const { id } = await params;
@@ -56,7 +57,7 @@ export default async function Page({ params }: PageProps<"/customers/[id]">) {
     await Promise.all([
       supabase
         .from("contact_identity_display")
-        .select("id, type, display_masked, is_primary, is_valid")
+        .select("id, type, display, is_primary, is_valid")
         .eq("contact_id", id)
         .order("is_primary", { ascending: false }),
       supabase
@@ -204,7 +205,7 @@ export default async function Page({ params }: PageProps<"/customers/[id]">) {
       id: i.id!,
       type: i.type!,
       label: IDENTITY_LABEL[i.type ?? ""] ?? "Định danh",
-      masked: i.display_masked ?? "",
+      display: i.display ?? "",
       primary: Boolean(i.is_primary),
       valid: i.is_valid !== false,
     })),

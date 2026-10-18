@@ -46,12 +46,25 @@ test("hồ sơ khách: giữ bất ngờ chặn gọi người nhận, người 
 
   await page.goto(`/customers/${THU}`);
   await expect(page.getByRole("heading", { name: "Nguyễn Thị Thu" })).toBeVisible();
-  await expect(page.getByText("+82 10••••2290")).toBeVisible();
+  // Người giữ lead thấy ngay số đầy đủ của người đặt (không cần bấm); người nhận đang Giữ bất ngờ vẫn che.
+  const ids = page.getByRole("region", { name: "Liên hệ và đồng ý" });
+  await expect(ids).toContainText("+821012342290");
+  await expect(ids).not.toContainText("••••");
   await page.getByRole("button", { name: "Gọi" }).click();
-  await expect(page.getByText("+821012342290")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mở trình gọi" })).toHaveAttribute("href", "tel:+821012342290");
   await expect(page.getByRole("link", { name: "Ghi kết quả cuộc gọi ở hồ sơ lead" })).toBeVisible();
   // Telesale không có quyền xuất file: không có mục trích xuất dữ liệu.
   await expect(page.getByRole("region", { name: "Dữ liệu và quyền riêng tư" })).toHaveCount(0);
+});
+
+test("quản lý thấy số đầy đủ của mọi khách; người nhận đang Giữ bất ngờ vẫn che", async ({ page }) => {
+  await login(page, USERS.saleAdmin);
+  await page.goto(`/customers/${LAN}`);
+  await expect(page.getByRole("region", { name: "Liên hệ và đồng ý" })).toContainText("+84911234630");
+  await page.goto(`/customers/${LUC}`);
+  const luc = page.getByRole("region", { name: "Liên hệ và đồng ý" });
+  await expect(luc).toContainText("090•••215");
+  await expect(luc).not.toContainText("+84901234215");
 });
 
 test("telesale không giữ lead của khách thì không mở được hồ sơ", async ({ page }) => {

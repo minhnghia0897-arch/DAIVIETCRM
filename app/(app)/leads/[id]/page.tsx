@@ -28,7 +28,8 @@ import {
 export const metadata: Metadata = { title: "Hồ sơ lead · Đại Việt CRM" };
 
 // Hồ sơ lead đọc database dưới phiên người đang đăng nhập: RLS trả lead chỉ khi người đó được xem (lead của mình,
-// hoặc mọi lead khi có lead.view_all). Số điện thoại chỉ có bản che; số đầy đủ lấy qua nút Gọi (reveal_identity).
+// hoặc mọi lead khi có lead.view_all). Số điện thoại: database trả số đầy đủ cho người được xem (contact.phone_reveal, hoặc
+// lead đang giao cho mình), còn lại bản che (migration 20261018000200_phone_display.sql); nút Gọi vẫn qua reveal_identity.
 export default async function Page({ params }: PageProps<"/leads/[id]">) {
   const user = await requireAnyPermission(LEAD_VIEW);
   const { id } = await params;
@@ -49,7 +50,7 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
     await Promise.all([
       supabase
         .from("contact_identity_display")
-        .select("id, contact_id, type, display_masked, is_primary, is_valid")
+        .select("id, contact_id, type, display, is_primary, is_valid")
         .in("contact_id", contactIds),
       supabase.from("occasions").select("id, label").eq("is_active", true).order("sort"),
       supabase.from("budget_ranges").select("id, label").eq("is_active", true).order("sort"),
@@ -167,7 +168,7 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
       name: lead.buyer.full_name,
       country,
       city: lead.buyer.city,
-      phoneMasked: buyerPhone?.display_masked ?? null,
+      phone: buyerPhone?.display ?? null,
       phoneIdentityId: buyerPhone?.id ?? null,
       phoneInvalid: buyerPhone ? !buyerPhone.is_valid : false,
     },
@@ -179,7 +180,7 @@ export default async function Page({ params }: PageProps<"/leads/[id]">) {
             name: lead.recipient.full_name,
             relation: lead.recipient.relation_in_household,
             // Giữ bất ngờ: không hiện cả bản che của số người nhận (CLAUDE.md mục 4, leads.keep_surprise).
-            phoneMasked: lead.keep_surprise ? null : (recipientPhone?.display_masked ?? null),
+            phone: lead.keep_surprise ? null : (recipientPhone?.display ?? null),
           }
         : null,
     recipientProvince: lead.recipient_province,
