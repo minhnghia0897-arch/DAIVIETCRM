@@ -4,7 +4,8 @@ import type { Discount, PricingCatalog, QuoteInput, QuoteResult } from "./pricin
 // trước) và server (tính lại rồi mới ghi, CLAUDE.md 8.1).
 
 export interface Cart {
-  lines: { variantId?: string; comboId?: string; qty: number }[];
+  /** `isGift`: quà tặng kèm người bán thêm (chỉ dòng SKU), giá 0đ, không nhận giảm tay. */
+  lines: { variantId?: string; comboId?: string; qty: number; isGift?: boolean }[];
   /** Giảm tay của người bán cho cả đơn. */
   discount: { type: "amount" | "pct"; value: number } | null;
   /** Phí nhân viên nhập; null là để chính sách giao lắp tính (hoặc 0 khi chưa có chính sách). */
@@ -38,6 +39,7 @@ function allocate(amount: number, weights: number[]): number[] {
 
 /** Giá lẻ ước tính của một dòng giỏ (để chia giảm tay theo số tiền). */
 function retail(l: Cart["lines"][number], catalog: PricingCatalog): number {
+  if (l.isGift) return 0;
   if (l.variantId) return (catalog.variants[l.variantId]?.price ?? 0) * l.qty;
   const c = l.comboId ? catalog.combos[l.comboId] : undefined;
   if (!c) return 0;
@@ -53,7 +55,9 @@ export function toQuoteInput(cart: Cart, ctx: CartContext, catalog: PricingCatal
   let manual: (Discount | undefined)[] = lines.map(() => undefined);
   if (cart.discount && cart.discount.value > 0) {
     if (cart.discount.type === "pct") {
-      manual = lines.map(() => ({ kind: "percent", value: Math.min(100, cart.discount!.value) }));
+      manual = lines.map((l) =>
+        l.isGift ? undefined : { kind: "percent", value: Math.min(100, cart.discount!.value) },
+      );
     } else {
       manual = allocate(
         Math.round(cart.discount.value),
@@ -63,7 +67,9 @@ export function toQuoteInput(cart: Cart, ctx: CartContext, catalog: PricingCatal
   }
   return {
     lines: lines.map((l, i) => ({
-      ...(l.comboId ? { comboId: l.comboId } : { variantId: l.variantId }),
+      ...(l.comboId
+        ? { comboId: l.comboId }
+        : { variantId: l.variantId, ...(l.isGift ? { isGift: true } : {}) }),
       qty: l.qty,
       ...(manual[i] ? { manualDiscount: manual[i] } : {}),
     })),

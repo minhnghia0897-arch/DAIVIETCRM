@@ -13,6 +13,8 @@ export interface PricingVariant {
   categoryId: string;
   price: number;
   deliveryClass: "parcel" | "bulky";
+  /** Sản phẩm chỉ làm quà tặng: tặng kèm không tính vào giới hạn giảm. */
+  giftOnly?: boolean;
 }
 
 export interface PricingCombo {
@@ -96,7 +98,8 @@ export interface PricingCatalog {
 }
 
 export interface QuoteInput {
-  lines: { variantId?: string; comboId?: string; qty: number; manualDiscount?: Discount }[];
+  /** `isGift`: quà người bán tặng kèm (chỉ dòng SKU), giá 0đ; quà là hàng đang bán thì giá lẻ tính vào giới hạn giảm. */
+  lines: { variantId?: string; comboId?: string; qty: number; manualDiscount?: Discount; isGift?: boolean }[];
   /** Phí giao, phí lắp nhân viên nhập tay cho đơn (thay cho phí theo vùng); khuyến mãi miễn phí vẫn đưa về 0. */
   feeOverride?: { delivery?: number; installation?: number };
   context: {
@@ -186,6 +189,8 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
   // 1. Tách dòng; combo được tách thành các dòng thành phần, giá combo phân bổ theo tỷ lệ giá lẻ.
   type Work = PricedLine & { manual?: Discount; categoryId: string };
   const lines: Work[] = [];
+  /** Giá lẻ của quà người bán tặng kèm bằng hàng đang bán, tính như giảm tay khi kiểm giới hạn. */
+  let giftValue = 0;
   for (const l of input.lines) {
     if (l.qty <= 0 || !Number.isInteger(l.qty)) {
       warnings.push("Số lượng phải là số nguyên dương");
@@ -195,6 +200,22 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
       const v = catalog.variants[l.variantId];
       if (!v) {
         warnings.push(`Không tìm thấy SKU ${l.variantId}`);
+        continue;
+      }
+      if (l.isGift) {
+        if (!v.giftOnly) giftValue += v.price * l.qty;
+        lines.push({
+          variantId: v.id,
+          name: v.name,
+          qty: l.qty,
+          unitPrice: 0,
+          listPrice: 0,
+          discount: 0,
+          total: 0,
+          isGift: true,
+          policyIds: [],
+          categoryId: v.categoryId,
+        });
         continue;
       }
       lines.push({
@@ -352,9 +373,11 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
     applied.push({ id: p.id, version: p.version, type: p.type, name: p.name, benefit: parts.join(", ") });
   }
 
-  // 3. Giảm tay của người bán áp sau cùng, kiểm giới hạn theo vai trò.
+  // 3. Giảm tay của người bán áp sau cùng, kiểm giới hạn theo vai trò. Quà tặng kèm bằng hàng đang bán cũng là một
+  // khoản giảm: tính trên tiền hàng của cả đơn cộng giá lẻ của quà.
   let manualTotal = 0;
   let manualBase = 0;
+  const merchBase = lines.reduce((s, l) => s + (l.isGift ? 0 : l.total), 0);
   for (const l of lines) {
     if (!l.manual || l.isGift) continue;
     manualBase += l.total;
@@ -366,16 +389,21 @@ export function priceQuote(input: QuoteInput, catalog: PricingCatalog): QuoteRes
     l.total -= d;
     manualTotal += d;
   }
-  if (manualTotal > 0) {
+  if (manualTotal > 0 || giftValue > 0) {
     const limit = active.find(
       (p): p is Extract<Policy, { type: "discount_limit" }> => p.type === "discount_limit",
     );
     const max = limit?.rules.byRole[context.sellerRole] ?? 0;
     // Tỷ lệ tính trên số tiền mà khoản giảm tay áp vào (sau khuyến mãi), đúng con số người bán nhập.
-    const pct = manualBase ? (manualTotal / manualBase) * 100 : 0;
+    const pct = giftValue
+      ? ((manualTotal + giftValue) / (merchBase + giftValue)) * 100
+      : manualBase
+        ? (manualTotal / manualBase) * 100
+        : 0;
     if (pct > max + 1e-9) {
+      const what = giftValue ? (manualTotal ? "Giảm tay và quà tặng" : "Quà tặng") : "Giảm tay";
       approvalsNeeded.push({
-        reason: `Giảm tay ${pct.toFixed(1).replace(".", ",")}% vượt giới hạn ${max}% của vai trò`,
+        reason: `${what} ${pct.toFixed(1).replace(".", ",")}% vượt giới hạn ${max}% của vai trò`,
         policyId: limit?.id,
       });
     }

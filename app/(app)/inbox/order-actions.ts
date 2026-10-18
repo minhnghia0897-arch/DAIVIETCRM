@@ -24,11 +24,15 @@ const schema = z.object({
           variantId: z.uuid().optional(),
           comboId: z.uuid().optional(),
           qty: z.number().int().min(1).max(99),
+          /** Quà tặng kèm: chỉ dòng SKU. */
+          isGift: z.boolean().optional(),
         })
-        .refine((l) => Boolean(l.variantId) !== Boolean(l.comboId)),
+        .refine((l) => Boolean(l.variantId) !== Boolean(l.comboId) && !(l.isGift && l.comboId)),
     )
     .min(1)
-    .max(50),
+    .max(50)
+    // Đơn phải có ít nhất một dòng hàng bán, không chỉ có quà.
+    .refine((ls) => ls.some((l) => !l.isGift)),
   addressId: z.uuid().nullable(),
   discount: z
     .object({ type: z.enum(["amount", "pct"]), value: z.number().min(0).max(1_000_000_000) })

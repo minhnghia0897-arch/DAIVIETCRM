@@ -571,6 +571,73 @@ test("lên đơn trong hội thoại: đủ bốn thông tin, giá theo bảng g
   await expect(page.getByLabel(/Duyệt giảm giá: Đơn Q4-.*Giảm tay 7/)).toHaveCount(0);
 });
 
+test("lên đơn có quà tặng kèm: quà giá 0đ, tặng hàng đang bán thì tính vào giới hạn giảm", async ({
+  page,
+}) => {
+  // Owner thêm sản phẩm chỉ làm quà tặng, không cần giá bán.
+  const stamp = Date.now() % 1_000_000;
+  const giftName = `Gối massage cổ ${stamp}`;
+  await login(page, USERS.owner);
+  await page.goto("/products");
+  await page.getByRole("button", { name: "Thêm sản phẩm" }).click();
+  const product = page.getByRole("form", { name: "Thêm sản phẩm" });
+  await product.getByLabel("Mã SKU").fill(`QT${stamp}`);
+  await product.getByLabel("Tên sản phẩm").fill(giftName);
+  await product.getByLabel("Nhóm sản phẩm").selectOption({ label: "Quà tặng kèm" });
+  await product.getByLabel("Chỉ làm quà tặng").check();
+  await product.getByRole("button", { name: "Lưu" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã thêm sản phẩm");
+
+  await login(page, USERS.saleAdmin);
+  await page.goto("/inbox");
+  await page
+    .getByRole("list", { name: "Danh sách hội thoại" })
+    .getByRole("button", { name: /Trần Mai/ })
+    .first()
+    .click();
+  const side = page.getByRole("complementary", { name: "Thông tin khách" });
+  await side.getByRole("tab", { name: /Lên đơn/ }).click();
+  const form = side.getByRole("form", { name: "Lên đơn" });
+  await pick(form, 1, "DC117");
+  // Quà tặng không nằm trong danh sách hàng bán.
+  await expect(form.getByLabel("Sản phẩm dòng 1").locator("option", { hasText: giftName })).toHaveCount(0);
+
+  await form.getByRole("button", { name: "Thêm quà tặng" }).click();
+  const gift1 = form.getByLabel("Quà tặng dòng 1");
+  await gift1.selectOption((await gift1.locator("option", { hasText: giftName }).getAttribute("value"))!);
+  await form.getByLabel("Số lượng quà dòng 1").fill("2");
+
+  // Tặng thêm một ghế đang bán: giá lẻ của quà vượt giới hạn giảm 5% nên cần Owner duyệt; bỏ dòng đó thì hết.
+  await form.getByRole("button", { name: "Thêm quà tặng" }).click();
+  const gift2 = form.getByLabel("Quà tặng dòng 2");
+  await gift2.selectOption((await gift2.locator("option", { hasText: "DC108" }).getAttribute("value"))!);
+  await expect(form.getByRole("note")).toContainText("Cần Owner duyệt: Quà tặng");
+  await form.getByLabel("Xóa quà dòng 2").click();
+  await expect(form.getByRole("note")).toHaveCount(0);
+
+  await form.getByLabel("Phí giao").fill("0");
+  await form.getByLabel("Phí lắp").fill("0");
+  const summary = form.getByLabel("Tạm tính");
+  await expect(summary.getByRole("row").filter({ hasText: giftName })).toContainText("× 2");
+  await expect(summary.getByRole("row").filter({ hasText: giftName })).toContainText("Tặng");
+  await expect(form.locator(".cv-total")).toContainText("18.890.000");
+  await form.getByRole("button", { name: "Tạo đơn" }).click();
+  await expect(page.getByRole("status")).toContainText(/Đã tạo đơn Q4-\d{4}-\d{4}/);
+  await expect(page.getByRole("status")).not.toContainText("chờ Owner duyệt");
+
+  // Hồ sơ đơn ghi quà tặng kèm, giá 0đ.
+  const orders = side.getByRole("list", { name: "Đơn của khách" });
+  await orders.getByRole("listitem").filter({ hasText: "18.890.000" }).getByRole("link").first().click();
+  await expect(page.getByRole("heading", { name: /^Đơn Q4-/ })).toBeVisible();
+  const giftRow = page
+    .getByRole("list", { name: "Sản phẩm của đơn" })
+    .getByRole("listitem")
+    .filter({ hasText: giftName });
+  await expect(giftRow).toContainText("Quà tặng");
+  await expect(giftRow).toContainText("×2");
+  await expect(giftRow).toContainText("0đ");
+});
+
 test("báo giá: tạo ảnh đầy đủ thông tin để gửi khách, khách đồng ý thì nhân viên bấm sinh đơn", async ({
   page,
   browser,

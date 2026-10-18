@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, FileImage, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Copy, Download, FileImage, Gift, Plus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -31,6 +31,8 @@ export interface OrderSide {
   missing: string[];
   catalog: PricingCatalog | null;
   products: { variantId: string; sku: string; name: string; price: number }[];
+  /** SKU tặng kèm được: sản phẩm chỉ làm quà tặng, rồi tới hàng đang bán (tính vào giới hạn giảm). */
+  gifts: { variantId: string; sku: string; name: string; price: number; giftOnly: boolean }[];
   combos: { id: string; code: string; name: string }[];
   context: {
     showroomId: string;
@@ -91,6 +93,8 @@ interface Row {
   key: number;
   ref: string;
   qty: number;
+  /** Quà tặng kèm: giá 0đ trên đơn. */
+  gift?: boolean;
 }
 
 type Result = { ok: boolean; message: string };
@@ -169,6 +173,12 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
     })),
     ...order.combos.map((c) => ({ value: `c:${c.id}`, label: `Combo: ${c.name}` })),
   ];
+  const giftOptions = order.gifts.map((g) => ({
+    value: `v:${g.variantId}`,
+    label: g.giftOnly ? `${g.name} · quà tặng` : `${g.name} · giá lẻ ${formatMoney(g.price)}`,
+  }));
+  const saleRows = f.rows.filter((r) => !r.gift);
+  const giftRows = f.rows.filter((r) => r.gift);
   const discValue =
     discType === "pct" ? Math.min(Number(discRaw.replace(",", ".")) || 0, 100) : parseMoney(discRaw);
   const cartValue: Cart = {
@@ -177,7 +187,7 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
       .map((r) =>
         r.ref.startsWith("c:")
           ? { comboId: r.ref.slice(2), qty: r.qty }
-          : { variantId: r.ref.slice(2), qty: r.qty },
+          : { variantId: r.ref.slice(2), qty: r.qty, ...(r.gift ? { isGift: true } : {}) },
       ),
     discount: discValue > 0 ? { type: discType, value: discValue } : null,
     deliveryFee: deliveryRaw.trim() ? parseMoney(deliveryRaw) : null,
@@ -232,7 +242,7 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
     !f.budgetId && "Chưa chọn ngân sách",
     !province && "Chưa chọn tỉnh giao",
     f.addressId === NEW_ADDRESS && !f.street.trim() && "Chưa nhập số nhà, đường",
-    !cartValue.lines.length && "Chưa có dòng hàng",
+    !cartValue.lines.some((l) => !l.isGift) && "Chưa có dòng hàng",
   ].filter((x): x is string => Boolean(x));
   // Người không sửa được hồ sơ chỉ lên đơn khi lead đã đủ thông tin và đã có địa chỉ lưu sẵn.
   const roBlock = ro && (order.missing.length > 0 || f.addressId === NEW_ADDRESS);
@@ -344,6 +354,8 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
 
   const updateRow = (key: number, patch: Partial<Row>) =>
     set({ rows: f.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) });
+  const addRow = (row: Pick<Row, "ref" | "gift">) =>
+    set({ rows: [...f.rows, { key: Math.max(0, ...f.rows.map((r) => r.key)) + 1, qty: 1, ...row }] });
   const total = preview?.totals.total ?? 0;
 
   return (
@@ -686,61 +698,51 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
               <fieldset className="m-0 border-0">
                 <legend className="font-bold">Hàng</legend>
                 <div className="space-y-2">
-                  {f.rows.map((r, i) => (
-                    <div key={r.key} className="flex flex-wrap items-center gap-2">
-                      <select
-                        aria-label={`Sản phẩm dòng ${i + 1}`}
-                        value={r.ref}
-                        onChange={(e) => updateRow(r.key, { ref: e.target.value })}
-                        className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
-                      >
-                        {options.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="flex items-center gap-1 c-lbl">
-                        SL
-                        <input
-                          aria-label={`Số lượng dòng ${i + 1}`}
-                          type="number"
-                          min={1}
-                          max={99}
-                          value={r.qty}
-                          onChange={(e) =>
-                            updateRow(r.key, {
-                              qty: Math.min(99, Math.max(1, Math.floor(Number(e.target.value) || 1))),
-                            })
-                          }
-                          className="w-14 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+                  {saleRows.map((r, i) => (
+                    <LineRow
+                      key={r.key}
+                      row={r}
+                      what={`Sản phẩm dòng ${i + 1}`}
+                      qtyLabel={`Số lượng dòng ${i + 1}`}
+                      removeLabel={`Xóa dòng ${i + 1}`}
+                      options={options}
+                      onChange={(patch) => updateRow(r.key, patch)}
+                      onRemove={() => set({ rows: f.rows.filter((x) => x.key !== r.key) })}
+                    />
+                  ))}
+                  {giftRows.length ? (
+                    <div className="space-y-2" role="group" aria-label="Quà tặng kèm">
+                      <span className="c-lbl block font-semibold">Quà tặng kèm (0đ)</span>
+                      {giftRows.map((r, i) => (
+                        <LineRow
+                          key={r.key}
+                          row={r}
+                          what={`Quà tặng dòng ${i + 1}`}
+                          qtyLabel={`Số lượng quà dòng ${i + 1}`}
+                          removeLabel={`Xóa quà dòng ${i + 1}`}
+                          options={giftOptions}
+                          onChange={(patch) => updateRow(r.key, patch)}
+                          onRemove={() => set({ rows: f.rows.filter((x) => x.key !== r.key) })}
                         />
-                      </label>
+                      ))}
+                    </div>
+                  ) : null}
+                  <span className="flex flex-wrap gap-1.5">
+                    <button type="button" className="c-btn" onClick={() => addRow({ ref: options[0].value })}>
+                      <Plus size={13} className="mr-1 inline" aria-hidden />
+                      Thêm dòng
+                    </button>
+                    {giftOptions.length ? (
                       <button
                         type="button"
-                        className="c-ib"
-                        aria-label={`Xóa dòng ${i + 1}`}
-                        onClick={() => set({ rows: f.rows.filter((x) => x.key !== r.key) })}
+                        className="c-btn"
+                        onClick={() => addRow({ ref: giftOptions[0].value, gift: true })}
                       >
-                        <Trash2 size={15} />
+                        <Gift size={13} className="mr-1 inline" aria-hidden />
+                        Thêm quà tặng
                       </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    className="c-btn"
-                    onClick={() =>
-                      set({
-                        rows: [
-                          ...f.rows,
-                          { key: (f.rows.at(-1)?.key ?? 0) + 1, ref: options[0].value, qty: 1 },
-                        ],
-                      })
-                    }
-                  >
-                    <Plus size={13} className="mr-1 inline" aria-hidden />
-                    Thêm dòng
-                  </button>
+                    ) : null}
+                  </span>
                   <label className="block c-lbl">
                     Giảm giá cả đơn
                     <span className="mt-0.5 flex gap-1.5">
@@ -837,6 +839,59 @@ export function OrderTab({ side, channel }: { side: LiveSide; channel: string })
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Một dòng hàng hoặc quà: chọn SKU, số lượng, xóa. */
+function LineRow({
+  row,
+  what,
+  qtyLabel,
+  removeLabel,
+  options,
+  onChange,
+  onRemove,
+}: {
+  row: Row;
+  what: string;
+  qtyLabel: string;
+  removeLabel: string;
+  options: { value: string; label: string }[];
+  onChange: (patch: Partial<Row>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        aria-label={what}
+        value={row.ref}
+        onChange={(e) => onChange({ ref: e.target.value })}
+        className="min-w-0 flex-1 rounded-control border border-line bg-surface px-2 py-1.5"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <label className="flex items-center gap-1 c-lbl">
+        SL
+        <input
+          aria-label={qtyLabel}
+          type="number"
+          min={1}
+          max={99}
+          value={row.qty}
+          onChange={(e) =>
+            onChange({ qty: Math.min(99, Math.max(1, Math.floor(Number(e.target.value) || 1))) })
+          }
+          className="w-14 rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+        />
+      </label>
+      <button type="button" className="c-ib" aria-label={removeLabel} onClick={onRemove}>
+        <Trash2 size={15} />
+      </button>
     </div>
   );
 }
