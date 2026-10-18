@@ -80,6 +80,9 @@ async function price(
   const ctx = await contextOf(input.leadId, input.addressId);
   if (!ctx) return { ok: false, error: "lead_not_found" };
   const { catalog } = await loadCatalog(createAdminClient(), ctx.showroomId);
+  // Quà tặng kèm chỉ lấy từ danh mục Quà tặng.
+  if (input.cart.lines.some((l) => l.isGift && !(l.variantId && catalog.variants[l.variantId]?.giftOnly)))
+    return { ok: false, error: "invalid" };
   const result = priceQuote(
     toQuoteInput(
       input.cart,

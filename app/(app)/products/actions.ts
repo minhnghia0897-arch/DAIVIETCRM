@@ -85,6 +85,7 @@ export async function saveProduct(input: ProductInput): Promise<ActionResult & {
   }
   revalidatePath("/products");
   revalidatePath(`/products/${id}`);
+  revalidatePath("/gifts");
   return { ok: true, id, message: d.id ? "Đã lưu sản phẩm" : "Đã thêm sản phẩm" };
 }
 

@@ -98,6 +98,7 @@ export function PoliciesLive({
   combos,
   catalog,
   products,
+  gifts,
   categories,
   roles,
   provinces,
@@ -109,6 +110,8 @@ export function PoliciesLive({
   combos: LiveCombo[];
   catalog: PricingCatalog;
   products: { variantId: string; sku: string; name: string; price: number }[];
+  /** Danh mục Quà tặng (/gifts): chọn quà cho khuyến mãi, combo. */
+  gifts: { variantId: string; sku: string; name: string }[];
   categories: { id: string; name: string }[];
   roles: { key: string; name: string }[];
   provinces: string[];
@@ -120,7 +123,7 @@ export function PoliciesLive({
   const [editing, setEditing] = useState<string | null>(null);
   const [comboEditing, setComboEditing] = useState<string | null>(null);
   const variantName = (id: string) => catalog.variants[id]?.name ?? "SKU";
-  const ctx = { products, categories, roles, provinces, combos, variantName };
+  const ctx = { products, gifts, categories, roles, provinces, combos, variantName };
 
   function summary(p: LivePolicy): string {
     const r = p.rules as Record<string, never>;
@@ -282,6 +285,7 @@ export function PoliciesLive({
             key={comboEditing}
             initial={combos.find((c) => c.id === comboEditing)}
             products={products}
+            gifts={gifts}
             save={actions.saveCombo}
             onDone={() => setComboEditing(null)}
           />
@@ -346,6 +350,7 @@ export function PoliciesLive({
 
 interface Ctx {
   products: { variantId: string; sku: string; name: string }[];
+  gifts: { variantId: string; sku: string; name: string }[];
   categories: { id: string; name: string }[];
   roles: { key: string; name: string }[];
   provinces: string[];
@@ -705,8 +710,8 @@ function PolicyForm({
           ) : null}
           <div className="sm:col-span-3">
             {multi(
-              "Tặng kèm",
-              ctx.products.map((p) => ({ value: p.variantId, label: p.sku })),
+              "Tặng kèm (quà trong danh mục Quà tặng)",
+              ctx.gifts.map((g) => ({ value: g.variantId, label: g.name })),
               gifts,
               setGifts,
             )}
@@ -878,11 +883,14 @@ function PolicyForm({
 function ComboForm({
   initial,
   products,
+  gifts,
   save,
   onDone,
 }: {
   initial?: LiveCombo;
   products: { variantId: string; sku: string; name: string }[];
+  /** Quà trong danh mục Quà tặng, chọn được cho dòng combo đánh dấu Tặng. */
+  gifts: { variantId: string; sku: string; name: string }[];
   save: Actions["saveCombo"];
   onDone: () => void;
 }) {
@@ -980,6 +988,15 @@ function ComboForm({
                   {p.name} ({p.sku})
                 </option>
               ))}
+              {gifts.length ? (
+                <optgroup label="Quà tặng">
+                  {gifts.map((g) => (
+                    <option key={g.variantId} value={g.variantId}>
+                      {g.name} ({g.sku})
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
             <input
               aria-label={`Số lượng combo dòng ${i + 1}`}

@@ -417,7 +417,6 @@ export function ProductForm({
             ["bulky", "Hàng cồng kềnh (cần xe, đội lắp)"],
             ["requiresInstallation", "Cần lắp đặt"],
             ["isSellable", "Đang bán"],
-            ["isGiftOnly", "Chỉ làm quà tặng"],
             ["active", "Đang dùng"],
           ] as [keyof ProductFormValue, string][]
         ).map(([k, l]) => (

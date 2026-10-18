@@ -191,6 +191,7 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/reports": BarChart3,
   "/agents": Bot,
   "/products": Package,
+  "/gifts": Package,
   "/inventory": Package,
   "/policies": Package,
   "/team": UsersRound,

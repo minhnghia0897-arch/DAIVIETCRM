@@ -73,6 +73,7 @@ export const LIVE_SCREENS = [
   "/team/targets",
   "/orders",
   "/products",
+  "/gifts",
   "/inventory",
   "/policies",
 ];
@@ -173,6 +174,7 @@ export const NAV_TABS: NavTab[] = [
     ready: true,
     children: [
       { href: "/products", label: "Sản phẩm", perm: "product.view" },
+      { href: "/gifts", label: "Quà tặng", perm: "product.view" },
       { href: "/inventory", label: "Số lượng bán", perm: "inventory.view" },
       { href: "/policies", label: "Chính sách", perm: "policy.view" },
     ],
