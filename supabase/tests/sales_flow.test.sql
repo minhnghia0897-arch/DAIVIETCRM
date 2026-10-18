@@ -5,7 +5,7 @@
 -- (marketing, không có quyền xem số lượng bán).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(41);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -109,6 +109,21 @@ select is((select lifecycle_stage from public.contacts where id = '22222222-2222
   'khách sang Đang sử dụng');
 select is(pg_temp.units('delivered'), 2, 'số lượng bán: 2 ghế đã giao xong trong tháng');
 select is(pg_temp.units('pending'), 0, 'giao xong thì hết chờ giao');
+
+-- Đơn hoàn tất còn phải thu (thu khi giao): người bán ghi khoản còn lại, sale admin xác nhận, công nợ về 0.
+select pg_temp.login('11111111-1111-4111-8111-000000000003');
+insert into t select 'p2', public.record_payment((select v::uuid from t where k = 'o'), 'cod',
+  (select balance_due from public.orders where id = (select v::uuid from t where k = 'o')), 'Thu khi giao')::text;
+select is((select type from public.payments where id = (select v::uuid from t where k = 'p2')), 'balance',
+  'đơn đã hoàn tất vẫn ghi được khoản còn lại');
+select pg_temp.login('11111111-1111-4111-8111-000000000002');
+update public.approvals set status = 'approved' where entity_id = (select v::uuid from t where k = 'p2');
+select is((select balance_due from public.orders where id = (select v::uuid from t where k = 'o')), 0::bigint,
+  'xác nhận xong thì hết còn phải thu');
+select is((select status from public.orders where id = (select v::uuid from t where k = 'o')), 'completed',
+  'đơn vẫn hoàn tất');
+select throws_ok(format($$ select public.record_payment(%L, 'cash', 1000, null) $$, (select v from t where k = 'o')),
+  'P0001', 'invalid_amount', 'đã thu đủ thì không ghi thêm');
 
 -- Đơn thứ hai đã cọc rồi hủy: tính vào số bán của tháng và cột hủy, trả.
 select set_config('role', 'postgres', true);
