@@ -158,3 +158,14 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     Còn mở:
     - (a) Có xóa hẳn các bảng kho cũ khỏi database không. Hiện giữ để không mất dữ liệu.
     - (b) Có cần nhập tay số Đại Việt báo còn để cảnh báo khi bán quá số đó không. Hiện không cảnh báo.
+
+53. **Quà tặng kèm khi lên đơn (18/10/2026, anh yêu cầu):** tab Lên đơn trong Hội thoại có nút **Thêm quà tặng**.
+    - Mỗi dòng quà chọn một sản phẩm và số lượng, giá 0đ trên đơn và báo giá, ghi "Quà tặng" ở hồ sơ đơn. Không nhận giảm giá cả đơn. Tính vào cột Tặng kèm ở màn Số lượng bán.
+    - Danh sách quà: sản phẩm đánh dấu **Chỉ làm quà tặng** ở màn Sản phẩm (không cần giá bán), rồi tới hàng đang bán. Sản phẩm chỉ làm quà tặng không hiện ở dòng hàng bán.
+    - Tặng sản phẩm chỉ làm quà tặng thì không cần duyệt.
+    - Tặng hàng đang bán (ví dụ tặng lõi lọc, tặng thêm ghế) thì giá lẻ của quà tính như một khoản giảm. Tỷ lệ là (giảm tay + giá lẻ quà) chia (tiền hàng + giá lẻ quà). Vượt giới hạn giảm của vai trò thì đơn chờ Owner duyệt như giảm giá.
+    - Đơn phải có ít nhất một dòng hàng bán, không tạo đơn chỉ có quà.
+
+    Còn mở:
+    - (a) Tặng hàng đang bán có tính vào giới hạn giảm như trên không, hay anh muốn mọi quà đều không cần duyệt.
+    - (b) Quà tặng là hàng có bảo hành (ví dụ tặng ghế) hiện chưa sinh phiếu bảo hành. Anh có cần không.

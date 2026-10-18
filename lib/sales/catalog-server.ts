@@ -16,6 +16,8 @@ export interface LoadedCatalog {
   catalog: PricingCatalog;
   /** SKU bán được, để hiện ở màn Lên đơn. */
   products: { variantId: string; sku: string; name: string; price: number }[];
+  /** SKU tặng kèm được khi lên đơn: sản phẩm chỉ làm quà tặng trước, rồi tới hàng đang bán. */
+  gifts: { variantId: string; sku: string; name: string; price: number; giftOnly: boolean }[];
   combos: { id: string; code: string; name: string }[];
   /** Chính sách dạng chữ (thanh toán, bảo hành, đổi trả) đang áp, hiện trên báo giá. */
   notes: { type: string; name: string; text: string }[];
@@ -27,7 +29,7 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
     db
       .from("product_variants")
       .select(
-        "id, sku, name, is_active, products!inner(name, category_id, delivery_class, status, is_sellable, deleted_at)",
+        "id, sku, name, is_active, products!inner(name, category_id, delivery_class, status, is_sellable, is_gift_only, deleted_at)",
       )
       .eq("showroom_id", showroomId),
     db
@@ -66,8 +68,11 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
   // Không quản lý tồn kho (Owner chốt 18/10/2026): không nạp tồn, nên không có cảnh báo thiếu hàng.
   const catalog: PricingCatalog = { variants: {}, combos: {}, policies: [] };
   const products: LoadedCatalog["products"] = [];
+  const gifts: LoadedCatalog["gifts"] = [];
   for (const v of variants.data ?? []) {
-    const price = priceOf.get(v.id);
+    const giftOnly = v.products.is_gift_only;
+    // Quà tặng không cần giá trong bảng giá; hàng bán thì phải có giá.
+    const price = priceOf.get(v.id) ?? (giftOnly ? 0 : undefined);
     if (price === undefined) continue;
     const name = v.name ? `${v.products.name} ${v.name}` : v.products.name;
     catalog.variants[v.id] = {
@@ -76,11 +81,16 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
       categoryId: v.products.category_id ?? "",
       price,
       deliveryClass: v.products.delivery_class === "bulky" ? "bulky" : "parcel",
+      ...(giftOnly ? { giftOnly: true } : {}),
     };
-    if (v.is_active && v.products.status === "active" && v.products.is_sellable && !v.products.deleted_at)
+    const usable = v.is_active && v.products.status === "active" && !v.products.deleted_at;
+    if (usable && v.products.is_sellable && priceOf.has(v.id))
       products.push({ variantId: v.id, sku: v.sku, name, price });
+    if (usable && (giftOnly || v.products.is_sellable))
+      gifts.push({ variantId: v.id, sku: v.sku, name, price, giftOnly });
   }
   products.sort((a, b) => a.sku.localeCompare(b.sku));
+  gifts.sort((a, b) => Number(b.giftOnly) - Number(a.giftOnly) || a.sku.localeCompare(b.sku));
 
   const comboList: LoadedCatalog["combos"] = [];
   for (const c of combos.data ?? []) {
@@ -145,5 +155,5 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
     });
   }
 
-  return { catalog, products, combos: comboList, notes };
+  return { catalog, products, gifts, combos: comboList, notes };
 }

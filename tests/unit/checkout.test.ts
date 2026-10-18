@@ -8,6 +8,22 @@ const catalog: PricingCatalog = {
     a: { id: "a", name: "Ghế A", categoryId: "chair", price: 49_000_000, deliveryClass: "bulky" },
     b: { id: "b", name: "Ghế B", categoryId: "chair", price: 16_050_000, deliveryClass: "bulky" },
     g: { id: "g", name: "Gối cổ", categoryId: "gift", price: 900_000, deliveryClass: "parcel" },
+    card: {
+      id: "card",
+      name: "Thiệp chúc",
+      categoryId: "gift",
+      price: 0,
+      deliveryClass: "parcel",
+      giftOnly: true,
+    },
+    pad: {
+      id: "pad",
+      name: "Đệm ghế",
+      categoryId: "gift",
+      price: 500_000,
+      deliveryClass: "parcel",
+      giftOnly: true,
+    },
   },
   combos: {
     c: {
@@ -111,6 +127,144 @@ describe("toQuoteInput + priceQuote", () => {
       ["g", 0, true],
     ]);
     expect(r.totals.total).toBe(48_000_000);
+  });
+});
+
+describe("quà tặng kèm người bán thêm", () => {
+  it("dòng quà giá 0đ, không nhận giảm tay, không đổi tổng tiền", () => {
+    const r = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "card", qty: 2, isGift: true },
+            { variantId: "pad", qty: 1, isGift: true },
+          ],
+          discount: { type: "amount", value: 1_000_000 },
+        }),
+        ctx,
+        catalog,
+      ),
+      catalog,
+    );
+    expect(r.lines.map((l) => [l.variantId, l.qty, l.unitPrice, l.discount, l.total, l.isGift])).toEqual([
+      ["a", 1, 49_000_000, 1_000_000, 48_000_000, false],
+      ["card", 2, 0, 0, 0, true],
+      ["pad", 1, 0, 0, 0, true],
+    ]);
+    expect(r.totals).toEqual({ subtotal: 49_000_000, discount: 1_000_000, fees: 0, total: 48_000_000 });
+    // Quà là sản phẩm chỉ làm quà tặng: không tính vào giới hạn giảm (1.000.000 / 49.000.000 ≈ 2%).
+    expect(r.approvalsNeeded).toEqual([]);
+    const p = toPersistPayload(r);
+    expect(p.lines.filter((l) => l.is_gift).map((l) => l.variant_id)).toEqual(["card", "pad"]);
+    expect(p.lines.reduce((s, l) => s + l.total, 0)).toBe(p.subtotal - p.discount);
+  });
+
+  it("phần trăm giảm tay không áp vào quà", () => {
+    const r = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "b", qty: 1 },
+            { variantId: "g", qty: 1, isGift: true },
+          ],
+          discount: { type: "pct", value: 5 },
+        }),
+        { ...ctx, sellerRole: "owner" },
+        catalog,
+      ),
+      catalog,
+    );
+    expect(r.lines.find((l) => l.isGift)).toMatchObject({ unitPrice: 0, discount: 0, total: 0 });
+  });
+
+  it("tặng hàng đang bán: giá lẻ của quà tính như giảm tay khi kiểm giới hạn", () => {
+    // Gối cổ 900.000 tặng kèm ghế 49.000.000: 900.000 / 49.900.000 ≈ 1,8%, trong giới hạn 5%.
+    const small = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "g", qty: 1, isGift: true },
+          ],
+        }),
+        ctx,
+        catalog,
+      ),
+      catalog,
+    );
+    expect(small.approvalsNeeded).toEqual([]);
+    expect(small.totals.total).toBe(49_000_000);
+
+    // Tặng thêm 2% giảm tay: (980.000 + 900.000) / 49.900.000 ≈ 3,8%, vẫn trong giới hạn.
+    const mixed = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "g", qty: 1, isGift: true },
+          ],
+          discount: { type: "pct", value: 2 },
+        }),
+        ctx,
+        catalog,
+      ),
+      catalog,
+    );
+    expect(mixed.approvalsNeeded).toEqual([]);
+
+    // Tặng một ghế 16.050.000 kèm ghế 49.000.000: 16.050.000 / 65.050.000 ≈ 24,7%, cần Owner duyệt.
+    const big = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "b", qty: 1, isGift: true },
+          ],
+        }),
+        ctx,
+        catalog,
+      ),
+      catalog,
+    );
+    expect(big.approvalsNeeded.map((a) => a.reason)).toEqual(["Quà tặng 24,7% vượt giới hạn 5% của vai trò"]);
+    expect(big.totals.total).toBe(49_000_000);
+
+    const owner = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "b", qty: 1, isGift: true },
+          ],
+        }),
+        { ...ctx, sellerRole: "owner" },
+        catalog,
+      ),
+      catalog,
+    );
+    expect(owner.approvalsNeeded).toEqual([]);
+  });
+
+  it("giảm tay cộng quà vượt giới hạn thì lý do ghi cả hai", () => {
+    const r = priceQuote(
+      toQuoteInput(
+        cart({
+          lines: [
+            { variantId: "a", qty: 1 },
+            { variantId: "g", qty: 1, isGift: true },
+          ],
+          discount: { type: "pct", value: 4 },
+        }),
+        ctx,
+        catalog,
+      ),
+      catalog,
+    );
+    // (1.960.000 + 900.000) / 49.900.000 ≈ 5,7%.
+    expect(r.approvalsNeeded.map((a) => a.reason)).toEqual([
+      "Giảm tay và quà tặng 5,7% vượt giới hạn 5% của vai trò",
+    ]);
   });
 });
 
