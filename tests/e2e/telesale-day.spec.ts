@@ -20,9 +20,14 @@ test("một ngày của telesale trên CRM", async ({ page }, testInfo) => {
   await expect(profile.getByText("Ẩn vì Giữ bất ngờ")).toBeVisible();
   await expect(profile.getByRole("button", { name: "Chuyển sang Demo" })).toBeDisabled();
 
-  // Gọi: server trả số đầy đủ của đúng lead này, mở bảng ghi kết quả.
+  // Người giữ lead thấy ngay số đầy đủ của người đặt; số người nhận vẫn ẩn vì Giữ bất ngờ.
+  await expect(profile.getByRole("row", { name: /Số người đặt/ })).toContainText("+821012342290");
+  // Gọi: server trả số đầy đủ của đúng lead này (ghi nhật ký), mở bảng ghi kết quả.
   await profile.getByRole("button", { name: "Gọi Thu" }).click();
-  await expect(profile.getByText("+821012342290")).toBeVisible();
+  await expect(profile.getByRole("link", { name: "Mở trình gọi" })).toHaveAttribute(
+    "href",
+    "tel:+821012342290",
+  );
   await expect(profile.getByText("Lượt xem số được ghi lại.")).toBeVisible();
 
   const form = profile.getByRole("form", { name: "Ghi kết quả cuộc gọi" });

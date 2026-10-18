@@ -31,12 +31,13 @@ export interface LiveLeadData {
     name: string;
     country: string;
     city: string | null;
-    phoneMasked: string | null;
+    /** Số đầy đủ khi người xem được xem, không thì bản che (database quyết định). */
+    phone: string | null;
     phoneIdentityId: string | null;
     phoneInvalid: boolean;
   };
   buyFor: "self" | "other" | null;
-  recipient: { id: string; name: string; relation: string | null; phoneMasked: string | null } | null;
+  recipient: { id: string; name: string; relation: string | null; phone: string | null } | null;
   recipientProvince: string | null;
   occasionId: string | null;
   occasionDate: string | null;
@@ -374,7 +375,7 @@ function InfoTable({ d, canEdit, pending, run, actions }: PartProps) {
         <tbody>
           <tr>
             <td>Số người đặt</td>
-            <td className="tabular">{d.buyer.phoneMasked ?? "Chưa có"}</td>
+            <td className="tabular">{d.buyer.phone ?? "Chưa có"}</td>
           </tr>
           <tr>
             <td>
@@ -497,7 +498,7 @@ function InfoTable({ d, canEdit, pending, run, actions }: PartProps) {
                   {d.keepSurprise ? (
                     <span className="c-pill is-ai">Ẩn vì Giữ bất ngờ</span>
                   ) : (
-                    (d.recipient?.phoneMasked ?? "Chưa có")
+                    (d.recipient?.phone ?? "Chưa có")
                   )}
                 </td>
               </tr>

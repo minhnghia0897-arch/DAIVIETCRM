@@ -5411,33 +5411,15 @@ export type Database = {
       contact_identity_display: {
         Row: {
           contact_id: string | null;
+          display: string | null;
           display_masked: string | null;
           id: string | null;
+          is_full: boolean | null;
           is_primary: boolean | null;
           is_valid: boolean | null;
           showroom_id: string | null;
           type: string | null;
           verified_at: string | null;
-        };
-        Insert: {
-          contact_id?: string | null;
-          display_masked?: string | null;
-          id?: string | null;
-          is_primary?: boolean | null;
-          is_valid?: boolean | null;
-          showroom_id?: string | null;
-          type?: string | null;
-          verified_at?: string | null;
-        };
-        Update: {
-          contact_id?: string | null;
-          display_masked?: string | null;
-          id?: string | null;
-          is_primary?: boolean | null;
-          is_valid?: boolean | null;
-          showroom_id?: string | null;
-          type?: string | null;
-          verified_at?: string | null;
         };
         Relationships: [
           {

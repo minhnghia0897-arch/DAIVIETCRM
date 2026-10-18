@@ -52,7 +52,15 @@ export interface CustomerLiveData {
   owned: { name: string; serial: string | null; warrantyEnds: string | null; qty: number | null }[];
   /** Người không có số riêng, liên lạc qua số của người khác trong hộ. */
   sharedPhone: boolean;
-  identities: { id: string; type: string; label: string; masked: string; primary: boolean; valid: boolean }[];
+  /** `display`: số đầy đủ khi người xem được xem, không thì bản che (database quyết định). */
+  identities: {
+    id: string;
+    type: string;
+    label: string;
+    display: string;
+    primary: boolean;
+    valid: boolean;
+  }[];
   consents: ConsentRow[];
   leads: {
     id: string;
@@ -682,7 +690,7 @@ function ConsentCard({
             {d.identities.map((i) => (
               <li key={i.id} className="flex flex-wrap gap-2">
                 <span className="c-lbl w-20 shrink-0">{i.label}</span>
-                <span className="tabular">{i.masked}</span>
+                <span className="tabular">{i.display}</span>
                 {i.primary && d.identities.length > 1 ? <span className="c-lbl">chính</span> : null}
                 {!i.valid ? <span className="c-pill is-warn">Số sai dạng</span> : null}
               </li>

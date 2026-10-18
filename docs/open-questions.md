@@ -169,3 +169,13 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     Còn mở:
     - (a) Quà có bảo hành (ví dụ gối massage 6 tháng) hiện chưa sinh phiếu bảo hành khi đơn hoàn tất. Anh có cần không.
     - (b) Có hiện giá trị quà cho khách trên báo giá ("Quà tặng trị giá 350.000đ") không. Hiện chỉ ghi "Quà tặng".
+
+54. **Số điện thoại hiện đầy đủ theo quyền (18/10/2026, anh chốt):** migration `20261018000200_phone_display.sql`.
+    - Owner, Sale admin (`contact.phone_reveal`) thấy ngay số đầy đủ của mọi khách trên hồ sơ lead, hồ sơ khách, cột phải Hội thoại, Lên đơn, hồ sơ đơn; không cần bấm.
+    - Telesale (`contact.phone_reveal_assigned`) thấy ngay số đầy đủ của người đặt, người nhận thuộc lead mình đang giữ; lead chuyển đi thì lần tải sau thấy lại bản che.
+    - Người nhận của lead, đơn đang mở bật Giữ bất ngờ: bản che với mọi người.
+    - Tin Telegram vẫn ghi số che. Muốn mở cho người khác thì Owner bật quyền "Xem đầy đủ số điện thoại của mọi khách" ở Phân quyền.
+    - Nút Gọi vẫn ghi nhật ký mỗi lần; số hiện sẵn trên màn không ghi từng lượt xem.
+
+    Còn mở:
+    - (a) Có cần ghi nhật ký mỗi lần telesale mở hồ sơ có số đầy đủ (để báo cáo xem số bất thường) không. Hiện chỉ ghi khi bấm Gọi.
