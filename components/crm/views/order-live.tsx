@@ -137,6 +137,11 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
   const cur = ORDER_PATH_LIVE.findIndex((p) => p.status === o.status);
   const m = o.money;
   const balance = m.total - m.confirmed;
+  // Ghi tiền được từ khi đơn đã xác nhận, kể cả đơn đã hoàn tất còn phải thu (thu khi giao, về tiền sau).
+  const payable = !["draft", "pending_approval", "cancelled", "returned", "return_requested"].includes(
+    o.status,
+  );
+  const owing = o.status === "completed" && balance > 0;
 
   return (
     <div className="c-stack">
@@ -209,7 +214,15 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
               <h2>Bước tiếp theo</h2>
             </div>
             <div className="c-cb space-y-2">
-              {ended ? <p className="c-lbl m-0">Đơn đã kết thúc.</p> : null}
+              {owing ? (
+                <p className="m-0 text-warn">
+                  {balance - m.pending > 0
+                    ? `Đơn đã hoàn tất, còn phải thu ${formatMoney(balance)}. Ghi khoản đã thu ở mục Các khoản thanh toán để xác nhận và đóng công nợ.`
+                    : `Đơn đã hoàn tất, khoản thu còn lại ${formatMoney(balance)} đang chờ xác nhận.`}
+                </p>
+              ) : ended ? (
+                <p className="c-lbl m-0">Đơn đã kết thúc.</p>
+              ) : null}
               {next && !ended && o.status !== "pending_approval" ? (
                 <>
                   {o.blockers.length ? (
@@ -443,11 +456,14 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
                   Ghi hoàn tiền {formatMoney(m.refundable)}
                 </button>
               ) : null}
-              {!ended && o.status !== "pending_approval" && o.perms.record && balance - m.pending > 0 ? (
+              {payable && o.perms.record && balance - m.pending > 0 ? (
                 <PaymentForm
                   order={o}
                   remaining={balance - m.pending}
-                  firstPay={!o.payments.some((p) => p.status !== "rejected" && p.type !== "refund")}
+                  firstPay={
+                    o.status !== "completed" &&
+                    !o.payments.some((p) => p.status !== "rejected" && p.type !== "refund")
+                  }
                   actions={actions}
                 />
               ) : null}

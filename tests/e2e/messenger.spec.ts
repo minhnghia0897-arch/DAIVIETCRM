@@ -812,7 +812,26 @@ test("đơn đi trọn không cần kho: ghi cọc, xác nhận tiền, thu khi 
   await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toContainText(
     "Ghế massage Daikiosan DC302",
   );
+  // Hoàn tất mà còn phải thu (thu khi giao): vẫn ghi được khoản còn lại, Owner xác nhận thì hết công nợ.
+  await expect(steps).toContainText("Đơn đã hoàn tất, còn phải thu 38.500.000đ");
+  await page.getByRole("button", { name: "Ghi thanh toán" }).click();
+  await expect(pay.getByLabel("Số tiền thanh toán")).toHaveValue("38.500.000");
+  await pay.getByLabel("Phương thức thanh toán").selectOption("cod");
+  await pay.getByRole("button", { name: "Ghi nhận" }).click();
+  await expect(page.getByRole("status")).toContainText("chờ người có quyền xác nhận");
+  await expect(steps).toContainText("khoản thu còn lại 38.500.000đ đang chờ xác nhận");
+  await login(page, USERS.owner);
+  await page.goto("/tasks");
+  await page
+    .getByLabel(/Xác nhận tiền: Thanh toán 38\.500\.000 đồng cho đơn Q4-/)
+    .getByRole("button", { name: "Duyệt" })
+    .click();
+  await expect(page.getByLabel(/Xác nhận tiền: Thanh toán 38\.500\.000 đồng/)).toHaveCount(0);
+  await login(page, USERS.saleAdmin);
+  await page.goto(orderUrl);
   await expect(page.getByText("Đơn đã kết thúc.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ghi thanh toán" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Khoản thanh toán" })).toContainText("Phần còn lại");
   await page.goto("/inventory");
   await expect(units.getByRole("cell").nth(3)).toHaveText("1");
 
