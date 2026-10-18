@@ -68,7 +68,7 @@ describe("dòng sự kiện của khách", () => {
   it("đơn, thanh toán, giao lắp đọc được bằng tiếng Việt", () => {
     expect(describeEvent("order_status_changed", { code: "Q4-2610-0001", to: "deposit_paid" }, ctx)).toEqual({
       kind: "Đơn hàng",
-      text: "Đơn Q4-2610-0001: Đã cọc, giữ hàng",
+      text: "Đơn Q4-2610-0001: Đã cọc",
     });
     expect(
       describeEvent("payment_confirmed", { code: "Q4-2610-0001", type: "deposit", amount: 10000000 }, ctx)

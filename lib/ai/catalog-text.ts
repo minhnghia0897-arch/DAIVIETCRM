@@ -56,7 +56,7 @@ export function describePolicy(
     });
   if (p.type === "deposit")
     return [
-      `Đặt cọc: tối thiểu ${vnd(p.rules.minAmount)}${p.rules.minPercent ? ` hoặc ${p.rules.minPercent}% giá trị đơn` : ""}, giữ hàng ${p.rules.holdDays} ngày`,
+      `Đặt cọc: tối thiểu ${vnd(p.rules.minAmount)}${p.rules.minPercent ? ` hoặc ${p.rules.minPercent}% giá trị đơn` : ""}`,
     ];
   return [];
 }

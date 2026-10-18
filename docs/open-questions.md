@@ -134,3 +134,27 @@ Cập nhật 04/10/2026. Câu hỏi về thông tin cần anh cung cấp nằm �
     - (b) Đổi người bán, sửa giá của đơn sau khi đã cọc: sổ giữ số lúc cọc, không tự đổi. Cần đổi thì làm thêm thao tác "chuyển doanh số" có duyệt.
     - (c) Màn Đội ngũ bản thật hiện chỉ có doanh số. Các chỉ số gọi, SLA, đủ thông tin, chốt theo lô lead (mục 9.4) sẽ nối dữ liệu thật ở bước sau; bản demo vẫn giữ để xem bố cục.
     - (d) Chưa có doanh số trong lệnh Telegram. Anh muốn thêm lệnh xem doanh số tháng của mình không.
+
+52. **Bán hàng không quản lý kho (18/10/2026, anh chốt):** migration `20261018000100_simple_stock.sql`.
+    - Hàng xuất hết từ kho Đại Việt nên CRM không theo dõi tồn kho, kho showroom, chuyển kho, kiểm kê.
+    - Không chặn đơn vì hết hàng. Khách cọc đủ là sang Đã cọc, không giữ hàng, không có hạn giữ hàng.
+    - Không cần phiếu xuất kho hay serial trước khi giao.
+    - Bỏ hẳn serial. Hoàn tất đơn thì mỗi chiếc một phiếu bảo hành, không ghi serial; quà tặng kèm không có phiếu.
+    - Màn Kho đổi thành **Số lượng bán**. Mỗi sản phẩm theo tháng gồm:
+      - Đã cọc: cùng mốc với doanh số từng sale.
+      - Tặng kèm.
+      - Đã giao xong.
+      - Hủy, trả.
+      - Đang chờ giao: tính đến hôm nay.
+    - Không còn trên giao diện:
+      - Cột Khả dụng và ô Theo dõi serial ở Sản phẩm.
+      - Tồn theo kho và đơn đang giữ hàng ở hồ sơ sản phẩm.
+      - Kho xuất, Đặt trước, Ghi sổ xuất kho ở hồ sơ đơn.
+      - Số ngày giữ hàng ở Cài đặt, Bán hàng và chính sách cọc.
+      - Chữ "giữ hàng" trên báo giá gửi khách.
+      - Cột Lắp được của combo.
+    - Bảng kho cũ (`warehouses`, `stock_*`, `serial_units`) giữ nguyên dữ liệu. Các quyền kho (lập phiếu, ghi sổ, duyệt kiểm kê, đặt trước) ẩn ở Phân quyền. Bản demo vẫn giữ màn kho cũ để xem.
+
+    Còn mở:
+    - (a) Có xóa hẳn các bảng kho cũ khỏi database không. Hiện giữ để không mất dữ liệu.
+    - (b) Có cần nhập tay số Đại Việt báo còn để cảnh báo khi bán quá số đó không. Hiện không cảnh báo.

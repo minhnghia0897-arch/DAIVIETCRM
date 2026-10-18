@@ -19,7 +19,8 @@ import {
 import { LocTag, PageHead } from "../parts";
 
 // Hồ sơ đơn bản thật (route /orders/[id]): bố cục bám bản mô phỏng CrmOrder (orders.tsx). Mọi điều kiện chuyển bước
-// do database kiểm (order_blockers, advance_order); giao diện chỉ hiện lý do và gọi server action.
+// do database kiểm (order_blockers, advance_order); giao diện chỉ hiện lý do và gọi server action. Showroom không quản
+// lý kho (Owner chốt 18/10/2026): không chọn kho, không giữ hàng, không xuất kho, không serial.
 
 type Result = { ok: boolean; message: string };
 
@@ -30,7 +31,6 @@ export interface LiveOrderDetail {
   channel: string;
   seller: string;
   leadId: string | null;
-  holdUntil: string | null;
   cancelReason: string | null;
   buyer: { id: string | null; name: string; market: string; phone: string | null };
   self: boolean;
@@ -46,9 +46,6 @@ export interface LiveOrderDetail {
     qty: number;
     lineTotal: number;
     isGift: boolean;
-    trackSerial: boolean;
-    serials: string[];
-    suggest: string[];
   }[];
   money: {
     subtotal: number;
@@ -78,26 +75,19 @@ export interface LiveOrderDetail {
     note: string;
     installedAt: string | null;
     handoverSent: boolean;
-    stockIssued: boolean;
   };
-  warranties: { code: string; product: string; serial: string | null; endsOn: string | null }[];
-  warehouseId: string | null;
-  warehouses: { id: string; name: string }[];
-  reservedQty: number;
+  warranties: { code: string; product: string; endsOn: string | null }[];
   /** Doanh số của đơn cho người bán: giá trị sẽ tính và các dòng đã ghi trong sổ doanh số. */
   sales: {
     value: number;
     credits: { kind: "sale" | "reversal"; amount: number; reason: string | null; month: string }[];
   };
   codApproved: boolean;
-  backorderUntil: string | null;
   blockers: string[];
   perms: {
     edit: boolean;
     delivery: boolean;
-    post: boolean;
     codApprove: boolean;
-    backorder: boolean;
     cancel: boolean;
     record: boolean;
     refund: boolean;
@@ -108,11 +98,8 @@ export interface OrderLiveActions {
   advanceOrder(orderId: string): Promise<Result>;
   approveCod(orderId: string): Promise<Result>;
   cancelOrder(i: { orderId: string; reason: string }): Promise<Result>;
-  issueStock(i: { orderId: string; serials: Record<string, string[]> }): Promise<Result>;
   recordPayment(form: FormData): Promise<Result>;
   recordRefund(i: { orderId: string; amount: number; reference: string }): Promise<Result>;
-  setBackorder(i: { orderId: string; expected: string }): Promise<Result>;
-  setOrderWarehouse(i: { orderId: string; warehouseId: string }): Promise<Result>;
   updateDelivery(i: {
     orderId: string;
     scheduledOn: string | null;
@@ -150,7 +137,6 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
   const cur = ORDER_PATH_LIVE.findIndex((p) => p.status === o.status);
   const m = o.money;
   const balance = m.total - m.confirmed;
-  const stockShort = o.blockers.some((b) => b.startsWith("Không đủ hàng"));
 
   return (
     <div className="c-stack">
@@ -181,10 +167,6 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
             <span className="c-lbl">Còn phải thu</span>
             <b className="tabular">{formatMoney(Math.max(0, balance))}</b>
           </div>
-          <div>
-            <span className="c-lbl">Giữ hàng đến</span>
-            <b>{o.holdUntil ?? "—"}</b>
-          </div>
           {o.leadId ? (
             <div>
               <span className="c-lbl">Lead</span>
@@ -200,11 +182,11 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
 
       {o.status === "cancelled" ? (
         <p className="c-card c-cb m-0 text-err" style={{ paddingTop: 12 }}>
-          Đơn đã hủy{o.cancelReason ? `: ${o.cancelReason}` : ""}. Hàng đang giữ đã được nhả.
+          Đơn đã hủy{o.cancelReason ? `: ${o.cancelReason}` : ""}.
         </p>
       ) : o.status === "pending_approval" ? (
         <p className="c-card c-cb m-0 text-warn" style={{ paddingTop: 12 }}>
-          Đơn giảm vượt giới hạn của người bán, đang chờ Owner duyệt ở Việc cần làm. Chưa giữ hàng.
+          Đơn giảm vượt giới hạn của người bán, đang chờ Owner duyệt ở Việc cần làm.
         </p>
       ) : (
         <ol aria-label="Các bước đơn hàng" className="c-steps m-0 list-none p-0">
@@ -266,42 +248,9 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
                     ) : null}
                     {o.codApproved ? <span className="c-pill is-ok">Được thu khi giao</span> : null}
                   </div>
-                  {o.status === "ready_to_ship" && !o.delivery.stockIssued && o.perms.post ? (
-                    <IssueStock order={o} actions={actions} />
-                  ) : null}
                 </>
               ) : null}
-              {["confirmed", "draft", "pending_approval"].includes(o.status) &&
-              o.perms.edit &&
-              o.warehouses.length ? (
-                <label className="c-lbl flex flex-wrap items-center gap-1.5">
-                  Kho xuất
-                  <select
-                    aria-label="Kho xuất"
-                    value={o.warehouseId ?? ""}
-                    disabled={pending}
-                    onChange={(e) =>
-                      run(() => actions.setOrderWarehouse({ orderId: o.id, warehouseId: e.target.value }))
-                    }
-                    className="rounded-control border border-line bg-surface px-1.5 py-1 text-text"
-                  >
-                    {o.warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              {o.status === "confirmed" && stockShort && o.perms.backorder && !o.backorderUntil ? (
-                <Backorder orderId={o.id} actions={actions} />
-              ) : null}
-              {o.backorderUntil ? (
-                <span className="c-pill is-warn">Đặt trước, dự kiến có hàng {dmy(o.backorderUntil)}</span>
-              ) : null}
-              {!ended && !o.delivery.stockIssued && o.perms.cancel ? (
-                <CancelOrder orderId={o.id} actions={actions} />
-              ) : null}
+              {!ended && o.perms.cancel ? <CancelOrder orderId={o.id} actions={actions} /> : null}
             </div>
           </section>
 
@@ -348,7 +297,6 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
           <section className="c-card">
             <div className="c-ch">
               <h2>Sản phẩm</h2>
-              {o.reservedQty ? <span className="c-r c-lbl">Đang giữ {o.reservedQty} sản phẩm</span> : null}
             </div>
             <ul className="m-0 list-none px-4 pb-3" aria-label="Sản phẩm của đơn">
               {o.items.map((l) => (
@@ -358,14 +306,7 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
                 >
                   <span className="min-w-0 flex-1">
                     <b>{l.name}</b> {l.isGift ? <span className="c-pill is-ok">Quà tặng</span> : null}
-                    <span className="c-lbl block tabular">
-                      {l.sku}
-                      {l.trackSerial
-                        ? l.serials.length
-                          ? ` · Serial ${l.serials.join(", ")}`
-                          : " · Chưa gán serial"
-                        : ""}
-                    </span>
+                    <span className="c-lbl block tabular">{l.sku}</span>
                   </span>
                   <span className="tabular">×{l.qty}</span>
                   <span className="w-32 text-right tabular">{formatMoney(l.lineTotal)}</span>
@@ -384,8 +325,7 @@ export function OrderLive({ data: o, actions }: { data: LiveOrderDetail; actions
               <ul className="m-0 list-none px-4 pb-3">
                 {o.warranties.map((w) => (
                   <li key={w.code} className="py-1">
-                    <b>{w.code}</b> · {w.product}
-                    {w.serial ? ` · serial ${w.serial}` : ""} ·{" "}
+                    <b>{w.code}</b> · {w.product} ·{" "}
                     {w.endsOn ? (
                       `đến ${dmy(w.endsOn)}`
                     ) : (
@@ -657,83 +597,6 @@ function PaymentForm({
   );
 }
 
-function IssueStock({ order, actions }: { order: LiveOrderDetail; actions: OrderLiveActions }) {
-  const { run, pending } = useRun();
-  const tracked = order.items.filter((i) => i.trackSerial);
-  const [serials, setSerials] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(
-      tracked.map((i) => [i.id, Array.from({ length: i.qty }, (_, k) => i.suggest[k] ?? "")]),
-    ),
-  );
-  const ready = tracked.every((i) => serials[i.id]?.every((s) => s.trim()));
-  return (
-    <form
-      aria-label="Xuất kho giao hàng"
-      className="space-y-1.5 rounded-control border border-line-2 p-2.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(() => actions.issueStock({ orderId: order.id, serials }));
-      }}
-    >
-      <b className="text-sm">Ghi sổ xuất kho, gán serial</b>
-      {tracked.map((i) =>
-        serials[i.id].map((v, k) => (
-          <label key={`${i.id}-${k}`} className="c-lbl block">
-            Serial {i.sku}
-            {i.qty > 1 ? ` (${k + 1})` : ""}
-            <input
-              aria-label={`Serial ${i.sku}${i.qty > 1 ? ` ${k + 1}` : ""}`}
-              list={`serials-${i.id}`}
-              value={v}
-              maxLength={80}
-              onChange={(e) =>
-                setSerials((s) => ({ ...s, [i.id]: s[i.id].map((x, j) => (j === k ? e.target.value : x)) }))
-              }
-              className={FIELD}
-            />
-            <datalist id={`serials-${i.id}`}>
-              {i.suggest.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </label>
-        )),
-      )}
-      <button type="submit" className="c-btn" disabled={pending || !ready}>
-        Ghi sổ xuất kho, gán serial
-      </button>
-    </form>
-  );
-}
-
-function Backorder({ orderId, actions }: { orderId: string; actions: OrderLiveActions }) {
-  const { run, pending } = useRun();
-  const [date, setDate] = useState("");
-  return (
-    <form
-      className="flex flex-wrap items-center gap-1.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(() => actions.setBackorder({ orderId, expected: date }));
-      }}
-    >
-      <label className="c-lbl flex items-center gap-1.5">
-        Ngày dự kiến có hàng
-        <input
-          type="date"
-          aria-label="Ngày dự kiến có hàng"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-control border border-line bg-surface px-1.5 py-1 text-text"
-        />
-      </label>
-      <button type="submit" className="c-btn" disabled={pending || !date}>
-        Cho đặt trước, chờ hàng về
-      </button>
-    </form>
-  );
-}
-
 function CancelOrder({ orderId, actions }: { orderId: string; actions: OrderLiveActions }) {
   const { run, pending } = useRun();
   const [open, setOpen] = useState(false);
@@ -799,7 +662,6 @@ function DeliverySteps({ order: o, actions }: { order: LiveOrderDetail; actions:
   const reached = (s: string) => REACHED.indexOf(o.status) >= REACHED.indexOf(s);
   const steps: [string, boolean][] = [
     ["Xác nhận người nhận và địa chỉ", reached("confirmed")],
-    ["Ghi sổ xuất kho, gán serial", o.delivery.stockIssued],
     ["Giao và lắp đặt", reached("installed")],
     ["Gửi video bàn giao cho người đặt", o.delivery.handoverSent || reached("completed")],
     ["Hoàn tất, sinh phiếu bảo hành", reached("completed")],

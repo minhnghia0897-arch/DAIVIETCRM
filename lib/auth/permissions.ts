@@ -11,6 +11,8 @@ export interface PermissionDef {
   grantable: boolean;
   /** Hiện nhãn "Nhạy cảm", bật lên phải xác nhận (DESIGN.md 6.5). */
   sensitive: boolean;
+  /** Tính năng đã bỏ trên bản thật (quản lý kho, 18/10/2026): ẩn ở màn Phân quyền; bản demo vẫn dùng. */
+  retired: boolean;
   defaults: RoleKey[];
 }
 
@@ -24,7 +26,7 @@ function p(
   group: string,
   label: string,
   defaults: RoleKey[],
-  opts: { grantable?: boolean; sensitive?: boolean } = {},
+  opts: { grantable?: boolean; sensitive?: boolean; retired?: boolean } = {},
 ): PermissionDef {
   return {
     key,
@@ -33,6 +35,7 @@ function p(
     defaults,
     grantable: opts.grantable ?? true,
     sensitive: opts.sensitive ?? false,
+    retired: opts.retired ?? false,
   };
 }
 
@@ -64,14 +67,14 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("message.view_all", "Tin nhắn", "Xem mọi hội thoại", [O, S]),
   p("catalog.view", "Danh mục", "Xem danh mục tra cứu", [O, S, T, M]),
   p("catalog.manage", "Danh mục", "Sửa danh mục tra cứu", [O, S]),
-  p("product.view", "Sản phẩm", "Xem sản phẩm, giá bán, tồn khả dụng", [O, S, T, M]),
+  p("product.view", "Sản phẩm", "Xem sản phẩm, giá bán", [O, S, T, M]),
   p("product.manage", "Sản phẩm", "Thêm, sửa sản phẩm, SKU", [O, S]),
   p("product.view_cost", "Sản phẩm", "Xem giá vốn, biên lợi nhuận", [O], { sensitive: true }),
   p("price.manage", "Sản phẩm", "Sửa bảng giá", [O]),
-  p("inventory.view", "Tồn kho", "Xem tồn kho, sổ kho", [O, S, T]),
-  p("inventory.document", "Tồn kho", "Lập phiếu nhập, xuất, chuyển kho, kiểm kê", [O, S]),
-  p("inventory.post", "Tồn kho", "Ghi sổ phiếu kho", [O, S]),
-  p("inventory.count_approve", "Tồn kho", "Duyệt chênh lệch kiểm kê", [O]),
+  p("inventory.view", "Sản phẩm", "Xem số lượng bán theo sản phẩm", [O, S, T]),
+  p("inventory.document", "Tồn kho", "Lập phiếu nhập, xuất, chuyển kho, kiểm kê", [O, S], { retired: true }),
+  p("inventory.post", "Tồn kho", "Ghi sổ phiếu kho", [O, S], { retired: true }),
+  p("inventory.count_approve", "Tồn kho", "Duyệt chênh lệch kiểm kê", [O], { retired: true }),
   p("combo.manage", "Combo", "Tạo, sửa combo", [O]),
   p("policy.view", "Chính sách", "Xem chính sách đang áp", [O, S, T, M]),
   p("policy.manage", "Chính sách", "Tạo, sửa, bật tắt chính sách", [O]),
@@ -83,7 +86,7 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("order.edit_all", "Báo giá, đơn", "Sửa mọi đơn", [O, S]),
   p("order.discount_approve", "Báo giá, đơn", "Duyệt đơn giảm giá vượt giới hạn", [O], { sensitive: true }),
   p("order.cancel", "Báo giá, đơn", "Hủy đơn", [O, S]),
-  p("order.allow_backorder", "Báo giá, đơn", "Cho đặt trước khi chưa đủ hàng", [O, S]),
+  p("order.allow_backorder", "Báo giá, đơn", "Cho đặt trước khi chưa đủ hàng", [O, S], { retired: true }),
   p("order.export", "Báo giá, đơn", "Xuất danh sách đơn ra file", [O], { sensitive: true }),
   p("payment.record", "Thanh toán", "Ghi nhận khoản khách trả", [O, S, T]),
   p("payment.confirm", "Thanh toán", "Xác nhận tiền đã về", [O, S], { sensitive: true }),

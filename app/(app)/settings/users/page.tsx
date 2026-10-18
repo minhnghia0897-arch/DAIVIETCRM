@@ -62,7 +62,7 @@ export default async function UsersPage() {
         effect: o.effect as "grant" | "revoke",
       }))}
       roleGrants={(grants ?? []).map((g) => `${g.role_id}:${g.permission_key}`)}
-      permissions={PERMISSIONS.filter((p) => p.grantable).map((p) => ({
+      permissions={PERMISSIONS.filter((p) => p.grantable && !p.retired).map((p) => ({
         key: p.key,
         label: p.label,
         group: p.group,

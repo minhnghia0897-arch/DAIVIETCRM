@@ -660,28 +660,10 @@ test("chuyển hội thoại thì form Lên đơn điền lại đúng khách đ
   await expect(head).toHaveText(second);
 });
 
-test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, thu khi giao, xuất kho serial, hoàn tất bảo hành", async ({
+test("đơn đi trọn không cần kho: ghi cọc, xác nhận tiền, thu khi giao, giao, hoàn tất bảo hành, đếm số bán", async ({
   page,
 }) => {
   test.setTimeout(120_000);
-  const serial = `E2E-${PSID.slice(-6)}`;
-
-  // Owner nhập 1 ghế DC302 kèm serial.
-  await login(page, USERS.owner);
-  await page.goto("/inventory");
-  await page.getByRole("button", { name: "Lập phiếu nhập" }).click();
-  const doc = page.getByRole("form", { name: "Phiếu nhập" });
-  await doc.getByLabel("SKU dòng 1").selectOption({ label: "Ghế massage Daikiosan DC302 (DC302)" });
-  await doc.getByLabel("Serial dòng 1").fill(serial);
-  await doc.getByRole("button", { name: "Lưu nháp" }).click();
-  await expect(page.getByRole("status")).toContainText("Đã lập phiếu nháp");
-  const docs = page.getByRole("region", { name: "Phiếu kho" });
-  await docs
-    .getByRole("listitem")
-    .filter({ hasText: serial })
-    .getByRole("button", { name: "Ghi sổ" })
-    .click();
-  await expect(page.getByRole("status")).toContainText("Đã ghi sổ");
 
   // Sale admin (người bán) mở đơn 48.500.000 vừa tạo trong hội thoại, ghi cọc.
   await login(page, USERS.saleAdmin);
@@ -719,24 +701,35 @@ test("đơn đi trọn: nhập kho, ghi cọc, xác nhận tiền, giữ hàng, 
   await page.getByRole("button", { name: "Duyệt thu khi giao" }).click();
   await expect(page.getByText("Được thu khi giao")).toBeVisible();
 
-  // Sale admin: đã cọc giữ hàng → sẵn sàng giao → xuất kho gán serial → giao → lắp → hoàn tất.
+  // Sale admin: kho không có hàng vẫn sang Đã cọc → sẵn sàng giao → giao luôn (không xuất kho, không serial) → lắp
+  // → hoàn tất.
   await login(page, USERS.saleAdmin);
   await page.goto(orderUrl);
   const steps = page.getByRole("region", { name: "Thao tác đơn" });
-  await steps.getByRole("button", { name: "Chuyển sang Đã cọc, giữ hàng" }).click();
-  await expect(page.getByText(/Đang giữ 1 sản phẩm/)).toBeVisible();
+  await expect(steps.getByLabel("Kho xuất")).toHaveCount(0);
+  await steps.getByRole("button", { name: "Chuyển sang Đã cọc" }).click();
   // Khách cọc xong: doanh số ghi cho người bán vào tháng này.
   await expect(page.getByLabel("Doanh số của đơn")).toContainText("Đã tính vào tháng");
+  // Số lượng bán: ghế vừa cọc nằm ở cột Đã cọc và Đang chờ giao.
+  await page.goto("/inventory");
+  const units = page
+    .getByRole("table", { name: /^Số lượng bán/ })
+    .getByRole("row")
+    .filter({ hasText: "DC302" });
+  await expect(units.getByRole("cell").nth(1)).toHaveText("1");
+  await expect(units.getByRole("cell").nth(5)).toHaveText("1");
+  await page.goto(orderUrl);
   await steps.getByRole("button", { name: "Chuyển sang Sẵn sàng giao" }).click();
-  const issue = page.getByRole("form", { name: "Xuất kho giao hàng" });
-  await issue.getByLabel("Serial DC302").fill(serial);
-  await issue.getByRole("button", { name: "Ghi sổ xuất kho, gán serial" }).click();
-  await expect(page.getByRole("list", { name: "Sản phẩm của đơn" })).toContainText(`Serial ${serial}`);
+  await expect(page.getByRole("list", { name: "Điều kiện chưa đạt" })).toHaveCount(0);
   await steps.getByRole("button", { name: "Bắt đầu giao" }).click();
   await steps.getByRole("button", { name: "Xác nhận đã lắp" }).click();
   await steps.getByRole("button", { name: "Hoàn tất đơn" }).click();
-  await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toContainText(serial);
+  await expect(page.getByRole("region", { name: "Phiếu bảo hành" })).toContainText(
+    "Ghế massage Daikiosan DC302",
+  );
   await expect(page.getByText("Đơn đã kết thúc.")).toBeVisible();
+  await page.goto("/inventory");
+  await expect(units.getByRole("cell").nth(3)).toHaveText("1");
 
   // Hiệu suất của người bán: đơn nằm trong danh sách doanh số từng đơn của tháng, đúng 48.000.000đ.
   await page.goto("/team/people/11111111-1111-4111-8111-000000000002");

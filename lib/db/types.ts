@@ -5983,6 +5983,19 @@ export type Database = {
         }[];
       };
       sales_month: { Args: { p_at: string; p_showroom: string }; Returns: string };
+      sales_units_month: {
+        Args: { p_month: string };
+        Returns: {
+          delivered: number;
+          gifts: number;
+          name: string;
+          pending: number;
+          returned: number;
+          sku: string;
+          sold: number;
+          variant_id: string;
+        }[];
+      };
       save_campaign: { Args: { p: Json }; Returns: string };
       save_combo: { Args: { p: Json }; Returns: string };
       save_contact_address: { Args: { p: Json }; Returns: string };

@@ -18,9 +18,12 @@ export default async function PermissionsPage() {
     supabase.from("permissions").select("key, group, description, grantable, sensitive"),
   ]);
 
-  // Thứ tự và nhãn theo lib/auth/permissions.ts; quyền có trong database nhưng chưa có trong code xếp cuối.
+  // Thứ tự và nhãn theo lib/auth/permissions.ts; quyền có trong database nhưng chưa có trong code xếp cuối. Quyền của
+  // tính năng đã bỏ (quản lý kho) không hiện.
   const order = new Map(PERMISSIONS.map((p, i) => [p.key, i]));
+  const retired = new Set(PERMISSIONS.filter((p) => p.retired).map((p) => p.key));
   const rows = (perms ?? [])
+    .filter((p) => !retired.has(p.key))
     .map((p) => ({
       key: p.key,
       group: p.group,

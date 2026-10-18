@@ -12,21 +12,17 @@ import { maskPhonesInText } from "@/lib/phone";
 
 import type { ActionResult } from "../settings/types";
 
-// Thao tác trên hồ sơ đơn (migration 20261011000500_sales_flow.sql). Mọi điều kiện (đủ cọc, đủ hàng, serial, quyền,
-// người ghi tiền không tự xác nhận) kiểm ở database; ở đây chỉ kiểm dữ liệu vào và dịch lỗi ra câu dễ hiểu.
+// Thao tác trên hồ sơ đơn (migration 20261011000500_sales_flow.sql; không quản lý kho từ 20261018000100). Mọi điều
+// kiện (đủ cọc, quyền, người ghi tiền không tự xác nhận) kiểm ở database; ở đây chỉ kiểm dữ liệu vào và dịch lỗi ra
+// câu dễ hiểu.
 
 const READ_ONLY = { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." } as const;
 
 const MESSAGES: Record<string, string> = {
   no_next_status: "Đơn đã ở bước cuối.",
-  cannot_cancel: "Đơn đã hoàn tất, đã hủy hoặc đã xuất kho nên không hủy được.",
-  warehouse_locked: "Đơn đã giữ hàng, không đổi kho xuất được nữa.",
-  backorder_locked: "Chỉ cho đặt trước khi đơn đang chờ cọc hoặc đã cọc.",
+  cannot_cancel: "Đơn đã hoàn tất hoặc đã hủy nên không hủy được.",
   cod_locked: "Chỉ duyệt thu khi giao trước khi đơn sẵn sàng giao.",
   cannot_self_approve: "Anh chị không tự duyệt được cho đơn mình bán.",
-  issue_locked: "Chỉ xuất kho khi đơn sẵn sàng giao và chưa xuất.",
-  serials_required: "Nhập đủ serial cho từng ghế, máy trước khi xuất kho.",
-  insufficient_stock: "Kho không đủ hàng để xuất.",
   delivery_locked: "Đơn đã kết thúc, không cập nhật giao lắp được.",
   handover_too_early: "Gửi video bàn giao sau khi đã lắp.",
   payment_locked: "Đơn ở trạng thái này chưa ghi nhận tiền được.",
@@ -38,8 +34,6 @@ function friendly(code: string | undefined, message: string | undefined): string
   const key = (message ?? "").split(":")[0].trim();
   if (MESSAGES[key]) return MESSAGES[key];
   if (key === "blocked") return `Chưa chuyển được: ${(message ?? "").slice(9)}`;
-  if (key === "serial_unavailable")
-    return `Serial ${(message ?? "").slice(20)} không có trong kho xuất hoặc đã bán.`;
   switch (code) {
     case "42501":
       return "Anh chị chưa được cấp quyền làm việc này.";
@@ -62,7 +56,7 @@ const id = z.uuid();
 
 const NEXT_LABEL: Record<string, string> = {
   confirmed: "đã xác nhận",
-  deposit_paid: "đã cọc, đang giữ hàng",
+  deposit_paid: "đã cọc",
   ready_to_ship: "sẵn sàng giao",
   delivering: "đang giao",
   installed: "đã lắp",
@@ -89,42 +83,7 @@ export async function cancelOrder(input: { orderId: string; reason: string }): P
     p_reason: maskPhonesInText(p.data.reason),
   });
   if (error) return { ok: false, message: friendly(error.code, error.message) };
-  return done(p.data.orderId, "Đã hủy đơn, nhả hàng đang giữ");
-}
-
-export async function setOrderWarehouse(input: {
-  orderId: string;
-  warehouseId: string;
-}): Promise<ActionResult> {
-  const user = await requireUser();
-  if (user.viewAs) return READ_ONLY;
-  const p = z.object({ orderId: id, warehouseId: id }).parse(input);
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_order_warehouse", {
-    p_order_id: p.orderId,
-    p_warehouse_id: p.warehouseId,
-  });
-  if (error) return { ok: false, message: friendly(error.code, error.message) };
-  return done(p.orderId, "Đã đổi kho xuất");
-}
-
-export async function setBackorder(input: { orderId: string; expected: string }): Promise<ActionResult> {
-  const user = await requireUser();
-  if (user.viewAs) return READ_ONLY;
-  const p = z.object({ orderId: id, expected: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).safeParse(input);
-  if (!p.success) return { ok: false, message: "Chọn ngày dự kiến có hàng." };
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_order_backorder", {
-    p_order_id: p.data.orderId,
-    p_expected: p.data.expected,
-  });
-  if (error)
-    return {
-      ok: false,
-      message:
-        error.code === "22023" ? "Ngày dự kiến phải từ hôm nay trở đi." : friendly(error.code, error.message),
-    };
-  return done(p.data.orderId, "Đã cho đặt trước, chờ hàng về");
+  return done(p.data.orderId, "Đã hủy đơn");
 }
 
 export async function approveCod(orderId: string): Promise<ActionResult> {
@@ -134,28 +93,6 @@ export async function approveCod(orderId: string): Promise<ActionResult> {
   const { error } = await supabase.rpc("approve_cod", { p_order_id: id.parse(orderId) });
   if (error) return { ok: false, message: friendly(error.code, error.message) };
   return done(orderId, "Đã duyệt thu phần còn lại khi giao");
-}
-
-export async function issueStock(input: {
-  orderId: string;
-  serials: Record<string, string[]>;
-}): Promise<ActionResult> {
-  const user = await requireUser();
-  if (user.viewAs) return READ_ONLY;
-  const p = z
-    .object({
-      orderId: id,
-      serials: z.record(z.uuid(), z.array(z.string().trim().min(1).max(80)).max(99)),
-    })
-    .safeParse(input);
-  if (!p.success) return { ok: false, message: MESSAGES.serials_required };
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("issue_order_stock", {
-    p_order_id: p.data.orderId,
-    p_serials: p.data.serials,
-  });
-  if (error) return { ok: false, message: friendly(error.code, error.message) };
-  return done(p.data.orderId, "Đã ghi sổ xuất kho và gán serial");
 }
 
 export async function updateDelivery(input: {

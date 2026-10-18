@@ -130,7 +130,10 @@ test("đơn đi trọn từ chờ cọc đến hoàn tất: giữ hàng, xuất 
 
   // Sổ kho có dòng xuất bán của đơn.
   await tab(page, "Sản phẩm").click();
-  await page.getByRole("navigation", { name: "Sản phẩm" }).getByRole("link", { name: "Kho" }).click();
+  await page
+    .getByRole("navigation", { name: "Sản phẩm" })
+    .getByRole("link", { name: "Số lượng bán" })
+    .click();
   await page.getByRole("tab", { name: /Sổ kho/ }).click();
   await expect(page.getByRole("region", { name: "Sổ kho" })).toContainText("PX-Q4-2610-0014");
 });
@@ -146,7 +149,10 @@ test("hủy đơn đã cọc nhả đúng số hàng đang giữ", async ({ page
   await page.getByRole("button", { name: "Xác nhận hủy" }).click();
   await expect(page.getByText("Đơn đã hủy: Khách đổi ý")).toBeVisible();
   await tab(page, "Sản phẩm").click();
-  await page.getByRole("navigation", { name: "Sản phẩm" }).getByRole("link", { name: "Kho" }).click();
+  await page
+    .getByRole("navigation", { name: "Sản phẩm" })
+    .getByRole("link", { name: "Số lượng bán" })
+    .click();
   expect(await reserved()).toBe("3");
 });
 

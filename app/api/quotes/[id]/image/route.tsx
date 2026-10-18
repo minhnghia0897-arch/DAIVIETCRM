@@ -224,10 +224,7 @@ function QuoteImage({ v }: { v: QuoteView }) {
         <Money label="Phí giao hàng" value={v.deliveryFee ? formatMoney(v.deliveryFee) : "Miễn phí"} />
         <Money label="Phí lắp đặt" value={v.installationFee ? formatMoney(v.installationFee) : "Miễn phí"} />
         <Money label="TỔNG THANH TOÁN" value={formatMoney(v.total)} big />
-        <Money
-          label={`Đặt cọc tối thiểu${v.holdDays ? ` (giữ hàng ${v.holdDays} ngày)` : ""}`}
-          value={formatMoney(v.depositMin)}
-        />
+        <Money label="Đặt cọc tối thiểu" value={formatMoney(v.depositMin)} />
         <Money label="Còn lại thanh toán khi nhận hàng" value={formatMoney(remaining)} muted />
       </div>
 
@@ -276,7 +273,7 @@ function QuoteImage({ v }: { v: QuoteView }) {
         }}
       >
         <div style={{ display: "flex" }}>
-          Anh chị nhắn showroom &quot;Đồng ý&quot; để xác nhận đơn và chuyển khoản đặt cọc để giữ hàng.
+          Anh chị nhắn showroom &quot;Đồng ý&quot; để xác nhận đơn và chuyển khoản đặt cọc.
         </div>
         <div style={{ display: "flex", marginTop: 4 }}>
           Giá áp dụng đến hết ngày {day(v.validUntil)}. Cảm ơn anh chị đã tin chọn {v.showroom}.

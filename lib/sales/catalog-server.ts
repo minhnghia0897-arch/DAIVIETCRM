@@ -7,8 +7,8 @@ import type { Database } from "@/lib/db/types";
 import type { Policy, PricingCatalog } from "./pricing";
 import { toPricingPolicy, type PolicyRow } from "./policy-rules";
 
-// Nạp danh mục cho hàm định giá từ database: SKU và giá hiện hành, combo, chính sách đang là phiên bản hiện tại, tồn
-// khả dụng ở kho mặc định. Khi chưa bật chính sách đặt cọc, giới hạn giảm thì dùng Cài đặt, Bán hàng làm mặc định.
+// Nạp danh mục cho hàm định giá từ database: SKU và giá hiện hành, combo, chính sách đang là phiên bản hiện tại. Khi
+// chưa bật chính sách đặt cọc, giới hạn giảm thì dùng Cài đặt, Bán hàng làm mặc định.
 
 type Db = SupabaseClient<Database>;
 
@@ -23,51 +23,48 @@ export interface LoadedCatalog {
 
 export async function loadCatalog(db: Db, showroomId: string, at = new Date()): Promise<LoadedCatalog> {
   const nowIso = at.toISOString();
-  const [variants, prices, combos, policies, settings, limits, roles, levels, warehouses] = await Promise.all(
-    [
-      db
-        .from("product_variants")
-        .select(
-          "id, sku, name, is_active, products!inner(name, category_id, delivery_class, status, is_sellable, deleted_at)",
-        )
-        .eq("showroom_id", showroomId),
-      db
-        .from("price_list_items")
-        .select("variant_id, price, valid_from, price_lists!inner(is_default)")
-        .eq("showroom_id", showroomId)
-        .eq("price_lists.is_default", true)
-        .lte("valid_from", nowIso)
-        .order("valid_from", { ascending: false }),
-      db
-        .from("combos")
-        .select(
-          "id, code, name, pricing_mode, price, discount, valid_from, valid_to, channels, status, combo_items(variant_id, qty, is_gift)",
-        )
-        .eq("showroom_id", showroomId)
-        .eq("status", "active"),
-      db
-        .from("policies")
-        .select(
-          "id, policy_key, version, type, name, status, valid_from, valid_to, channels, priority, stackable, rules",
-        )
-        .eq("showroom_id", showroomId)
-        .eq("is_current", true),
-      db
-        .from("sales_settings")
-        .select("deposit_min_amount, deposit_min_pct, hold_days")
-        .eq("showroom_id", showroomId)
-        .maybeSingle(),
-      db.from("discount_limits").select("role_id, max_pct").eq("showroom_id", showroomId),
-      db.from("roles").select("id, key, is_owner").eq("showroom_id", showroomId),
-      db.from("stock_levels").select("variant_id, warehouse_id, available").eq("showroom_id", showroomId),
-      db.from("warehouses").select("id, is_default").eq("showroom_id", showroomId).eq("is_default", true),
-    ],
-  );
+  const [variants, prices, combos, policies, settings, limits, roles] = await Promise.all([
+    db
+      .from("product_variants")
+      .select(
+        "id, sku, name, is_active, products!inner(name, category_id, delivery_class, status, is_sellable, deleted_at)",
+      )
+      .eq("showroom_id", showroomId),
+    db
+      .from("price_list_items")
+      .select("variant_id, price, valid_from, price_lists!inner(is_default)")
+      .eq("showroom_id", showroomId)
+      .eq("price_lists.is_default", true)
+      .lte("valid_from", nowIso)
+      .order("valid_from", { ascending: false }),
+    db
+      .from("combos")
+      .select(
+        "id, code, name, pricing_mode, price, discount, valid_from, valid_to, channels, status, combo_items(variant_id, qty, is_gift)",
+      )
+      .eq("showroom_id", showroomId)
+      .eq("status", "active"),
+    db
+      .from("policies")
+      .select(
+        "id, policy_key, version, type, name, status, valid_from, valid_to, channels, priority, stackable, rules",
+      )
+      .eq("showroom_id", showroomId)
+      .eq("is_current", true),
+    db
+      .from("sales_settings")
+      .select("deposit_min_amount, deposit_min_pct, hold_days")
+      .eq("showroom_id", showroomId)
+      .maybeSingle(),
+    db.from("discount_limits").select("role_id, max_pct").eq("showroom_id", showroomId),
+    db.from("roles").select("id, key, is_owner").eq("showroom_id", showroomId),
+  ]);
 
   const priceOf = new Map<string, number>();
   for (const p of prices.data ?? []) if (!priceOf.has(p.variant_id)) priceOf.set(p.variant_id, p.price);
 
-  const catalog: PricingCatalog = { variants: {}, combos: {}, policies: [], available: {} };
+  // Không quản lý tồn kho (Owner chốt 18/10/2026): không nạp tồn, nên không có cảnh báo thiếu hàng.
+  const catalog: PricingCatalog = { variants: {}, combos: {}, policies: [] };
   const products: LoadedCatalog["products"] = [];
   for (const v of variants.data ?? []) {
     const price = priceOf.get(v.id);
@@ -147,11 +144,6 @@ export async function loadCatalog(db: Db, showroomId: string, at = new Date()): 
       rules: { byRole },
     });
   }
-
-  const wh = warehouses.data?.[0]?.id;
-  for (const l of levels.data ?? [])
-    if (l.warehouse_id === wh) catalog.available![l.variant_id] = l.available ?? 0;
-  for (const id of Object.keys(catalog.variants)) catalog.available![id] ??= 0;
 
   return { catalog, products, combos: comboList, notes };
 }
