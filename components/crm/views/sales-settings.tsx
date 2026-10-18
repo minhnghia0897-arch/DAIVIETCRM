@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 
-// Cài đặt, Bán hàng bản thật: mức cọc, giữ hàng, hạn báo giá, thông tin chuyển khoản, ngày Ngủ đông, giới hạn giảm
+// Cài đặt, Bán hàng bản thật: mức cọc, hạn báo giá, thông tin chuyển khoản, ngày Ngủ đông, giới hạn giảm
 // theo vai trò.
 
 type Result = { ok: boolean; message: string };
@@ -55,7 +55,7 @@ export function SalesSettingsLive({
     <div className="space-y-4">
       <section className="c-card">
         <div className="c-ch">
-          <h2>Cọc, giữ hàng, báo giá</h2>
+          <h2>Cọc, báo giá</h2>
         </div>
         <form
           className="c-cb grid gap-2 sm:grid-cols-2"
@@ -84,19 +84,6 @@ export function SalesSettingsLive({
               disabled={readOnly}
               value={v.depositMinPct}
               onChange={(e) => setV({ ...v, depositMinPct: num(e.target.value) })}
-              className={FIELD}
-            />
-          </label>
-          <label className="c-lbl">
-            Số ngày giữ hàng sau khi cọc
-            <input
-              aria-label="Số ngày giữ hàng"
-              type="number"
-              min={1}
-              max={90}
-              disabled={readOnly}
-              value={v.holdDays}
-              onChange={(e) => setV({ ...v, holdDays: Number(e.target.value) })}
               className={FIELD}
             />
           </label>

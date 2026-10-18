@@ -109,7 +109,7 @@ export default async function Page({ params }: PageProps<"/q/[token]">) {
             </td>
           </tr>
           <tr>
-            <td className="c-lbl">Đặt cọc tối thiểu để giữ hàng</td>
+            <td className="c-lbl">Đặt cọc tối thiểu</td>
             <td className="tabular text-right">{formatMoney(q.deposit_min)}</td>
           </tr>
         </tbody>

@@ -46,9 +46,7 @@ export function PricingSummary({ result, label = "Tạm tính" }: { result: Quot
             </td>
           </tr>
           <tr>
-            <td className="c-lbl">
-              Cọc tối thiểu{result.deposit.holdDays ? `, giữ hàng ${result.deposit.holdDays} ngày` : ""}
-            </td>
+            <td className="c-lbl">Cọc tối thiểu</td>
             <td className="tabular">{formatMoney(result.deposit.minimum)}</td>
           </tr>
         </tbody>

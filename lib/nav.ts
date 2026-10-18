@@ -173,7 +173,7 @@ export const NAV_TABS: NavTab[] = [
     ready: true,
     children: [
       { href: "/products", label: "Sản phẩm", perm: "product.view" },
-      { href: "/inventory", label: "Kho", perm: "inventory.view" },
+      { href: "/inventory", label: "Số lượng bán", perm: "inventory.view" },
       { href: "/policies", label: "Chính sách", perm: "policy.view" },
     ],
   },

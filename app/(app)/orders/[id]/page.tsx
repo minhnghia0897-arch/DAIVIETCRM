@@ -11,11 +11,8 @@ import {
   advanceOrder,
   approveCod,
   cancelOrder,
-  issueStock,
   recordPayment,
   recordRefund,
-  setBackorder,
-  setOrderWarehouse,
   updateDelivery,
 } from "../actions";
 
@@ -50,82 +47,40 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
     .maybeSingle();
   if (!o) notFound();
 
-  const [items, payments, delivery, warranties, warehouses, blockers, seller, phones, holds, credits] =
-    await Promise.all([
-      supabase
-        .from("order_items")
-        .select(
-          "id, variant_id, sku, name, qty, unit_price, discount, line_total, is_gift, product_variants(products(track_serial))",
-        )
-        .eq("order_id", id)
-        .order("created_at"),
-      supabase
-        .from("payments")
-        .select(
-          "id, type, method, amount, reference, proof_path, status, recorded_by, created_at, decision_note",
-        )
-        .eq("order_id", id)
-        .order("created_at"),
-      supabase
-        .from("deliveries")
-        .select("scheduled_on, crew_note, installed_at, handover_sent_at")
-        .eq("order_id", id)
-        .maybeSingle(),
-      supabase
-        .from("warranties")
-        .select("code, product_name, serial, ends_on")
-        .eq("order_id", id)
-        .order("code"),
-      supabase
-        .from("warehouses")
-        .select("id, name, is_display, is_active")
-        .eq("is_active", true)
-        .order("sort"),
-      supabase.rpc("order_blockers", { p_order_id: id }),
-      o.seller_id
-        ? supabase.from("profiles").select("full_name").eq("id", o.seller_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("contact_identity_display")
-        .select("display_masked")
-        .eq("contact_id", o.buyer_contact_id)
-        .eq("type", "phone")
-        .limit(1),
-      supabase.from("stock_reservations").select("qty").eq("order_id", id).is("released_at", null),
-      // Doanh số của đơn (sổ sales_credits): ai xem được đơn thì thấy đơn được tính bao nhiêu, vào tháng nào.
-      supabase.from("sales_credits").select("kind, amount, reason, month").eq("order_id", id),
-    ]);
+  const [items, payments, delivery, warranties, blockers, seller, phones, credits] = await Promise.all([
+    supabase
+      .from("order_items")
+      .select("id, variant_id, sku, name, qty, unit_price, discount, line_total, is_gift")
+      .eq("order_id", id)
+      .order("created_at"),
+    supabase
+      .from("payments")
+      .select(
+        "id, type, method, amount, reference, proof_path, status, recorded_by, created_at, decision_note",
+      )
+      .eq("order_id", id)
+      .order("created_at"),
+    supabase
+      .from("deliveries")
+      .select("scheduled_on, crew_note, installed_at, handover_sent_at")
+      .eq("order_id", id)
+      .maybeSingle(),
+    supabase.from("warranties").select("code, product_name, ends_on").eq("order_id", id).order("code"),
+    supabase.rpc("order_blockers", { p_order_id: id }),
+    o.seller_id
+      ? supabase.from("profiles").select("full_name").eq("id", o.seller_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("contact_identity_display")
+      .select("display_masked")
+      .eq("contact_id", o.buyer_contact_id)
+      .eq("type", "phone")
+      .limit(1),
+    // Doanh số của đơn (sổ sales_credits): ai xem được đơn thì thấy đơn được tính bao nhiêu, vào tháng nào.
+    supabase.from("sales_credits").select("kind, amount, reason, month").eq("order_id", id),
+  ]);
 
   const itemRows = items.data ?? [];
-  const serials = itemRows.length
-    ? ((
-        await supabase
-          .from("serial_units")
-          .select("serial, order_item_id")
-          .in(
-            "order_item_id",
-            itemRows.map((i) => i.id),
-          )
-      ).data ?? [])
-    : [];
-  // Serial còn trong kho xuất để gợi ý khi xuất kho.
-  const tracked = itemRows.filter((i) => i.product_variants?.products?.track_serial);
-  const inStock =
-    tracked.length && o.warehouse_id
-      ? ((
-          await supabase
-            .from("serial_units")
-            .select("serial, variant_id")
-            .eq("warehouse_id", o.warehouse_id)
-            .eq("status", "in_stock")
-            .in(
-              "variant_id",
-              tracked.map((i) => i.variant_id),
-            )
-            .limit(200)
-        ).data ?? [])
-      : [];
-
   const payRows = payments.data ?? [];
   const recorderIds = [...new Set(payRows.map((p) => p.recorded_by).filter((x): x is string => Boolean(x)))];
   const { data: recorders } = recorderIds.length
@@ -156,7 +111,6 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
     channel: o.channel === "inbox" ? "Hội thoại" : (o.channel ?? "—"),
     seller: seller.data?.full_name ?? "—",
     leadId: o.lead_id,
-    holdUntil: o.hold_until ? time.format(new Date(o.hold_until)) : null,
     cancelReason: o.cancel_reason,
     buyer: {
       id: o.buyer?.id ?? null,
@@ -181,9 +135,6 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
       qty: i.qty,
       lineTotal: i.line_total,
       isGift: i.is_gift,
-      trackSerial: Boolean(i.product_variants?.products?.track_serial),
-      serials: serials.filter((s) => s.order_item_id === i.id).map((s) => s.serial),
-      suggest: inStock.filter((s) => s.variant_id === i.variant_id).map((s) => s.serial),
     })),
     money: {
       subtotal: o.subtotal,
@@ -213,17 +164,12 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
       note: delivery.data?.crew_note ?? "",
       installedAt: delivery.data?.installed_at ? time.format(new Date(delivery.data.installed_at)) : null,
       handoverSent: Boolean(delivery.data?.handover_sent_at),
-      stockIssued: Boolean(o.stock_issued_at),
     },
     warranties: (warranties.data ?? []).map((w) => ({
       code: w.code,
       product: w.product_name,
-      serial: w.serial,
       endsOn: w.ends_on,
     })),
-    warehouseId: o.warehouse_id,
-    warehouses: (warehouses.data ?? []).filter((w) => !w.is_display).map((w) => ({ id: w.id, name: w.name })),
-    reservedQty: (holds.data ?? []).reduce((s, h) => s + h.qty, 0),
     sales: {
       value: orderSalesValue(o.subtotal, o.discount),
       credits: (credits.data ?? []).map((c) => ({
@@ -234,14 +180,11 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
       })),
     },
     codApproved: Boolean(o.cod_approved_at),
-    backorderUntil: o.backorder_until,
     blockers: (blockers.data as string[] | null) ?? [],
     perms: {
       edit: can("order.edit_all") || (can("order.edit_own") && mine),
       delivery: can("delivery.update"),
-      post: can("inventory.post"),
       codApprove: can("payment.confirm") && (!mine || user.permissions.has("settings.permissions")),
-      backorder: can("order.allow_backorder"),
       cancel: can("order.cancel"),
       record: can("payment.record") && (can("order.edit_all") || (can("order.edit_own") && mine)),
       refund: can("payment.refund"),
@@ -255,11 +198,8 @@ export default async function Page({ params }: PageProps<"/orders/[id]">) {
         advanceOrder,
         approveCod,
         cancelOrder,
-        issueStock,
         recordPayment,
         recordRefund,
-        setBackorder,
-        setOrderWarehouse,
         updateDelivery,
       }}
     />

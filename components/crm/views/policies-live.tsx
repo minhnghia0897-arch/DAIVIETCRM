@@ -149,7 +149,7 @@ export function PoliciesLive({
           .join(" · ");
       case "deposit": {
         const d = r as unknown as { minAmount: number; minPercent: number; holdDays: number };
-        return `Tối thiểu ${formatMoney(d.minAmount)} hoặc ${d.minPercent}%, giữ hàng ${d.holdDays} ngày`;
+        return `Tối thiểu ${formatMoney(d.minAmount)} hoặc ${d.minPercent}%`;
       }
       case "discount_limit":
         return Object.entries((r.byRole ?? {}) as Record<string, number>)
@@ -293,51 +293,41 @@ export function PoliciesLive({
                 <th>Combo</th>
                 <th>Thành phần</th>
                 <th>Giá</th>
-                <th className="text-right">Lắp được</th>
                 {perms.combo ? <th /> : null}
               </tr>
             </thead>
             <tbody>
-              {combos.map((c) => {
-                const avail = Math.min(
-                  ...c.items.map((i) => Math.floor((catalog.available?.[i.variantId] ?? 0) / i.qty)),
-                );
-                return (
-                  <tr key={c.id}>
+              {combos.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <b>{c.name}</b> <span className="c-lbl">{c.code}</span>
+                    {!c.active ? <span className="c-pill is-n ml-1">Ngừng</span> : null}
+                  </td>
+                  <td className="c-lbl whitespace-normal">
+                    {c.items
+                      .map((i) => `${variantName(i.variantId)} × ${i.qty}${i.isGift ? " (tặng)" : ""}`)
+                      .join(", ")}
+                  </td>
+                  <td className="whitespace-normal">
+                    {c.pricingMode === "fixed_price"
+                      ? `Trọn gói ${formatMoney(c.amount)}`
+                      : `Tổng giá lẻ trừ ${formatMoney(c.amount)}`}
+                  </td>
+                  {perms.combo ? (
                     <td>
-                      <b>{c.name}</b> <span className="c-lbl">{c.code}</span>
-                      {!c.active ? <span className="c-pill is-n ml-1">Ngừng</span> : null}
+                      <button type="button" className="c-btn" onClick={() => setComboEditing(c.id!)}>
+                        Sửa
+                      </button>
                     </td>
-                    <td className="c-lbl whitespace-normal">
-                      {c.items
-                        .map((i) => `${variantName(i.variantId)} × ${i.qty}${i.isGift ? " (tặng)" : ""}`)
-                        .join(", ")}
-                    </td>
-                    <td className="whitespace-normal">
-                      {c.pricingMode === "fixed_price"
-                        ? `Trọn gói ${formatMoney(c.amount)}`
-                        : `Tổng giá lẻ trừ ${formatMoney(c.amount)}`}
-                    </td>
-                    <td className="text-right tabular">
-                      <b>{Number.isFinite(avail) ? avail : 0}</b>
-                    </td>
-                    {perms.combo ? (
-                      <td>
-                        <button type="button" className="c-btn" onClick={() => setComboEditing(c.id!)}>
-                          Sửa
-                        </button>
-                      </td>
-                    ) : null}
-                  </tr>
-                );
-              })}
+                  ) : null}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
         {combos.length === 0 ? <p className="c-empty">Chưa có combo nào.</p> : null}
         <p className="c-lbl px-4 py-2">
-          Bán combo thì đơn tách thành từng sản phẩm, giá combo chia theo giá lẻ; tồn combo tính từ tồn khả
-          dụng ở kho showroom.
+          Bán combo thì đơn tách thành từng sản phẩm, giá combo chia theo giá lẻ.
         </p>
       </section>
 
@@ -425,7 +415,8 @@ function PolicyForm({
   // Đặt cọc
   const [minAmount, setMinAmount] = useState(String(r.minAmount ?? 10000000));
   const [minPercent, setMinPercent] = useState(String(r.minPercent ?? 10));
-  const [holdDays, setHoldDays] = useState(String(r.holdDays ?? 14));
+  // Không giữ hàng nữa (không quản lý kho); giữ nguyên giá trị cũ cho đúng mẫu quy tắc chính sách cọc.
+  const holdDays = String(r.holdDays ?? 14);
   // Giới hạn giảm
   const [byRole, setByRole] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -830,16 +821,6 @@ function PolicyForm({
               inputMode="decimal"
               value={minPercent}
               onChange={(e) => setMinPercent(e.target.value)}
-              className={FIELD}
-            />
-          </label>
-          <label className="c-lbl">
-            Số ngày giữ hàng
-            <input
-              aria-label="Số ngày giữ hàng"
-              inputMode="numeric"
-              value={holdDays}
-              onChange={(e) => setHoldDays(e.target.value)}
               className={FIELD}
             />
           </label>

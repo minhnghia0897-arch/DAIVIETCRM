@@ -8,7 +8,7 @@ import { createClient } from "@/lib/db/server";
 
 import type { ActionResult } from "../types";
 
-// Cài đặt, Bán hàng (CLAUDE.md 11.2): mức cọc, số ngày giữ hàng, hạn báo giá, thông tin chuyển khoản cho khách,
+// Cài đặt, Bán hàng (CLAUDE.md 11.2): mức cọc, hạn báo giá, thông tin chuyển khoản cho khách,
 // ngày gọi hỏi thăm sau giao, số ngày không tương tác thì khách Ngủ đông, giới hạn giảm tay theo vai trò. Database kiểm settings.integrations.
 
 const READ_ONLY = { ok: false, message: "Đang xem như người dùng khác, chỉ đọc." } as const;

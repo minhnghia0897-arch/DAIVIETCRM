@@ -11,7 +11,7 @@ import { productCsv, PRODUCT_TEMPLATE } from "@/lib/sales/product-csv";
 
 import { PageHead } from "../parts";
 
-// Sản phẩm bản thật (route /products): danh mục, SKU, giá hiện hành, tồn khả dụng; thêm, sửa, nhập và xuất CSV.
+// Sản phẩm bản thật (route /products): danh mục, SKU, giá hiện hành; thêm, sửa, nhập và xuất CSV.
 
 type Result = { ok: boolean; message: string };
 
@@ -32,7 +32,6 @@ export interface LiveProduct {
   isSellable: boolean;
   isGiftOnly: boolean;
   active: boolean;
-  available: number;
 }
 
 export interface ProductFormValue {
@@ -176,7 +175,6 @@ export function ProductsLive({
                 <th>Sản phẩm</th>
                 <th>Nhóm</th>
                 <th className="text-right">Giá bán</th>
-                <th className="text-right">Khả dụng</th>
                 <th>Bảo hành</th>
                 <th>Giao lắp</th>
               </tr>
@@ -195,7 +193,6 @@ export function ProductsLive({
                   <td className="text-right tabular">
                     {r.price === null ? <span className="text-warn">Chưa có giá</span> : formatMoney(r.price)}
                   </td>
-                  <td className="text-right tabular">{r.available}</td>
                   <td>
                     {r.warrantyMonths ? `${r.warrantyMonths} tháng` : <span className="c-lbl">Chưa đặt</span>}
                   </td>
@@ -210,8 +207,7 @@ export function ProductsLive({
         </div>
         {shown.length === 0 ? <p className="c-empty">Chưa có sản phẩm nào trong nhóm này.</p> : null}
         <p className="c-lbl px-4 py-2">
-          Giá bán là giá hiện hành của bảng giá bán lẻ. Đổi giá không làm đổi đơn cũ. Khả dụng tính trên các
-          kho bán được.
+          Giá bán là giá hiện hành của bảng giá bán lẻ. Đổi giá không làm đổi đơn cũ.
         </p>
       </section>
     </div>
@@ -245,8 +241,8 @@ function ImportCsv({
     >
       <b>Nhập sản phẩm từ CSV</b>
       <p className="c-lbl m-0">
-        Cột: sku, ten, nhom, thuong_hieu, gia_ban, bao_hanh_thang, hang_cong_kenh, can_lap_dat, co_serial. SKU
-        đã có thì cập nhật, SKU mới thì thêm.{" "}
+        Cột: sku, ten, nhom, thuong_hieu, gia_ban, bao_hanh_thang, hang_cong_kenh, can_lap_dat. SKU đã có thì
+        cập nhật, SKU mới thì thêm.{" "}
         <button
           type="button"
           className="c-link"
@@ -420,7 +416,6 @@ export function ProductForm({
           [
             ["bulky", "Hàng cồng kềnh (cần xe, đội lắp)"],
             ["requiresInstallation", "Cần lắp đặt"],
-            ["trackSerial", "Theo dõi serial"],
             ["isSellable", "Đang bán"],
             ["isGiftOnly", "Chỉ làm quà tặng"],
             ["active", "Đang dùng"],

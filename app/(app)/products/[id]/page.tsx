@@ -29,7 +29,7 @@ export default async function Page({ params }: PageProps<"/products/[id]">) {
     .eq("id", id)
     .maybeSingle();
   if (!v) notFound();
-  const [prices, levels, warehouses, cats, holds] = await Promise.all([
+  const [prices, cats] = await Promise.all([
     supabase
       .from("price_list_items")
       .select("price, valid_from, created_by, price_lists!inner(is_default)")
@@ -37,14 +37,7 @@ export default async function Page({ params }: PageProps<"/products/[id]">) {
       .eq("price_lists.is_default", true)
       .order("valid_from", { ascending: false })
       .limit(20),
-    supabase.from("stock_levels").select("warehouse_id, on_hand, reserved, available").eq("variant_id", id),
-    supabase.from("warehouses").select("id, name, is_display").eq("is_active", true).order("sort"),
     supabase.from("product_categories").select("id, name").order("sort"),
-    supabase
-      .from("stock_reservations")
-      .select("qty, expires_at, orders(id, code)")
-      .eq("variant_id", id)
-      .is("released_at", null),
   ]);
   const now = new Date();
   const priceRows = prices.data ?? [];
@@ -69,26 +62,8 @@ export default async function Page({ params }: PageProps<"/products/[id]">) {
       isSellable: p.is_sellable,
       isGiftOnly: p.is_gift_only,
       active: v.is_active && p.status === "active",
-      available: 0,
     },
-    stock: (warehouses.data ?? []).map((w) => {
-      const l = levels.data?.find((x) => x.warehouse_id === w.id);
-      return {
-        warehouse: w.name,
-        display: w.is_display,
-        onHand: l?.on_hand ?? 0,
-        available: l?.available ?? 0,
-      };
-    }),
     priceHistory: priceRows.map((r) => ({ price: r.price, from: time.format(new Date(r.valid_from)) })),
-    holds: (holds.data ?? [])
-      .filter((h) => h.orders)
-      .map((h) => ({
-        orderId: h.orders!.id,
-        code: h.orders!.code,
-        qty: h.qty,
-        until: h.expires_at ? time.format(new Date(h.expires_at)) : null,
-      })),
     categories: cats.data ?? [],
     perms: {
       manage: user.permissions.has("product.manage") && !user.viewAs,

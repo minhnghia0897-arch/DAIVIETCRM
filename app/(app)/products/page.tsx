@@ -8,12 +8,12 @@ import { importProducts, saveProduct } from "./actions";
 
 export const metadata: Metadata = { title: "Sản phẩm · Đại Việt CRM" };
 
-// Danh mục sản phẩm thật: SKU, giá bán hiện hành (bảng giá mặc định), tồn khả dụng theo kho.
+// Danh mục sản phẩm thật: SKU, giá bán hiện hành (bảng giá mặc định). Không quản lý tồn kho (Owner chốt 18/10/2026).
 export default async function Page() {
   const user = await requirePermission("product.view");
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
-  const [variants, prices, levels, cats, warehouses] = await Promise.all([
+  const [variants, prices, cats] = await Promise.all([
     supabase
       .from("product_variants")
       .select(
@@ -26,13 +26,10 @@ export default async function Page() {
       .eq("price_lists.is_default", true)
       .lte("valid_from", nowIso)
       .order("valid_from", { ascending: false }),
-    supabase.from("stock_levels").select("variant_id, warehouse_id, available"),
     supabase.from("product_categories").select("id, name").order("sort"),
-    supabase.from("warehouses").select("id, name, is_display").eq("is_active", true).order("sort"),
   ]);
   const priceOf = new Map<string, number>();
   for (const p of prices.data ?? []) if (!priceOf.has(p.variant_id)) priceOf.set(p.variant_id, p.price);
-  const sellable = (warehouses.data ?? []).filter((w) => !w.is_display).map((w) => w.id);
 
   const rows: LiveProduct[] = (variants.data ?? []).map((v) => ({
     id: v.id,
@@ -51,9 +48,6 @@ export default async function Page() {
     isSellable: v.products.is_sellable,
     isGiftOnly: v.products.is_gift_only,
     active: v.is_active && v.products.status === "active",
-    available: (levels.data ?? [])
-      .filter((l) => l.variant_id === v.id && sellable.includes(l.warehouse_id))
-      .reduce((s, l) => s + (l.available ?? 0), 0),
   }));
 
   return (

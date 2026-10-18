@@ -162,7 +162,7 @@ describe("dữ liệu cho AI", () => {
       type: "deposit",
       rules: { minAmount: 10_000_000, minPercent: 0, holdDays: 14 },
     } as Policy;
-    expect(describePolicy(deposit, names)).toEqual(["Đặt cọc: tối thiểu 10.000.000 đ, giữ hàng 14 ngày"]);
+    expect(describePolicy(deposit, names)).toEqual(["Đặt cọc: tối thiểu 10.000.000 đ"]);
     const limit = {
       ...common,
       name: "Giới hạn",

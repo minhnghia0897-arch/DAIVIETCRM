@@ -110,13 +110,13 @@ test("không tràn ngang khi mở trình tạo báo giá (Owner thấy ô Giao c
   expect(overflow).toBe(false);
 });
 
-test("Sản phẩm, Kho, Chính sách gom trong một tab, chuyển bằng tab con", async ({ page }) => {
+test("Sản phẩm, Số lượng bán, Chính sách gom trong một tab, chuyển bằng tab con", async ({ page }) => {
   await as(page, "telesale", "products/");
   const nav = page.getByRole("navigation", { name: "Ứng dụng" });
-  await expect(nav.getByRole("link", { name: "Kho", exact: true })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Số lượng bán", exact: true })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Chính sách", exact: true })).toHaveCount(0);
   const sub = page.getByRole("navigation", { name: "Sản phẩm" });
-  await sub.getByRole("link", { name: "Kho" }).click();
+  await sub.getByRole("link", { name: "Số lượng bán" }).click();
   await expect(page).toHaveURL(/inventory/);
   await expect(nav.getByRole("link", { name: "Sản phẩm" })).toHaveAttribute("aria-current", "page");
   await sub.getByRole("link", { name: "Chính sách" }).click();

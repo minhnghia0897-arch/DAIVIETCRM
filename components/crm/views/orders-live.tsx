@@ -30,7 +30,7 @@ export interface LiveOrderRow {
 const FILTERS: { key: string; label: string; statuses: string[] }[] = [
   { key: "approval", label: "Chờ duyệt", statuses: ["pending_approval"] },
   { key: "deposit", label: "Chờ cọc", statuses: ["confirmed"] },
-  { key: "holding", label: "Đang giữ hàng", statuses: ["deposit_paid"] },
+  { key: "holding", label: "Đã cọc", statuses: ["deposit_paid"] },
   { key: "shipping", label: "Chờ giao, đang giao", statuses: ["ready_to_ship", "delivering", "installed"] },
   { key: "done", label: "Hoàn tất", statuses: ["completed"] },
   { key: "cancelled", label: "Đã hủy", statuses: ["cancelled"] },
