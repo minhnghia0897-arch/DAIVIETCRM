@@ -240,6 +240,13 @@ function caseSummary(f: NotifyFacts): string {
   return lines.length ? `\n${lines.join("\n")}` : "";
 }
 
+/** Việc cần duyệt: "Xác nhận tiền 6.050.000đ đơn Q4-2610-0008 của Thu". Tên khách theo mức chi tiết của người nhận. */
+function approvalSubject(f: NotifyFacts, c: string): string {
+  const what = f.what ?? "Đề xuất";
+  if (!f.orderCode) return what;
+  return `${what} đơn ${f.orderCode}${f.customer ? ` của ${c}` : ""}`;
+}
+
 /** Viết tin theo mức chi tiết. Không bao giờ ghi số điện thoại hay nội dung tin nhắn của khách. */
 export function formatNotify(f: NotifyFacts, level: NotifyLevel): { text: string; buttons: NotifyButton[] } {
   const full = level === "full";
@@ -277,16 +284,16 @@ export function formatNotify(f: NotifyFacts, level: NotifyLevel): { text: string
     case "approval_needed":
       return {
         text: d
-          ? `Chờ anh chị duyệt: ${f.what}${f.orderCode ? ` ${f.orderCode}` : ""}.`
-          : `Có 1 việc chờ anh chị duyệt.`,
+          ? `Chờ anh chị duyệt: ${approvalSubject(f, c)}.`
+          : `Có 1 việc chờ anh chị duyệt${f.orderCode ? ` (đơn ${f.orderCode})` : ""}.`,
         buttons: [open("Mở để duyệt")],
       };
     case "approval_result":
       return {
         text: d
-          ? `${f.what ?? "Đề xuất"}${f.orderCode ? ` ${f.orderCode}` : ""} đã được ${f.ok ? "duyệt" : "từ chối"}.`
-          : `Đề xuất của anh chị đã được ${f.ok ? "duyệt" : "từ chối"}.`,
-        buttons: [open("Xem")],
+          ? `${approvalSubject(f, c)} đã được ${f.ok ? "duyệt" : "từ chối"}.`
+          : `Đề xuất của anh chị${f.orderCode ? ` (đơn ${f.orderCode})` : ""} đã được ${f.ok ? "duyệt" : "từ chối"}.`,
+        buttons: [open(f.orderCode ? "Xem đơn" : "Xem")],
       };
     case "order_status":
       return {

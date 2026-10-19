@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { INVITE_LINK_DAYS, hashInviteToken, newInviteToken } from "@/lib/auth/invite-token";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requireWritable as requirePermission } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/db/admin";
@@ -152,12 +153,6 @@ export async function setUserActive(userId: string, active: boolean): Promise<Ac
   };
 }
 
-const inviteSchema = z.object({
-  email: z.email(),
-  fullName: z.string().trim().min(2).max(80),
-  roleId: z.uuid(),
-});
-
 export type InviteLinkResult = { ok: true; message: string; link: string } | { ok: false; message: string };
 
 // Địa chỉ CRM người mời đang mở (Vercel gửi tên miền thật qua x-forwarded-host); thiếu thì lấy NEXT_PUBLIC_SITE_URL.
@@ -175,12 +170,21 @@ async function appOrigin(): Promise<string> {
 const confirmLink = (origin: string, type: "invite" | "recovery", hashedToken: string) =>
   `${origin}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=${type}&next=/invite`;
 
-/** Mời người dùng mới: tạo tài khoản đúng vai trò và trả link để người mời gửi riêng cho người được mời. */
-export async function inviteUser(input: z.infer<typeof inviteSchema>): Promise<InviteLinkResult> {
+const inviteLinkSchema = z.object({
+  roleId: z.uuid(),
+  note: z.string().trim().max(120).optional(),
+});
+
+/**
+ * Link mời theo vị trí (Owner chốt 19/10/2026): người nhận mở /join/<mã>, tự nhập họ tên, email, mật khẩu và vào làm
+ * ngay với quyền của vị trí. Một link cho một người, hết hạn sau 7 ngày. Database chỉ giữ mã băm; link đầy đủ chỉ
+ * trả về một lần ở đây, không ghi nhật ký.
+ */
+export async function createInviteLink(input: z.infer<typeof inviteLinkSchema>): Promise<InviteLinkResult> {
   const user = await requirePermission("settings.users");
-  const parsed = inviteSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: "Nhập email đúng định dạng, họ tên và chọn vai trò." };
-  const { email, fullName, roleId } = parsed.data;
+  const parsed = inviteLinkSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Chọn vị trí để tạo link mời." };
+  const { roleId, note } = parsed.data;
 
   const supabase = await createClient();
   const { data: role } = await supabase
@@ -189,57 +193,68 @@ export async function inviteUser(input: z.infer<typeof inviteSchema>): Promise<I
     .eq("id", roleId)
     .maybeSingle();
   if (!role || role.is_owner)
-    return { ok: false, message: "Chọn một vai trò hợp lệ. Không mời thêm Owner qua màn hình này." };
+    return { ok: false, message: "Chọn một vị trí hợp lệ. Không mời thêm Owner qua link." };
 
-  const EXISTS = {
-    ok: false,
-    message: "Email này đã có tài khoản. Người đó chưa vào được thì bấm Tạo link vào CRM ở dòng của họ.",
-  } as const;
+  const token = newInviteToken();
   const admin = createAdminClient();
-  // Email đã có tài khoản (kể cả người được mời mà chưa nhận): không mời lại, không làm mất link cũ của họ.
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (list?.users.some((u) => u.email?.toLowerCase() === email.toLowerCase())) return EXISTS;
-
-  const { data, error } = await admin.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: { data: { full_name: fullName } },
-  });
-  if (error || !data.user)
-    return error?.code === "email_exists" || /already/i.test(error?.message ?? "")
-      ? EXISTS
-      : { ok: false, message: "Chưa tạo được tài khoản, thử lại sau ít phút." };
-  // Chặn thêm lần nữa: tài khoản đã có hồ sơ thì là người cũ, tuyệt đối không xóa.
-  const { data: existing } = await admin.from("profiles").select("id").eq("id", data.user.id).maybeSingle();
-  if (existing) return EXISTS;
-
-  const { error: profileError } = await admin.from("profiles").insert({
-    id: data.user.id,
-    showroom_id: user.showroomId,
-    full_name: fullName,
-    role_id: roleId,
-    created_by: user.id,
-  });
-  if (profileError) {
-    await admin.auth.admin.deleteUser(data.user.id);
-    return { ok: false, message: "Không tạo được hồ sơ người dùng. Lời mời đã được hủy." };
-  }
+  const { data: invite, error } = await admin
+    .from("invite_links")
+    .insert({
+      showroom_id: user.showroomId,
+      role_id: role.id,
+      token_hash: hashInviteToken(token),
+      note: note || null,
+      expires_at: new Date(Date.now() + INVITE_LINK_DAYS * 24 * 3600_000).toISOString(),
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !invite) return { ok: false, message: "Chưa tạo được link mời, thử lại sau ít phút." };
   await admin.from("audit_logs").insert({
     showroom_id: user.showroomId,
     actor_type: "user",
     actor_id: user.id,
-    action: "profile.invite",
-    entity: "profiles",
-    entity_id: data.user.id,
-    metadata: { role_id: roleId, method: "link" },
+    action: "invite_link.create",
+    entity: "invite_links",
+    entity_id: invite.id,
+    metadata: { role_id: role.id },
   });
 
   revalidatePath("/settings/users");
   return {
     ok: true,
-    message: `Đã tạo tài khoản ${fullName} (${role.name})`,
-    link: confirmLink(await appOrigin(), "invite", data.properties.hashed_token),
+    message: `Đã tạo link mời vị trí ${role.name}`,
+    link: `${await appOrigin()}/join/${token}`,
   };
+}
+
+/** Hủy link mời chưa dùng (gửi nhầm người, người đó không vào làm nữa). */
+export async function revokeInviteLink(inviteId: string): Promise<ActionResult> {
+  const user = await requirePermission("settings.users");
+  const id = z.uuid().safeParse(inviteId);
+  if (!id.success) return { ok: false, message: "Không tìm thấy link mời." };
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("invite_links")
+    .update({ revoked_at: new Date().toISOString(), revoked_by: user.id })
+    .eq("id", id.data)
+    .eq("showroom_id", user.showroomId)
+    .is("used_at", null)
+    .is("revoked_at", null)
+    .select("id")
+    .maybeSingle();
+  if (!data) return { ok: false, message: "Link này đã được dùng hoặc đã hủy." };
+  await admin.from("audit_logs").insert({
+    showroom_id: user.showroomId,
+    actor_type: "user",
+    actor_id: user.id,
+    action: "invite_link.revoke",
+    entity: "invite_links",
+    entity_id: data.id,
+    metadata: {},
+  });
+  revalidatePath("/settings/users");
+  return { ok: true, message: "Đã hủy link mời. Người có link không tạo được tài khoản nữa." };
 }
 
 /**

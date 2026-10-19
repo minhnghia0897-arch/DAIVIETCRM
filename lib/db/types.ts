@@ -2089,6 +2089,90 @@ export type Database = {
           },
         ];
       };
+      invite_links: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          expires_at: string;
+          id: string;
+          note: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          role_id: string;
+          showroom_id: string;
+          token_hash: string;
+          updated_at: string;
+          used_at: string | null;
+          used_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          expires_at: string;
+          id?: string;
+          note?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          role_id: string;
+          showroom_id: string;
+          token_hash: string;
+          updated_at?: string;
+          used_at?: string | null;
+          used_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          expires_at?: string;
+          id?: string;
+          note?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          role_id?: string;
+          showroom_id?: string;
+          token_hash?: string;
+          updated_at?: string;
+          used_at?: string | null;
+          used_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invite_links_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invite_links_revoked_by_fkey";
+            columns: ["revoked_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invite_links_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invite_links_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invite_links_used_by_fkey";
+            columns: ["used_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       jobs: {
         Row: {
           attempts: number;

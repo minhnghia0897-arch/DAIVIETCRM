@@ -8,9 +8,10 @@ import { createClient } from "@/lib/db/server";
 import { startViewAs } from "../../view-as/actions";
 import {
   changeRole,
-  inviteUser,
+  createInviteLink,
   issueLoginLink,
   resetOverrides,
+  revokeInviteLink,
   setPermissionOverride,
   setUserActive,
 } from "../actions";
@@ -21,12 +22,20 @@ export const metadata: Metadata = { title: "Người dùng · Đại Việt CRM"
 export default async function UsersPage() {
   const me = await requirePermission("settings.users");
   const supabase = await createClient();
-  const [{ data: profiles }, { data: roles }, { data: overrides }, { data: grants }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, is_active, role_id, created_at").order("created_at"),
-    supabase.from("roles").select("id, key, name, is_owner").order("created_at"),
-    supabase.from("user_permission_overrides").select("user_id, permission_key, effect"),
-    supabase.from("role_permissions").select("role_id, permission_key"),
-  ]);
+  const [{ data: profiles }, { data: roles }, { data: overrides }, { data: grants }, { data: invites }] =
+    await Promise.all([
+      supabase.from("profiles").select("id, full_name, is_active, role_id, created_at").order("created_at"),
+      supabase.from("roles").select("id, key, name, is_owner").order("created_at"),
+      supabase.from("user_permission_overrides").select("user_id, permission_key, effect"),
+      supabase.from("role_permissions").select("role_id, permission_key"),
+      supabase
+        .from("invite_links")
+        .select("id, role_id, note, expires_at")
+        .is("used_at", null)
+        .is("revoked_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false }),
+    ]);
 
   // Email đăng nhập và đã vào CRM lần nào chưa: chỉ đọc ở máy chủ cho người có settings.users (danh sách tài khoản
   // của showroom, đội nhỏ nên một trang là đủ).
@@ -38,7 +47,8 @@ export default async function UsersPage() {
     <UsersTable
       actions={{
         changeRole,
-        inviteUser,
+        createInviteLink,
+        revokeInviteLink,
         issueLoginLink,
         resetOverrides,
         setPermissionOverride,
@@ -56,6 +66,12 @@ export default async function UsersPage() {
         pending: authOf.has(p.id) && !authOf.get(p.id)?.last_sign_in_at,
       }))}
       roles={(roles ?? []).map((r) => ({ id: r.id, key: r.key, name: r.name, isOwner: r.is_owner }))}
+      invites={(invites ?? []).map((i) => ({
+        id: i.id,
+        roleName: roles?.find((r) => r.id === i.role_id)?.name ?? "",
+        note: i.note,
+        expiresAt: i.expires_at,
+      }))}
       overrides={(overrides ?? []).map((o) => ({
         userId: o.user_id,
         key: o.permission_key,

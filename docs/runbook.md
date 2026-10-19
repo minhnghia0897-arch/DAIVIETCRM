@@ -6,21 +6,29 @@ migration và `docs/integrations/` tương ứng.
 ## Thêm người dùng, đặt lại mật khẩu
 
 Chỉ Owner (`settings.users`) làm được, ở **Cài đặt → Người dùng**. CRM không gửi email: chưa có SMTP riêng thì Supabase
-chỉ gửi thư cho thành viên nhóm dự án Supabase, nên lời mời đi bằng link Owner tự gửi.
+chỉ gửi thư cho thành viên nhóm dự án Supabase, nên lời mời đi bằng link Owner tự gửi. Từ 19/10/2026 người được mời tự
+tạo tài khoản của mình; Owner không nhập email hay đặt mật khẩu hộ.
 
-1. Ở "Mời người dùng", nhập họ tên, email đăng nhập và chọn vị trí (vai trò). Dòng gợi ý dưới ô cho biết vai trò đó làm
-   gì. Bấm **Tạo link mời**.
-2. CRM tạo tài khoản đúng vai trò và hiện một link. Bấm **Sao chép link** rồi gửi **riêng** cho người được mời qua Zalo
-   hoặc Telegram. Không đăng vào nhóm chung: ai mở link trước sẽ vào được tài khoản đó.
-3. Người được mời mở link, đặt mật khẩu (ít nhất 10 ký tự) và vào thẳng CRM. Lần sau đăng nhập bằng email và mật khẩu đó.
-4. Link chỉ dùng một lần và hết hạn sau khoảng 1 giờ (thời hạn mã email của Supabase Auth). Hết hạn hoặc làm mất thì bấm
-   **Tạo link vào CRM** ở dòng của người đó. Dòng ghi "Chưa vào CRM" khi người đó chưa đăng nhập lần nào.
-5. Quên mật khẩu: cũng bấm **Tạo link vào CRM**. Người đã vào CRM rồi thì link mở ra màn đặt mật khẩu mới.
-6. Sau khi người mới vào: telesale xếp vào ca ở **Cài đặt → Ca trực** (có ca và bật Trực mới được chia lead), đặt chỉ
-   tiêu ở **Đội ngũ → Chỉ tiêu**; cần quyền khác vai trò thì bấm **Chỉnh** ở dòng của họ.
+1. Ở "Mời người dùng", chọn vị trí (vai trò); dòng gợi ý dưới ô cho biết vai trò đó làm gì. Ghi "Gửi cho ai" nếu muốn
+   nhớ link gửi cho ai (không bắt buộc). Bấm **Tạo link mời**.
+2. CRM hiện một link dạng `…/join/<mã>`. Bấm **Sao chép link** rồi gửi **riêng** cho người được mời qua Zalo hoặc
+   Telegram. Không đăng vào nhóm chung: ai mở link trước sẽ tạo được tài khoản vị trí đó.
+3. Người được mời mở link trên máy của họ, nhập họ tên, email, mật khẩu (ít nhất 10 ký tự), bấm **Tạo tài khoản và vào
+   CRM**. Họ vào làm ngay với quyền của vị trí; lần sau đăng nhập bằng email và mật khẩu đó. Owner nhận thông báo trên
+   chuông khi có người nhận lời mời.
+4. Mỗi link cho một người, dùng một lần, hết hạn sau 7 ngày. CRM chỉ giữ mã băm nên không hiện lại link; link chưa dùng
+   nằm ở mục **Link mời chưa dùng**, gửi nhầm hoặc làm mất thì bấm **Hủy link** rồi tạo link mới.
+5. Owner đừng tự mở link để thử: máy đang đăng nhập thì trang báo "Đang đăng nhập tài khoản khác" và không tạo tài khoản
+   bằng tài khoản đó; chỉ khi bấm **Đăng xuất để tạo tài khoản mới** mới tạo được.
+6. Quên mật khẩu: bấm **Tạo link vào CRM** ở dòng của người đó, gửi riêng cho họ; link mở ra màn đặt mật khẩu mới, ghi rõ
+   tên tài khoản, hết hạn sau khoảng 1 giờ (thời hạn mã email của Supabase Auth). Tài khoản mời kiểu cũ còn ghi "Chưa vào
+   CRM" thì nút này tạo link nhận lời mời mới.
+7. Sau khi người mới vào: telesale xếp vào ca ở **Cài đặt → Ca trực** (có ca và bật Trực mới được chia lead), đặt chỉ
+   tiêu ở **Đội ngũ → Chỉ tiêu**; cần quyền khác vai trò thì bấm **Chỉnh** ở dòng của họ; sai người thì bấm **Khóa**.
 
-Mỗi lần mời, tạo link đều có trong Nhật ký kiểm toán; bản thân link không được lưu ở đâu. Khi đã cấu hình SMTP riêng
-(câu hỏi mở số 2 trong `CLAUDE.md`), có thể làm thêm nút gửi lời mời qua email.
+Mỗi lần tạo, hủy link, mỗi lần có người tạo tài khoản từ link và mỗi lần tạo link vào CRM đều có trong Nhật ký kiểm
+toán; link đầy đủ không được lưu ở đâu (bảng `invite_links` chỉ giữ mã băm SHA-256). Khi đã cấu hình SMTP riêng (câu
+hỏi mở số 2 trong `CLAUDE.md`), có thể làm thêm nút gửi lời mời qua email.
 
 ## Giữ máy chủ không ngủ trong giờ làm
 
