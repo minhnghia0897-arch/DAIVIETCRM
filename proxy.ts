@@ -32,6 +32,8 @@ export async function proxy(request: NextRequest) {
   const isPublic =
     path.startsWith("/login") ||
     path.startsWith("/invite") ||
+    // Link mời theo vị trí: người mới chưa có tài khoản tự tạo tài khoản ở đây.
+    path.startsWith("/join/") ||
     path.startsWith("/auth/") ||
     path.startsWith("/q/") ||
     // Trang pháp lý công khai mà Meta, Zalo đòi khi phát hành ứng dụng.

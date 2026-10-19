@@ -7,7 +7,8 @@ import {
   type NotifyFacts,
   type NotifyPrefs,
 } from "../../notify/events.ts";
-import type { Database } from "../../db/types.ts";
+import type { Database, Json } from "../../db/types.ts";
+import { formatMoney } from "../../format.ts";
 import { leadSourceLabel } from "../../leads/labels.ts";
 import { integrations } from "../registry.ts";
 import { TelegramError, type InlineButton, type TelegramApi } from "./api.ts";
@@ -271,6 +272,35 @@ const APPROVAL_WHAT: Record<string, string> = {
   ai_proposal: "Đề xuất AI",
 };
 
+/**
+ * Đề xuất duyệt nói về việc gì: số tiền, mã đơn, khách của đơn (Owner 19/10/2026: tin báo phải có mã đơn và tên
+ * khách). Xác nhận tiền đọc đơn từ payload, giảm giá đọc từ entity; kiểm kê chỉ có mã phiếu. Không đọc lý do (có thể
+ * chứa nội dung chuyển khoản), không đọc số điện thoại.
+ */
+async function approvalSubject(
+  db: Db,
+  a: { type: string; entity: string; entity_id: string; payload: Json },
+): Promise<Pick<NotifyFacts, "what" | "orderCode" | "customer" | "market"> & { orderId?: string }> {
+  const p = (a.payload ?? {}) as { order_id?: string; code?: string; amount?: number };
+  const amount =
+    a.type === "payment_confirm" && typeof p.amount === "number" ? ` ${formatMoney(p.amount)}` : "";
+  const what = `${APPROVAL_WHAT[a.type] ?? "Đề xuất"}${amount}`;
+  const orderId = a.entity === "orders" ? a.entity_id : p.order_id;
+  if (!orderId) return { what: p.code ? `${what} ${p.code}` : what };
+  const { data: o } = await db
+    .from("orders")
+    .select("code, buyer:contacts!orders_buyer_contact_id_fkey(full_name, country_of_residence)")
+    .eq("id", orderId)
+    .maybeSingle();
+  return {
+    what,
+    orderId,
+    orderCode: o?.code ?? p.code,
+    customer: o?.buyer?.full_name ?? undefined,
+    market: o?.buyer?.country_of_residence ?? undefined,
+  };
+}
+
 /** Người đang hoạt động trong showroom có một quyền, hỏi database một lần cho mỗi showroom và quyền. */
 async function usersWithPerm(
   db: Db,
@@ -420,16 +450,17 @@ export async function pollOutbound(
   // 3. Việc mới chờ duyệt: báo người có quyền duyệt, trừ người đề xuất.
   const { data: approvals } = await db
     .from("approvals")
-    .select("id, type, showroom_id, requested_by, created_at")
+    .select("id, type, entity, entity_id, payload, showroom_id, requested_by, created_at")
     .eq("status", "pending")
     .gt("created_at", cur.lastApprovalAt)
     .order("created_at");
   for (const a of approvals ?? []) {
     next.lastApprovalAt = a.created_at > next.lastApprovalAt ? a.created_at : next.lastApprovalAt;
     const approvers = await usersWithPerm(db, a.showroom_id, APPROVAL_PERM[a.type] ?? "", permCache);
+    const subject = approvers.some((uid) => uid !== a.requested_by) ? await approvalSubject(db, a) : null;
     for (const uid of approvers) {
       // Người đề xuất không tự duyệt được nên không cần báo.
-      if (uid === a.requested_by) continue;
+      if (uid === a.requested_by || !subject) continue;
       await trySend("tin chờ duyệt", () =>
         notifyUser(
           db,
@@ -437,7 +468,10 @@ export async function pollOutbound(
           uid,
           {
             event: "approval_needed",
-            what: APPROVAL_WHAT[a.type],
+            what: subject.what,
+            orderCode: subject.orderCode,
+            customer: subject.customer,
+            market: subject.market,
             path: "/tasks",
           },
           {},
@@ -502,7 +536,7 @@ export async function pollOutbound(
   // 5. Đề xuất của tôi đã được duyệt hay bị từ chối.
   const { data: decided } = await db
     .from("approvals")
-    .select("type, status, requested_by, requested_by_type, decided_at")
+    .select("type, entity, entity_id, payload, status, requested_by, requested_by_type, decided_at")
     .in("status", ["approved", "rejected"])
     .not("decided_at", "is", null)
     .gt("decided_at", cur.lastDecisionAt)
@@ -513,6 +547,7 @@ export async function pollOutbound(
     // Đề xuất do agent AI tạo thì không có người để báo.
     if (!a.requested_by || a.requested_by_type !== "user") continue;
     const requester = a.requested_by;
+    const { orderId, ...facts } = await approvalSubject(db, a);
     await trySend("tin kết quả duyệt", () =>
       notifyUser(
         db,
@@ -520,9 +555,9 @@ export async function pollOutbound(
         requester,
         {
           event: "approval_result",
-          what: APPROVAL_WHAT[a.type],
+          ...facts,
           ok: a.status === "approved",
-          path: "/tasks",
+          path: orderId ? `/orders/${orderId}` : "/tasks",
         },
         {},
         base,

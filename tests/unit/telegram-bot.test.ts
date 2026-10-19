@@ -123,6 +123,31 @@ describe("lời tin của các loại mới", () => {
     expect(formatNotify({ ...facts, ok: false } as never, "detail").text).toContain("từ chối");
   });
 
+  it("tin duyệt của đơn ghi số tiền, mã đơn và tên khách theo mức chi tiết", () => {
+    const facts = {
+      event: "approval_result",
+      to: "u",
+      at: "11:00",
+      what: "Xác nhận tiền 6.050.000đ",
+      orderCode: "Q4-2610-0008",
+      customer: "Nguyễn Thị Thu 0912345678",
+      ok: true,
+      path: "/orders/x",
+    } as const;
+    expect(formatNotify(facts, "detail").text).toBe(
+      "Xác nhận tiền 6.050.000đ đơn Q4-2610-0008 của Thu đã được duyệt.",
+    );
+    expect(formatNotify(facts, "full").text).toBe(
+      "Xác nhận tiền 6.050.000đ đơn Q4-2610-0008 của Nguyễn Thị Thu đã được duyệt.",
+    );
+    // Mức Rút gọn không ghi tên khách, vẫn có mã đơn.
+    expect(formatNotify(facts, "short").text).toBe("Đề xuất của anh chị (đơn Q4-2610-0008) đã được duyệt.");
+    expect(formatNotify({ ...facts, event: "approval_needed" }, "detail").text).toBe(
+      "Chờ anh chị duyệt: Xác nhận tiền 6.050.000đ đơn Q4-2610-0008 của Thu.",
+    );
+    expect(formatNotify(facts, "detail").buttons[0]).toMatchObject({ label: "Xem đơn", path: "/orders/x" });
+  });
+
   it("đấu nối lỗi: nói rõ lead có thể chưa vào CRM", () => {
     const { text } = formatNotify(
       {

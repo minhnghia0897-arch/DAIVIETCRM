@@ -1,22 +1,25 @@
-import { expect, test, type Browser } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { USERS, login } from "./helpers";
 
-// Mời người dùng bằng link (không cần SMTP): Owner nhập họ tên, email, vị trí; CRM tạo tài khoản đúng vai trò và
-// đưa link một lần. Người được mời mở link, đặt mật khẩu, vào thẳng CRM với quyền của vai trò đó. Owner tạo được
-// link đặt lại mật khẩu cho người quên mật khẩu.
+// Mời người dùng bằng link theo vị trí (Owner chốt 19/10/2026): Owner chỉ chọn vị trí và tạo link; người được mời
+// mở link, tự nhập họ tên, email, mật khẩu để tạo tài khoản của mình và vào làm ngay với quyền của vị trí đó. Link
+// dùng một lần, hủy được. Owner tạo được link đặt lại mật khẩu cho người quên mật khẩu.
 
 test.describe.configure({ mode: "serial" });
 
 const STAMP = Date.now() % 1_000_000_000;
 const NAME = `Telesale Mới ${STAMP}`;
 const EMAIL = `moi${STAMP}@example.test`;
+const NOTE = `Chị Hoa ${STAMP}`;
 
 async function openLinkAndSetPassword(browser: Browser, link: string, password: string) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "Đặt mật khẩu" })).toBeVisible();
+  // Ghi rõ đang đặt mật khẩu cho tài khoản nào.
+  await expect(page.getByText(NAME)).toBeVisible();
   await page.getByLabel("Mật khẩu mới (ít nhất 10 ký tự)").fill(password);
   await page.getByLabel("Nhập lại mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đặt mật khẩu" }).click();
@@ -24,38 +27,54 @@ async function openLinkAndSetPassword(browser: Browser, link: string, password: 
   return { ctx, page };
 }
 
-test("Owner mời telesale bằng link; người mới đặt mật khẩu, vào đúng vai trò", async ({
+/** Owner chọn vị trí, ghi chú gửi cho ai, bấm Tạo link mời; trả link trong hộp vừa hiện. */
+async function createInvite(page: Page, role: string, note: string) {
+  await page.goto("/settings/users");
+  await page.getByLabel("Vai trò", { exact: true }).selectOption({ label: role });
+  await page.getByLabel("Gửi cho ai").fill(note);
+  await page.getByRole("button", { name: "Tạo link mời" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: `Đã tạo link mời vị trí ${role}` })).toBeVisible();
+  const link = await dialog.getByLabel("Link vào CRM").inputValue();
+  expect(link).toMatch(/\/join\/[A-Za-z0-9_-]{43}$/);
+  await dialog.getByRole("button", { name: "Đóng" }).click();
+  return link;
+}
+
+async function fillJoin(page: Page, name: string, email: string, password: string) {
+  await page.getByLabel("Họ tên").fill(name);
+  await page.getByLabel("Email (dùng để đăng nhập)").fill(email);
+  await page.getByLabel("Mật khẩu (ít nhất 10 ký tự)").fill(password);
+  await page.getByLabel("Nhập lại mật khẩu").fill(password);
+  await page.getByRole("button", { name: "Tạo tài khoản và vào CRM" }).click();
+}
+
+test("Owner tạo link mời theo vị trí; người mới tự tạo tài khoản, vào đúng vai trò", async ({
   page,
   browser,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "laptop", "Tạo tài khoản: chạy một cỡ màn");
   await login(page, USERS.owner);
   await page.goto("/settings/users");
-  await page.getByLabel("Họ tên").fill(NAME);
-  await page.getByLabel("Email đăng nhập").fill(EMAIL);
   await page.getByLabel("Vai trò", { exact: true }).selectOption({ label: "Telesale" });
   await expect(page.getByText(/tự nhận lead khi bật Trực/)).toBeVisible();
-  await page.getByRole("button", { name: "Tạo link mời" }).click();
+  const link = await createInvite(page, "Telesale", NOTE);
+  const waiting = page.getByRole("group", { name: "Link mời chưa dùng" });
+  await expect(waiting).toContainText(`Telesale · ${NOTE}`);
 
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: `Đã tạo tài khoản ${NAME} (Telesale)` })).toBeVisible();
-  const link = await dialog.getByLabel("Link vào CRM").inputValue();
-  expect(link).toMatch(/\/auth\/confirm\?token_hash=[^&]+&type=invite&next=\/invite$/);
-  await dialog.getByRole("button", { name: "Đóng" }).click();
+  // Owner lỡ mở link trên máy mình: không dùng tài khoản Owner, không làm tốn link.
+  await page.goto(link);
+  await expect(page.getByRole("heading", { name: "Đang đăng nhập tài khoản khác" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Đăng xuất để tạo tài khoản mới" })).toBeVisible();
 
-  // Chưa mở link: dòng người mới ghi Chưa vào CRM, có email đăng nhập.
-  const row = page.getByRole("row").filter({ hasText: NAME });
-  await expect(row).toContainText("Chưa vào CRM");
-  await expect(row).toContainText(EMAIL);
-
-  // Mời trùng email thì báo rõ, không tạo thêm tài khoản.
-  await page.getByLabel("Họ tên").fill(NAME);
-  await page.getByLabel("Email đăng nhập").fill(EMAIL);
-  await page.getByRole("button", { name: "Tạo link mời" }).click();
-  await expect(page.getByRole("status")).toContainText("Email này đã có tài khoản");
-
-  // Người mới mở link, đặt mật khẩu: vào Trang chủ của telesale, không vào được Cài đặt người dùng.
-  const { ctx, page: newbie } = await openLinkAndSetPassword(browser, link, "matkhau-moi-12345");
+  // Người mới mở link trên máy của họ, tự nhập thông tin: vào Trang chủ telesale, không vào được Cài đặt người dùng.
+  const ctx = await browser.newContext();
+  const newbie = await ctx.newPage();
+  await newbie.goto(link);
+  await expect(newbie.getByRole("heading", { name: "Tạo tài khoản" })).toBeVisible();
+  await expect(newbie.getByText(/vị trí\s+Telesale/)).toBeVisible();
+  await fillJoin(newbie, NAME, EMAIL, "matkhau-moi-12345");
+  await expect(newbie).toHaveURL(/\/home$/);
   await expect(newbie.getByRole("heading", { name: "Việc của tôi hôm nay" })).toBeVisible();
   await newbie.goto("/settings/users");
   await expect(newbie.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();
@@ -63,12 +82,69 @@ test("Owner mời telesale bằng link; người mới đặt mật khẩu, vào
   const again = await browser.newContext();
   const reused = await again.newPage();
   await reused.goto(link);
-  await expect(reused).toHaveURL(/\/login\?error=link/);
+  await expect(reused.getByRole("heading", { name: "Link mời không còn dùng được" })).toBeVisible();
   await again.close();
   await ctx.close();
 
-  await page.reload();
-  await expect(page.getByRole("row").filter({ hasText: NAME })).toContainText("Đang hoạt động");
+  // Owner thấy người mới đúng vai trò, đang hoạt động, có email họ tự nhập; link đã dùng rời khỏi danh sách chờ.
+  await page.goto("/settings/users");
+  const row = page.getByRole("row").filter({ hasText: NAME });
+  await expect(row).toContainText("Đang hoạt động");
+  await expect(row).toContainText(EMAIL);
+  await expect(row.getByLabel(`Vai trò của ${NAME}`).locator("option:checked")).toHaveText("Telesale");
+  await expect(page.getByText(NOTE)).toHaveCount(0);
+});
+
+test("email đã có tài khoản thì báo rõ, link vẫn dùng được cho người khác", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Tạo tài khoản: chạy một cỡ màn");
+  await login(page, USERS.owner);
+  const link = await createInvite(page, "Telesale", `Trùng ${STAMP}`);
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await p.goto(link);
+  await fillJoin(p, "Người Trùng", EMAIL, "matkhau-trung-12345");
+  await expect(p.getByText(/^Email này đã có tài khoản/)).toBeVisible();
+  await p.goto(link);
+  await expect(p.getByRole("heading", { name: "Tạo tài khoản" })).toBeVisible();
+  await ctx.close();
+});
+
+test("Owner hủy link mời chưa dùng thì link không tạo được tài khoản", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Tạo tài khoản: chạy một cỡ màn");
+  await login(page, USERS.owner);
+  const note = `Hủy ${STAMP}`;
+  const link = await createInvite(page, "Sale admin", note);
+  await page.getByRole("button", { name: `Hủy link mời Sale admin ${note}` }).click();
+  await expect(page.getByRole("status")).toContainText("Đã hủy link mời");
+  await expect(page.getByText(note)).toHaveCount(0);
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await p.goto(link);
+  await expect(p.getByRole("heading", { name: "Link mời không còn dùng được" })).toBeVisible();
+  await ctx.close();
+});
+
+test("thiết bị đang đăng nhập tài khoản khác: đăng xuất rồi mới tạo tài khoản", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Tạo tài khoản: chạy một cỡ màn");
+  await login(page, USERS.owner);
+  const link = await createInvite(page, "Telesale", `Máy chung ${STAMP}`);
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await login(p, USERS.thao);
+  await p.goto(link);
+  await expect(p.getByRole("heading", { name: "Đang đăng nhập tài khoản khác" })).toBeVisible();
+  await p.getByRole("button", { name: "Đăng xuất để tạo tài khoản mới" }).click();
+  await expect(p.getByRole("heading", { name: "Tạo tài khoản" })).toBeVisible();
+  await ctx.close();
 });
 
 test("Owner tạo link đặt lại mật khẩu cho người quên mật khẩu", async ({ page, browser }, testInfo) => {

@@ -33,6 +33,7 @@ export default function Page() {
             roleId: s.roleKey,
           }))}
           roles={ROLES}
+          invites={[]}
           overrides={[{ userId: STAFF[4].id, key: "contact.phone_reveal_assigned", effect: "revoke" }]}
           roleGrants={PERMISSIONS.flatMap((p) => p.defaults.map((r) => `${r}:${p.key}`))}
           permissions={PERMISSIONS.filter((p) => p.grantable).map((p) => ({
@@ -42,7 +43,8 @@ export default function Page() {
           }))}
           actions={{
             changeRole: notSaved,
-            inviteUser: noLink,
+            createInviteLink: noLink,
+            revokeInviteLink: notSaved,
             issueLoginLink: noLink,
             resetOverrides: notSaved,
             setPermissionOverride: notSaved,

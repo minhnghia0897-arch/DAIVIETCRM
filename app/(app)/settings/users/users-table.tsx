@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Pill } from "@/components/ui/pill";
 import { useToast } from "@/components/ui/toast";
+import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import type { ActionResult } from "../types";
@@ -32,6 +33,14 @@ interface Role {
 
 type LinkResult = { ok: true; message: string; link: string } | { ok: false; message: string };
 
+/** Link mời theo vị trí chưa dùng: không có link đầy đủ (CRM chỉ giữ mã băm), chỉ để biết và hủy. */
+export interface PendingInvite {
+  id: string;
+  roleName: string;
+  note: string | null;
+  expiresAt: string;
+}
+
 // Việc chính của từng vai trò có sẵn, để Owner chọn đúng vị trí khi mời. Vai trò Owner tự tạo thêm không có mô tả.
 const ROLE_HINT: Record<string, string> = {
   sale_admin: "Điều phối lead, giao việc, xác nhận tiền về, quản lý sản phẩm và kho, xem chỉ số cả đội.",
@@ -51,7 +60,8 @@ interface Perm {
 
 export interface UsersTableActions {
   changeRole: (userId: string, roleId: string) => Promise<ActionResult>;
-  inviteUser: (input: { email: string; fullName: string; roleId: string }) => Promise<LinkResult>;
+  createInviteLink: (input: { roleId: string; note?: string }) => Promise<LinkResult>;
+  revokeInviteLink: (inviteId: string) => Promise<ActionResult>;
   issueLoginLink: (userId: string) => Promise<LinkResult>;
   resetOverrides: (userId: string) => Promise<ActionResult>;
   setPermissionOverride: (input: {
@@ -69,13 +79,15 @@ export function UsersTable(props: {
   canEditPermissions: boolean;
   users: User[];
   roles: Role[];
+  invites: PendingInvite[];
   overrides: Override[];
   roleGrants: string[];
   permissions: Perm[];
 }) {
   const {
     changeRole,
-    inviteUser,
+    createInviteLink,
+    revokeInviteLink,
     issueLoginLink,
     resetOverrides,
     setPermissionOverride,
@@ -86,7 +98,7 @@ export function UsersTable(props: {
   const [pending, startTransition] = useTransition();
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
-  const [issued, setIssued] = useState<{ title: string; link: string; invite: boolean } | null>(null);
+  const [issued, setIssued] = useState<{ title: string; link: string; kind: LinkKind } | null>(null);
   const roleName = (id: string) => props.roles.find((r) => r.id === id)?.name ?? "";
 
   const run = (fn: () => Promise<{ ok: boolean; message: string }>) =>
@@ -96,7 +108,7 @@ export function UsersTable(props: {
     });
 
   // Tạo link xong thì mở hộp có link và nút Sao chép để gửi riêng qua Zalo, Telegram.
-  const runLink = (fn: () => Promise<LinkResult>, invite: boolean, after?: () => void) =>
+  const runLink = (fn: () => Promise<LinkResult>, kind: LinkKind, after?: () => void) =>
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
@@ -104,14 +116,16 @@ export function UsersTable(props: {
         return;
       }
       after?.();
-      setIssued({ title: res.message, link: res.link, invite });
+      setIssued({ title: res.message, link: res.link, kind });
     });
 
   return (
     <div className="space-y-3">
       <InviteCard
         roles={props.roles.filter((r) => !r.isOwner)}
-        onSubmit={(v, reset) => runLink(() => inviteUser(v), true, reset)}
+        invites={props.invites}
+        onSubmit={(v, reset) => runLink(() => createInviteLink(v), "join", reset)}
+        onRevoke={(id) => run(() => revokeInviteLink(id))}
         pending={pending}
       />
       <Card>
@@ -192,7 +206,7 @@ export function UsersTable(props: {
                               ? "Link mời mới khi link cũ hết hạn hoặc bị mất"
                               : "Link đặt lại mật khẩu khi người này quên mật khẩu"
                           }
-                          onClick={() => runLink(() => issueLoginLink(u.id), Boolean(u.pending))}
+                          onClick={() => runLink(() => issueLoginLink(u.id), u.pending ? "invite" : "reset")}
                         >
                           Tạo link vào CRM
                         </Button>
@@ -264,15 +278,18 @@ export function UsersTable(props: {
 
 function InviteCard({
   roles,
+  invites,
   onSubmit,
+  onRevoke,
   pending,
 }: {
   roles: Role[];
-  onSubmit: (v: { email: string; fullName: string; roleId: string }, reset: () => void) => void;
+  invites: PendingInvite[];
+  onSubmit: (v: { roleId: string; note?: string }, reset: () => void) => void;
+  onRevoke: (inviteId: string) => void;
   pending: boolean;
 }) {
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [note, setNote] = useState("");
   const [roleId, setRoleId] = useState(roles[0]?.id ?? "");
   const hint = ROLE_HINT[roles.find((r) => r.id === roleId)?.key ?? ""];
   return (
@@ -285,20 +302,9 @@ function InviteCard({
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit({ email, fullName, roleId }, () => {
-              setEmail("");
-              setFullName("");
-            });
+            onSubmit({ roleId, note: note.trim() || undefined }, () => setNote(""));
           }}
         >
-          <label className="min-w-48 flex-1">
-            <span className="text-label text-text-weak">Họ tên</span>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          </label>
-          <label className="min-w-48 flex-1">
-            <span className="text-label text-text-weak">Email đăng nhập</span>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
           <label>
             <span className="block text-label text-text-weak">Vị trí (vai trò)</span>
             <select
@@ -314,30 +320,71 @@ function InviteCard({
               ))}
             </select>
           </label>
-          <Button type="submit" disabled={pending}>
+          <label className="min-w-48 flex-1">
+            <span className="text-label text-text-weak">Gửi cho ai (không bắt buộc, để anh chị nhớ)</span>
+            <Input
+              aria-label="Gửi cho ai"
+              value={note}
+              maxLength={120}
+              placeholder="Ví dụ: Chị Hoa, ca tối"
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={pending || !roleId}>
             Tạo link mời
           </Button>
         </form>
         {hint ? <p className="text-label text-text-weak">{hint}</p> : null}
         <p className="text-label text-text-weak">
-          CRM tạo tài khoản đúng vai trò và đưa anh chị một link. Gửi link riêng cho người được mời qua Zalo
-          hoặc Telegram; họ mở link, đặt mật khẩu rồi đăng nhập bằng email này.
+          Gửi link riêng cho người được mời qua Zalo hoặc Telegram. Họ mở link, tự nhập họ tên, email, mật
+          khẩu để tạo tài khoản của mình và vào làm ngay với quyền của vị trí này. Mỗi link cho một người,
+          dùng một lần, hết hạn sau 7 ngày.
         </p>
+        {invites.length ? (
+          <div role="group" aria-label="Link mời chưa dùng" className="border-t border-line-2 pt-2">
+            <p className="text-label font-semibold text-text-weak">Link mời chưa dùng</p>
+            <ul className="m-0 list-none space-y-1 p-0">
+              {invites.map((i) => (
+                <li key={i.id} className="flex flex-wrap items-center gap-2">
+                  <span className="flex-1">
+                    <b>{i.roleName}</b>
+                    {i.note ? ` · ${i.note}` : ""}
+                    <span className="block text-label text-text-weak">
+                      Hết hạn {formatDateTime(i.expiresAt)}
+                    </span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={pending}
+                    aria-label={`Hủy link mời ${i.roleName}${i.note ? ` ${i.note}` : ""}`}
+                    onClick={() => onRevoke(i.id)}
+                  >
+                    Hủy link
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </CardBody>
     </Card>
   );
 }
 
 /** Hộp hiện link vừa tạo: link chỉ hiện một lần ở đây, CRM không lưu lại. */
+/** join: link mời theo vị trí, người nhận tự tạo tài khoản; invite: link nhận lời mời kiểu cũ; reset: đặt lại mật khẩu. */
+type LinkKind = "join" | "invite" | "reset";
+
 function LinkDialog({
   title,
   link,
-  invite,
+  kind,
   onClose,
 }: {
   title: string;
   link: string;
-  invite: boolean;
+  kind: LinkKind;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -356,9 +403,11 @@ function LinkDialog({
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 space-y-3 rounded-card bg-surface p-4 shadow-pop">
           <Dialog.Title className="text-card-title font-bold">{title}</Dialog.Title>
           <Dialog.Description className="text-text-weak">
-            {invite
-              ? "Gửi link này riêng cho người được mời qua Zalo hoặc Telegram. Họ mở link, đặt mật khẩu (ít nhất 10 ký tự) rồi vào thẳng CRM."
-              : "Gửi link này riêng cho người đó. Mở link là vào màn đặt mật khẩu mới."}
+            {kind === "join"
+              ? "Gửi link này riêng cho người được mời qua Zalo hoặc Telegram. Họ mở link, tự nhập họ tên, email, mật khẩu để tạo tài khoản rồi vào thẳng CRM."
+              : kind === "invite"
+                ? "Gửi link này riêng cho người được mời qua Zalo hoặc Telegram. Họ mở link, đặt mật khẩu (ít nhất 10 ký tự) rồi vào thẳng CRM."
+                : "Gửi link này riêng cho người đó. Mở link là vào màn đặt mật khẩu mới."}
           </Dialog.Description>
           <Input
             readOnly
@@ -368,12 +417,25 @@ function LinkDialog({
             className="font-mono text-label"
           />
           <ul className="list-disc space-y-1 pl-5 text-label text-text-weak">
-            <li>
-              Link chỉ dùng được một lần và hết hạn sau khoảng 1 giờ. Hết hạn thì bấm Tạo link vào CRM ở dòng
-              của họ.
-            </li>
-            <li>Không đăng link vào nhóm chung: ai mở link trước sẽ vào được tài khoản này.</li>
-            {invite ? (
+            {kind === "join" ? (
+              <>
+                <li>
+                  Link dùng được một lần, hết hạn sau 7 ngày. CRM không hiện lại link này; mất link thì hủy ở
+                  mục Link mời chưa dùng rồi tạo link mới.
+                </li>
+                <li>Không đăng link vào nhóm chung: ai mở link trước sẽ tạo được tài khoản vị trí này.</li>
+                <li>Anh chị đừng tự mở link để thử: link để người được mời tạo tài khoản riêng của họ.</li>
+              </>
+            ) : (
+              <>
+                <li>
+                  Link chỉ dùng được một lần và hết hạn sau khoảng 1 giờ. Hết hạn thì bấm Tạo link vào CRM ở
+                  dòng của họ.
+                </li>
+                <li>Không đăng link vào nhóm chung: ai mở link trước sẽ vào được tài khoản này.</li>
+              </>
+            )}
+            {kind !== "reset" ? (
               <li>Telesale: xếp vào ca ở Cài đặt, Ca trực; đặt chỉ tiêu ở Đội ngũ, Chỉ tiêu.</li>
             ) : null}
           </ul>
