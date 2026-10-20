@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { shrinkImage } from "@/lib/images/shrink";
 import { slugify, type LandingSettings } from "@/lib/landing/contract";
 
 import { PageHead } from "../parts";
@@ -84,7 +85,16 @@ function useRun() {
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<Result>, after?: (r: Result) => void) =>
     start(async () => {
-      const r = await fn();
+      let r: Result;
+      try {
+        r = await fn();
+      } catch {
+        // Lệnh gửi lên bị máy chủ từ chối (file quá lớn) hoặc mất mạng: báo lỗi, không làm hỏng màn hình.
+        r = {
+          ok: false,
+          message: "Chưa gửi được, file có thể quá lớn hoặc mạng chập chờn. Thử lại sau ít phút.",
+        };
+      }
       toast(r.message, r.ok ? "ok" : "err");
       after?.(r);
       if (r.ok) router.refresh();
@@ -228,10 +238,17 @@ function PageItem({
     if (!file) return;
     const form = new FormData();
     form.set("id", p.id);
-    form.set("file", file);
-    if (target === "banner") form.set("target", "banner");
     input.value = "";
-    run(() => (target === "html" ? actions.uploadHtml(form) : actions.uploadImage(form)));
+    if (target === "html") {
+      form.set("file", file);
+      run(() => actions.uploadHtml(form));
+      return;
+    }
+    form.set("target", "banner");
+    run(async () => {
+      form.set("file", await shrinkImage(file, 2000));
+      return actions.uploadImage(form);
+    });
   };
   return (
     <li className="border-t border-line-2 px-4 py-3 first:border-t-0" aria-label={`Landing page ${p.title}`}>
@@ -495,8 +512,10 @@ function ProductRow({
                   const form = new FormData();
                   form.set("id", p.variantId);
                   form.set("target", "product");
-                  form.set("file", file);
-                  run(() => actions.uploadImage(form));
+                  run(async () => {
+                    form.set("file", await shrinkImage(file));
+                    return actions.uploadImage(form);
+                  });
                 }}
               />
             </label>

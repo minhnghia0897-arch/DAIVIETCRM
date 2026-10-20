@@ -179,7 +179,7 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
   if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Chọn ảnh để tải lên." };
   const ext = IMAGE_TYPES[file.type];
   if (!ext) return { ok: false, message: "Chỉ nhận ảnh JPG, PNG, WEBP." };
-  if (file.size > 5 * 1024 * 1024) return { ok: false, message: "Ảnh tối đa 5MB." };
+  if (file.size > 4 * 1024 * 1024) return { ok: false, message: "Ảnh tối đa 4MB." };
 
   const supabase = await createClient();
   // Kiểm mục thuộc showroom và người dùng xem được trước khi ghi ảnh bằng khóa máy chủ.

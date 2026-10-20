@@ -102,7 +102,8 @@ của lead để sau này gửi chuyển đổi về Facebook, TikTok (CLAUDE.md
   thông báo. Không dùng được cookie, `localStorage` của trang; mã đo của bên thứ ba (Facebook Pixel, Google Tag) có
   thể chạy nhưng không giữ được cookie, nên đo chuyển đổi dựa vào UTM ở trên.
 - Ảnh, phông chữ, thư viện tải từ link ngoài vẫn dùng được. Ảnh ghế, banner nên tải lên ở màn Landing page (bucket
-  công khai `product-images`, JPG, PNG, WEBP tối đa 5MB) rồi dùng `imageUrl`, `bannerUrl`.
+  công khai `product-images`, JPG, PNG, WEBP; ảnh lớn được trình duyệt tự thu nhỏ trước khi tải lên, cạnh dài tối đa
+  1600px với ảnh ghế, 2000px với banner) rồi dùng `imageUrl`, `bannerUrl`.
 - Nội dung cam kết với khách (trả góp, mức giảm, bảo hành, số suất còn lại) phải đúng chính sách đang chạy; Owner
   duyệt trước khi bật trang.
 
