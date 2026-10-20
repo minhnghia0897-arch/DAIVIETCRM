@@ -145,6 +145,13 @@
       .topbar .brand b {
         color: var(--gold);
       }
+      .topbar .brand img {
+        display: block;
+        height: 34px;
+        width: auto;
+        max-width: 200px;
+        object-fit: contain;
+      }
       .cd {
         display: flex;
         align-items: center;
@@ -345,8 +352,24 @@
         object-fit: contain;
         filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
       }
-      .hero-visual img.real + .chair {
+      .hero-visual.has-img {
+        aspect-ratio: auto;
+        max-width: 560px;
+      }
+      .hero-visual.has-img .chair {
         display: none;
+      }
+      /* Điện thoại: ảnh đầu trang lên trước tiêu đề để khách thấy ngay. */
+      @media (max-width: 860px) {
+        .hero-visual.has-img {
+          order: -1;
+        }
+      }
+      .hero-visual.has-img img.real {
+        position: static;
+        display: block;
+        height: auto;
+        border-radius: 16px;
       }
       .card .pic img.real {
         position: absolute;
@@ -1118,17 +1141,18 @@
         padding: 24px;
       }
       .gift .pic {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
+        width: 100%;
+        max-width: 180px;
+        aspect-ratio: 1/1;
+        border-radius: 12px;
         margin: 0 auto 12px;
         overflow: hidden;
-        background: #fff3cc;
+        background: #fff;
       }
       .gift .pic img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
       }
       .sr-info .map-link {
         display: inline-block;
@@ -1145,7 +1169,7 @@
 
     <div class="topbar">
       <div class="wrap">
-        <div class="brand">DAIKIOSAN <b>×</b> ĐẠI VIỆT</div>
+        <div class="brand" id="brand">DAIKIOSAN <b>×</b> ĐẠI VIỆT</div>
         <div class="cd" id="cd" hidden>
           <span class="lbl">⚡ Ưu đãi kết thúc sau</span>
           <div class="box" id="cd-d">00<small>ngày</small></div>
@@ -1177,7 +1201,10 @@
           </div>
         </div>
         <div class="hero-visual">
-          <img class="real" id="hero-img" alt="Ghế massage Daikiosan" hidden />
+          <picture id="hero-pic" hidden>
+            <source id="hero-src-m" media="(max-width: 860px)" />
+            <img class="real" id="hero-img" alt="Ghế massage Daikiosan" />
+          </picture>
           <div class="chair"></div>
           <div class="float-gift" id="float-gift" hidden>
             <i>🎁</i>
@@ -1456,13 +1483,34 @@
           $("foot-contact").textContent = [C.address, C.hotline && "Hotline: " + C.hotline]
             .filter(Boolean)
             .join(" · ");
-        if (D.bannerUrl) {
-          var h = $("hero-img");
-          h.src = D.bannerUrl;
-          h.hidden = false;
+        // Ảnh lớn đầu trang: ảnh máy tính, ảnh điện thoại (màn hẹp); thiếu ảnh nào thì dùng ảnh còn lại.
+        var desk = D.bannerUrl || D.bannerMobileUrl,
+          mob = D.bannerMobileUrl || D.bannerUrl;
+        if (desk) {
+          var hv = document.querySelector(".hero-visual"),
+            hp = $("hero-pic"),
+            h = $("hero-img");
+          if (mob !== desk) $("hero-src-m").srcset = mob;
+          h.src = desk;
+          hp.hidden = false;
+          hv.classList.add("has-img");
           h.onerror = function () {
-            h.remove();
+            hp.remove();
+            hv.classList.remove("has-img");
           };
+        }
+        // Logo trên thanh đầu trang; ảnh lỗi thì quay về chữ thương hiệu.
+        if (D.logoUrl) {
+          var brand = $("brand"),
+            brandText = brand.innerHTML,
+            logo = el("img");
+          logo.src = D.logoUrl;
+          logo.alt = (D.page && D.page.title) || "Logo";
+          logo.onerror = function () {
+            brand.innerHTML = brandText;
+          };
+          brand.textContent = "";
+          brand.appendChild(logo);
         }
 
         // Sản phẩm và giá (bảng giá CRM, khuyến mãi đang chạy)
@@ -1527,6 +1575,10 @@
               var img = el("img");
               img.src = g.imageUrl;
               img.alt = g.name;
+              img.loading = "lazy";
+              img.onerror = function () {
+                d.replaceChild(el("div", "ico", "🎁"), pic);
+              };
               pic.appendChild(img);
               d.appendChild(pic);
             } else d.appendChild(el("div", "ico", "🎁"));

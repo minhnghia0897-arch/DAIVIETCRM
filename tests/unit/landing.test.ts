@@ -31,7 +31,9 @@ const DATA: LandingData = {
   ],
   gifts: [],
   contact: { hotline: "", zalo: "", address: "", openHours: "", kakao: "", mapUrl: "" },
+  logoUrl: "",
   bannerUrl: "",
+  bannerMobileUrl: "",
   countdownEnd: "",
   leadUrl: "/api/lp/khai-truong/lead",
 };
@@ -81,6 +83,13 @@ describe("landing page", () => {
   it("cài đặt sai dạng thì về mặc định; hạn ưu đãi theo giờ VN", () => {
     expect(readLandingSettings({ hotline: "0909", mapUrl: "javascript:alert(1)" }).hotline).toBe("");
     expect(readLandingSettings({ hotline: "0909" }).hotline).toBe("0909");
+    // Trang tạo trước khi có logo, ảnh điện thoại vẫn đọc được: ô mới để trống.
+    expect(readLandingSettings({ bannerUrl: "https://x/b.jpg" })).toMatchObject({
+      bannerUrl: "https://x/b.jpg",
+      bannerMobileUrl: "",
+      logoUrl: "",
+    });
+    expect(readLandingSettings({ logoUrl: "javascript:alert(1)" }).logoUrl).toBe("");
     expect(vnLocalToIso("2026-10-31T23:59")).toBe("2026-10-31T23:59:00+07:00");
     expect(new Date(vnLocalToIso("2026-10-31T23:59")).toISOString()).toBe("2026-10-31T16:59:00.000Z");
   });

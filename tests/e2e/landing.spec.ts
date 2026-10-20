@@ -13,6 +13,16 @@ const TITLE = `Khai trương thử ${STAMP}`;
 const SLUG = `khai-truong-thu-${STAMP}`;
 const CUSTOMER = `Khách Landing ${STAMP}`;
 const PHONE = `0912${String(STAMP).padStart(6, "0")}`;
+const GIFT_SKU = `QT${STAMP}`;
+// Ảnh PNG 1×1 điểm ảnh: đủ để thử tải logo, ảnh đầu trang, ảnh quà.
+const PNG = {
+  name: "anh.png",
+  mimeType: "image/png",
+  buffer: Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  ),
+};
 
 test("Owner tạo landing page, bật ghế; khách gửi form thành lead nguồn Landing page", async ({
   page,
@@ -20,6 +30,15 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
 }, testInfo) => {
   test.skip(testInfo.project.name !== "laptop", "Tạo trang, lead: chạy một cỡ màn");
   await login(page, USERS.owner);
+  // Một quà trong danh mục Quà tặng để thử tải ảnh quà cho landing.
+  await page.goto("/gifts");
+  await page.getByRole("button", { name: "Thêm quà" }).click();
+  const giftForm = page.getByRole("form", { name: "Thêm quà" });
+  await giftForm.getByLabel("Tên quà").fill(`Quạt thử ${STAMP}`);
+  await giftForm.getByLabel("Mã quà").fill(GIFT_SKU);
+  await giftForm.getByRole("button", { name: "Lưu" }).click();
+  await expect(page.getByRole("region", { name: "Danh sách quà tặng" })).toContainText(GIFT_SKU);
+
   await page.goto("/landing-pages");
   await expect(page.getByRole("heading", { name: "Landing page", level: 1 })).toBeVisible();
 
@@ -69,6 +88,18 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(page.getByRole("status")).toContainText("Đã tải ảnh lên");
   await expect(row.locator("img")).toHaveAttribute("src", /product-images/);
 
+  // Logo, ảnh đầu trang riêng cho máy tính và điện thoại, ảnh quà trong danh mục Quà tặng.
+  const pics = item.getByRole("group", { name: `Ảnh của ${TITLE}` }).locator("img");
+  await item.getByLabel(`Logo cho ${TITLE}`).setInputFiles(PNG);
+  await expect(pics).toHaveCount(1);
+  await item.getByLabel(`Banner máy tính cho ${TITLE}`).setInputFiles(PNG);
+  await expect(pics).toHaveCount(2);
+  await item.getByLabel(`Banner điện thoại cho ${TITLE}`).setInputFiles(PNG);
+  await expect(pics).toHaveCount(3);
+  const giftRow = page.getByRole("row", { name: `Quà ${GIFT_SKU}` });
+  await giftRow.getByLabel(`Ảnh quà ${GIFT_SKU}`).setInputFiles(PNG);
+  await expect(giftRow.locator("img")).toHaveAttribute("src", /product-images/);
+
   // Khách chưa đăng nhập mở trang: ghế, giá từ bảng giá CRM, hotline của trang.
   const ctx = await browser.newContext();
   const guest = await ctx.newPage();
@@ -81,6 +112,12 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(grid).toContainText("Con lăn 4D");
   await expect(grid.locator("img.real")).toHaveAttribute("src", /product-images/);
   await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
+  await expect(guest.locator("#brand img")).toHaveAttribute("src", /\/logo\//);
+  await expect(guest.locator("#hero-img")).toHaveAttribute("src", /\/banner\//);
+  await expect(guest.locator("#hero-src-m")).toHaveAttribute("srcset", /\/banner_mobile\//);
+  await expect(
+    guest.locator("#gift-list .gift", { hasText: `Quạt thử ${STAMP}` }).locator("img"),
+  ).toHaveAttribute("src", /product-images/);
 
   await guest.getByLabel("Họ và tên *").fill(CUSTOMER);
   await guest.getByLabel("Số điện thoại / Zalo *").fill(PHONE);
@@ -121,6 +158,9 @@ test("ô bẫy không tạo lead, gửi dồn bị chặn, tắt trang thì khá
 
   await page.goto("/landing-pages");
   const item = page.getByRole("listitem", { name: `Landing page ${TITLE}` });
+  // Gỡ logo: trang quay về chữ thương hiệu.
+  await item.getByRole("button", { name: `Gỡ: Logo cho ${TITLE}` }).click();
+  await expect(item.getByRole("group", { name: `Ảnh của ${TITLE}` }).locator("img")).toHaveCount(2);
   await item.getByRole("button", { name: "Tắt trang" }).click();
   await expect(item).toContainText("Đang tắt");
   // Người quản lý vẫn xem trước được; khách thì không.

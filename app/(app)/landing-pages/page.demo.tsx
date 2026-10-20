@@ -1,7 +1,11 @@
 "use client";
 
 import { DemoPage } from "@/components/demo/demo-user";
-import { LandingPagesView, type LandingProductEdit } from "@/components/crm/views/landing-pages";
+import {
+  LandingPagesView,
+  type LandingGiftEdit,
+  type LandingProductEdit,
+} from "@/components/crm/views/landing-pages";
 import { MARKETING_VIEW } from "@/lib/nav";
 
 // Bản demo: thao tác chỉ báo kết quả, không lưu. Bản thật đăng trang ở /lp/<đường dẫn> và nhận lead từ form.
@@ -32,6 +36,13 @@ const PRODUCTS: LandingProductEdit[] = CHAIRS.map(([sku, name, price], i) => ({
   imageUrl: null,
 }));
 
+const GIFTS: LandingGiftEdit[] = [
+  ["DM103", "Máy làm mát DM103"],
+  ["DM110", "Máy làm mát DM110"],
+  ["DQ120X", "Quạt điện DQ120X"],
+  ["DB101", "Thiết bị nhà bếp DB101"],
+].map(([sku, name]) => ({ variantId: `demo-${sku}`, sku, name, value: 0, imageUrl: null }));
+
 export default function Page() {
   return (
     <DemoPage anyOf={MARKETING_VIEW}>
@@ -50,7 +61,9 @@ export default function Page() {
                 openHours: "8:30 – 21:00",
                 kakao: "",
                 mapUrl: "",
+                logoUrl: "",
                 bannerUrl: "",
+                bannerMobileUrl: "",
                 countdownEnd: "2026-10-31T23:59",
               },
               customHtml: false,
@@ -61,7 +74,7 @@ export default function Page() {
             },
           ]}
           products={PRODUCTS}
-          giftCount={4}
+          gifts={GIFTS}
           origin="https://daivietcrmq4.vercel.app"
           canManage={user.permissions.has("marketing.manage")}
           actions={{
@@ -69,6 +82,7 @@ export default function Page() {
             setStatus: demo,
             uploadHtml: demo,
             uploadImage: demo,
+            removeImage: demo,
             saveProduct: demo,
           }}
         />

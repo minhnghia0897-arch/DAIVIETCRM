@@ -168,13 +168,32 @@ export async function saveLandingProduct(input: LandingProductInput): Promise<Ac
 
 const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
-/** Ảnh ghế (target=product) hoặc ảnh banner của trang (target=banner), vào bucket công khai product-images. */
+/** Ảnh của trang lưu trong landing_pages.settings: logo, ảnh lớn đầu trang trên máy tính và trên điện thoại. */
+const PAGE_IMAGE: Record<string, "logoUrl" | "bannerUrl" | "bannerMobileUrl"> = {
+  logo: "logoUrl",
+  banner: "bannerUrl",
+  banner_mobile: "bannerMobileUrl",
+};
+
+async function setPageImage(id: string, key: "logoUrl" | "bannerUrl" | "bannerMobileUrl", url: string) {
+  const { supabase, page } = await readPage(id);
+  if (!page) return { error: { message: "landing page not found" } };
+  const settings: LandingSettings = { ...landingSettingsSchema.parse(page.settings ?? {}), [key]: url };
+  return supabase.rpc("save_landing_page", {
+    p: { id: page.id, slug: page.slug, title: page.title, status: page.status, settings },
+  });
+}
+
+/**
+ * Ảnh ghế, quà (target=product, id là phiên bản sản phẩm) hoặc ảnh của trang (target=logo, banner, banner_mobile, id
+ * là trang), vào bucket công khai product-images.
+ */
 export async function uploadLandingImage(form: FormData): Promise<ActionResult> {
   const user = await requireWritable("marketing.manage");
-  const target = form.get("target");
+  const target = String(form.get("target") ?? "");
   const id = z.uuid().safeParse(form.get("id"));
   const file = form.get("file");
-  if (!id.success || (target !== "product" && target !== "banner"))
+  if (!id.success || (target !== "product" && !PAGE_IMAGE[target]))
     return { ok: false, message: "Chưa rõ ảnh của mục nào." };
   if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Chọn ảnh để tải lên." };
   const ext = IMAGE_TYPES[file.type];
@@ -183,7 +202,7 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
 
   const supabase = await createClient();
   // Kiểm mục thuộc showroom và người dùng xem được trước khi ghi ảnh bằng khóa máy chủ.
-  if (target === "banner") {
+  if (target !== "product") {
     const { page } = await readPage(id.data);
     if (!page) return { ok: false, message: "Không tìm thấy trang." };
   } else {
@@ -204,26 +223,31 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
   if (upErr) return { ok: false, message: "Chưa tải được ảnh lên, thử lại sau ít phút." };
   const url = admin.storage.from("product-images").getPublicUrl(path).data.publicUrl;
 
-  if (target === "product") {
-    const { error } = await supabase.rpc("save_landing_product", {
-      p: { variant_id: id.data, image_url: url },
-    });
-    if (error) {
-      await admin.storage.from("product-images").remove([path]);
-      return failure(error);
-    }
-  } else {
-    const { page } = await readPage(id.data);
-    if (!page) return { ok: false, message: "Không tìm thấy trang." };
-    const settings: LandingSettings = { ...landingSettingsSchema.parse(page.settings ?? {}), bannerUrl: url };
-    const { error } = await supabase.rpc("save_landing_page", {
-      p: { id: page.id, slug: page.slug, title: page.title, status: page.status, settings },
-    });
-    if (error) {
-      await admin.storage.from("product-images").remove([path]);
-      return failure(error);
-    }
+  const { error } =
+    target === "product"
+      ? await supabase.rpc("save_landing_product", { p: { variant_id: id.data, image_url: url } })
+      : await setPageImage(id.data, PAGE_IMAGE[target], url);
+  if (error) {
+    await admin.storage.from("product-images").remove([path]);
+    return failure(error);
   }
   refresh();
   return { ok: true, message: "Đã tải ảnh lên." };
+}
+
+/** Gỡ ảnh: logo quay về chữ thương hiệu, ảnh đầu trang quay về hình mặc định của mẫu, ghế và quà quay về khung trống. */
+export async function removeLandingImage(input: { target: string; id: string }): Promise<ActionResult> {
+  await requireWritable("marketing.manage");
+  const id = z.uuid().safeParse(input.id);
+  if (!id.success || (input.target !== "product" && !PAGE_IMAGE[input.target]))
+    return { ok: false, message: "Chưa rõ ảnh của mục nào." };
+  const { error } =
+    input.target === "product"
+      ? await (
+          await createClient()
+        ).rpc("save_landing_product", { p: { variant_id: id.data, image_url: "" } })
+      : await setPageImage(id.data, PAGE_IMAGE[input.target], "");
+  if (error) return failure(error);
+  refresh();
+  return { ok: true, message: "Đã gỡ ảnh." };
 }

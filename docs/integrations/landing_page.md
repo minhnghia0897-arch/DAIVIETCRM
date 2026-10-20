@@ -26,11 +26,16 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 
 - **Danh sách trang:** tên, link (Chép link, Mở trang), Đang chạy hoặc Đang tắt, số lead (tổng, 7 ngày, lần gần nhất).
 - **Sửa thông tin:** tên, đường dẫn, hotline, Zalo (số hoặc link), địa chỉ, giờ mở cửa, KakaoTalk ID, link Google Maps,
-  hạn ưu đãi (giờ VN, để trống là không đếm ngược), ảnh banner.
+  hạn ưu đãi (giờ VN, để trống là không đếm ngược).
+- **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh lớn đầu trang cho máy tính (ngang hoặc
+  vuông) và cho điện thoại (dọc). Chưa có ảnh điện thoại thì trang dùng ảnh máy tính; chưa có logo thì hiện chữ thương
+  hiệu của mẫu. Mỗi ảnh có nút Gỡ.
 - **Tải HTML lên:** file `.html` tối đa 2MB. Chưa tải thì trang dùng **mẫu khai trương có sẵn**
   (`lib/landing/templates/khai-truong.html`). **Dùng mẫu có sẵn** để quay về mẫu.
 - **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự. Giá
   hiện ở đây là giá khách sẽ thấy.
+- **Quà tặng trên landing:** ảnh từng quà trong danh mục Quà tặng (tên, trị giá sửa ở Sản phẩm → Quà tặng). Ảnh vuông
+  nền trắng nhìn rõ nhất; chưa có ảnh thì trang hiện biểu tượng hộp quà.
 
 ## Giá trên trang
 
@@ -62,7 +67,9 @@ CRM chèn hai thẻ `<script>` ngay sau `<head>` trước khi trả trang cho kh
   }[];                      // chỉ ghế đang bật, theo thứ tự đã đặt
   gifts: { sku: string; name: string; value: number; imageUrl: string | null }[]; // danh mục Quà tặng
   contact: { hotline: string; zalo: string; address: string; openHours: string; kakao: string; mapUrl: string };
-  bannerUrl: string;        // rỗng khi chưa có
+  logoUrl: string;          // logo thanh đầu trang; rỗng khi chưa có
+  bannerUrl: string;        // ảnh lớn đầu trang trên máy tính; rỗng khi chưa có
+  bannerMobileUrl: string;  // ảnh lớn đầu trang trên điện thoại; rỗng thì dùng bannerUrl
   countdownEnd: string;     // ISO có múi giờ VN, ví dụ "2026-10-31T23:59:00+07:00"; rỗng là không đếm ngược
   leadUrl: string;          // "/api/lp/<đường-dẫn>/lead"
 }
@@ -103,7 +110,9 @@ của lead để sau này gửi chuyển đổi về Facebook, TikTok (CLAUDE.md
   thể chạy nhưng không giữ được cookie, nên đo chuyển đổi dựa vào UTM ở trên.
 - Ảnh, phông chữ, thư viện tải từ link ngoài vẫn dùng được. Ảnh ghế, banner nên tải lên ở màn Landing page (bucket
   công khai `product-images`, JPG, PNG, WEBP; ảnh lớn được trình duyệt tự thu nhỏ trước khi tải lên, cạnh dài tối đa
-  1600px với ảnh ghế, 2000px với banner) rồi dùng `imageUrl`, `bannerUrl`.
+  1600px với ảnh ghế và quà, 800px với logo, 2000px với ảnh đầu trang máy tính, 1400px với ảnh đầu trang điện thoại)
+  rồi dùng `imageUrl`, `logoUrl`, `bannerUrl`, `bannerMobileUrl`. Ảnh đầu trang nên đặt trong `<picture>` có `<source
+  media="(max-width: 860px)">` cho ảnh điện thoại như mẫu có sẵn.
 - Nội dung cam kết với khách (trả góp, mức giảm, bảo hành, số suất còn lại) phải đúng chính sách đang chạy; Owner
   duyệt trước khi bật trang.
 
