@@ -402,10 +402,17 @@ export async function pollOutbound(
     // Khách cũ quay lại được nối vào lead đang mở (payload.attached): không phải lead mới.
     if (e.type === "lead_created" && !(e.payload as { attached?: boolean } | null)?.attached) {
       await trySend("tin lead mới vào nhóm", () =>
-        postToGroup(db, api, e.showroom_id, "announce", `Có 1 lead mới (nguồn: ${lead.source}).`, {
-          eventType: "lead_created",
-          leadId: lead.id,
-        }),
+        postToGroup(
+          db,
+          api,
+          e.showroom_id,
+          "announce",
+          `Có 1 lead mới (nguồn: ${leadSourceLabel(lead.source)}).`,
+          {
+            eventType: "lead_created",
+            leadId: lead.id,
+          },
+        ),
       );
     }
   }

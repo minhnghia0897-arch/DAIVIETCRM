@@ -36,6 +36,9 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/join/") ||
     path.startsWith("/auth/") ||
     path.startsWith("/q/") ||
+    // Landing page công khai và nơi nhận form của trang (app/lp, app/api/lp): khách chưa đăng nhập.
+    path.startsWith("/lp/") ||
+    path.startsWith("/api/lp/") ||
     // Trang pháp lý công khai mà Meta, Zalo đòi khi phát hành ứng dụng.
     path === "/privacy" ||
     path === "/terms" ||

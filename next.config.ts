@@ -21,7 +21,11 @@ const nextConfig: NextConfig = demoExport
       // Lệnh ghi (server action có revalidatePath, router.refresh) vẫn làm mới ngay.
       experimental: { staleTimes: { dynamic: 30 } },
       // Font tiếng Việt vẽ ảnh báo giá (đọc bằng readFile nên phải khai báo để có trong gói chạy trên Vercel).
-      outputFileTracingIncludes: { "/api/quotes/[id]/image": ["./assets/fonts/*.ttf"] },
+      // Mẫu landing page có sẵn (trang chưa tải HTML riêng thì dùng mẫu này).
+      outputFileTracingIncludes: {
+        "/api/quotes/[id]/image": ["./assets/fonts/*.ttf"],
+        "/lp/[slug]": ["./lib/landing/templates/*.html"],
+      },
     };
 
 export default nextConfig;
