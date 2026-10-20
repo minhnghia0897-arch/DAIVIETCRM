@@ -27,9 +27,11 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 - **Danh sách trang:** tên, link (Chép link, Mở trang), Đang chạy hoặc Đang tắt, số lead (tổng, 7 ngày, lần gần nhất).
 - **Sửa thông tin:** tên, đường dẫn, hotline, Zalo (số hoặc link), địa chỉ, giờ mở cửa, KakaoTalk ID, link Google Maps,
   hạn ưu đãi (giờ VN, để trống là không đếm ngược).
-- **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh lớn đầu trang cho máy tính (ngang hoặc
-  vuông) và cho điện thoại (dọc). Chưa có ảnh điện thoại thì trang dùng ảnh máy tính; chưa có logo thì hiện chữ thương
-  hiệu của mẫu. Mỗi ảnh có nút Gỡ.
+- **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh đầu trang cho máy tính (gợi ý
+  1920×800) và cho điện thoại (gợi ý 1080×1350). Owner chốt 20/10/2026: có ảnh đầu trang thì mẫu có sẵn hiện ảnh tràn
+  hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm miễn phí, bỏ phần chữ đầu trang mặc định (chữ thiết kế
+  trong ảnh). Chưa có ảnh điện thoại thì trang dùng ảnh máy tính; chưa có ảnh nào thì giữ phần đầu trang mặc định; chưa
+  có logo thì hiện chữ thương hiệu của mẫu. Mỗi ảnh có nút Gỡ.
 - **Tải HTML lên:** file `.html` tối đa 2MB. Chưa tải thì trang dùng **mẫu khai trương có sẵn**
   (`lib/landing/templates/khai-truong.html`). **Dùng mẫu có sẵn** để quay về mẫu.
 - **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự. Giá

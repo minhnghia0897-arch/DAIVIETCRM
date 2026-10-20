@@ -508,8 +508,10 @@ function PageItem({
       </div>
       {canManage ? (
         <p className="c-lbl m-0 mt-1">
-          Logo nên là ảnh PNG nền trong suốt, chữ sáng (thanh đầu trang màu xanh đậm). Ảnh đầu trang máy tính
-          nên ngang hoặc vuông, điện thoại nên dọc; chưa có ảnh điện thoại thì trang dùng ảnh máy tính.
+          Logo nên là ảnh PNG nền trong suốt, chữ sáng (thanh đầu trang màu xanh đậm). Có ảnh đầu trang thì
+          trang hiện ảnh tràn hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm, bỏ phần chữ đầu
+          trang mặc định, nên thiết kế chữ ngay trong ảnh. Gợi ý máy tính 1920×800, điện thoại 1080×1350; chưa
+          có ảnh điện thoại thì trang dùng ảnh máy tính.
         </p>
       ) : null}
     </li>

@@ -115,6 +115,12 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(guest.locator("#brand img")).toHaveAttribute("src", /\/logo\//);
   await expect(guest.locator("#hero-img")).toHaveAttribute("src", /\/banner\//);
   await expect(guest.locator("#hero-src-m")).toHaveAttribute("srcset", /\/banner_mobile\//);
+  // Có ảnh đầu trang: ảnh tràn ngang kèm hai nút, phần chữ đầu trang mặc định ẩn đi.
+  await expect(guest.locator("#hero")).toBeHidden();
+  await expect(guest.locator("#hero-banner").getByRole("link")).toHaveText([
+    "Xem bảng giá",
+    "Đặt lịch trải nghiệm miễn phí",
+  ]);
   await expect(
     guest.locator("#gift-list .gift", { hasText: `Quạt thử ${STAMP}` }).locator("img"),
   ).toHaveAttribute("src", /product-images/);

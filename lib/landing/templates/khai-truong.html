@@ -352,24 +352,28 @@
         object-fit: contain;
         filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
       }
-      .hero-visual.has-img {
-        aspect-ratio: auto;
-        max-width: 560px;
+      /* Banner đầu trang tải ở CRM: ảnh tràn hết chiều ngang và hai nút, thay phần chữ đầu trang mặc định. */
+      .hero-banner {
+        background: var(--navy);
       }
-      .hero-visual.has-img .chair {
-        display: none;
-      }
-      /* Điện thoại: ảnh đầu trang lên trước tiêu đề để khách thấy ngay. */
-      @media (max-width: 860px) {
-        .hero-visual.has-img {
-          order: -1;
-        }
-      }
-      .hero-visual.has-img img.real {
-        position: static;
+      .hero-banner img {
         display: block;
+        width: 100%;
         height: auto;
-        border-radius: 16px;
+        max-width: 1920px;
+        margin: 0 auto;
+      }
+      .hero-banner .cta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+        padding: 18px 16px 22px;
+      }
+      @media (max-width: 520px) {
+        .hero-banner .cta .btn {
+          flex: 1 1 100%;
+        }
       }
       .card .pic img.real {
         position: absolute;
@@ -1181,7 +1185,18 @@
       </div>
     </div>
 
-    <section class="hero">
+    <section class="hero-banner" id="hero-banner" hidden>
+      <picture>
+        <source id="hero-src-m" media="(max-width: 860px)" />
+        <img id="hero-img" alt="" />
+      </picture>
+      <div class="cta">
+        <a href="#san-pham" class="btn btn-red pulse">Xem bảng giá</a>
+        <a href="#dat-lich" class="btn btn-gold">Đặt lịch trải nghiệm miễn phí</a>
+      </div>
+    </section>
+
+    <section class="hero" id="hero">
       <div class="wrap">
         <div>
           <span class="tag">Khai trương showroom Quận 4</span>
@@ -1201,10 +1216,6 @@
           </div>
         </div>
         <div class="hero-visual">
-          <picture id="hero-pic" hidden>
-            <source id="hero-src-m" media="(max-width: 860px)" />
-            <img class="real" id="hero-img" alt="Ghế massage Daikiosan" />
-          </picture>
           <div class="chair"></div>
           <div class="float-gift" id="float-gift" hidden>
             <i>🎁</i>
@@ -1483,20 +1494,21 @@
           $("foot-contact").textContent = [C.address, C.hotline && "Hotline: " + C.hotline]
             .filter(Boolean)
             .join(" · ");
-        // Ảnh lớn đầu trang: ảnh máy tính, ảnh điện thoại (màn hẹp); thiếu ảnh nào thì dùng ảnh còn lại.
+        // Banner đầu trang: ảnh tràn ngang và hai nút, thay phần chữ đầu trang; màn hẹp dùng ảnh điện thoại, thiếu
+        // ảnh nào thì dùng ảnh còn lại. Ảnh lỗi thì hiện lại phần đầu trang mặc định.
         var desk = D.bannerUrl || D.bannerMobileUrl,
           mob = D.bannerMobileUrl || D.bannerUrl;
         if (desk) {
-          var hv = document.querySelector(".hero-visual"),
-            hp = $("hero-pic"),
+          var hb = $("hero-banner"),
             h = $("hero-img");
           if (mob !== desk) $("hero-src-m").srcset = mob;
           h.src = desk;
-          hp.hidden = false;
-          hv.classList.add("has-img");
+          h.alt = (D.page && D.page.title) || "Ưu đãi ghế massage";
+          hb.hidden = false;
+          $("hero").hidden = true;
           h.onerror = function () {
-            hp.remove();
-            hv.classList.remove("has-img");
+            hb.hidden = true;
+            $("hero").hidden = false;
           };
         }
         // Logo trên thanh đầu trang; ảnh lỗi thì quay về chữ thương hiệu.
