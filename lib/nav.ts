@@ -57,6 +57,7 @@ export const LIVE_SCREENS = [
   "/marketing",
   "/campaigns",
   "/content",
+  "/landing-pages",
   "/settings/users",
   "/settings/permissions",
   "/settings/audit",
@@ -143,7 +144,8 @@ export const NAV_TABS: NavTab[] = [
     anyOf: ["message.zalo_send", "message.messenger_send", "message.view_all"],
     ready: true,
   },
-  // Phòng Marketing (duyệt 10/10/2026): tổng quan, chiến dịch thật; Kênh & nội dung, KOL, KOC vẫn mô phỏng.
+  // Phòng Marketing (duyệt 10/10/2026): tổng quan, chiến dịch, lịch nội dung, landing page thật; Kênh & nội dung, KOL,
+  // KOC vẫn mô phỏng.
   {
     href: "/marketing",
     label: "Marketing",
@@ -154,6 +156,7 @@ export const NAV_TABS: NavTab[] = [
       { href: "/marketing", label: "Tổng quan", perm: "marketing.view" },
       { href: "/campaigns", label: "Chiến dịch", perm: "marketing.view" },
       { href: "/content", label: "Lịch nội dung", perm: "marketing.view" },
+      { href: "/landing-pages", label: "Landing page", perm: "marketing.view" },
       { href: "/channels", label: "Kênh & nội dung", perm: "marketing.view" },
       { href: "/kol", label: "KOL, KOC", perm: "marketing.view" },
     ],

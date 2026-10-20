@@ -1,0 +1,109 @@
+import { expect, test } from "@playwright/test";
+
+import { USERS, login } from "./helpers";
+
+// Landing page chạy trên CRM (Marketing → Landing page): Owner tạo trang, chọn ghế hiện trên trang; khách chưa đăng nhập
+// mở /lp/<đường dẫn> thấy ghế và giá lấy từ CRM, gửi form là thành lead nguồn Landing page; máy điền ô bẫy không tạo
+// lead; gửi dồn từ một địa chỉ bị chặn; tắt trang thì khách không xem được.
+
+test.describe.configure({ mode: "serial" });
+
+const STAMP = Date.now() % 1_000_000;
+const TITLE = `Khai trương thử ${STAMP}`;
+const SLUG = `khai-truong-thu-${STAMP}`;
+const CUSTOMER = `Khách Landing ${STAMP}`;
+const PHONE = `0912${String(STAMP).padStart(6, "0")}`;
+
+test("Owner tạo landing page, bật ghế; khách gửi form thành lead nguồn Landing page", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Tạo trang, lead: chạy một cỡ màn");
+  await login(page, USERS.owner);
+  await page.goto("/landing-pages");
+  await expect(page.getByRole("heading", { name: "Landing page", level: 1 })).toBeVisible();
+
+  await page.getByRole("button", { name: "Tạo landing page" }).click();
+  const form = page.getByRole("form", { name: "Tạo landing page" });
+  await form.getByLabel("Tên trang").fill(TITLE);
+  await expect(form.getByLabel("Đường dẫn")).toHaveValue(SLUG);
+  await form.getByLabel("Hotline").fill("0909 111 222");
+  await form.getByRole("button", { name: "Lưu" }).click();
+  await expect(page.getByRole("status")).toContainText(`Đã tạo ${TITLE}`);
+  const item = page.getByRole("listitem", { name: `Landing page ${TITLE}` });
+  await expect(item).toContainText("Đang chạy");
+  await expect(item).toContainText(`/lp/${SLUG}`);
+  await expect(item).toContainText("mẫu khai trương có sẵn");
+
+  // Bật ghế DC302 trên trang, gắn nhãn.
+  const row = page.getByRole("row", { name: "Ghế DC302" });
+  await row.getByLabel("Hiện DC302 trên landing").check();
+  await row.getByLabel("Nhãn DC302").fill("BÁN CHẠY");
+  await row.getByLabel("Mô tả ngắn DC302").fill("Con lăn 4D, túi khí toàn thân");
+  await row.getByRole("button", { name: "Lưu DC302" }).click();
+  await expect(page.getByRole("status")).toContainText("ghế này hiện trên landing");
+
+  // Khách chưa đăng nhập mở trang: ghế, giá từ bảng giá CRM, hotline của trang.
+  const ctx = await browser.newContext();
+  const guest = await ctx.newPage();
+  const res = await guest.goto(`/lp/${SLUG}`);
+  expect(res?.headers()["content-security-policy"]).toContain("sandbox");
+  const grid = guest.locator("#grid");
+  await expect(grid).toContainText("Ghế massage Daikiosan DC302");
+  await expect(grid).toContainText("49.000.000đ");
+  await expect(grid).toContainText("BÁN CHẠY");
+  await expect(grid).toContainText("Con lăn 4D");
+  await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
+
+  await guest.getByLabel("Họ và tên *").fill(CUSTOMER);
+  await guest.getByLabel("Số điện thoại / Zalo *").fill(PHONE);
+  await guest.getByLabel("Mẫu ghế quan tâm").selectOption("DC302");
+  await guest.getByLabel("Tôi đồng ý nhận tin ưu đãi").check();
+  await guest.getByRole("button", { name: "Gửi thông tin" }).click();
+  await expect(guest.locator("#ok")).toContainText("Đã nhận thông tin");
+  await ctx.close();
+
+  // Lead vào CRM đúng nguồn, có ghi chú mẫu quan tâm; số lead hiện trên màn Landing page.
+  await page.goto(`/leads?q=${encodeURIComponent(CUSTOMER)}`);
+  await page.getByRole("link", { name: CUSTOMER }).first().click();
+  await expect(page.getByText("Nguồn: Landing page")).toBeVisible();
+  await expect(page.getByText(/Mẫu quan tâm: DC302/).first()).toBeVisible();
+  await page.goto("/landing-pages");
+  await expect(item).toContainText("Tổng: 1");
+});
+
+test("ô bẫy không tạo lead, gửi dồn bị chặn, tắt trang thì khách không xem được", async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "laptop", "Dùng trang của bài trên");
+  const url = `/api/lp/${SLUG}/lead`;
+  const bot = { name: "Máy dò", phone: "0987654321", website: "http://spam.example" };
+  // Lượt gửi thật ở bài trên đã tính một lần; thêm bốn lượt máy là đủ năm lượt trong 10 phút.
+  for (let i = 0; i < 4; i++) {
+    const r = await request.post(url, { data: bot });
+    expect(r.status()).toBe(200);
+    expect((await r.json()).ok).toBe(true);
+  }
+  const blocked = await request.post(url, { data: { name: "Người thật", phone: "0987654322" } });
+  expect(blocked.status()).toBe(429);
+
+  await login(page, USERS.owner);
+  await page.goto(`/leads?q=${encodeURIComponent("Máy dò")}`);
+  await expect(page.getByRole("link", { name: "Máy dò" })).toHaveCount(0);
+
+  await page.goto("/landing-pages");
+  const item = page.getByRole("listitem", { name: `Landing page ${TITLE}` });
+  await item.getByRole("button", { name: "Tắt trang" }).click();
+  await expect(item).toContainText("Đang tắt");
+  // Người quản lý vẫn xem trước được; khách thì không.
+  expect((await page.request.get(`/lp/${SLUG}`)).status()).toBe(200);
+  const anon = await request.get(`/lp/${SLUG}`);
+  expect(anon.status()).toBe(404);
+});
+
+test("telesale không vào được Landing page", async ({ page }) => {
+  await login(page, USERS.thao);
+  await page.goto("/landing-pages");
+  await expect(page.getByRole("heading", { name: "Chưa được cấp quyền" })).toBeVisible();
+});

@@ -188,6 +188,7 @@ const NAV_ICON: Record<string, LucideIcon> = {
   "/marketing": Megaphone,
   "/campaigns": Megaphone,
   "/content": Megaphone,
+  "/landing-pages": Megaphone,
   "/reports": BarChart3,
   "/agents": Bot,
   "/products": Package,

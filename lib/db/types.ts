@@ -2220,6 +2220,135 @@ export type Database = {
           },
         ];
       };
+      landing_lead_log: {
+        Row: {
+          created_at: string;
+          id: string;
+          ip_hash: string;
+          landing_page_id: string;
+          lead_id: string | null;
+          result: string;
+          showroom_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          ip_hash: string;
+          landing_page_id: string;
+          lead_id?: string | null;
+          result: string;
+          showroom_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          ip_hash?: string;
+          landing_page_id?: string;
+          lead_id?: string | null;
+          result?: string;
+          showroom_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "landing_lead_log_landing_page_id_fkey";
+            columns: ["landing_page_id"];
+            isOneToOne: false;
+            referencedRelation: "landing_pages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "landing_lead_log_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "landing_lead_log_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      landing_pages: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          html: string | null;
+          html_updated_at: string | null;
+          html_updated_by: string | null;
+          id: string;
+          settings: NonNullable<Json>;
+          showroom_id: string;
+          slug: string;
+          status: string;
+          title: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          html?: string | null;
+          html_updated_at?: string | null;
+          html_updated_by?: string | null;
+          id?: string;
+          settings?: NonNullable<Json>;
+          showroom_id: string;
+          slug: string;
+          status?: string;
+          title: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          html?: string | null;
+          html_updated_at?: string | null;
+          html_updated_by?: string | null;
+          id?: string;
+          settings?: NonNullable<Json>;
+          showroom_id?: string;
+          slug?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "landing_pages_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "landing_pages_html_updated_by_fkey";
+            columns: ["html_updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "landing_pages_showroom_id_fkey";
+            columns: ["showroom_id"];
+            isOneToOne: false;
+            referencedRelation: "showrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "landing_pages_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       lead_sources: {
         Row: {
           created_at: string;
@@ -3475,12 +3604,18 @@ export type Database = {
           deleted_at: string | null;
           delivery_class: string;
           description: string | null;
+          gift_text: string | null;
           id: string;
+          image_url: string | null;
           installation_crew_size: number | null;
           is_gift_only: boolean;
           is_sellable: boolean;
+          landing_badge: string | null;
+          landing_sort: number | null;
           name: string;
           requires_installation: boolean;
+          short_desc: string | null;
+          show_on_landing: boolean;
           showroom_id: string;
           status: string;
           track_serial: boolean;
@@ -3495,12 +3630,18 @@ export type Database = {
           deleted_at?: string | null;
           delivery_class?: string;
           description?: string | null;
+          gift_text?: string | null;
           id?: string;
+          image_url?: string | null;
           installation_crew_size?: number | null;
           is_gift_only?: boolean;
           is_sellable?: boolean;
+          landing_badge?: string | null;
+          landing_sort?: number | null;
           name: string;
           requires_installation?: boolean;
+          short_desc?: string | null;
+          show_on_landing?: boolean;
           showroom_id: string;
           status?: string;
           track_serial?: boolean;
@@ -3515,12 +3656,18 @@ export type Database = {
           deleted_at?: string | null;
           delivery_class?: string;
           description?: string | null;
+          gift_text?: string | null;
           id?: string;
+          image_url?: string | null;
           installation_crew_size?: number | null;
           is_gift_only?: boolean;
           is_sellable?: boolean;
+          landing_badge?: string | null;
+          landing_sort?: number | null;
           name?: string;
           requires_installation?: boolean;
+          short_desc?: string | null;
+          show_on_landing?: boolean;
           showroom_id?: string;
           status?: string;
           track_serial?: boolean;
@@ -6067,6 +6214,8 @@ export type Database = {
       save_contact_address: { Args: { p: Json }; Returns: string };
       save_content_item: { Args: { p: Json }; Returns: string };
       save_discount_limit: { Args: { p_max_pct: number; p_role_id: string }; Returns: undefined };
+      save_landing_page: { Args: { p: Json }; Returns: string };
+      save_landing_product: { Args: { p: Json }; Returns: undefined };
       save_policy: { Args: { p: Json }; Returns: string };
       save_product: { Args: { p: Json }; Returns: string };
       save_sales_settings: { Args: { p: Json }; Returns: undefined };

@@ -15,6 +15,7 @@ const SOURCE_BY_KEY: Record<string, string> = {
   hotline: "hotline",
   referral: "referral",
   import: "import",
+  landing_page: "landing_page",
 };
 
 export const sourceFromKey = (key: string) => SOURCE_BY_KEY[key] ?? "manual";

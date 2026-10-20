@@ -11,6 +11,7 @@ export const LEAD_SOURCE_LABEL: Record<string, string> = {
   referral: "Khách cũ giới thiệu",
   import: "Dữ liệu cũ nhập lại",
   manual: "Nhập tay",
+  landing_page: "Landing page",
 };
 
 export const leadSourceLabel = (source: string | null | undefined) =>
