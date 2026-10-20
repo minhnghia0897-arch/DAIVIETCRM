@@ -36,6 +36,7 @@ test("Marketing vào thẳng Tổng quan, thấy số theo chiến dịch, khôn
     "Tổng quan",
     "Chiến dịch",
     "Lịch nội dung",
+    "Landing page",
     "Kênh & nội dung",
     "KOL, KOC",
   ]);
