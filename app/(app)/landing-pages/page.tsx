@@ -12,6 +12,7 @@ import { leadStatsBySlug } from "@/lib/landing/stats";
 import { MARKETING_VIEW } from "@/lib/nav";
 
 import {
+  removeLandingImage,
   saveLandingPage,
   saveLandingProduct,
   setLandingStatus,
@@ -82,7 +83,13 @@ export default async function Page() {
         giftText: p.giftText ?? "",
         imageUrl: p.imageUrl,
       }))}
-      giftCount={catalog.gifts.length}
+      gifts={catalog.gifts.map((g) => ({
+        variantId: g.variantId,
+        sku: g.sku,
+        name: g.name,
+        value: g.value,
+        imageUrl: g.imageUrl,
+      }))}
       origin={origin}
       canManage={user.permissions.has("marketing.manage") && !user.viewAs}
       actions={{
@@ -90,6 +97,7 @@ export default async function Page() {
         setStatus: setLandingStatus,
         uploadHtml: uploadLandingHtml,
         uploadImage: uploadLandingImage,
+        removeImage: removeLandingImage,
         saveProduct: saveLandingProduct,
       }}
     />

@@ -38,7 +38,11 @@ export const landingSettingsSchema = z.object({
   openHours: text(120),
   kakao: text(60),
   mapUrl: url,
+  /** Logo trên thanh đầu trang; trống thì hiện chữ tên thương hiệu của mẫu. */
+  logoUrl: url,
+  /** Ảnh lớn đầu trang trên máy tính; trên điện thoại dùng ảnh riêng nếu có, không thì dùng ảnh này. */
   bannerUrl: url,
+  bannerMobileUrl: url,
   /** Hạn ưu đãi theo giờ VN, dạng "2026-10-31T23:59". */
   countdownEnd: z
     .string()
@@ -93,7 +97,10 @@ export interface LandingData {
     kakao: string;
     mapUrl: string;
   };
+  /** Logo, ảnh lớn đầu trang (máy tính, điện thoại); rỗng khi chưa tải. */
+  logoUrl: string;
   bannerUrl: string;
+  bannerMobileUrl: string;
   /** Hạn ưu đãi dạng ISO có múi giờ VN, rỗng khi không đặt. */
   countdownEnd: string;
   leadUrl: string;

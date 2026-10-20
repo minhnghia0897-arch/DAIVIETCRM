@@ -145,6 +145,13 @@
       .topbar .brand b {
         color: var(--gold);
       }
+      .topbar .brand img {
+        display: block;
+        height: 34px;
+        width: auto;
+        max-width: 200px;
+        object-fit: contain;
+      }
       .cd {
         display: flex;
         align-items: center;
@@ -345,8 +352,28 @@
         object-fit: contain;
         filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.6));
       }
-      .hero-visual img.real + .chair {
-        display: none;
+      /* Banner đầu trang tải ở CRM: ảnh tràn hết chiều ngang và hai nút, thay phần chữ đầu trang mặc định. */
+      .hero-banner {
+        background: var(--navy);
+      }
+      .hero-banner img {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-width: 1920px;
+        margin: 0 auto;
+      }
+      .hero-banner .cta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+        padding: 18px 16px 22px;
+      }
+      @media (max-width: 520px) {
+        .hero-banner .cta .btn {
+          flex: 1 1 100%;
+        }
       }
       .card .pic img.real {
         position: absolute;
@@ -1118,17 +1145,18 @@
         padding: 24px;
       }
       .gift .pic {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
+        width: 100%;
+        max-width: 180px;
+        aspect-ratio: 1/1;
+        border-radius: 12px;
         margin: 0 auto 12px;
         overflow: hidden;
-        background: #fff3cc;
+        background: #fff;
       }
       .gift .pic img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
       }
       .sr-info .map-link {
         display: inline-block;
@@ -1145,7 +1173,7 @@
 
     <div class="topbar">
       <div class="wrap">
-        <div class="brand">DAIKIOSAN <b>×</b> ĐẠI VIỆT</div>
+        <div class="brand" id="brand">DAIKIOSAN <b>×</b> ĐẠI VIỆT</div>
         <div class="cd" id="cd" hidden>
           <span class="lbl">⚡ Ưu đãi kết thúc sau</span>
           <div class="box" id="cd-d">00<small>ngày</small></div>
@@ -1157,7 +1185,18 @@
       </div>
     </div>
 
-    <section class="hero">
+    <section class="hero-banner" id="hero-banner" hidden>
+      <picture>
+        <source id="hero-src-m" media="(max-width: 860px)" />
+        <img id="hero-img" alt="" />
+      </picture>
+      <div class="cta">
+        <a href="#san-pham" class="btn btn-red pulse">Xem bảng giá</a>
+        <a href="#dat-lich" class="btn btn-gold">Đặt lịch trải nghiệm miễn phí</a>
+      </div>
+    </section>
+
+    <section class="hero" id="hero">
       <div class="wrap">
         <div>
           <span class="tag">Khai trương showroom Quận 4</span>
@@ -1177,7 +1216,6 @@
           </div>
         </div>
         <div class="hero-visual">
-          <img class="real" id="hero-img" alt="Ghế massage Daikiosan" hidden />
           <div class="chair"></div>
           <div class="float-gift" id="float-gift" hidden>
             <i>🎁</i>
@@ -1456,13 +1494,35 @@
           $("foot-contact").textContent = [C.address, C.hotline && "Hotline: " + C.hotline]
             .filter(Boolean)
             .join(" · ");
-        if (D.bannerUrl) {
-          var h = $("hero-img");
-          h.src = D.bannerUrl;
-          h.hidden = false;
+        // Banner đầu trang: ảnh tràn ngang và hai nút, thay phần chữ đầu trang; màn hẹp dùng ảnh điện thoại, thiếu
+        // ảnh nào thì dùng ảnh còn lại. Ảnh lỗi thì hiện lại phần đầu trang mặc định.
+        var desk = D.bannerUrl || D.bannerMobileUrl,
+          mob = D.bannerMobileUrl || D.bannerUrl;
+        if (desk) {
+          var hb = $("hero-banner"),
+            h = $("hero-img");
+          if (mob !== desk) $("hero-src-m").srcset = mob;
+          h.src = desk;
+          h.alt = (D.page && D.page.title) || "Ưu đãi ghế massage";
+          hb.hidden = false;
+          $("hero").hidden = true;
           h.onerror = function () {
-            h.remove();
+            hb.hidden = true;
+            $("hero").hidden = false;
           };
+        }
+        // Logo trên thanh đầu trang; ảnh lỗi thì quay về chữ thương hiệu.
+        if (D.logoUrl) {
+          var brand = $("brand"),
+            brandText = brand.innerHTML,
+            logo = el("img");
+          logo.src = D.logoUrl;
+          logo.alt = (D.page && D.page.title) || "Logo";
+          logo.onerror = function () {
+            brand.innerHTML = brandText;
+          };
+          brand.textContent = "";
+          brand.appendChild(logo);
         }
 
         // Sản phẩm và giá (bảng giá CRM, khuyến mãi đang chạy)
@@ -1527,6 +1587,10 @@
               var img = el("img");
               img.src = g.imageUrl;
               img.alt = g.name;
+              img.loading = "lazy";
+              img.onerror = function () {
+                d.replaceChild(el("div", "ico", "🎁"), pic);
+              };
               pic.appendChild(img);
               d.appendChild(pic);
             } else d.appendChild(el("div", "ico", "🎁"));

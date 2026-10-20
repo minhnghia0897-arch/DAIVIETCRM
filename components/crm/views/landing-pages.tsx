@@ -47,6 +47,18 @@ export interface LandingProductEdit {
   imageUrl: string | null;
 }
 
+/** Quà trong danh mục Quà tặng (Sản phẩm → Quà tặng): ở đây chỉ tải ảnh hiện trên trang. */
+export interface LandingGiftEdit {
+  variantId: string;
+  sku: string;
+  name: string;
+  value: number;
+  imageUrl: string | null;
+}
+
+/** Ảnh tải lên: ảnh ghế, quà (`product`) hoặc ảnh của trang (logo, ảnh lớn đầu trang máy tính, điện thoại). */
+type ImageTarget = "product" | "logo" | "banner" | "banner_mobile";
+
 export interface LandingActions {
   savePage: (input: {
     id?: string;
@@ -58,6 +70,7 @@ export interface LandingActions {
   setStatus: (input: { id: string; status: "draft" | "published" }) => Promise<Result>;
   uploadHtml: (form: FormData) => Promise<Result>;
   uploadImage: (form: FormData) => Promise<Result>;
+  removeImage: (input: { target: ImageTarget; id: string }) => Promise<Result>;
   saveProduct: (input: {
     variantId: string;
     show: boolean;
@@ -75,9 +88,25 @@ const EMPTY_SETTINGS: LandingSettings = {
   openHours: "",
   kakao: "",
   mapUrl: "",
+  logoUrl: "",
   bannerUrl: "",
+  bannerMobileUrl: "",
   countdownEnd: "",
 };
+
+/** Cạnh dài tối đa khi trình duyệt thu nhỏ ảnh trước khi gửi, theo chỗ ảnh hiện trên trang. */
+const MAX_SIDE: Record<ImageTarget, number> = { product: 1600, logo: 800, banner: 2000, banner_mobile: 1400 };
+
+/** Gửi một ảnh lên (đã thu nhỏ trên trình duyệt) cho ghế, quà hoặc trang. */
+function uploadForm(target: ImageTarget, id: string, file: File, actions: LandingActions) {
+  return async () => {
+    const form = new FormData();
+    form.set("id", id);
+    form.set("target", target);
+    form.set("file", await shrinkImage(file, MAX_SIDE[target]));
+    return actions.uploadImage(form);
+  };
+}
 
 function useRun() {
   const router = useRouter();
@@ -105,15 +134,15 @@ function useRun() {
 export function LandingPagesView({
   pages,
   products,
-  giftCount,
+  gifts,
   origin,
   canManage,
   actions,
 }: {
   pages: LandingPageRow[];
   products: LandingProductEdit[];
-  /** Số quà đang dùng trong danh mục Quà tặng (hiện trên trang). */
-  giftCount: number;
+  /** Quà đang dùng trong danh mục Quà tặng (hiện trên trang). */
+  gifts: LandingGiftEdit[];
   /** Địa chỉ CRM, để dựng link đầy đủ gửi khách. */
   origin: string;
   canManage: boolean;
@@ -172,13 +201,12 @@ export function LandingPagesView({
         <div className="c-ch">
           <h2>Ghế hiện trên landing</h2>
           <span className="c-lbl">
-            {shown}/{products.length} ghế đang hiện · {giftCount} quà từ danh mục Quà tặng
+            {shown}/{products.length} ghế đang hiện
           </span>
         </div>
         <p className="c-lbl mx-4 mt-0 mb-2">
           Giá niêm yết lấy từ bảng giá ở Sản phẩm. Muốn trang hiện giá giảm thì tạo khuyến mãi ở Chính sách
-          (kênh Online hoặc mọi kênh): trang, báo giá và lên đơn cùng tính một giá. Quà hiện trên trang là các
-          quà đang dùng ở Sản phẩm → Quà tặng.
+          (kênh Online hoặc mọi kênh): trang, báo giá và lên đơn cùng tính một giá.
         </p>
         <div className="c-tw">
           <table className="c-table">
@@ -204,7 +232,137 @@ export function LandingPagesView({
           <p className="c-empty">Chưa có ghế nào có giá trong bảng giá. Thêm giá ở Sản phẩm trước.</p>
         ) : null}
       </section>
+
+      <section className="c-card" aria-label="Quà tặng trên landing">
+        <div className="c-ch">
+          <h2>Quà tặng trên landing</h2>
+          <span className="c-lbl">{gifts.length} quà từ danh mục Quà tặng</span>
+        </div>
+        <p className="c-lbl mx-4 mt-0 mb-2">
+          Các quà này hiện ở mục Quà tặng kèm theo của trang. Tên, trị giá sửa ở Sản phẩm → Quà tặng; ở đây
+          tải ảnh cho từng quà (ảnh vuông, nền trắng nhìn rõ nhất).
+        </p>
+        {gifts.length ? (
+          <div className="c-tw">
+            <table className="c-table">
+              <thead>
+                <tr>
+                  <th>Quà</th>
+                  <th>Ảnh</th>
+                  <th className="text-right">Trị giá</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gifts.map((g) => (
+                  <GiftRow key={g.variantId} g={g} canManage={canManage} actions={actions} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="c-empty">Chưa có quà nào trong danh mục Quà tặng.</p>
+        )}
+      </section>
     </div>
+  );
+}
+
+/** Ảnh nhỏ xem trước, nút tải (trình duyệt thu nhỏ ảnh trước khi gửi) và nút gỡ. */
+function ImageSlot({
+  url,
+  alt,
+  label,
+  contain = false,
+  canManage,
+  pending,
+  onUpload,
+  onRemove,
+}: {
+  url: string | null;
+  alt: string;
+  /** Nhãn của ô chọn file, cũng là tên nút gỡ. */
+  label: string;
+  /** Logo, ảnh có nền trong suốt: hiện trọn ảnh thay vì cắt cho vừa khung. */
+  contain?: boolean;
+  canManage: boolean;
+  pending: boolean;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- ảnh ở bucket công khai, không qua tối ưu ảnh
+        <img
+          src={url}
+          alt={alt}
+          className={`h-10 rounded ${contain ? "w-20 bg-line-2 object-contain" : "w-10 object-cover"}`}
+        />
+      ) : (
+        <span className="c-lbl">Chưa có</span>
+      )}
+      {canManage ? (
+        <>
+          <label className="c-btn is-ghost cursor-pointer">
+            {url ? "Đổi" : "Tải ảnh"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label={label}
+              className="sr-only"
+              disabled={pending}
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0];
+                e.currentTarget.value = "";
+                if (file) onUpload(file);
+              }}
+            />
+          </label>
+          {url ? (
+            <button
+              type="button"
+              className="c-btn is-ghost"
+              aria-label={`Gỡ: ${label}`}
+              disabled={pending}
+              onClick={onRemove}
+            >
+              Gỡ
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function GiftRow({
+  g,
+  canManage,
+  actions,
+}: {
+  g: LandingGiftEdit;
+  canManage: boolean;
+  actions: LandingActions;
+}) {
+  const { pending, run } = useRun();
+  return (
+    <tr aria-label={`Quà ${g.sku}`}>
+      <td className="whitespace-normal">
+        <b>{g.name}</b> <span className="c-lbl tabular">{g.sku}</span>
+      </td>
+      <td>
+        <ImageSlot
+          url={g.imageUrl}
+          alt={g.name}
+          label={`Ảnh quà ${g.sku}`}
+          canManage={canManage}
+          pending={pending}
+          onUpload={(file) => run(uploadForm("product", g.variantId, file, actions))}
+          onRemove={() => run(() => actions.removeImage({ target: "product", id: g.variantId }))}
+        />
+      </td>
+      <td className="text-right tabular">{g.value > 0 ? formatMoney(g.value) : "Chưa nhập"}</td>
+    </tr>
   );
 }
 
@@ -233,23 +391,35 @@ function PageItem({
       toast("Không chép được, bấm giữ vào link để chép tay", "err");
     }
   };
-  const upload = (input: HTMLInputElement, target: "html" | "banner") => {
+  const uploadHtml = (input: HTMLInputElement) => {
     const file = input.files?.[0];
+    input.value = "";
     if (!file) return;
     const form = new FormData();
     form.set("id", p.id);
-    input.value = "";
-    if (target === "html") {
-      form.set("file", file);
-      run(() => actions.uploadHtml(form));
-      return;
-    }
-    form.set("target", "banner");
-    run(async () => {
-      form.set("file", await shrinkImage(file, 2000));
-      return actions.uploadImage(form);
-    });
+    form.set("file", file);
+    run(() => actions.uploadHtml(form));
   };
+  const images: { target: ImageTarget; title: string; label: string; url: string }[] = [
+    {
+      target: "logo",
+      title: "Logo (thanh đầu trang)",
+      label: `Logo cho ${p.title}`,
+      url: p.settings.logoUrl,
+    },
+    {
+      target: "banner",
+      title: "Ảnh lớn đầu trang, máy tính",
+      label: `Banner máy tính cho ${p.title}`,
+      url: p.settings.bannerUrl,
+    },
+    {
+      target: "banner_mobile",
+      title: "Ảnh lớn đầu trang, điện thoại",
+      label: `Banner điện thoại cho ${p.title}`,
+      url: p.settings.bannerMobileUrl,
+    },
+  ];
   return (
     <li className="border-t border-line-2 px-4 py-3 first:border-t-0" aria-label={`Landing page ${p.title}`}>
       <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +468,7 @@ function PageItem({
                 aria-label={`Tải HTML cho ${p.title}`}
                 className="sr-only"
                 disabled={pending}
-                onChange={(e) => upload(e.currentTarget, "html")}
+                onChange={(e) => uploadHtml(e.currentTarget)}
               />
             </label>
             {p.customHtml ? (
@@ -316,20 +486,34 @@ function PageItem({
                 Dùng mẫu có sẵn
               </button>
             ) : null}
-            <label className="c-btn cursor-pointer">
-              {p.settings.bannerUrl ? "Đổi ảnh banner" : "Tải ảnh banner"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                aria-label={`Ảnh banner cho ${p.title}`}
-                className="sr-only"
-                disabled={pending}
-                onChange={(e) => upload(e.currentTarget, "banner")}
-              />
-            </label>
           </>
         ) : null}
       </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3" role="group" aria-label={`Ảnh của ${p.title}`}>
+        {images.map((img) => (
+          <div key={img.target}>
+            <span className="c-lbl mb-1 block">{img.title}</span>
+            <ImageSlot
+              url={img.url || null}
+              alt={img.title}
+              label={img.label}
+              contain
+              canManage={canManage}
+              pending={pending}
+              onUpload={(file) => run(uploadForm(img.target, p.id, file, actions))}
+              onRemove={() => run(() => actions.removeImage({ target: img.target, id: p.id }))}
+            />
+          </div>
+        ))}
+      </div>
+      {canManage ? (
+        <p className="c-lbl m-0 mt-1">
+          Logo nên là ảnh PNG nền trong suốt, chữ sáng (thanh đầu trang màu xanh đậm). Có ảnh đầu trang thì
+          trang hiện ảnh tràn hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm, bỏ phần chữ đầu
+          trang mặc định, nên thiết kế chữ ngay trong ảnh. Gợi ý máy tính 1920×800, điện thoại 1080×1350; chưa
+          có ảnh điện thoại thì trang dùng ảnh máy tính.
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -489,38 +673,15 @@ function ProductRow({
         <b>{p.name}</b> <span className="c-lbl tabular">{p.sku}</span>
       </td>
       <td>
-        <div className="flex items-center gap-1.5">
-          {p.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- ảnh ở bucket công khai, không qua tối ưu ảnh
-            <img src={p.imageUrl} alt={p.name} className="h-10 w-10 rounded object-cover" />
-          ) : (
-            <span className="c-lbl">Chưa có</span>
-          )}
-          {canManage ? (
-            <label className="c-btn is-ghost cursor-pointer">
-              {p.imageUrl ? "Đổi" : "Tải ảnh"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                aria-label={`Ảnh ${p.sku}`}
-                className="sr-only"
-                disabled={pending}
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0];
-                  e.currentTarget.value = "";
-                  if (!file) return;
-                  const form = new FormData();
-                  form.set("id", p.variantId);
-                  form.set("target", "product");
-                  run(async () => {
-                    form.set("file", await shrinkImage(file));
-                    return actions.uploadImage(form);
-                  });
-                }}
-              />
-            </label>
-          ) : null}
-        </div>
+        <ImageSlot
+          url={p.imageUrl}
+          alt={p.name}
+          label={`Ảnh ${p.sku}`}
+          canManage={canManage}
+          pending={pending}
+          onUpload={(file) => run(uploadForm("product", p.variantId, file, actions))}
+          onRemove={() => run(() => actions.removeImage({ target: "product", id: p.variantId }))}
+        />
       </td>
       <td className="text-right tabular whitespace-nowrap">
         <b>{formatMoney(p.price)}</b>

@@ -26,12 +26,16 @@ export interface LandingProductRow extends LandingProduct {
   sort: number | null;
 }
 
+export interface LandingGiftRow extends LandingGift {
+  variantId: string;
+}
+
 /** Mọi ghế bán được có giá, kèm cài đặt hiện trên landing; `onlyShown` lọc ghế đang bật. */
 export async function loadLandingProducts(
   db: Db,
   showroomId: string,
   at = new Date(),
-): Promise<{ products: LandingProductRow[]; gifts: LandingGift[] }> {
+): Promise<{ products: LandingProductRow[]; gifts: LandingGiftRow[] }> {
   const [{ catalog, products, gifts }, { data: rows }] = await Promise.all([
     loadCatalog(db, showroomId, at),
     db
@@ -79,7 +83,8 @@ export async function loadLandingProducts(
   });
   list.sort((a, b) => (a.sort ?? 9999) - (b.sort ?? 9999) || a.listPrice - b.listPrice);
 
-  const giftList: LandingGift[] = gifts.map((g) => ({
+  const giftList: LandingGiftRow[] = gifts.map((g) => ({
+    variantId: g.variantId,
     sku: g.sku,
     name: g.name,
     value: g.value,
@@ -110,7 +115,7 @@ export async function loadLandingData(
         promoGifts: p.promoGifts,
         promotions: p.promotions,
       })),
-    gifts,
+    gifts: gifts.map((g) => ({ sku: g.sku, name: g.name, value: g.value, imageUrl: g.imageUrl })),
     contact: {
       hotline: s.hotline,
       zalo: s.zalo,
@@ -119,7 +124,9 @@ export async function loadLandingData(
       kakao: s.kakao,
       mapUrl: s.mapUrl,
     },
+    logoUrl: s.logoUrl,
     bannerUrl: s.bannerUrl,
+    bannerMobileUrl: s.bannerMobileUrl,
     countdownEnd: vnLocalToIso(s.countdownEnd),
     leadUrl: `/api/lp/${page.slug}/lead`,
   };
