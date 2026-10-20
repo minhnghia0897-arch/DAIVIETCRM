@@ -167,7 +167,7 @@ export async function recordPayment(form: FormData): Promise<ActionResult> {
   if (file instanceof File && file.size > 0) {
     const ext = PROOF_TYPES[file.type];
     if (!ext) return { ok: false, message: "Chứng từ chỉ nhận ảnh JPG, PNG, WEBP, HEIC hoặc PDF." };
-    if (file.size > 10 * 1024 * 1024) return { ok: false, message: "Chứng từ tối đa 10MB." };
+    if (file.size > 4 * 1024 * 1024) return { ok: false, message: "Chứng từ tối đa 4MB." };
     proofPath = `${order.showroom_id}/${order.id}/${randomUUID()}.${ext}`;
     const admin = createAdminClient();
     const { error: upErr } = await admin.storage

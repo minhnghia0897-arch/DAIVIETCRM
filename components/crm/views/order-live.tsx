@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/format";
+import { shrinkImage } from "@/lib/images/shrink";
 import {
   NEXT_LABEL_LIVE,
   NEXT_STATUS_LIVE,
@@ -117,7 +118,16 @@ function useRun() {
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<Result>, after?: () => void) =>
     start(async () => {
-      const r = await fn();
+      let r: Result;
+      try {
+        r = await fn();
+      } catch {
+        // Máy chủ từ chối lệnh gửi (file quá lớn) hoặc mất mạng: báo lỗi, không làm hỏng màn hình.
+        r = {
+          ok: false,
+          message: "Chưa gửi được, file có thể quá lớn hoặc mạng chập chờn. Thử lại sau ít phút.",
+        };
+      }
       toast(r.message, r.ok ? "ok" : "err");
       if (r.ok) {
         after?.();
@@ -551,7 +561,11 @@ function PaymentForm({
         const form = new FormData(e.currentTarget);
         form.set("orderId", order.id);
         run(
-          () => actions.recordPayment(form),
+          async () => {
+            const proof = form.get("proof");
+            if (proof instanceof File && proof.size > 0) form.set("proof", await shrinkImage(proof, 2000));
+            return actions.recordPayment(form);
+          },
           () => setOpen(false),
         );
       }}

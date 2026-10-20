@@ -43,6 +43,32 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await row.getByRole("button", { name: "Lưu DC302" }).click();
   await expect(page.getByRole("status")).toContainText("ghế này hiện trên landing");
 
+  // Ảnh chụp điện thoại nặng vài MB (quá 1MB mặc định của server action): trình duyệt thu nhỏ rồi mới gửi lên.
+  const bytes = await row.getByLabel("Ảnh DC302").evaluate(async (input: HTMLInputElement) => {
+    const c = document.createElement("canvas");
+    c.width = 3000;
+    c.height = 2250;
+    const ctx = c.getContext("2d")!;
+    const img = ctx.createImageData(c.width, c.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const x = (i / 4) % c.width;
+      img.data[i] = (x / c.width) * 200 + Math.random() * 40;
+      img.data[i + 1] = 120 + Math.random() * 40;
+      img.data[i + 2] = 90 + Math.random() * 40;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    const blob = await new Promise<Blob>((done) => c.toBlob((b) => done(b!), "image/jpeg", 0.95));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], "ghe-dc302.jpg", { type: "image/jpeg" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return blob.size;
+  });
+  expect(bytes).toBeGreaterThan(1_500_000);
+  await expect(page.getByRole("status")).toContainText("Đã tải ảnh lên");
+  await expect(row.locator("img")).toHaveAttribute("src", /product-images/);
+
   // Khách chưa đăng nhập mở trang: ghế, giá từ bảng giá CRM, hotline của trang.
   const ctx = await browser.newContext();
   const guest = await ctx.newPage();
@@ -53,6 +79,7 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(grid).toContainText("49.000.000đ");
   await expect(grid).toContainText("BÁN CHẠY");
   await expect(grid).toContainText("Con lăn 4D");
+  await expect(grid.locator("img.real")).toHaveAttribute("src", /product-images/);
   await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
 
   await guest.getByLabel("Họ và tên *").fill(CUSTOMER);
