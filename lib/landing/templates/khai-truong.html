@@ -669,6 +669,170 @@
         font-size: 13px;
         width: 100%;
       }
+      .card .pic,
+      .card .name {
+        cursor: pointer;
+      }
+      .card .more {
+        align-self: flex-start;
+        background: none;
+        border: 0;
+        padding: 0;
+        color: var(--red);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      /* ===== KHUNG CHI TIẾT SẢN PHẨM (bấm thẻ ghế) ===== */
+      .pd {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(4, 16, 40, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .pd-box {
+        position: relative;
+        background: #fff;
+        border-radius: var(--radius);
+        width: 100%;
+        max-width: 980px;
+        max-height: 92vh;
+        overflow: auto;
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 24px;
+        padding: 24px;
+      }
+      .pd-x {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 2;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 0;
+        background: #f1f3f7;
+        color: var(--navy);
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .pd-main {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        border-radius: 12px;
+        background: #f4f6fa;
+        scrollbar-width: none;
+      }
+      .pd-main::-webkit-scrollbar {
+        display: none;
+      }
+      .pd-main img {
+        flex: 0 0 100%;
+        width: 100%;
+        aspect-ratio: 1/1;
+        object-fit: contain;
+        scroll-snap-align: center;
+      }
+      .pd-thumbs {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .pd-thumbs button {
+        width: 60px;
+        height: 60px;
+        padding: 0;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background: #f4f6fa;
+        overflow: hidden;
+        cursor: pointer;
+      }
+      .pd-thumbs button[aria-current="true"] {
+        border-color: var(--red);
+      }
+      .pd-thumbs img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .pd-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .pd-info .tagline {
+        display: inline-block;
+        align-self: flex-start;
+        background: var(--gold);
+        color: var(--navy);
+        font-weight: 900;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 8px;
+      }
+      .pd-info h3 {
+        margin: 0;
+        padding-right: 36px;
+        font-size: 22px;
+        color: var(--navy);
+      }
+      .pd-info .price .now {
+        font-size: 26px;
+      }
+      .pd-info .short {
+        margin: 0;
+        color: var(--muted);
+      }
+      .pd-detail ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .pd-detail li {
+        margin: 4px 0;
+      }
+      .pd-detail p {
+        margin: 0;
+        white-space: pre-line;
+      }
+      .pd-info .war {
+        margin: 0;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .pd-cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: auto;
+        padding-top: 6px;
+      }
+      .pd-cta .btn {
+        flex: 1 1 200px;
+      }
+      @media (max-width: 760px) {
+        .pd {
+          padding: 0;
+          align-items: flex-end;
+        }
+        .pd-box {
+          grid-template-columns: 1fr;
+          max-height: 94vh;
+          border-radius: var(--radius) var(--radius) 0 0;
+          padding: 16px 16px 20px;
+          gap: 14px;
+        }
+      }
       .card.anchor .name::after {
         content: " ★ Flagship";
         color: var(--gold);
@@ -1417,6 +1581,31 @@
       </div>
     </footer>
 
+    <div class="pd" id="pd" role="dialog" aria-modal="true" aria-labelledby="pd-name" hidden>
+      <div class="pd-box">
+        <button type="button" class="pd-x" id="pd-x" aria-label="Đóng">×</button>
+        <div>
+          <div class="pd-main" id="pd-main"></div>
+          <div class="pd-thumbs" id="pd-thumbs"></div>
+        </div>
+        <div class="pd-info">
+          <span class="tagline" id="pd-badge" hidden></span>
+          <h3 id="pd-name"></h3>
+          <div class="price">
+            <span class="now" id="pd-price"></span><span class="old" id="pd-old"></span>
+          </div>
+          <div class="gift-line" id="pd-gift" hidden></div>
+          <p class="short" id="pd-short" hidden></p>
+          <div class="pd-detail" id="pd-detail"></div>
+          <p class="war" id="pd-war" hidden></p>
+          <div class="pd-cta">
+            <a class="btn btn-red" id="pd-cta" href="#dat-lich">Nhận tư vấn mẫu này</a>
+            <a class="btn btn-outline" id="pd-call" hidden>📞 Gọi ngay</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="sticky">
       <div class="wrap">
         <div class="txt">
@@ -1534,6 +1723,107 @@
         else
           $("products-sub").textContent =
             products.length + " mẫu ghế massage – chọn đúng nhu cầu, không trả tiền cho thứ không dùng.";
+        // Khung chi tiết sản phẩm: ảnh chính và ảnh chi tiết (vuốt hoặc bấm ảnh nhỏ), giá, quà, thông tin, bảo hành.
+        // Link /lp/<trang>#sp-<mã ghế> mở thẳng khung chi tiết của ghế đó (dùng cho quảng cáo từng mẫu).
+        var pd = $("pd"),
+          pdMain = $("pd-main"),
+          pdThumbs = $("pd-thumbs"),
+          pdLast = null,
+          pdSku = "";
+        function closeDetail() {
+          if (pd.hidden) return;
+          pd.hidden = true;
+          document.body.style.overflow = "";
+          if (pdLast && pdLast.focus) pdLast.focus();
+        }
+        function openDetail(p) {
+          pdLast = document.activeElement;
+          pdSku = p.sku;
+          var imgs = p.images && p.images.length ? p.images : p.imageUrl ? [p.imageUrl] : [];
+          pdMain.textContent = "";
+          pdThumbs.textContent = "";
+          imgs.forEach(function (u, i) {
+            var im = el("img");
+            im.src = u;
+            im.alt = p.name + " – ảnh " + (i + 1);
+            pdMain.appendChild(im);
+            if (imgs.length > 1) {
+              var t = el("button");
+              t.type = "button";
+              t.setAttribute("aria-label", "Xem ảnh " + (i + 1));
+              t.setAttribute("aria-current", i === 0 ? "true" : "false");
+              var ti = el("img");
+              ti.src = u;
+              ti.alt = "";
+              t.appendChild(ti);
+              t.addEventListener("click", function () {
+                pdMain.scrollTo({ left: i * pdMain.clientWidth, behavior: "smooth" });
+              });
+              pdThumbs.appendChild(t);
+            }
+          });
+          if (!imgs.length) pdMain.appendChild(el("div", "mini"));
+          var b = $("pd-badge");
+          b.textContent = p.badge || "";
+          b.hidden = !p.badge;
+          $("pd-name").textContent = p.name;
+          $("pd-price").textContent = L.money(p.price);
+          $("pd-old").textContent = p.listPrice > p.price ? L.money(p.listPrice) : "";
+          var gift =
+            p.giftText || (p.promoGifts && p.promoGifts.length ? "Tặng " + p.promoGifts.join(", ") : "");
+          $("pd-gift").textContent = gift ? "🎁 " + gift : "";
+          $("pd-gift").hidden = !gift;
+          $("pd-short").textContent = p.shortDesc || "";
+          $("pd-short").hidden = !p.shortDesc;
+          var det = $("pd-detail");
+          det.textContent = "";
+          var lines = String(p.detail || "")
+            .split(/\n+/)
+            .map(function (x) {
+              return x.replace(/^\s*[-•*+]\s*/, "").trim();
+            })
+            .filter(Boolean);
+          if (lines.length > 1) {
+            var ul = el("ul");
+            lines.forEach(function (x) {
+              ul.appendChild(el("li", null, x));
+            });
+            det.appendChild(ul);
+          } else if (lines.length) det.appendChild(el("p", null, lines[0]));
+          var war = p.warrantyMonths || 0;
+          $("pd-war").textContent = war
+            ? "🛡️ Bảo hành chính hãng " + (war % 12 === 0 ? war / 12 + " năm" : war + " tháng")
+            : "";
+          $("pd-war").hidden = !war;
+          pd.hidden = false;
+          pdMain.scrollLeft = 0;
+          document.body.style.overflow = "hidden";
+          $("pd-x").focus();
+        }
+        pdMain.addEventListener("scroll", function () {
+          var i = Math.round(pdMain.scrollLeft / Math.max(1, pdMain.clientWidth));
+          Array.prototype.forEach.call(pdThumbs.children, function (t, k) {
+            t.setAttribute("aria-current", k === i ? "true" : "false");
+          });
+        });
+        $("pd-x").addEventListener("click", closeDetail);
+        pd.addEventListener("click", function (e) {
+          if (e.target === pd) closeDetail();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closeDetail();
+        });
+        $("pd-cta").addEventListener("click", function () {
+          sel.value = pdSku;
+          pdLast = null;
+          closeDetail();
+        });
+        if (C.hotline) {
+          var pc = $("pd-call");
+          pc.href = "tel:" + digits(C.hotline);
+          pc.hidden = false;
+        }
+
         products.forEach(function (p, i) {
           var card = el("div", "card" + (i === 0 ? "" : ""));
           var pic = el("div", "pic");
@@ -1553,7 +1843,13 @@
           if (p.badge) pic.appendChild(el("span", "badge hot", p.badge));
           card.appendChild(pic);
           var body = el("div", "body");
-          body.appendChild(el("div", "name", p.name));
+          var nm = el("div", "name", p.name);
+          body.appendChild(nm);
+          [pic, nm].forEach(function (x) {
+            x.addEventListener("click", function () {
+              openDetail(p);
+            });
+          });
           if (p.shortDesc) body.appendChild(el("div", "spec", p.shortDesc));
           var price = el("div", "price");
           price.appendChild(el("span", "now", L.money(p.price)));
@@ -1562,6 +1858,13 @@
           var gift =
             p.giftText || (p.promoGifts && p.promoGifts.length ? "Tặng " + p.promoGifts.join(", ") : "");
           if (gift) body.appendChild(el("div", "gift-line", "🎁 " + gift));
+          var more = el("button", "more", "Xem chi tiết, ảnh thật ›");
+          more.type = "button";
+          more.setAttribute("aria-label", "Xem chi tiết " + p.name);
+          more.addEventListener("click", function () {
+            openDetail(p);
+          });
+          body.appendChild(more);
           var a = el("a", "btn " + (p.badge ? "btn-red" : "btn-outline"), "Nhận tư vấn mẫu này");
           a.href = "#dat-lich";
           a.addEventListener("click", function () {
@@ -1574,6 +1877,13 @@
           o.value = p.sku;
           sel.appendChild(o);
         });
+        var deep = /^#sp-(.+)$/.exec(location.hash);
+        if (deep) {
+          var hit = products.filter(function (p) {
+            return p.sku.toLowerCase() === decodeURIComponent(deep[1]).toLowerCase();
+          })[0];
+          if (hit) openDetail(hit);
+        }
 
         // Quà tặng trong danh mục Quà tặng của CRM
         var gifts = D.gifts || [];

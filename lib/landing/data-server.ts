@@ -24,6 +24,9 @@ export interface LandingProductRow extends LandingProduct {
   variantId: string;
   show: boolean;
   sort: number | null;
+  /** Ảnh chi tiết thêm (ngoài ảnh chính), thông tin chi tiết viết riêng cho landing: để sửa ở màn quản lý. */
+  gallery: string[];
+  landingDetail: string | null;
 }
 
 export interface LandingGiftRow extends LandingGift {
@@ -41,7 +44,7 @@ export async function loadLandingProducts(
     db
       .from("product_variants")
       .select(
-        "id, products!inner(short_desc, image_url, gift_text, landing_badge, landing_sort, show_on_landing)",
+        "id, products!inner(short_desc, image_url, gift_text, landing_badge, landing_sort, show_on_landing, gallery, landing_detail, description, warranty_months)",
       )
       .eq("showroom_id", showroomId),
   ]);
@@ -79,6 +82,11 @@ export async function loadLandingProducts(
       promotions: quote.appliedPolicies.filter((a) => a.type === "promotion").map((a) => a.name),
       show: Boolean(x?.show_on_landing),
       sort: x?.landing_sort ?? null,
+      images: [x?.image_url, ...(x?.gallery ?? [])].filter((u): u is string => Boolean(u)).slice(0, 5),
+      detail: x?.landing_detail || x?.description || null,
+      warrantyMonths: x?.warranty_months ?? null,
+      gallery: x?.gallery ?? [],
+      landingDetail: x?.landing_detail ?? null,
     };
   });
   list.sort((a, b) => (a.sort ?? 9999) - (b.sort ?? 9999) || a.listPrice - b.listPrice);
@@ -114,6 +122,9 @@ export async function loadLandingData(
         price: p.price,
         promoGifts: p.promoGifts,
         promotions: p.promotions,
+        images: p.images,
+        detail: p.detail,
+        warrantyMonths: p.warrantyMonths,
       })),
     gifts: gifts.map((g) => ({ sku: g.sku, name: g.name, value: g.value, imageUrl: g.imageUrl })),
     contact: {

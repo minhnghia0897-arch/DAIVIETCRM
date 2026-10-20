@@ -45,6 +45,12 @@ export interface LandingProductEdit {
   shortDesc: string;
   giftText: string;
   imageUrl: string | null;
+  /** Ảnh chi tiết thêm (ngoài ảnh chính), tối đa 4: khung xem chi tiết trên trang hiện cả 5 ảnh. */
+  gallery: string[];
+  /** Thông tin chi tiết viết riêng cho landing; trống thì trang dùng mô tả sản phẩm ở Sản phẩm. */
+  detail: string;
+  /** Mô tả sản phẩm ở Sản phẩm (gợi ý khi chưa viết thông tin chi tiết). */
+  description: string;
 }
 
 /** Quà trong danh mục Quà tặng (Sản phẩm → Quà tặng): ở đây chỉ tải ảnh hiện trên trang. */
@@ -57,7 +63,7 @@ export interface LandingGiftEdit {
 }
 
 /** Ảnh tải lên: ảnh ghế, quà (`product`) hoặc ảnh của trang (logo, ảnh lớn đầu trang máy tính, điện thoại). */
-type ImageTarget = "product" | "logo" | "banner" | "banner_mobile";
+type ImageTarget = "product" | "gallery" | "logo" | "banner" | "banner_mobile";
 
 export interface LandingActions {
   savePage: (input: {
@@ -70,7 +76,7 @@ export interface LandingActions {
   setStatus: (input: { id: string; status: "draft" | "published" }) => Promise<Result>;
   uploadHtml: (form: FormData) => Promise<Result>;
   uploadImage: (form: FormData) => Promise<Result>;
-  removeImage: (input: { target: ImageTarget; id: string }) => Promise<Result>;
+  removeImage: (input: { target: ImageTarget; id: string; url?: string }) => Promise<Result>;
   saveProduct: (input: {
     variantId: string;
     show: boolean;
@@ -78,6 +84,7 @@ export interface LandingActions {
     badge: string;
     shortDesc: string;
     giftText: string;
+    detail: string;
   }) => Promise<Result>;
 }
 
@@ -95,7 +102,16 @@ const EMPTY_SETTINGS: LandingSettings = {
 };
 
 /** Cạnh dài tối đa khi trình duyệt thu nhỏ ảnh trước khi gửi, theo chỗ ảnh hiện trên trang. */
-const MAX_SIDE: Record<ImageTarget, number> = { product: 1600, logo: 800, banner: 2000, banner_mobile: 1400 };
+const MAX_SIDE: Record<ImageTarget, number> = {
+  product: 1600,
+  gallery: 1600,
+  logo: 800,
+  banner: 2000,
+  banner_mobile: 1400,
+};
+
+/** Số ảnh chi tiết thêm tối đa cho một ghế (cùng ảnh chính là 5 ảnh). */
+const GALLERY_MAX = 4;
 
 /** Gửi một ảnh lên (đã thu nhỏ trên trình duyệt) cho ghế, quà hoặc trang. */
 function uploadForm(target: ImageTarget, id: string, file: File, actions: LandingActions) {
@@ -650,112 +666,207 @@ function ProductRow({
   const [badge, setBadge] = useState(p.badge);
   const [shortDesc, setShortDesc] = useState(p.shortDesc);
   const [giftText, setGiftText] = useState(p.giftText);
+  const [detail, setDetail] = useState(p.detail);
+  const [open, setOpen] = useState(false);
   const dirty =
     show !== p.show ||
     sort !== (p.sort === null ? "" : String(p.sort)) ||
     badge !== p.badge ||
     shortDesc !== p.shortDesc ||
-    giftText !== p.giftText;
+    giftText !== p.giftText ||
+    detail !== p.detail;
+  const save = () =>
+    run(() =>
+      actions.saveProduct({
+        variantId: p.variantId,
+        show,
+        sort: sort === "" ? null : Number(sort),
+        badge,
+        shortDesc,
+        giftText,
+        detail,
+      }),
+    );
   const discounted = p.price < p.listPrice;
   const small = "block w-full rounded-control border border-line bg-surface px-1.5 py-1 text-text";
   return (
-    <tr aria-label={`Ghế ${p.sku}`}>
-      <td>
-        <input
-          type="checkbox"
-          aria-label={`Hiện ${p.sku} trên landing`}
-          checked={show}
-          disabled={!canManage}
-          onChange={(e) => setShow(e.target.checked)}
-        />
-      </td>
-      <td className="whitespace-normal">
-        <b>{p.name}</b> <span className="c-lbl tabular">{p.sku}</span>
-      </td>
-      <td>
-        <ImageSlot
-          url={p.imageUrl}
-          alt={p.name}
-          label={`Ảnh ${p.sku}`}
-          canManage={canManage}
-          pending={pending}
-          onUpload={(file) => run(uploadForm("product", p.variantId, file, actions))}
-          onRemove={() => run(() => actions.removeImage({ target: "product", id: p.variantId }))}
-        />
-      </td>
-      <td className="text-right tabular whitespace-nowrap">
-        <b>{formatMoney(p.price)}</b>
-        {discounted ? <span className="c-lbl block line-through">{formatMoney(p.listPrice)}</span> : null}
-        {p.promotions.length ? <span className="c-lbl block">{p.promotions.join(", ")}</span> : null}
-      </td>
-      <td className="min-w-56 space-y-1">
-        {canManage ? (
-          <>
-            <input
-              aria-label={`Nhãn ${p.sku}`}
-              placeholder="Nhãn, ví dụ BÁN CHẠY"
-              maxLength={40}
-              value={badge}
-              onChange={(e) => setBadge(e.target.value)}
-              className={small}
-            />
-            <input
-              aria-label={`Mô tả ngắn ${p.sku}`}
-              placeholder="Mô tả ngắn: con lăn, chương trình…"
-              maxLength={300}
-              value={shortDesc}
-              onChange={(e) => setShortDesc(e.target.value)}
-              className={small}
-            />
-            <input
-              aria-label={`Quà kèm ${p.sku}`}
-              placeholder="Dòng quà, ví dụ Tặng quạt điện DQ120X"
-              maxLength={200}
-              value={giftText}
-              onChange={(e) => setGiftText(e.target.value)}
-              className={small}
-            />
-          </>
-        ) : (
-          <span className="c-lbl">
-            {[p.badge, p.shortDesc, p.giftText].filter(Boolean).join(" · ") || "Chưa có"}
-          </span>
-        )}
-      </td>
-      <td>
-        <input
-          aria-label={`Thứ tự ${p.sku}`}
-          inputMode="numeric"
-          value={sort}
-          disabled={!canManage}
-          onChange={(e) => setSort(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
-          className={`${small} w-16`}
-        />
-      </td>
-      {canManage ? (
-        <td className="text-right">
+    <>
+      <tr aria-label={`Ghế ${p.sku}`}>
+        <td>
+          <input
+            type="checkbox"
+            aria-label={`Hiện ${p.sku} trên landing`}
+            checked={show}
+            disabled={!canManage}
+            onChange={(e) => setShow(e.target.checked)}
+          />
+        </td>
+        <td className="whitespace-normal">
+          <b>{p.name}</b> <span className="c-lbl tabular">{p.sku}</span>
           <button
             type="button"
-            className="c-btn is-blue"
-            aria-label={`Lưu ${p.sku}`}
-            disabled={pending || !dirty}
-            onClick={() =>
-              run(() =>
-                actions.saveProduct({
-                  variantId: p.variantId,
-                  show,
-                  sort: sort === "" ? null : Number(sort),
-                  badge,
-                  shortDesc,
-                  giftText,
-                }),
-              )
-            }
+            className="c-link mt-0.5 block text-left text-sm"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
           >
-            Lưu
+            {open
+              ? "Đóng chi tiết"
+              : `Ảnh, thông tin chi tiết (${(p.imageUrl ? 1 : 0) + p.gallery.length}/5 ảnh)`}
           </button>
         </td>
+        <td>
+          <ImageSlot
+            url={p.imageUrl}
+            alt={p.name}
+            label={`Ảnh ${p.sku}`}
+            canManage={canManage}
+            pending={pending}
+            onUpload={(file) => run(uploadForm("product", p.variantId, file, actions))}
+            onRemove={() => run(() => actions.removeImage({ target: "product", id: p.variantId }))}
+          />
+        </td>
+        <td className="text-right tabular whitespace-nowrap">
+          <b>{formatMoney(p.price)}</b>
+          {discounted ? <span className="c-lbl block line-through">{formatMoney(p.listPrice)}</span> : null}
+          {p.promotions.length ? <span className="c-lbl block">{p.promotions.join(", ")}</span> : null}
+        </td>
+        <td className="min-w-56 space-y-1">
+          {canManage ? (
+            <>
+              <input
+                aria-label={`Nhãn ${p.sku}`}
+                placeholder="Nhãn, ví dụ BÁN CHẠY"
+                maxLength={40}
+                value={badge}
+                onChange={(e) => setBadge(e.target.value)}
+                className={small}
+              />
+              <input
+                aria-label={`Mô tả ngắn ${p.sku}`}
+                placeholder="Mô tả ngắn: con lăn, chương trình…"
+                maxLength={300}
+                value={shortDesc}
+                onChange={(e) => setShortDesc(e.target.value)}
+                className={small}
+              />
+              <input
+                aria-label={`Quà kèm ${p.sku}`}
+                placeholder="Dòng quà, ví dụ Tặng quạt điện DQ120X"
+                maxLength={200}
+                value={giftText}
+                onChange={(e) => setGiftText(e.target.value)}
+                className={small}
+              />
+            </>
+          ) : (
+            <span className="c-lbl">
+              {[p.badge, p.shortDesc, p.giftText].filter(Boolean).join(" · ") || "Chưa có"}
+            </span>
+          )}
+        </td>
+        <td>
+          <input
+            aria-label={`Thứ tự ${p.sku}`}
+            inputMode="numeric"
+            value={sort}
+            disabled={!canManage}
+            onChange={(e) => setSort(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+            className={`${small} w-16`}
+          />
+        </td>
+        {canManage ? (
+          <td className="text-right">
+            <button
+              type="button"
+              className="c-btn is-blue"
+              aria-label={`Lưu ${p.sku}`}
+              disabled={pending || !dirty}
+              onClick={save}
+            >
+              Lưu
+            </button>
+          </td>
+        ) : null}
+      </tr>
+      {open ? (
+        <tr aria-label={`Chi tiết ${p.sku}`}>
+          <td colSpan={canManage ? 7 : 6} className="whitespace-normal">
+            <div className="grid gap-3 py-1 md:grid-cols-2">
+              <div>
+                <span className="c-lbl mb-1 block">
+                  Ảnh ở khung chi tiết: ảnh chính (cột Ảnh) và tối đa {GALLERY_MAX} ảnh chi tiết, khách vuốt
+                  xem.
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {p.gallery.map((url, i) => (
+                    <div key={url} className="flex items-center gap-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- ảnh ở bucket công khai */}
+                      <img
+                        src={url}
+                        alt={`Ảnh chi tiết ${i + 1} ${p.sku}`}
+                        className="h-14 w-14 rounded object-cover"
+                      />
+                      {canManage ? (
+                        <button
+                          type="button"
+                          className="c-btn is-ghost"
+                          aria-label={`Gỡ ảnh chi tiết ${i + 1} ${p.sku}`}
+                          disabled={pending}
+                          onClick={() =>
+                            run(() => actions.removeImage({ target: "gallery", id: p.variantId, url }))
+                          }
+                        >
+                          Gỡ
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                  {canManage && p.gallery.length < GALLERY_MAX ? (
+                    <label className="c-btn cursor-pointer">
+                      Thêm ảnh chi tiết
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        aria-label={`Thêm ảnh chi tiết ${p.sku}`}
+                        className="sr-only"
+                        disabled={pending}
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0];
+                          e.currentTarget.value = "";
+                          if (file) run(uploadForm("gallery", p.variantId, file, actions));
+                        }}
+                      />
+                    </label>
+                  ) : null}
+                  {p.gallery.length === 0 && !canManage ? (
+                    <span className="c-lbl">Chưa có ảnh chi tiết</span>
+                  ) : null}
+                </div>
+              </div>
+              <label className="c-lbl block">
+                Thông tin chi tiết (mỗi ý một dòng)
+                <textarea
+                  aria-label={`Thông tin chi tiết ${p.sku}`}
+                  rows={6}
+                  maxLength={4000}
+                  value={detail}
+                  disabled={!canManage}
+                  placeholder={
+                    p.description
+                      ? `Trống thì trang dùng mô tả ở Sản phẩm: ${p.description.slice(0, 120)}`
+                      : "Ví dụ: Con lăn 4D, túi khí toàn thân, nhiệt hồng ngoại lưng…"
+                  }
+                  onChange={(e) => setDetail(e.target.value)}
+                  className="mt-0.5 block w-full rounded-control border border-line bg-surface px-2 py-1.5 text-text"
+                />
+              </label>
+            </div>
+            {canManage ? (
+              <p className="c-lbl m-0 mt-1">Sửa thông tin chi tiết xong bấm Lưu ở cuối dòng ghế.</p>
+            ) : null}
+          </td>
+        </tr>
       ) : null}
-    </tr>
+    </>
   );
 }

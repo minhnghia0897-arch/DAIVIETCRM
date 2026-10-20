@@ -2,7 +2,7 @@
 -- Dữ liệu giả: Owner …0001, sale admin …0002 (xem marketing, không sửa), Thảo …0003 (telesale), Lan …0005 (marketing).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(19);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -45,6 +45,18 @@ select is((select p.show_on_landing from public.products p join public.product_v
 select throws_ok($$ select public.save_landing_product(jsonb_build_object(
   'variant_id', (select id from public.product_variants where sku = 'DC302'), 'image_url', 'javascript:alert(1)')) $$,
   '22023', null, 'ảnh phải là link http(s)');
+-- Khung xem chi tiết: tối đa 4 ảnh chi tiết, link http(s); thông tin chi tiết riêng cho landing.
+select lives_ok($$ select public.save_landing_product(jsonb_build_object(
+  'variant_id', (select id from public.product_variants where sku = 'DC302'),
+  'gallery', jsonb_build_array('https://x.test/1.webp', 'https://x.test/2.webp'),
+  'landing_detail', 'Con lăn 4D')) $$, 'lưu ảnh chi tiết và thông tin chi tiết');
+select is((select cardinality(p.gallery) from public.products p join public.product_variants v on v.product_id = p.id
+           where v.sku = 'DC302'), 2, 'đã lưu 2 ảnh chi tiết');
+select throws_ok($$ select public.save_landing_product(jsonb_build_object(
+  'variant_id', (select id from public.product_variants where sku = 'DC302'),
+  'gallery', jsonb_build_array('https://x.test/1', 'https://x.test/2', 'https://x.test/3', 'https://x.test/4',
+                               'https://x.test/5'))) $$,
+  '22023', null, 'không quá 4 ảnh chi tiết');
 select throws_ok($$ insert into public.landing_pages (showroom_id, slug, title)
   values ('4a000000-0000-4000-8000-000000000004', 'ghi-thang', 'Ghi thẳng') $$,
   '42501', null, 'không ghi thẳng vào bảng, chỉ qua hàm');
