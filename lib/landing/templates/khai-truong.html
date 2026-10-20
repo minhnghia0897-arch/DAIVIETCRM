@@ -794,16 +794,35 @@
         margin: 0;
         color: var(--muted);
       }
+      /* Thông tin chi tiết: mỗi dòng một ô có icon theo công nghệ, chức năng (chọn tự động theo chữ của dòng). */
       .pd-detail ul {
+        list-style: none;
         margin: 0;
-        padding-left: 20px;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 8px 12px;
       }
       .pd-detail li {
-        margin: 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 1.35;
       }
-      .pd-detail p {
-        margin: 0;
-        white-space: pre-line;
+      .pd-detail .fi {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #eaf3ff;
+        color: var(--red);
+        display: grid;
+        place-items: center;
+      }
+      .pd-detail .fi svg {
+        width: 19px;
+        height: 19px;
       }
       .pd-info .war {
         margin: 0;
@@ -1730,6 +1749,97 @@
           pdThumbs = $("pd-thumbs"),
           pdLast = null,
           pdSku = "";
+        // Icon cho từng dòng thông tin chi tiết, chọn theo chữ của dòng (dòng đầu khớp luật nào thì lấy luật đó).
+        var SVG = function (d) {
+          return (
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+            'stroke-linejoin="round">' +
+            d +
+            "</svg>"
+          );
+        };
+        var FEATURE_ICONS = [
+          [
+            /(^|[\s,.(])ai([\s\d.,)]|$)|trí tuệ nhân tạo|thông minh/i,
+            '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+          ],
+          [
+            /quét|scan/i,
+            '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/>',
+          ],
+          [
+            /nhịp tim|spo2|oxy|huyết áp|sức khỏe/i,
+            '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/><path d="M3.2 12h6.3l.5-1 2 4.5 2-7 1.5 3.5h5.3"/>',
+          ],
+          [
+            /\b[234]d\b/i,
+            '<path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+          ],
+          [/con lăn/i, '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>'],
+          [
+            /túi khí/i,
+            '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+          ],
+          [
+            /nhiệt|sưởi|hồng ngoại/i,
+            '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+          ],
+          [
+            /không trọng lực|zero gravity/i,
+            '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1ZM12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2Z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>',
+          ],
+          [
+            /nâng hạ|ngả lưng|trượt/i,
+            '<path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H7v-2a2 2 0 0 0-4 0ZM5 18v2M19 18v2"/>',
+          ],
+          [
+            /giọng nói/i,
+            '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',
+          ],
+          [
+            /bluetooth|loa|nhạc/i,
+            '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+          ],
+          [
+            /màn hình|lcd|remote|điều khiển/i,
+            '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+          ],
+          [
+            /bắp chân|bàn chân|lòng bàn chân/i,
+            '<path d="M4 16v-2.4C4 11.5 3 10.5 3 8c0-2.7 1.5-6 4.5-6C9.4 2 10 3.8 10 5.5c0 3.1-2 5.7-2 8.7V16a2 2 0 1 1-4 0ZM20 20v-2.4c0-2.1 1-3.1 1-5.6 0-2.7-1.5-6-4.5-6C14.6 6 14 7.8 14 9.5c0 3.1 2 5.7 2 8.7V20a2 2 0 1 0 4 0ZM16 17h4M4 13h4"/>',
+          ],
+          [
+            /truyền thống|ấn huyệt|bấm huyệt|xoa bóp|kỹ thuật|động tác/i,
+            '<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/>',
+          ],
+          [/chương trình|chế độ/i, '<path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/>'],
+          [
+            /kích thước/i,
+            '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"/>',
+          ],
+          [
+            /trọng lượng|tải trọng|nặng|\bkg\b/i,
+            '<circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.9 1.5L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.9-2.5l-2.5-9A2 2 0 0 0 17.5 8Z"/>',
+          ],
+          [/công suất|điện áp|\d\s*w\b/i, '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>'],
+          [
+            /chất liệu|da pu|khung/i,
+            '<path d="m12.8 2.2a2 2 0 0 0-1.7 0L2.6 6.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.7 0l8.6-3.9a1 1 0 0 0 0-1.8ZM22 17.6l-9.2 4.2a2 2 0 0 1-1.7 0L2 17.6M22 12.6l-9.2 4.2a2 2 0 0 1-1.7 0L2 12.6"/>',
+          ],
+          [
+            /xuất xứ|sản xuất/i,
+            '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+          ],
+          [
+            /bảo hành/i,
+            '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>',
+          ],
+        ];
+        function featureIcon(text) {
+          for (var k = 0; k < FEATURE_ICONS.length; k++)
+            if (FEATURE_ICONS[k][0].test(text)) return SVG(FEATURE_ICONS[k][1]);
+          return SVG('<path d="M20 6 9 17l-5-5"/>');
+        }
         function closeDetail() {
           if (pd.hidden) return;
           pd.hidden = true;
@@ -1783,13 +1893,19 @@
               return x.replace(/^\s*[-•*+]\s*/, "").trim();
             })
             .filter(Boolean);
-          if (lines.length > 1) {
+          if (lines.length) {
             var ul = el("ul");
             lines.forEach(function (x) {
-              ul.appendChild(el("li", null, x));
+              var li = el("li");
+              var ic = el("span", "fi");
+              ic.setAttribute("aria-hidden", "true");
+              ic.innerHTML = featureIcon(x);
+              li.appendChild(ic);
+              li.appendChild(el("span", null, x));
+              ul.appendChild(li);
             });
             det.appendChild(ul);
-          } else if (lines.length) det.appendChild(el("p", null, lines[0]));
+          }
           var war = p.warrantyMonths || 0;
           $("pd-war").textContent = war
             ? "🛡️ Bảo hành chính hãng " + (war % 12 === 0 ? war / 12 + " năm" : war + " tháng")
