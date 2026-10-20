@@ -82,6 +82,9 @@ export default async function Page() {
         shortDesc: p.shortDesc ?? "",
         giftText: p.giftText ?? "",
         imageUrl: p.imageUrl,
+        gallery: p.gallery,
+        detail: p.landingDetail ?? "",
+        description: p.landingDetail ? "" : (p.detail ?? ""),
       }))}
       gifts={catalog.gifts.map((g) => ({
         variantId: g.variantId,

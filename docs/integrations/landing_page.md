@@ -36,6 +36,11 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
   (`lib/landing/templates/khai-truong.html`). **Dùng mẫu có sẵn** để quay về mẫu.
 - **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự. Giá
   hiện ở đây là giá khách sẽ thấy.
+- **Ảnh, thông tin chi tiết** (bấm dưới tên ghế): tối đa 4 ảnh chi tiết thêm (cùng ảnh chính là 5 ảnh) và thông tin
+  chi tiết mỗi ý một dòng (trống thì trang dùng mô tả sản phẩm ở Sản phẩm). Owner chốt 20/10/2026: khách bấm ảnh, tên
+  hoặc "Xem chi tiết" trên thẻ ghế là mở khung chi tiết: vuốt hoặc bấm ảnh nhỏ để xem 5 ảnh, giá, quà, thông tin chi
+  tiết, bảo hành (thời hạn bảo hành ở Sản phẩm), nút Nhận tư vấn mẫu này (chọn sẵn mẫu trong form) và Gọi ngay. Link
+  `/lp/<đường-dẫn>#sp-<mã ghế>` (ví dụ `#sp-DC112`) mở thẳng khung chi tiết của ghế đó, dùng cho quảng cáo từng mẫu.
 - **Quà tặng trên landing:** ảnh từng quà trong danh mục Quà tặng (tên, trị giá sửa ở Sản phẩm → Quà tặng). Ảnh vuông
   nền trắng nhìn rõ nhất; chưa có ảnh thì trang hiện biểu tượng hộp quà.
 
@@ -66,6 +71,9 @@ CRM chèn hai thẻ `<script>` ngay sau `<head>` trước khi trả trang cho kh
     price: number;          // giá sau khuyến mãi đang chạy; bằng listPrice khi không có
     promoGifts: string[];   // tên quà khuyến mãi tặng kèm
     promotions: string[];   // tên khuyến mãi đang áp
+    images: string[];       // ảnh ở khung chi tiết: ảnh chính rồi ảnh chi tiết, tối đa 5
+    detail: string | null;  // thông tin chi tiết, mỗi ý một dòng
+    warrantyMonths: number | null;
   }[];                      // chỉ ghế đang bật, theo thứ tự đã đặt
   gifts: { sku: string; name: string; value: number; imageUrl: string | null }[]; // danh mục Quà tặng
   contact: { hotline: string; zalo: string; address: string; openHours: string; kakao: string; mapUrl: string };

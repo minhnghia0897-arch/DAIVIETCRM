@@ -34,6 +34,9 @@ const PRODUCTS: LandingProductEdit[] = CHAIRS.map(([sku, name, price], i) => ({
   shortDesc: "",
   giftText: "",
   imageUrl: null,
+  gallery: [],
+  detail: "",
+  description: "",
 }));
 
 const GIFTS: LandingGiftEdit[] = [

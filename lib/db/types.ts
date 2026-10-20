@@ -3604,6 +3604,7 @@ export type Database = {
           deleted_at: string | null;
           delivery_class: string;
           description: string | null;
+          gallery: string[];
           gift_text: string | null;
           id: string;
           image_url: string | null;
@@ -3611,6 +3612,7 @@ export type Database = {
           is_gift_only: boolean;
           is_sellable: boolean;
           landing_badge: string | null;
+          landing_detail: string | null;
           landing_sort: number | null;
           name: string;
           requires_installation: boolean;
@@ -3630,6 +3632,7 @@ export type Database = {
           deleted_at?: string | null;
           delivery_class?: string;
           description?: string | null;
+          gallery?: string[];
           gift_text?: string | null;
           id?: string;
           image_url?: string | null;
@@ -3637,6 +3640,7 @@ export type Database = {
           is_gift_only?: boolean;
           is_sellable?: boolean;
           landing_badge?: string | null;
+          landing_detail?: string | null;
           landing_sort?: number | null;
           name: string;
           requires_installation?: boolean;
@@ -3656,6 +3660,7 @@ export type Database = {
           deleted_at?: string | null;
           delivery_class?: string;
           description?: string | null;
+          gallery?: string[];
           gift_text?: string | null;
           id?: string;
           image_url?: string | null;
@@ -3663,6 +3668,7 @@ export type Database = {
           is_gift_only?: boolean;
           is_sellable?: boolean;
           landing_badge?: string | null;
+          landing_detail?: string | null;
           landing_sort?: number | null;
           name?: string;
           requires_installation?: boolean;

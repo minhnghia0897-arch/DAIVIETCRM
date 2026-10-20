@@ -74,6 +74,11 @@ export interface LandingProduct {
   promoGifts: string[];
   /** Tên các khuyến mãi đang áp. */
   promotions: string[];
+  /** Ảnh ở khung chi tiết: ảnh chính rồi tới các ảnh chi tiết (tối đa 5). */
+  images: string[];
+  /** Thông tin chi tiết (viết riêng cho landing, trống thì lấy mô tả sản phẩm); xuống dòng giữ nguyên. */
+  detail: string | null;
+  warrantyMonths: number | null;
 }
 
 export interface LandingGift {

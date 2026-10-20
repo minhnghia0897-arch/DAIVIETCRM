@@ -88,6 +88,15 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(page.getByRole("status")).toContainText("Đã tải ảnh lên");
   await expect(row.locator("img")).toHaveAttribute("src", /product-images/);
 
+  // Khung xem chi tiết: thêm một ảnh chi tiết (cùng ảnh chính là 2 ảnh), viết thông tin chi tiết rồi Lưu.
+  await row.getByRole("button", { name: /^Ảnh, thông tin chi tiết/ }).click();
+  const detailRow = page.getByRole("row", { name: "Chi tiết DC302" });
+  await detailRow.getByLabel("Thêm ảnh chi tiết DC302").setInputFiles(PNG);
+  await expect(detailRow.getByRole("img", { name: "Ảnh chi tiết 1 DC302" })).toBeVisible();
+  await detailRow.getByLabel("Thông tin chi tiết DC302").fill("- Con lăn 4D toàn thân\n- Túi khí 3 lớp");
+  await row.getByRole("button", { name: "Lưu DC302" }).click();
+  await expect(row.getByRole("button", { name: "Lưu DC302" })).toBeDisabled();
+
   // Logo, ảnh đầu trang riêng cho máy tính và điện thoại, ảnh quà trong danh mục Quà tặng.
   const pics = item.getByRole("group", { name: `Ảnh của ${TITLE}` }).locator("img");
   await item.getByLabel(`Logo cho ${TITLE}`).setInputFiles(PNG);
@@ -110,6 +119,18 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(grid).toContainText("49.000.000đ");
   await expect(grid).toContainText("BÁN CHẠY");
   await expect(grid).toContainText("Con lăn 4D");
+  // Bấm Xem chi tiết: khung có 2 ảnh, thông tin chi tiết từng dòng; Nhận tư vấn thì đóng khung, chọn sẵn mẫu.
+  await grid.getByRole("button", { name: "Xem chi tiết Ghế massage Daikiosan DC302" }).click();
+  const detail = guest.getByRole("dialog", { name: "Ghế massage Daikiosan DC302" });
+  await expect(detail).toBeVisible();
+  await expect(detail.locator("#pd-main img")).toHaveCount(2);
+  await expect(detail.getByRole("listitem")).toHaveText(["Con lăn 4D toàn thân", "Túi khí 3 lớp"]);
+  await guest.keyboard.press("Escape");
+  await expect(detail).toBeHidden();
+  await grid.getByText("Ghế massage Daikiosan DC302").click();
+  await detail.getByRole("link", { name: "Nhận tư vấn mẫu này" }).click();
+  await expect(detail).toBeHidden();
+  await expect(guest.getByLabel("Mẫu ghế quan tâm")).toHaveValue("DC302");
   await expect(grid.locator("img.real")).toHaveAttribute("src", /product-images/);
   await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
   await expect(guest.locator("#brand img")).toHaveAttribute("src", /\/logo\//);

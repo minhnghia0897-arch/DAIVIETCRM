@@ -141,6 +141,8 @@ const productSchema = z.object({
   badge: z.string().trim().max(40),
   shortDesc: z.string().trim().max(300),
   giftText: z.string().trim().max(200),
+  /** Thông tin chi tiết ở khung xem chi tiết; trống thì trang dùng mô tả sản phẩm ở Sản phẩm. */
+  detail: z.string().trim().max(4000),
 });
 
 export type LandingProductInput = z.infer<typeof productSchema>;
@@ -159,6 +161,7 @@ export async function saveLandingProduct(input: LandingProductInput): Promise<Ac
       landing_badge: p.badge,
       short_desc: p.shortDesc,
       gift_text: p.giftText,
+      landing_detail: p.detail,
     },
   });
   if (error) return failure(error);
@@ -184,16 +187,31 @@ async function setPageImage(id: string, key: "logoUrl" | "bannerUrl" | "bannerMo
   });
 }
 
+/** Ảnh chi tiết thêm của một ghế (ngoài ảnh chính): khung xem chi tiết hiện ảnh chính cùng tối đa 4 ảnh này. */
+const GALLERY_MAX = 4;
+
+/** Phiên bản sản phẩm thuộc showroom, kèm ảnh chi tiết hiện có (đọc bằng khóa máy chủ sau khi đã kiểm quyền). */
+async function readVariant(id: string, showroomId: string) {
+  const { data } = await createAdminClient()
+    .from("product_variants")
+    .select("id, products!inner(gallery)")
+    .eq("id", id)
+    .eq("showroom_id", showroomId)
+    .maybeSingle();
+  return data ? { id: data.id, gallery: data.products.gallery ?? [] } : null;
+}
+
 /**
- * Ảnh ghế, quà (target=product, id là phiên bản sản phẩm) hoặc ảnh của trang (target=logo, banner, banner_mobile, id
- * là trang), vào bucket công khai product-images.
+ * Ảnh ghế, quà (target=product: ảnh chính; target=gallery: thêm một ảnh chi tiết; id là phiên bản sản phẩm) hoặc ảnh
+ * của trang (target=logo, banner, banner_mobile, id là trang), vào bucket công khai product-images.
  */
 export async function uploadLandingImage(form: FormData): Promise<ActionResult> {
   const user = await requireWritable("marketing.manage");
   const target = String(form.get("target") ?? "");
   const id = z.uuid().safeParse(form.get("id"));
   const file = form.get("file");
-  if (!id.success || (target !== "product" && !PAGE_IMAGE[target]))
+  const forProduct = target === "product" || target === "gallery";
+  if (!id.success || (!forProduct && !PAGE_IMAGE[target]))
     return { ok: false, message: "Chưa rõ ảnh của mục nào." };
   if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Chọn ảnh để tải lên." };
   const ext = IMAGE_TYPES[file.type];
@@ -202,17 +220,16 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
 
   const supabase = await createClient();
   // Kiểm mục thuộc showroom và người dùng xem được trước khi ghi ảnh bằng khóa máy chủ.
-  if (target !== "product") {
+  let gallery: string[] = [];
+  if (!forProduct) {
     const { page } = await readPage(id.data);
     if (!page) return { ok: false, message: "Không tìm thấy trang." };
   } else {
-    const { data: own } = await createAdminClient()
-      .from("product_variants")
-      .select("id")
-      .eq("id", id.data)
-      .eq("showroom_id", user.showroomId)
-      .maybeSingle();
+    const own = await readVariant(id.data, user.showroomId);
     if (!own) return { ok: false, message: "Không tìm thấy sản phẩm." };
+    gallery = own.gallery;
+    if (target === "gallery" && gallery.length >= GALLERY_MAX)
+      return { ok: false, message: `Tối đa ${GALLERY_MAX} ảnh chi tiết, gỡ bớt rồi thêm ảnh mới.` };
   }
 
   const admin = createAdminClient();
@@ -226,7 +243,11 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
   const { error } =
     target === "product"
       ? await supabase.rpc("save_landing_product", { p: { variant_id: id.data, image_url: url } })
-      : await setPageImage(id.data, PAGE_IMAGE[target], url);
+      : target === "gallery"
+        ? await supabase.rpc("save_landing_product", {
+            p: { variant_id: id.data, gallery: [...gallery, url] },
+          })
+        : await setPageImage(id.data, PAGE_IMAGE[target], url);
   if (error) {
     await admin.storage.from("product-images").remove([path]);
     return failure(error);
@@ -235,18 +256,34 @@ export async function uploadLandingImage(form: FormData): Promise<ActionResult> 
   return { ok: true, message: "Đã tải ảnh lên." };
 }
 
-/** Gỡ ảnh: logo quay về chữ thương hiệu, ảnh đầu trang quay về hình mặc định của mẫu, ghế và quà quay về khung trống. */
-export async function removeLandingImage(input: { target: string; id: string }): Promise<ActionResult> {
-  await requireWritable("marketing.manage");
+/**
+ * Gỡ ảnh: logo quay về chữ thương hiệu, ảnh đầu trang quay về phần đầu trang mặc định, ghế và quà quay về khung trống;
+ * target=gallery gỡ một ảnh chi tiết (url).
+ */
+export async function removeLandingImage(input: {
+  target: string;
+  id: string;
+  url?: string;
+}): Promise<ActionResult> {
+  const user = await requireWritable("marketing.manage");
   const id = z.uuid().safeParse(input.id);
-  if (!id.success || (input.target !== "product" && !PAGE_IMAGE[input.target]))
+  const target = input.target;
+  if (!id.success || (target !== "product" && target !== "gallery" && !PAGE_IMAGE[target]))
     return { ok: false, message: "Chưa rõ ảnh của mục nào." };
-  const { error } =
-    input.target === "product"
-      ? await (
-          await createClient()
-        ).rpc("save_landing_product", { p: { variant_id: id.data, image_url: "" } })
-      : await setPageImage(id.data, PAGE_IMAGE[input.target], "");
+  const supabase = await createClient();
+  let result;
+  if (target === "gallery") {
+    const own = await readVariant(id.data, user.showroomId);
+    if (!own) return { ok: false, message: "Không tìm thấy sản phẩm." };
+    result = await supabase.rpc("save_landing_product", {
+      p: { variant_id: id.data, gallery: own.gallery.filter((u) => u !== input.url) },
+    });
+  } else if (target === "product") {
+    result = await supabase.rpc("save_landing_product", { p: { variant_id: id.data, image_url: "" } });
+  } else {
+    result = await setPageImage(id.data, PAGE_IMAGE[target], "");
+  }
+  const { error } = result;
   if (error) return failure(error);
   refresh();
   return { ok: true, message: "Đã gỡ ảnh." };
