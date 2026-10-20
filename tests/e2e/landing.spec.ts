@@ -125,6 +125,8 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(detail).toBeVisible();
   await expect(detail.locator("#pd-main img")).toHaveCount(2);
   await expect(detail.getByRole("listitem")).toHaveText(["Con lăn 4D toàn thân", "Túi khí 3 lớp"]);
+  // Mỗi dòng có icon theo công nghệ, chức năng.
+  await expect(detail.locator("#pd-detail li svg")).toHaveCount(2);
   await guest.keyboard.press("Escape");
   await expect(detail).toBeHidden();
   await grid.getByText("Ghế massage Daikiosan DC302").click();

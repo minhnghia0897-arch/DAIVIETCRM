@@ -41,6 +41,11 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
   hoặc "Xem chi tiết" trên thẻ ghế là mở khung chi tiết: vuốt hoặc bấm ảnh nhỏ để xem 5 ảnh, giá, quà, thông tin chi
   tiết, bảo hành (thời hạn bảo hành ở Sản phẩm), nút Nhận tư vấn mẫu này (chọn sẵn mẫu trong form) và Gọi ngay. Link
   `/lp/<đường-dẫn>#sp-<mã ghế>` (ví dụ `#sp-DC112`) mở thẳng khung chi tiết của ghế đó, dùng cho quảng cáo từng mẫu.
+  Mỗi dòng thông tin chi tiết tự có biểu tượng theo từ khóa trong dòng (3D, AI, con lăn, túi khí, sưởi nhiệt, không
+  trọng lực, nâng hạ, đo nhịp tim, quét cơ thể, loa Bluetooth, màn hình, bắp chân, bài massage, kích thước, trọng
+  lượng, công suất, chất liệu, xuất xứ, bảo hành; dòng khác là dấu tích), bảng từ khóa `FEATURE_ICONS` trong mẫu. Viết
+  mỗi dòng một công nghệ hoặc chức năng, bắt đầu bằng từ chính (ví dụ "32 con lăn", "Sưởi nhiệt lưng") để biểu tượng
+  đúng.
 - **Quà tặng trên landing:** ảnh từng quà trong danh mục Quà tặng (tên, trị giá sửa ở Sản phẩm → Quà tặng). Ảnh vuông
   nền trắng nhìn rõ nhất; chưa có ảnh thì trang hiện biểu tượng hộp quà.
 
