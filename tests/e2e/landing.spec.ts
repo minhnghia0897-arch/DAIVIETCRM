@@ -137,10 +137,9 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(guest.getByLabel("Mẫu ghế quan tâm")).toHaveValue("DC302");
   await expect(grid.locator("img.real")).toHaveAttribute("src", /product-images/);
   await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
-  // Thanh dưới cùng: Gọi ngay, Zalo, Messenger mở thẳng kênh chat của showroom.
+  // Thanh dưới cùng chỉ có Zalo, Messenger mở thẳng kênh chat của showroom (Owner chốt bỏ nút Gọi ngay).
   const bar = guest.locator(".sticky");
-  await expect(bar.getByRole("link")).toHaveText(["📞 Gọi ngay", "Zalo", "Messenger"]);
-  await expect(bar.getByRole("link", { name: "Gọi ngay" })).toHaveAttribute("href", "tel:0909111222");
+  await expect(bar.getByRole("link")).toHaveText(["Zalo", "Messenger"]);
   await expect(bar.getByRole("link", { name: "Chat Zalo" })).toHaveAttribute(
     "href",
     "https://zalo.me/0909111222",
