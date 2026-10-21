@@ -33,7 +33,7 @@ const DATA: LandingData = {
     },
   ],
   gifts: [],
-  contact: { hotline: "", zalo: "", address: "", openHours: "", kakao: "", mapUrl: "" },
+  contact: { hotline: "", zalo: "", messenger: "", address: "", openHours: "", kakao: "", mapUrl: "" },
   logoUrl: "",
   bannerUrl: "",
   bannerMobileUrl: "",
@@ -93,6 +93,15 @@ describe("landing page", () => {
       logoUrl: "",
     });
     expect(readLandingSettings({ logoUrl: "javascript:alert(1)" }).logoUrl).toBe("");
+    // Messenger: link https, "m.me/tên-page" (tự thêm https://), tên Page hoặc Page ID; dạng khác bị bỏ.
+    expect(readLandingSettings({ messenger: "m.me/daikiosan.q4" }).messenger).toBe(
+      "https://m.me/daikiosan.q4",
+    );
+    expect(readLandingSettings({ messenger: "102938475610" }).messenger).toBe("102938475610");
+    expect(readLandingSettings({ hotline: "0909", messenger: "javascript:alert(1)" })).toMatchObject({
+      hotline: "",
+      messenger: "",
+    });
     expect(vnLocalToIso("2026-10-31T23:59")).toBe("2026-10-31T23:59:00+07:00");
     expect(new Date(vnLocalToIso("2026-10-31T23:59")).toISOString()).toBe("2026-10-31T16:59:00.000Z");
   });

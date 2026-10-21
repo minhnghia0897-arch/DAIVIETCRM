@@ -1249,31 +1249,44 @@
       .sticky .btn {
         padding: 11px 16px;
         font-size: 13px;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .sticky .btn svg {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
+      }
+      /* Màu nhận diện của Zalo, Messenger để khách nhận ra ngay kênh chat. */
+      .btn-zalo {
+        background: #0068ff;
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(0, 104, 255, 0.3);
+      }
+      .btn-mess {
+        background: linear-gradient(135deg, #00b2ff, #7a5cff 55%, #ff5c87);
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(122, 92, 255, 0.3);
       }
       @media (max-width: 560px) {
+        .sticky .wrap {
+          gap: 8px;
+        }
         .sticky .txt {
           display: none;
         }
         .sticky .btn {
           flex: 1;
+          min-width: 0;
+          padding: 11px 6px;
+          font-size: 12px;
+          letter-spacing: 0;
         }
-      }
-      .zalo {
-        position: fixed;
-        right: 16px;
-        bottom: 86px;
-        z-index: 60;
-        width: 54px;
-        height: 54px;
-        border-radius: 50%;
-        background: #0a6cff;
-        border: 2px solid #fff;
-        color: #fff;
-        display: grid;
-        place-items: center;
-        font-weight: 900;
-        font-size: 12px;
-        box-shadow: 0 8px 20px rgba(0, 104, 255, 0.4);
+        .sticky .btn svg {
+          width: 16px;
+          height: 16px;
+          flex-basis: 16px;
+        }
       }
     </style>
     <style>
@@ -1632,10 +1645,30 @@
           ><span id="cd-inline-wrap" hidden>Còn <span id="cd-inline">--</span></span>
         </div>
         <a class="btn btn-outline" id="call-btn" hidden>📞 Gọi ngay</a>
-        <a href="#dat-lich" class="btn btn-red">Đặt lịch trải nghiệm</a>
+        <a class="btn btn-zalo" id="zalo-btn" target="_blank" rel="noopener" aria-label="Chat Zalo" hidden
+          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path
+              d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.8L3 21l1.6-4.4A8 8 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"
+            />
+            <path d="M8.5 9h6l-6 6h6" stroke-linecap="round" stroke-linejoin="round" /></svg
+          >Zalo</a
+        >
+        <a
+          class="btn btn-mess"
+          id="mess-btn"
+          target="_blank"
+          rel="noopener"
+          aria-label="Chat Messenger"
+          hidden
+          ><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2C6.4 2 2 6.1 2 11.6c0 2.9 1.2 5.4 3.3 7.1V22l3-1.7c1.2.3 2.4.5 3.7.5 5.6 0 10-4.1 10-9.6S17.6 2 12 2zm1 12.8-2.5-2.7-5 2.7 5.5-5.9 2.6 2.7 4.9-2.7-5.5 5.9z"
+            /></svg
+          >Messenger</a
+        >
+        <a href="#dat-lich" class="btn btn-red" id="book-btn" hidden>Đặt lịch trải nghiệm</a>
       </div>
     </div>
-    <a class="zalo" id="zalo" target="_blank" rel="noopener" title="Chat Zalo" hidden>Zalo</a>
 
     <script>
       (function () {
@@ -1671,13 +1704,23 @@
           call.href = tel;
           call.hidden = false;
         }
+        // Thanh dưới cùng: Gọi ngay, Zalo, Messenger; kênh nào chưa nhập ở CRM thì ẩn nút đó.
         if (C.zalo) {
-          var z = $("zalo");
+          var z = $("zalo-btn");
           z.href = /^https?:\/\//.test(C.zalo)
             ? C.zalo
             : "https://zalo.me/" + digits(C.zalo).replace(/^\+84/, "0");
           z.hidden = false;
         }
+        if (C.messenger) {
+          var ms = $("mess-btn");
+          ms.href = /^https?:\/\//.test(C.messenger)
+            ? C.messenger
+            : "https://m.me/" + encodeURIComponent(C.messenger);
+          ms.hidden = false;
+        }
+        // Chưa có kênh nào: thanh dưới giữ nút đặt lịch như trước.
+        $("book-btn").hidden = !!(C.hotline || C.zalo || C.messenger);
         var list = $("sr-list");
         [
           ["Địa chỉ", C.address],

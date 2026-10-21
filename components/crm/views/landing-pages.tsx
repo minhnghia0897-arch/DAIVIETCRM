@@ -91,6 +91,7 @@ export interface LandingActions {
 const EMPTY_SETTINGS: LandingSettings = {
   hotline: "",
   zalo: "",
+  messenger: "",
   address: "",
   openHours: "",
   kakao: "",
@@ -617,6 +618,7 @@ function PageForm({
       </label>
       {field("hotline", "Hotline", "Ví dụ: 0909 123 456")}
       {field("zalo", "Zalo (số hoặc link)", "Số Zalo OA hoặc link zalo.me")}
+      {field("messenger", "Messenger (link m.me hoặc tên Page)", "Trống thì dùng Page đã kết nối Messenger")}
       {field("address", "Địa chỉ showroom")}
       {field("openHours", "Giờ mở cửa", "8:30 – 21:00, tất cả các ngày")}
       {field("kakao", "KakaoTalk ID cho khách ở Hàn")}
