@@ -29,11 +29,22 @@ const url = z
   .refine((v) => v === "" || /^https?:\/\//.test(v), "url")
   .optional()
   .default("");
+/** Messenger: link https (m.me/…), "m.me/tên-page", tên Page hoặc Page ID; trang tự dựng link m.me. */
+const messenger = z
+  .string()
+  .trim()
+  .max(200)
+  .transform((v) => (/^(www\.)?m\.me\//i.test(v) ? `https://${v.replace(/^www\./i, "")}` : v))
+  .refine((v) => v === "" || /^https?:\/\//.test(v) || /^[\w.-]{1,100}$/.test(v), "messenger")
+  .optional()
+  .default("");
 
 /** Cài đặt của một trang (landing_pages.settings): liên hệ, đếm ngược, ảnh banner. Ô trống thì trang ẩn phần đó. */
 export const landingSettingsSchema = z.object({
   hotline: text(30),
   zalo: text(200),
+  /** Trống thì trang dùng Page Facebook đã kết nối Messenger với CRM. */
+  messenger,
   address: text(300),
   openHours: text(120),
   kakao: text(60),
@@ -97,6 +108,8 @@ export interface LandingData {
   contact: {
     hotline: string;
     zalo: string;
+    /** Link https hoặc tên Page, Page ID (trang dựng link m.me); rỗng thì ẩn nút Messenger. */
+    messenger: string;
     address: string;
     openHours: string;
     kakao: string;

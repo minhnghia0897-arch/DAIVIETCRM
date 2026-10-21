@@ -25,8 +25,12 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 ## Màn Marketing → Landing page
 
 - **Danh sách trang:** tên, link (Chép link, Mở trang), Đang chạy hoặc Đang tắt, số lead (tổng, 7 ngày, lần gần nhất).
-- **Sửa thông tin:** tên, đường dẫn, hotline, Zalo (số hoặc link), địa chỉ, giờ mở cửa, KakaoTalk ID, link Google Maps,
-  hạn ưu đãi (giờ VN, để trống là không đếm ngược).
+- **Sửa thông tin:** tên, đường dẫn, hotline, Zalo (số hoặc link), Messenger (link m.me hoặc tên Page), địa chỉ, giờ
+  mở cửa, KakaoTalk ID, link Google Maps, hạn ưu đãi (giờ VN, để trống là không đếm ngược).
+- **Thanh nút dưới cùng** (Owner chốt 21/10/2026): Gọi ngay (hotline), Zalo (`https://zalo.me/<số hoặc mã OA>`, link
+  dán vào thì dùng nguyên), Messenger (`https://m.me/<tên Page hoặc Page ID>`). Ô Messenger trống thì trang tự dùng Page
+  Facebook đã kết nối Messenger với CRM (Cài đặt → Tích hợp). Kênh nào trống thì ẩn nút đó; chưa có kênh nào thì thanh
+  giữ nút Đặt lịch trải nghiệm.
 - **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh đầu trang cho máy tính (gợi ý
   1920×800) và cho điện thoại (gợi ý 1080×1350). Owner chốt 20/10/2026: có ảnh đầu trang thì mẫu có sẵn hiện ảnh tràn
   hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm miễn phí, bỏ phần chữ đầu trang mặc định (chữ thiết kế
@@ -81,7 +85,15 @@ CRM chèn hai thẻ `<script>` ngay sau `<head>` trước khi trả trang cho kh
     warrantyMonths: number | null;
   }[];                      // chỉ ghế đang bật, theo thứ tự đã đặt
   gifts: { sku: string; name: string; value: number; imageUrl: string | null }[]; // danh mục Quà tặng
-  contact: { hotline: string; zalo: string; address: string; openHours: string; kakao: string; mapUrl: string };
+  contact: {
+    hotline: string;
+    zalo: string;           // số Zalo hoặc link
+    messenger: string;      // link https hoặc tên Page, Page ID (dựng https://m.me/<giá trị>)
+    address: string;
+    openHours: string;
+    kakao: string;
+    mapUrl: string;
+  };
   logoUrl: string;          // logo thanh đầu trang; rỗng khi chưa có
   bannerUrl: string;        // ảnh lớn đầu trang trên máy tính; rỗng khi chưa có
   bannerMobileUrl: string;  // ảnh lớn đầu trang trên điện thoại; rỗng thì dùng bannerUrl
@@ -120,7 +132,7 @@ của lead để sau này gửi chuyển đổi về Facebook, TikTok (CLAUDE.md
 ### Giới hạn của trang
 
 - Trang chạy trong **vùng cách ly** (header `Content-Security-Policy: sandbox …`): mã trong trang không đọc được phiên
-  đăng nhập CRM. Được chạy script, gửi form, mở cửa sổ mới, mở link (Zalo, gọi điện, bản đồ) khi khách bấm, hiện hộp
+  đăng nhập CRM. Được chạy script, gửi form, mở cửa sổ mới, mở link (Zalo, Messenger, gọi điện, bản đồ) khi khách bấm, hiện hộp
   thông báo. Không dùng được cookie, `localStorage` của trang; mã đo của bên thứ ba (Facebook Pixel, Google Tag) có
   thể chạy nhưng không giữ được cookie, nên đo chuyển đổi dựa vào UTM ở trên.
 - Ảnh, phông chữ, thư viện tải từ link ngoài vẫn dùng được. Ảnh ghế, banner nên tải lên ở màn Landing page (bucket

@@ -53,7 +53,7 @@ export async function saveLandingPage(input: LandingPageInput): Promise<ActionRe
         field === "slug"
           ? "Đường dẫn chỉ gồm chữ thường không dấu, số và dấu gạch ngang, ví dụ khai-truong-q4."
           : field === "settings"
-            ? "Kiểm lại liên hệ, đường dẫn bản đồ, ảnh (bắt đầu bằng https://) và hạn ưu đãi."
+            ? "Kiểm lại liên hệ, Messenger (link m.me hoặc tên Page), đường dẫn bản đồ, ảnh (bắt đầu bằng https://) và hạn ưu đãi."
             : "Nhập tên trang.",
     };
   }

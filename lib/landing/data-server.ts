@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/db/types";
+import { MESSENGER_KEY } from "@/lib/integrations/meta_messenger/config";
 import { loadCatalog } from "@/lib/sales/catalog-server";
 import { priceQuote } from "@/lib/sales/pricing";
 
@@ -101,12 +102,29 @@ export async function loadLandingProducts(
   return { products: list, gifts: giftList };
 }
 
+/** Page ID của Page Facebook đã kết nối Messenger (chỉ đọc cấu hình công khai, không đọc khóa); rỗng khi chưa nối. */
+async function connectedMessengerPage(db: Db, showroomId: string): Promise<string> {
+  const { data } = await db
+    .from("integrations")
+    .select("config, status")
+    .eq("showroom_id", showroomId)
+    .eq("key", MESSENGER_KEY)
+    .maybeSingle();
+  const pageId = (data?.config as { pageId?: unknown } | null)?.pageId;
+  return data?.status === "connected" && typeof pageId === "string" && /^\d{1,30}$/.test(pageId)
+    ? pageId
+    : "";
+}
+
 export async function loadLandingData(
   db: Db,
   page: { slug: string; title: string; showroom_id: string; settings: unknown },
 ): Promise<LandingData> {
-  const { products, gifts } = await loadLandingProducts(db, page.showroom_id);
   const s = readLandingSettings(page.settings);
+  const [{ products, gifts }, messengerPage] = await Promise.all([
+    loadLandingProducts(db, page.showroom_id),
+    s.messenger ? Promise.resolve("") : connectedMessengerPage(db, page.showroom_id),
+  ]);
   return {
     page: { slug: page.slug, title: page.title },
     products: products
@@ -130,6 +148,7 @@ export async function loadLandingData(
     contact: {
       hotline: s.hotline,
       zalo: s.zalo,
+      messenger: s.messenger || messengerPage,
       address: s.address,
       openHours: s.openHours,
       kakao: s.kakao,

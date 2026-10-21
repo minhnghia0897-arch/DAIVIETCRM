@@ -60,6 +60,7 @@ export default function Page() {
               settings: {
                 hotline: "0909 000 000",
                 zalo: "",
+                messenger: "",
                 address: "Quận 4, TP.HCM",
                 openHours: "8:30 – 21:00",
                 kakao: "",
