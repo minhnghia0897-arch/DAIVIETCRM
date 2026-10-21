@@ -138,7 +138,8 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(detail).toBeHidden();
   await expect(guest.getByLabel("Mẫu ghế quan tâm")).toHaveValue("DC302");
   await expect(grid.locator("img.real")).toHaveAttribute("src", /product-images/);
-  await expect(guest.locator("#hot-top")).toHaveText("📞 0909 111 222");
+  // Mẫu có sẵn không có thanh đầu trang (Owner chốt bỏ 21/10/2026).
+  await expect(guest.locator(".topbar")).toHaveCount(0);
   // Thanh dưới cùng chỉ có Zalo, Messenger mở thẳng kênh chat của showroom (Owner chốt bỏ nút Gọi ngay).
   const bar = guest.locator(".sticky");
   await expect(bar.getByRole("link")).toHaveText(["Zalo", "Messenger"]);
@@ -150,7 +151,6 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
     "href",
     "https://m.me/daikiosan.q4",
   );
-  await expect(guest.locator("#brand img")).toHaveAttribute("src", /\/logo\//);
   await expect(guest.locator("#hero-img")).toHaveAttribute("src", /\/banner\//);
   await expect(guest.locator("#hero-src-m")).toHaveAttribute("srcset", /\/banner_mobile\//);
   // Có ảnh đầu trang: ảnh tràn ngang kèm hai nút, phần chữ đầu trang mặc định ẩn đi.
@@ -226,7 +226,7 @@ test("ô bẫy không tạo lead, gửi dồn bị chặn, tắt trang thì khá
 
   await page.goto("/landing-pages");
   const item = page.getByRole("listitem", { name: `Landing page ${TITLE}` });
-  // Gỡ logo: trang quay về chữ thương hiệu.
+  // Gỡ logo (dùng cho HTML tự làm).
   await item.getByRole("button", { name: `Gỡ: Logo cho ${TITLE}` }).click();
   await expect(item.getByRole("group", { name: `Ảnh của ${TITLE}` }).locator("img")).toHaveCount(2);
   await item.getByRole("button", { name: "Tắt trang" }).click();
