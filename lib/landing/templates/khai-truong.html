@@ -489,6 +489,9 @@
         grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
         gap: 18px;
       }
+      .products .grid {
+        margin-top: 24px;
+      }
       .card {
         background: #fff;
         border-radius: var(--radius);
@@ -1385,7 +1388,6 @@
     <section class="sec products" id="san-pham">
       <div class="wrap">
         <h2 class="sec-title">Bảng giá <span>ghế massage</span></h2>
-        <p class="sec-sub" id="products-sub">Chọn đúng nhu cầu, không trả tiền cho thứ không dùng.</p>
         <div class="grid" id="grid"></div>
         <p style="text-align: center; margin-top: 26px">
           <a href="#dat-lich" class="btn btn-red">Tư vấn chọn ghế phù hợp – miễn phí</a>
@@ -1741,9 +1743,6 @@
         var products = D.products || [];
         if (!products.length)
           grid.appendChild(el("p", "empty", "Bảng giá đang cập nhật, vui lòng để lại số để được báo giá."));
-        else
-          $("products-sub").textContent =
-            products.length + " mẫu ghế massage – chọn đúng nhu cầu, không trả tiền cho thứ không dùng.";
         // Khung chi tiết sản phẩm: ảnh chính và ảnh chi tiết (vuốt hoặc bấm ảnh nhỏ), giá, quà, thông tin, bảo hành.
         // Link /lp/<trang>#sp-<mã ghế> mở thẳng khung chi tiết của ghế đó (dùng cho quảng cáo từng mẫu).
         var pd = $("pd"),
