@@ -122,73 +122,6 @@
         }
       }
 
-      /* ===== TOP BAR / COUNTDOWN ===== */
-      .topbar {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        background: var(--navy);
-        color: #fff;
-        font-size: 13px;
-      }
-      .topbar .wrap {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        height: 48px;
-      }
-      .topbar .brand {
-        font-weight: 900;
-        letter-spacing: 1px;
-      }
-      .topbar .brand b {
-        color: var(--gold);
-      }
-      .topbar .brand img {
-        display: block;
-        height: 34px;
-        width: auto;
-        max-width: 200px;
-        object-fit: contain;
-      }
-      .cd {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-      }
-      .cd .lbl {
-        color: #cfd8e6;
-        display: none;
-      }
-      @media (min-width: 640px) {
-        .cd .lbl {
-          display: inline;
-        }
-      }
-      .cd .box {
-        background: var(--red);
-        border-radius: 6px;
-        padding: 4px 8px;
-        min-width: 38px;
-        text-align: center;
-        font-weight: 800;
-        font-size: 15px;
-      }
-      .cd .box small {
-        display: block;
-        font-size: 9px;
-        font-weight: 500;
-        opacity: 0.85;
-        text-transform: uppercase;
-      }
-      .topbar .hot {
-        font-weight: 800;
-        color: var(--gold);
-        white-space: nowrap;
-      }
-
       /* ===== HERO ===== */
       .hero {
         background: radial-gradient(1200px 600px at 70% 20%, #1360c8 0%, var(--navy) 55%, #031230 100%);
@@ -1381,20 +1314,6 @@
      máy chủ); form gửi về CRM qua CRMLanding.submit. Chữ quảng cáo (tiêu đề, ưu điểm, cam kết, câu hỏi) sửa thẳng ở
      đây rồi tải lại ở Marketing → Landing page. Hợp đồng dữ liệu: docs/integrations/landing_page.md. -->
 
-    <div class="topbar">
-      <div class="wrap">
-        <div class="brand" id="brand">DAIKIOSAN <b>×</b> ĐẠI VIỆT</div>
-        <div class="cd" id="cd" hidden>
-          <span class="lbl">⚡ Ưu đãi kết thúc sau</span>
-          <div class="box" id="cd-d">00<small>ngày</small></div>
-          <div class="box" id="cd-h">00<small>giờ</small></div>
-          <div class="box" id="cd-m">00<small>phút</small></div>
-          <div class="box" id="cd-s">00<small>giây</small></div>
-        </div>
-        <a class="hot" id="hot-top" hidden></a>
-      </div>
-    </div>
-
     <section class="hero-banner" id="hero-banner" hidden>
       <picture>
         <source id="hero-src-m" media="(max-width: 860px)" />
@@ -1691,7 +1610,22 @@
       (function () {
         try {
           history.scrollRestoration = "manual";
+          // Địa chỉ có sẵn #phần (link quảng cáo cũ): bỏ đi để trang không cuộn xuống; #sp-<mã ghế> giữ lại.
+          if (location.hash && !/^#sp-/.test(location.hash))
+            history.replaceState(null, "", location.pathname + location.search);
         } catch (e) {}
+        // Bấm nút, link trong trang (#bang-gia, #dat-lich…): cuộn tới phần đó mà không thêm #… vào địa chỉ, nên tải
+        // lại vẫn về đầu trang.
+        document.addEventListener("click", function (e) {
+          if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+            return;
+          var a = e.target.closest && e.target.closest('a[href^="#"]');
+          var id = a && a.getAttribute("href").slice(1);
+          var target = id && document.getElementById(id);
+          if (!target) return;
+          e.preventDefault();
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
         // Khách đã tự cuộn, bấm trước khi trang tải xong thì thôi, không kéo ngược lên.
         var touched = false;
         ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) {
@@ -1743,14 +1677,6 @@
           return String(s || "").replace(/[^\d+]/g, "");
         }
 
-        // Liên hệ
-        if (C.hotline) {
-          var tel = "tel:" + digits(C.hotline);
-          var top = $("hot-top");
-          top.href = tel;
-          top.textContent = "📞 " + C.hotline;
-          top.hidden = false;
-        }
         // Thanh dưới cùng: Zalo, Messenger; kênh nào chưa nhập ở CRM thì ẩn nút đó.
         if (C.zalo) {
           var z = $("zalo-btn");
@@ -1809,20 +1735,6 @@
             $("hero").hidden = false;
           };
         }
-        // Logo trên thanh đầu trang; ảnh lỗi thì quay về chữ thương hiệu.
-        if (D.logoUrl) {
-          var brand = $("brand"),
-            brandText = brand.innerHTML,
-            logo = el("img");
-          logo.src = D.logoUrl;
-          logo.alt = (D.page && D.page.title) || "Logo";
-          logo.onerror = function () {
-            brand.innerHTML = brandText;
-          };
-          brand.textContent = "";
-          brand.appendChild(logo);
-        }
-
         // Sản phẩm và giá (bảng giá CRM, khuyến mãi đang chạy)
         var grid = $("grid"),
           sel = $("f-model");
@@ -2132,14 +2044,9 @@
             H = Math.floor((d % 864e5) / 36e5),
             M = Math.floor((d % 36e5) / 6e4),
             S = Math.floor((d % 6e4) / 1e3);
-          $("cd-d").firstChild.nodeValue = pad(Dd);
-          $("cd-h").firstChild.nodeValue = pad(H);
-          $("cd-m").firstChild.nodeValue = pad(M);
-          $("cd-s").firstChild.nodeValue = pad(S);
           $("cd-inline").textContent = Dd + " ngày " + pad(H) + ":" + pad(M) + ":" + pad(S);
         }
         if (end > Date.now()) {
-          $("cd").hidden = false;
           $("cd-inline-wrap").hidden = false;
           tick();
           setInterval(tick, 1000);

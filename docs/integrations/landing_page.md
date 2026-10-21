@@ -35,11 +35,13 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 - **Tải lại trang** (Owner chốt 21/10/2026) luôn về đầu trang, kể cả khi địa chỉ có `#bang-gia`, `#dat-lich` sau khi bấm
   nút trong trang. Link `#sp-<mã ghế>` vẫn mở khung chi tiết ghế. Nút đóng khung chi tiết luôn nằm trên cùng, bấm được cả
   khi đã cuộn xuống đọc thông tin.
-- **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh đầu trang cho máy tính (gợi ý
+- **Thanh đầu trang:** mẫu có sẵn không có (Owner chốt bỏ 21/10/2026); trang mở ra là ảnh đầu trang ngay. Hotline vẫn ở
+  mục showroom, chân trang và nút Gọi ngay trong khung chi tiết ghế; đếm ngược ưu đãi ở thanh dưới cùng (máy tính).
+- **Ảnh của trang:** logo (chỉ dùng cho HTML tự làm; mẫu có sẵn không hiện), ảnh đầu trang cho máy tính (gợi ý
   1920×800) và cho điện thoại (gợi ý 1080×1350). Owner chốt 20/10/2026: có ảnh đầu trang thì mẫu có sẵn hiện ảnh tràn
   hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm miễn phí, bỏ phần chữ đầu trang mặc định (chữ thiết kế
-  trong ảnh). Chưa có ảnh điện thoại thì trang dùng ảnh máy tính; chưa có ảnh nào thì giữ phần đầu trang mặc định; chưa
-  có logo thì hiện chữ thương hiệu của mẫu. Mỗi ảnh có nút Gỡ.
+  trong ảnh). Chưa có ảnh điện thoại thì trang dùng ảnh máy tính; chưa có ảnh nào thì giữ phần đầu trang mặc định. Mỗi
+  ảnh có nút Gỡ.
 - **Tải HTML lên:** file `.html` tối đa 2MB. Chưa tải thì trang dùng **mẫu khai trương có sẵn**
   (`lib/landing/templates/khai-truong.html`). **Dùng mẫu có sẵn** để quay về mẫu.
 - **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự. Giá
@@ -98,7 +100,7 @@ CRM chèn hai thẻ `<script>` ngay sau `<head>` trước khi trả trang cho kh
     kakao: string;
     mapUrl: string;
   };
-  logoUrl: string;          // logo thanh đầu trang; rỗng khi chưa có
+  logoUrl: string;          // logo (mẫu có sẵn không dùng); rỗng khi chưa có
   bannerUrl: string;        // ảnh lớn đầu trang trên máy tính; rỗng khi chưa có
   bannerMobileUrl: string;  // ảnh lớn đầu trang trên điện thoại; rỗng thì dùng bannerUrl
   countdownEnd: string;     // ISO có múi giờ VN, ví dụ "2026-10-31T23:59:00+07:00"; rỗng là không đếm ngược
