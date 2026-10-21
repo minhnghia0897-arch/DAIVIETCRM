@@ -54,8 +54,9 @@ export async function GET(_req: Request, ctx: RouteContext<"/lp/[slug]">) {
       "content-security-policy": SANDBOX,
       "x-content-type-options": "nosniff",
       "referrer-policy": "strict-origin-when-cross-origin",
-      // Trang đang chạy: giữ ở CDN một phút (đổi giá, bật tắt ghế có hiệu lực sau tối đa một phút).
-      "cache-control": published ? "public, s-maxage=60, stale-while-revalidate=300" : "private, no-store",
+      // Trang đang chạy: CDN giữ 5 giây, không phục vụ bản cũ khi hết hạn, trình duyệt không giữ; ẩn hiện ghế, đổi giá,
+      // ảnh có hiệu lực sau tối đa 5 giây mà lượt mở dồn dập (chạy quảng cáo) vẫn dùng chung bộ đệm.
+      "cache-control": published ? "public, max-age=0, s-maxage=5" : "private, no-store",
       ...(published ? {} : { "x-robots-tag": "noindex" }),
     },
   });

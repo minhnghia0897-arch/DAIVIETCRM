@@ -9,7 +9,8 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 (hoặc trợ lý AI ở đoạn chat khác) **chỉ làm file HTML**; CRM lo phần dữ liệu và nhận lead:
 
 - Ghế, giá, quà, liên hệ hiện trên trang **lấy từ CRM** lúc khách mở trang. Đổi giá ở bảng giá, bật khuyến mãi ở
-  Chính sách là trang đổi theo (chậm tối đa khoảng 1 phút do bộ nhớ đệm), không phải sửa HTML.
+  Chính sách là trang đổi theo (chậm tối đa khoảng 5 giây do bộ nhớ đệm), không phải sửa HTML. Ẩn hiện ghế, đổi ảnh,
+  liên hệ cũng vậy.
 - Khách gửi form là thành **lead nguồn "Landing page"** đi qua đúng đường của mọi nguồn khác (`ingest_lead`): chống
   trùng theo số, chia người đang trực, đồng hồ SLA, thông báo Telegram (số che).
 
@@ -31,6 +32,9 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
   (`https://zalo.me/<số hoặc mã OA>`, link dán vào thì dùng nguyên), Messenger (`https://m.me/<tên Page hoặc Page ID>`). Ô Messenger trống thì trang tự dùng Page
   Facebook đã kết nối Messenger với CRM (Cài đặt → Tích hợp). Kênh nào trống thì ẩn nút đó; chưa có kênh nào thì thanh
   giữ nút Đặt lịch trải nghiệm.
+- **Tải lại trang** (Owner chốt 21/10/2026) luôn về đầu trang, kể cả khi địa chỉ có `#bang-gia`, `#dat-lich` sau khi bấm
+  nút trong trang. Link `#sp-<mã ghế>` vẫn mở khung chi tiết ghế. Nút đóng khung chi tiết luôn nằm trên cùng, bấm được cả
+  khi đã cuộn xuống đọc thông tin.
 - **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh đầu trang cho máy tính (gợi ý
   1920×800) và cho điện thoại (gợi ý 1080×1350). Owner chốt 20/10/2026: có ảnh đầu trang thì mẫu có sẵn hiện ảnh tràn
   hết chiều ngang kèm hai nút Xem bảng giá, Đặt lịch trải nghiệm miễn phí, bỏ phần chữ đầu trang mặc định (chữ thiết kế
