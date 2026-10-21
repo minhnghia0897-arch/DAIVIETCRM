@@ -27,8 +27,8 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
 - **Danh sách trang:** tên, link (Chép link, Mở trang), Đang chạy hoặc Đang tắt, số lead (tổng, 7 ngày, lần gần nhất).
 - **Sửa thông tin:** tên, đường dẫn, hotline, Zalo (số hoặc link), Messenger (link m.me hoặc tên Page), địa chỉ, giờ
   mở cửa, KakaoTalk ID, link Google Maps, hạn ưu đãi (giờ VN, để trống là không đếm ngược).
-- **Thanh nút dưới cùng** (Owner chốt 21/10/2026): Gọi ngay (hotline), Zalo (`https://zalo.me/<số hoặc mã OA>`, link
-  dán vào thì dùng nguyên), Messenger (`https://m.me/<tên Page hoặc Page ID>`). Ô Messenger trống thì trang tự dùng Page
+- **Thanh nút dưới cùng** (Owner chốt 21/10/2026, chỉ hai nút chat, không có nút gọi): Zalo
+  (`https://zalo.me/<số hoặc mã OA>`, link dán vào thì dùng nguyên), Messenger (`https://m.me/<tên Page hoặc Page ID>`). Ô Messenger trống thì trang tự dùng Page
   Facebook đã kết nối Messenger với CRM (Cài đặt → Tích hợp). Kênh nào trống thì ẩn nút đó; chưa có kênh nào thì thanh
   giữ nút Đặt lịch trải nghiệm.
 - **Ảnh của trang:** logo (thanh đầu trang; PNG nền trong suốt, chữ sáng), ảnh đầu trang cho máy tính (gợi ý

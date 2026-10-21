@@ -1644,7 +1644,6 @@
           <b>Ưu đãi khai trương showroom Quận 4</b
           ><span id="cd-inline-wrap" hidden>Còn <span id="cd-inline">--</span></span>
         </div>
-        <a class="btn btn-outline" id="call-btn" hidden>📞 Gọi ngay</a>
         <a class="btn btn-zalo" id="zalo-btn" target="_blank" rel="noopener" aria-label="Chat Zalo" hidden
           ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path
@@ -1700,11 +1699,8 @@
           top.href = tel;
           top.textContent = "📞 " + C.hotline;
           top.hidden = false;
-          var call = $("call-btn");
-          call.href = tel;
-          call.hidden = false;
         }
-        // Thanh dưới cùng: Gọi ngay, Zalo, Messenger; kênh nào chưa nhập ở CRM thì ẩn nút đó.
+        // Thanh dưới cùng: Zalo, Messenger; kênh nào chưa nhập ở CRM thì ẩn nút đó.
         if (C.zalo) {
           var z = $("zalo-btn");
           z.href = /^https?:\/\//.test(C.zalo)
@@ -1720,7 +1716,7 @@
           ms.hidden = false;
         }
         // Chưa có kênh nào: thanh dưới giữ nút đặt lịch như trước.
-        $("book-btn").hidden = !!(C.hotline || C.zalo || C.messenger);
+        $("book-btn").hidden = !!(C.zalo || C.messenger);
         var list = $("sr-list");
         [
           ["Địa chỉ", C.address],
