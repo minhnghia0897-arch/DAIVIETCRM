@@ -696,6 +696,8 @@
         justify-content: center;
         padding: 16px;
       }
+      /* Nút đóng nằm ngoài phần cuộn nên luôn thấy và bấm được, kể cả khi đã cuộn xuống đọc thông tin. dvh: chiều cao
+         thật của màn điện thoại khi thanh địa chỉ đang hiện. */
       .pd-box {
         position: relative;
         background: #fff;
@@ -703,7 +705,14 @@
         width: 100%;
         max-width: 980px;
         max-height: 92vh;
+        max-height: 92dvh;
+        display: flex;
+        overflow: hidden;
+      }
+      .pd-scroll {
+        width: 100%;
         overflow: auto;
+        overscroll-behavior: contain;
         display: grid;
         grid-template-columns: 1.05fr 0.95fr;
         gap: 24px;
@@ -713,16 +722,18 @@
         position: absolute;
         top: 8px;
         right: 8px;
-        z-index: 2;
-        width: 40px;
-        height: 40px;
+        z-index: 3;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         border: 0;
-        background: #f1f3f7;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 2px 10px rgba(4, 16, 40, 0.25);
         color: var(--navy);
-        font-size: 26px;
+        font-size: 28px;
         line-height: 1;
         cursor: pointer;
+        touch-action: manipulation;
       }
       .pd-main {
         display: flex;
@@ -845,9 +856,12 @@
           align-items: flex-end;
         }
         .pd-box {
-          grid-template-columns: 1fr;
           max-height: 94vh;
+          max-height: 94dvh;
           border-radius: var(--radius) var(--radius) 0 0;
+        }
+        .pd-scroll {
+          grid-template-columns: 1fr;
           padding: 16px 16px 20px;
           gap: 14px;
         }
@@ -1616,23 +1630,25 @@
     <div class="pd" id="pd" role="dialog" aria-modal="true" aria-labelledby="pd-name" hidden>
       <div class="pd-box">
         <button type="button" class="pd-x" id="pd-x" aria-label="Đóng">×</button>
-        <div>
-          <div class="pd-main" id="pd-main"></div>
-          <div class="pd-thumbs" id="pd-thumbs"></div>
-        </div>
-        <div class="pd-info">
-          <span class="tagline" id="pd-badge" hidden></span>
-          <h3 id="pd-name"></h3>
-          <div class="price">
-            <span class="now" id="pd-price"></span><span class="old" id="pd-old"></span>
+        <div class="pd-scroll" id="pd-scroll">
+          <div>
+            <div class="pd-main" id="pd-main"></div>
+            <div class="pd-thumbs" id="pd-thumbs"></div>
           </div>
-          <div class="gift-line" id="pd-gift" hidden></div>
-          <p class="short" id="pd-short" hidden></p>
-          <div class="pd-detail" id="pd-detail"></div>
-          <p class="war" id="pd-war" hidden></p>
-          <div class="pd-cta">
-            <a class="btn btn-red" id="pd-cta" href="#dat-lich">Nhận tư vấn mẫu này</a>
-            <a class="btn btn-outline" id="pd-call" hidden>📞 Gọi ngay</a>
+          <div class="pd-info">
+            <span class="tagline" id="pd-badge" hidden></span>
+            <h3 id="pd-name"></h3>
+            <div class="price">
+              <span class="now" id="pd-price"></span><span class="old" id="pd-old"></span>
+            </div>
+            <div class="gift-line" id="pd-gift" hidden></div>
+            <p class="short" id="pd-short" hidden></p>
+            <div class="pd-detail" id="pd-detail"></div>
+            <p class="war" id="pd-war" hidden></p>
+            <div class="pd-cta">
+              <a class="btn btn-red" id="pd-cta" href="#dat-lich">Nhận tư vấn mẫu này</a>
+              <a class="btn btn-outline" id="pd-call" hidden>📞 Gọi ngay</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1670,6 +1686,41 @@
     </div>
 
     <script>
+      // Tải lại trang luôn về đầu trang: trình duyệt không nhớ chỗ đang cuộn, địa chỉ có #bang-gia, #dat-lich (sau khi
+      // bấm nút trong trang) cũng không nhảy xuống. Link #sp-<mã ghế> vẫn mở khung chi tiết ghế ở phía trên.
+      (function () {
+        try {
+          history.scrollRestoration = "manual";
+        } catch (e) {}
+        // Khách đã tự cuộn, bấm trước khi trang tải xong thì thôi, không kéo ngược lên.
+        var touched = false;
+        ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) {
+          window.addEventListener(
+            t,
+            function () {
+              touched = true;
+            },
+            { once: true, passive: true },
+          );
+        });
+        function toTop() {
+          if (touched) return;
+          // Trang cuộn mượt (scroll-behavior: smooth): tạm tắt để về đầu ngay, bật lại ở khung hình sau.
+          var root = document.documentElement;
+          root.style.scrollBehavior = "auto";
+          void root.offsetHeight;
+          window.scrollTo(0, 0);
+          requestAnimationFrame(function () {
+            root.style.scrollBehavior = "";
+          });
+        }
+        toTop();
+        document.addEventListener("DOMContentLoaded", toTop);
+        window.addEventListener("load", function () {
+          toTop();
+          setTimeout(toTop, 0);
+        });
+      })();
       (function () {
         var L = window.CRMLanding || {
           data: {},
@@ -1951,6 +2002,8 @@
             : "";
           $("pd-war").hidden = !war;
           pd.hidden = false;
+          // Mở ghế khác sau khi đã cuộn: về đầu khung (ảnh đầu tiên, nút đóng ngay trên).
+          $("pd-scroll").scrollTop = 0;
           pdMain.scrollLeft = 0;
           document.body.style.overflow = "hidden";
           $("pd-x").focus();

@@ -116,6 +116,8 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   const guest = await ctx.newPage();
   const res = await guest.goto(`/lp/${SLUG}`);
   expect(res?.headers()["content-security-policy"]).toContain("sandbox");
+  // Bộ đệm 5 giây: ẩn hiện ghế, đổi giá hiện trên trang gần như ngay.
+  expect(res?.headers()["cache-control"]).toContain("s-maxage=5");
   const grid = guest.locator("#grid");
   await expect(grid).toContainText("Ghế massage Daikiosan DC302");
   await expect(grid).toContainText("49.000.000đ");
@@ -160,6 +162,30 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await expect(
     guest.locator("#gift-list .gift", { hasText: `Quạt thử ${STAMP}` }).locator("img"),
   ).toHaveAttribute("src", /product-images/);
+
+  // Tải lại trang luôn về đầu trang, kể cả sau khi bấm nút cuộn xuống bảng giá.
+  // Nút nhấp nháy (pulse) không bao giờ đứng yên nên bấm thẳng, không chờ ổn định.
+  await guest.locator("#hero-banner").getByRole("link", { name: "Xem bảng giá" }).click({ force: true });
+  await expect.poll(() => guest.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  await guest.reload();
+  await expect.poll(() => guest.evaluate(() => window.scrollY)).toBe(0);
+
+  // Điện thoại: đã cuộn xuống cuối khung chi tiết ghế vẫn thấy và bấm được nút đóng.
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 640 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const mobile = await phone.newPage();
+  await mobile.goto(`/lp/${SLUG}#sp-DC302`);
+  const sheet = mobile.getByRole("dialog", { name: "Ghế massage Daikiosan DC302" });
+  await expect(sheet).toBeVisible();
+  await mobile.locator("#pd-scroll").evaluate((e) => e.scrollTo(0, e.scrollHeight));
+  const close = sheet.getByRole("button", { name: "Đóng" });
+  await expect(close).toBeInViewport();
+  await close.tap();
+  await expect(sheet).toBeHidden();
+  await phone.close();
 
   await guest.getByLabel("Họ và tên *").fill(CUSTOMER);
   await guest.getByLabel("Số điện thoại / Zalo *").fill(PHONE);
