@@ -586,7 +586,7 @@ function QuickLeadForm({
           ) : null}
         </p>
       ) : null}
-      <div className="mt-3 flex gap-1.5">
+      <div className="c-formacts mt-3 flex gap-1.5">
         <button type="submit" className="c-btn is-go" disabled={pending}>
           Lưu lead
         </button>
