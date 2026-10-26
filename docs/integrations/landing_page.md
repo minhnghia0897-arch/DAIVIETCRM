@@ -44,8 +44,11 @@ Owner chốt 20/10/2026: landing page chạy ngay trên CRM, không cần dịch
   ảnh có nút Gỡ.
 - **Tải HTML lên:** file `.html` tối đa 2MB. Chưa tải thì trang dùng **mẫu khai trương có sẵn**
   (`lib/landing/templates/khai-truong.html`). **Dùng mẫu có sẵn** để quay về mẫu.
-- **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự. Giá
-  hiện ở đây là giá khách sẽ thấy.
+- **Ghế hiện trên landing:** bật tắt từng ghế, ảnh, nhãn (ví dụ "BÁN CHẠY"), mô tả ngắn, quà kèm (chữ), thứ tự, giá
+  công bố. Giá hiện ở đây là giá khách sẽ thấy.
+- **Giá công bố** (Owner chốt 26/10/2026, bảng giá ghế massage + quà tặng): số đồng, trống là không có. Trang hiện giá
+  gạch ngang kèm nhãn "-x%" ở thẻ ghế và khung chi tiết, lấy số lớn hơn giữa giá công bố và giá bảng giá trước khuyến
+  mãi. Chỉ để hiện; báo giá và đơn vẫn tính theo bảng giá qua hàm định giá.
 - **Ảnh, thông tin chi tiết** (bấm dưới tên ghế): tối đa 4 ảnh chi tiết thêm (cùng ảnh chính là 5 ảnh) và thông tin
   chi tiết mỗi ý một dòng (trống thì trang dùng mô tả sản phẩm ở Sản phẩm). Owner chốt 20/10/2026: khách bấm ảnh, tên
   hoặc "Xem chi tiết" trên thẻ ghế là mở khung chi tiết: vuốt hoặc bấm ảnh nhỏ để xem 5 ảnh, giá, quà, thông tin chi
@@ -84,6 +87,7 @@ CRM chèn hai thẻ `<script>` ngay sau `<head>` trước khi trả trang cho kh
     giftText: string | null;
     listPrice: number;      // giá niêm yết, đồng
     price: number;          // giá sau khuyến mãi đang chạy; bằng listPrice khi không có
+    comparePrice: number | null; // giá công bố (hiện gạch ngang), đồng; null khi chưa đặt
     promoGifts: string[];   // tên quà khuyến mãi tặng kèm
     promotions: string[];   // tên khuyến mãi đang áp
     images: string[];       // ảnh ở khung chi tiết: ảnh chính rồi ảnh chi tiết, tối đa 5

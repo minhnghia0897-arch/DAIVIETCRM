@@ -27,6 +27,7 @@ const PRODUCTS: LandingProductEdit[] = CHAIRS.map(([sku, name, price], i) => ({
   name,
   listPrice: price,
   price,
+  comparePrice: null,
   promotions: [],
   show: true,
   sort: i + 1,

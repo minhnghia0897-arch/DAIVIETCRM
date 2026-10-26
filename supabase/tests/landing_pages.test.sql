@@ -2,7 +2,7 @@
 -- Dữ liệu giả: Owner …0001, sale admin …0002 (xem marketing, không sửa), Thảo …0003 (telesale), Lan …0005 (marketing).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(24);
 
 create function pg_temp.login(uid uuid) returns void language plpgsql as $$
 begin
@@ -57,6 +57,20 @@ select throws_ok($$ select public.save_landing_product(jsonb_build_object(
   'gallery', jsonb_build_array('https://x.test/1', 'https://x.test/2', 'https://x.test/3', 'https://x.test/4',
                                'https://x.test/5'))) $$,
   '22023', null, 'không quá 4 ảnh chi tiết');
+-- Giá công bố: số đồng, hiện gạch ngang trên landing; trống thì xóa; số âm, chữ bị từ chối.
+select lives_ok($$ select public.save_landing_product(jsonb_build_object(
+  'variant_id', (select id from public.product_variants where sku = 'DC302'), 'compare_price', '97500000')) $$,
+  'lưu giá công bố');
+select is((select p.compare_price from public.products p join public.product_variants v on v.product_id = p.id
+           where v.sku = 'DC302'), 97500000::bigint, 'giá công bố đã lưu');
+select throws_ok($$ select public.save_landing_product(jsonb_build_object(
+  'variant_id', (select id from public.product_variants where sku = 'DC302'), 'compare_price', '-1')) $$,
+  '22023', null, 'giá công bố không âm');
+select lives_ok($$ select public.save_landing_product(jsonb_build_object(
+  'variant_id', (select id from public.product_variants where sku = 'DC302'), 'compare_price', '')) $$,
+  'để trống giá công bố');
+select is((select p.compare_price from public.products p join public.product_variants v on v.product_id = p.id
+           where v.sku = 'DC302'), null::bigint, 'để trống là xóa giá công bố');
 select throws_ok($$ insert into public.landing_pages (showroom_id, slug, title)
   values ('4a000000-0000-4000-8000-000000000004', 'ghi-thang', 'Ghi thẳng') $$,
   '42501', null, 'không ghi thẳng vào bảng, chỉ qua hàm');

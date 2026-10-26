@@ -75,6 +75,7 @@ export default async function Page() {
         name: p.name,
         listPrice: p.listPrice,
         price: p.price,
+        comparePrice: p.comparePrice,
         promotions: p.promotions,
         show: p.show,
         sort: p.sort,

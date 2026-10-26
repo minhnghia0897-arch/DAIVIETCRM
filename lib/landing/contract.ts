@@ -81,6 +81,8 @@ export interface LandingProduct {
   listPrice: number;
   /** Giá sau khuyến mãi đang chạy (hàm định giá CRM, kênh online); bằng giá niêm yết khi không có khuyến mãi. */
   price: number;
+  /** Giá công bố (Marketing → Landing page) để hiện gạch ngang kèm % giảm; null khi chưa đặt. Không dùng tính đơn. */
+  comparePrice: number | null;
   /** Quà khuyến mãi tặng kèm sản phẩm này (chính sách đang chạy). */
   promoGifts: string[];
   /** Tên các khuyến mãi đang áp. */
