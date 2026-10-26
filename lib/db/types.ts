@@ -3599,6 +3599,7 @@ export type Database = {
         Row: {
           brand: string | null;
           category_id: string | null;
+          compare_price: number | null;
           created_at: string;
           created_by: string | null;
           deleted_at: string | null;
@@ -3627,6 +3628,7 @@ export type Database = {
         Insert: {
           brand?: string | null;
           category_id?: string | null;
+          compare_price?: number | null;
           created_at?: string;
           created_by?: string | null;
           deleted_at?: string | null;
@@ -3655,6 +3657,7 @@ export type Database = {
         Update: {
           brand?: string | null;
           category_id?: string | null;
+          compare_price?: number | null;
           created_at?: string;
           created_by?: string | null;
           deleted_at?: string | null;

@@ -25,6 +25,7 @@ const DATA: LandingData = {
       giftText: null,
       listPrice: 49_900_000,
       price: 49_900_000,
+      comparePrice: 97_500_000,
       promoGifts: [],
       promotions: [],
       images: [],

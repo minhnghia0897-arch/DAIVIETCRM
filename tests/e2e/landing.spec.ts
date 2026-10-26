@@ -61,6 +61,9 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   await row.getByLabel("Hiện DC302 trên landing").check();
   await row.getByLabel("Nhãn DC302").fill("BÁN CHẠY");
   await row.getByLabel("Mô tả ngắn DC302").fill("Con lăn 4D, túi khí toàn thân");
+  // Giá công bố hiện gạch ngang kèm % giảm trên landing (đơn hàng vẫn tính theo bảng giá).
+  await row.getByLabel("Giá công bố DC302").fill("97500000");
+  await expect(row.getByLabel("Giá công bố DC302")).toHaveValue("97.500.000");
   await row.getByRole("button", { name: "Lưu DC302" }).click();
   await expect(page.getByRole("status")).toContainText("ghế này hiện trên landing");
 
@@ -121,6 +124,8 @@ test("Owner tạo landing page, bật ghế; khách gửi form thành lead ngu�
   const grid = guest.locator("#grid");
   await expect(grid).toContainText("Ghế massage Daikiosan DC302");
   await expect(grid).toContainText("49.000.000đ");
+  await expect(grid).toContainText("97.500.000đ");
+  await expect(grid).toContainText("-50%");
   await expect(grid).toContainText("BÁN CHẠY");
   await expect(grid).toContainText("Con lăn 4D");
   // Bấm Xem chi tiết: khung có 2 ảnh, thông tin chi tiết từng dòng; Nhận tư vấn thì đóng khung, chọn sẵn mẫu.

@@ -143,6 +143,8 @@ const productSchema = z.object({
   giftText: z.string().trim().max(200),
   /** Thông tin chi tiết ở khung xem chi tiết; trống thì trang dùng mô tả sản phẩm ở Sản phẩm. */
   detail: z.string().trim().max(4000),
+  /** Giá công bố (đồng) hiện gạch ngang trên landing; null thì xóa. */
+  comparePrice: z.number().int().min(0).max(10_000_000_000).nullable(),
 });
 
 export type LandingProductInput = z.infer<typeof productSchema>;
@@ -162,6 +164,7 @@ export async function saveLandingProduct(input: LandingProductInput): Promise<Ac
       short_desc: p.shortDesc,
       gift_text: p.giftText,
       landing_detail: p.detail,
+      compare_price: p.comparePrice === null ? "" : String(p.comparePrice),
     },
   });
   if (error) return failure(error);

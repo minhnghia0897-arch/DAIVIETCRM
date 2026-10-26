@@ -45,7 +45,7 @@ export async function loadLandingProducts(
     db
       .from("product_variants")
       .select(
-        "id, products!inner(short_desc, image_url, gift_text, landing_badge, landing_sort, show_on_landing, gallery, landing_detail, description, warranty_months)",
+        "id, products!inner(short_desc, image_url, gift_text, landing_badge, landing_sort, show_on_landing, gallery, landing_detail, description, warranty_months, compare_price)",
       )
       .eq("showroom_id", showroomId),
   ]);
@@ -79,6 +79,7 @@ export async function loadLandingProducts(
       giftText: x?.gift_text ?? null,
       listPrice: p.price,
       price: line ? line.total : p.price,
+      comparePrice: x?.compare_price ?? null,
       promoGifts: quote.lines.filter((l) => l.isGift).map((l) => l.name),
       promotions: quote.appliedPolicies.filter((a) => a.type === "promotion").map((a) => a.name),
       show: Boolean(x?.show_on_landing),
@@ -138,6 +139,7 @@ export async function loadLandingData(
         giftText: p.giftText,
         listPrice: p.listPrice,
         price: p.price,
+        comparePrice: p.comparePrice,
         promoGifts: p.promoGifts,
         promotions: p.promotions,
         images: p.images,

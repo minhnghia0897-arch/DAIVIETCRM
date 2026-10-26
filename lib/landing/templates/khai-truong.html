@@ -1675,6 +1675,10 @@
           if (text != null) e.textContent = text;
           return e;
         }
+        // Giá gạch ngang: giá công bố (Marketing → Landing page) hoặc giá bảng giá trước khuyến mãi, lấy số lớn hơn.
+        function wasPrice(p) {
+          return Math.max(p.listPrice || 0, p.comparePrice || 0);
+        }
         function digits(s) {
           return String(s || "").replace(/[^\d+]/g, "");
         }
@@ -1879,7 +1883,7 @@
           b.hidden = !p.badge;
           $("pd-name").textContent = p.name;
           $("pd-price").textContent = L.money(p.price);
-          $("pd-old").textContent = p.listPrice > p.price ? L.money(p.listPrice) : "";
+          $("pd-old").textContent = wasPrice(p) > p.price ? L.money(wasPrice(p)) : "";
           var gift =
             p.giftText || (p.promoGifts && p.promoGifts.length ? "Tặng " + p.promoGifts.join(", ") : "");
           $("pd-gift").textContent = gift ? "🎁 " + gift : "";
@@ -1957,7 +1961,8 @@
             pic.appendChild(img);
           }
           pic.appendChild(el("div", "mini"));
-          var off = p.listPrice > p.price ? Math.round((1 - p.price / p.listPrice) * 100) : 0;
+          var was = wasPrice(p);
+          var off = was > p.price ? Math.round((1 - p.price / was) * 100) : 0;
           if (off > 0) pic.appendChild(el("span", "badge", "-" + off + "%"));
           if (p.badge) pic.appendChild(el("span", "badge hot", p.badge));
           card.appendChild(pic);
@@ -1972,7 +1977,7 @@
           if (p.shortDesc) body.appendChild(el("div", "spec", p.shortDesc));
           var price = el("div", "price");
           price.appendChild(el("span", "now", L.money(p.price)));
-          if (off > 0) price.appendChild(el("span", "old", L.money(p.listPrice)));
+          if (off > 0) price.appendChild(el("span", "old", L.money(was)));
           body.appendChild(price);
           var gift =
             p.giftText || (p.promoGifts && p.promoGifts.length ? "Tặng " + p.promoGifts.join(", ") : "");
