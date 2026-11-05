@@ -224,6 +224,7 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | | `order.edit_own` / `order.edit_all` | Sửa đơn của mình / mọi đơn |
 | | `order.discount_approve` | Duyệt đơn có mức giảm vượt giới hạn |
 | | `order.cancel` | Hủy đơn |
+| | `order.delete` | Xóa đơn nhập sai, chạy thử: ẩn khỏi danh sách, doanh số, báo cáo (chỉ Owner, không cấp được) |
 | | `order.allow_backorder` | Cho đặt trước khi chưa đủ hàng |
 | | `order.export` | Xuất danh sách đơn ra file |
 | Thanh toán | `payment.record` | Ghi nhận khoản khách trả, kèm chứng từ |
@@ -292,6 +293,7 @@ Chừa sẵn (tạo bảng khi cần, không dựng màn hình tháng 1): `oppor
 | order.edit_all | ✓ | ✓ | |
 | order.discount_approve | ✓ | | |
 | order.cancel | ✓ | ✓ | |
+| order.delete | ✓ | | |
 | order.allow_backorder | ✓ | ✓ | |
 | order.export | ✓ | | |
 | payment.record | ✓ | ✓ | ✓ |
@@ -1023,6 +1025,7 @@ pnpm db:types       # sinh type
 | Bán hàng không quản lý kho (18/10) | Hàng xuất hết từ kho Đại Việt nên CRM không quản lý tồn kho: không chặn đơn khi hết hàng, không giữ hàng khi cọc, không phiếu kho, không xuất kho, bỏ hẳn serial (phiếu bảo hành mỗi chiếc một phiếu, không ghi serial). Màn Kho thành **Số lượng bán** theo tháng: đã cọc, tặng kèm, đã giao xong, hủy hoặc trả, đang chờ giao. Bảng kho cũ giữ dữ liệu, không còn trên giao diện; các quyền kho ẩn ở Phân quyền. Mục 8.3 không còn áp dụng | `order_blockers`, `advance_order`, `sales_units_month` (migration `20261018000100_simple_stock.sql`), `/inventory`, `components/crm/views/sales-units.tsx`, `retired` trong `lib/auth/permissions.ts`, `docs/open-questions.md` #52 |
 | Quà tặng (18/10) | Quà nằm trong danh mục Quà tặng riêng (menu Sản phẩm, tab Quà tặng), không lẫn sản phẩm bán; Owner bổ sung thông tin quà dần. Lên đơn có dòng quà tặng kèm giá 0đ, chỉ chọn quà trong danh mục, không cần duyệt; combo, khuyến mãi chọn quà từ cùng danh mục | Sản phẩm `is_gift_only`, `/gifts`, `components/crm/views/gifts-live.tsx`, `gifts` trong `lib/sales/catalog-server.ts`, `isGift` của giỏ (`lib/sales/checkout.ts`, `priceQuote`), `docs/open-questions.md` #53 |
 | Số điện thoại hiện đầy đủ (18/10) | Để quản lý dễ nhìn, kiểm tra: Owner, Sale admin (`contact.phone_reveal`) thấy ngay số đầy đủ của mọi khách trên hồ sơ lead, hồ sơ khách, Hội thoại, Lên đơn, hồ sơ đơn; telesale thấy ngay số của khách thuộc lead mình đang giữ, lead chuyển đi thì thấy lại bản che. Người nhận đang Giữ bất ngờ vẫn che. Telegram vẫn che. Owner mở thêm cho ai thì bật quyền ở Phân quyền | View `contact_identity_display` thêm cột `display`, `is_full`; `private.phone_visible_ctx` (migration `20261018000200_phone_display.sql`), `supabase/tests/phone_display.test.sql` |
+| Xóa đơn (05/11) | Owner xóa đơn nhập sai, chạy thử ở danh sách đơn (cột Xóa), bắt buộc ghi lý do. Xóa mềm: đơn biến mất khỏi danh sách, hồ sơ đơn, doanh số mọi tháng (khác Hủy đơn: hủy là việc thật, trừ vào tháng hủy), số lượng bán, hồ sơ khách; việc đang mở của đơn bị hủy, đề xuất đang chờ hết hạn, khoản chưa xác nhận bị từ chối, phiếu bảo hành bị vô hiệu; giai đoạn lead không tự đổi. Sổ doanh số vẫn chỉ thêm. Cùng ngày đã dọn hẳn dữ liệu chạy thử tháng 10 (8 đơn, 7 báo giá, 5 lead và khách demo; hội thoại Messenger giữ lại, nối sang hồ sơ khách mới) | Quyền `order.delete`, `delete_order`, `private.order_live`, chính sách xem thanh toán, bảo hành, giao lắp, sổ doanh số và `sales_kpi_month` bỏ đơn đã xóa (migration `20261105000100_order_delete.sql`), `deleteOrder` (`app/(app)/orders/actions.ts`), `components/crm/views/orders-live.tsx`, `supabase/tests/order_delete.test.sql` |
 | Khách chạy dữ liệu thật (12/10) | Vòng đời khách tính tự động từ lead, đơn, việc bảo hành, đồng ý, thời gian không tương tác (Ngủ đông sau số ngày ở Cài đặt, Bán hàng, mặc định 180); người bán đơn xem được khách của đơn; hồ sơ 360 sửa thông tin, đồng ý, Ngừng liên hệ, ngày quan trọng, mở lead tái bán, trích xuất dữ liệu (`lead.export`) | `refresh_customer_lifecycle`, view `customer_list`, `set_consent`, `open_customer_lead`, `export_contact_data` (migration `20261012000400_customers_live.sql`), `lib/cdp/lifecycle.ts`, `docs/open-questions.md` #48 |
 
 ### Còn mở

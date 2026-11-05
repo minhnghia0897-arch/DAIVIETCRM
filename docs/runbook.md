@@ -72,3 +72,26 @@ hỏi mở số 2 trong `CLAUDE.md`), có thể làm thêm nút gửi lời mờ
   ```
 
   Kết quả rỗng là đúng.
+
+## Xóa đơn nhập sai, chạy thử
+
+- **Trên màn hình:** Owner mở Đơn hàng, bấm biểu tượng thùng rác cuối hàng đơn, ghi lý do, bấm Xóa đơn (quyền
+  `order.delete`, chỉ Owner, không cấp được cho vai trò khác). Đơn khách thật đổi ý thì dùng Hủy đơn trong hồ sơ đơn,
+  không xóa.
+- **Xóa làm gì:** đặt `orders.deleted_at` (migration `20261105000100_order_delete.sql`). Đơn ẩn khỏi danh sách, hồ
+  sơ đơn, doanh số mọi tháng, số lượng bán, hồ sơ khách; việc đang mở bị hủy, đề xuất đang chờ hết hạn, khoản chưa xác
+  nhận bị từ chối, phiếu bảo hành chuyển `void`. Dữ liệu còn trong database; nhật ký kiểm toán ghi `order.delete` kèm
+  mã đơn và lý do.
+- **Tra lại đơn đã xóa:**
+
+  ```sql
+  select a.at, p.full_name, a.metadata ->> 'code' as code, a.metadata ->> 'reason' as reason
+  from audit_logs a left join profiles p on p.id = a.actor_id
+  where a.action = 'order.delete' order by a.at desc;
+  ```
+
+- **Dọn sạch dữ liệu chạy thử** (đã làm ngày 05/11/2026, nhật ký `data.demo_cleanup`): xóa hẳn đơn và mọi thứ đi
+  theo đơn phải tạm tắt khóa chỉ-thêm của `sales_credits` và `stock_movements` trong cùng một giao dịch rồi bật lại;
+  `events` và `audit_logs` không xóa. Khách có hội thoại Messenger thì nối hội thoại sang hồ sơ khách mới (chuyển định
+  danh `fb_psid`), xóa định danh còn lại của hồ sơ cũ để số điện thoại dùng lại được. Chỉ làm khi Owner xác nhận toàn
+  bộ là dữ liệu thử.

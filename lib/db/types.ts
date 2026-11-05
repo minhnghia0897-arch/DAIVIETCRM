@@ -6004,6 +6004,7 @@ export type Database = {
       delete_contact_note: { Args: { p_id: string }; Returns: undefined };
       delete_content_item: { Args: { p_id: string }; Returns: undefined };
       delete_integration_secret: { Args: { p_key: string; p_name: string }; Returns: boolean };
+      delete_order: { Args: { p_order_id: string; p_reason: string }; Returns: undefined };
       delete_tag: { Args: { p_tag_id: string }; Returns: undefined };
       dispatch_ai_replies: { Args: Record<PropertyKey, never>; Returns: undefined };
       dispatch_messenger_reconcile: { Args: Record<PropertyKey, never>; Returns: undefined };

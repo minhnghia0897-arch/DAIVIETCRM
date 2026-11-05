@@ -95,7 +95,7 @@ export async function loadQuoteView(admin: Db, quoteId: string): Promise<QuoteVi
       : Promise.resolve({ data: null }),
     admin.from("leads").select("occasion_date, occasions(label)").eq("id", q.lead_id).maybeSingle(),
     q.order_id
-      ? admin.from("orders").select("code").eq("id", q.order_id).maybeSingle()
+      ? admin.from("orders").select("code").eq("id", q.order_id).is("deleted_at", null).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 

@@ -349,7 +349,8 @@ async function loadOrderSide(
       status: q.status,
       total: q.total,
       token: q.token,
-      orderId: q.order_id,
+      // Chỉ nối sang đơn còn xem được (đơn đã xóa hoặc không có quyền thì không hiện link dẫn tới trang lỗi).
+      orderId: q.order_id && (orders.data ?? []).some((o) => o.id === q.order_id) ? q.order_id : null,
       validUntil: noteTime.format(new Date(q.valid_until)),
     })),
   };
