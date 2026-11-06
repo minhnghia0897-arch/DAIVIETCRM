@@ -38,6 +38,8 @@ export interface LandingProductEdit {
   name: string;
   listPrice: number;
   price: number;
+  /** Giá công bố hiện gạch ngang kèm % giảm trên landing; null khi chưa đặt. */
+  comparePrice: number | null;
   promotions: string[];
   show: boolean;
   sort: number | null;
@@ -85,6 +87,7 @@ export interface LandingActions {
     shortDesc: string;
     giftText: string;
     detail: string;
+    comparePrice: number | null;
   }) => Promise<Result>;
 }
 
@@ -669,8 +672,11 @@ function ProductRow({
   const [shortDesc, setShortDesc] = useState(p.shortDesc);
   const [giftText, setGiftText] = useState(p.giftText);
   const [detail, setDetail] = useState(p.detail);
+  const [compare, setCompare] = useState(p.comparePrice === null ? "" : String(p.comparePrice));
   const [open, setOpen] = useState(false);
+  const comparePrice = compare === "" ? null : Number(compare);
   const dirty =
+    comparePrice !== p.comparePrice ||
     show !== p.show ||
     sort !== (p.sort === null ? "" : String(p.sort)) ||
     badge !== p.badge ||
@@ -687,9 +693,12 @@ function ProductRow({
         shortDesc,
         giftText,
         detail,
+        comparePrice,
       }),
     );
-  const discounted = p.price < p.listPrice;
+  // Giá gạch ngang: giá công bố hoặc giá bảng giá trước khuyến mãi, số lớn hơn, như trên landing.
+  const was = Math.max(p.listPrice, p.comparePrice ?? 0);
+  const discounted = p.price < was;
   const small = "block w-full rounded-control border border-line bg-surface px-1.5 py-1 text-text";
   return (
     <>
@@ -729,7 +738,7 @@ function ProductRow({
         </td>
         <td className="text-right tabular whitespace-nowrap">
           <b>{formatMoney(p.price)}</b>
-          {discounted ? <span className="c-lbl block line-through">{formatMoney(p.listPrice)}</span> : null}
+          {discounted ? <span className="c-lbl block line-through">{formatMoney(was)}</span> : null}
           {p.promotions.length ? <span className="c-lbl block">{p.promotions.join(", ")}</span> : null}
         </td>
         <td className="min-w-56 space-y-1">
@@ -749,6 +758,14 @@ function ProductRow({
                 maxLength={300}
                 value={shortDesc}
                 onChange={(e) => setShortDesc(e.target.value)}
+                className={small}
+              />
+              <input
+                aria-label={`Giá công bố ${p.sku}`}
+                placeholder="Giá công bố (đồng, hiện gạch ngang)"
+                inputMode="numeric"
+                value={compare === "" ? "" : new Intl.NumberFormat("vi-VN").format(Number(compare))}
+                onChange={(e) => setCompare(e.target.value.replace(/[^\d]/g, "").slice(0, 11))}
                 className={small}
               />
               <input

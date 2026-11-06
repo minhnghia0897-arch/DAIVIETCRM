@@ -57,6 +57,9 @@ const ACTION_LABEL: Record<string, string> = {
   "content.create": "Thêm bài vào lịch nội dung",
   "content.move": "Chuyển cột bài nội dung",
   "content.delete": "Xóa bài khỏi lịch nội dung",
+  "order.cancel": "Hủy đơn",
+  "order.delete": "Xóa đơn",
+  "data.demo_cleanup": "Dọn dữ liệu chạy thử",
 };
 
 export function auditActionLabel(action: string): string {

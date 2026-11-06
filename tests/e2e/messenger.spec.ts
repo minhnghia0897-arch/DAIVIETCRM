@@ -842,6 +842,34 @@ test("đơn đi trọn không cần kho: ghi cọc, xác nhận tiền, thu khi 
   ).toContainText("48.000.000đ");
 });
 
+test("Owner xóa đơn chạy thử ở danh sách đơn, ghi lý do; sale admin không có cột Xóa", async ({ page }) => {
+  // Sale admin xem được mọi đơn nhưng không có quyền xóa.
+  await login(page, USERS.saleAdmin);
+  await page.goto("/orders");
+  const row = page.getByRole("row").filter({ hasText: "18.890.000" });
+  await expect(row).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Xóa đơn Q4-/ })).toHaveCount(0);
+
+  // Owner xóa đơn quà tặng 18.890.000 (đơn chạy thử): phải ghi lý do mới xóa được.
+  await login(page, USERS.owner);
+  await page.goto("/orders");
+  const code = (await row.getByRole("link").first().innerText()).trim();
+  await row.getByRole("button", { name: `Xóa đơn ${code}` }).click();
+  const dialog = page.getByRole("alertdialog", { name: `Xóa đơn ${code}?` });
+  await expect(dialog).toContainText("doanh số");
+  await expect(dialog.getByRole("button", { name: "Xóa đơn" })).toBeDisabled();
+  await dialog.getByLabel("Lý do xóa").fill("Đơn chạy thử");
+  await dialog.getByRole("button", { name: "Xóa đơn" }).click();
+  await expect(page.getByRole("status")).toContainText(`Đã xóa đơn ${code}`);
+  await expect(page.getByRole("row").filter({ hasText: code })).toHaveCount(0);
+
+  // Hồ sơ đơn không còn mở được; nhật ký kiểm toán ghi việc xóa.
+  await page.goto("/orders");
+  await expect(page.getByRole("link", { name: code })).toHaveCount(0);
+  await page.goto("/settings/audit");
+  await expect(page.getByText("Xóa đơn").first()).toBeVisible();
+});
+
 test("telesale không giữ lead thì không thấy hội thoại", async ({ page }) => {
   // Lead phân vòng tròn cho Thảo hoặc An (cả hai đang trực): đúng một người thấy.
   const seen: boolean[] = [];

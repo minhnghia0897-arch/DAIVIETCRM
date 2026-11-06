@@ -4,6 +4,8 @@ import { OrdersLive, type LiveOrderRow } from "@/components/crm/views/orders-liv
 import { requireAnyPermission } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/server";
 
+import { deleteOrder } from "./actions";
+
 export const metadata: Metadata = { title: "Đơn hàng · Đại Việt CRM" };
 
 // Danh sách đơn thật. RLS trả đơn mình bán (order.view_own), mọi đơn (order.view_all), đơn đang giao (delivery.update)
@@ -55,5 +57,11 @@ export default async function Page() {
     createdAt: o.created_at,
   }));
 
-  return <OrdersLive rows={rows} allOrders={user.permissions.has("order.view_all")} />;
+  return (
+    <OrdersLive
+      rows={rows}
+      allOrders={user.permissions.has("order.view_all")}
+      deleteOrder={user.permissions.has("order.delete") && !user.viewAs ? deleteOrder : undefined}
+    />
+  );
 }

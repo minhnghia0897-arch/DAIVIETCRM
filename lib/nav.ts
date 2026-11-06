@@ -77,6 +77,7 @@ export const LIVE_SCREENS = [
   "/gifts",
   "/inventory",
   "/policies",
+  "/reports",
 ];
 
 /** Màn thật chỉ đúng đường dẫn này, còn màn con vẫn có thể mô phỏng (Tổng quan đội; Kèm cặp, Bàn giao còn mô phỏng). */

@@ -86,6 +86,22 @@ export async function cancelOrder(input: { orderId: string; reason: string }): P
   return done(p.data.orderId, "Đã hủy đơn");
 }
 
+// Xóa đơn nhập sai, chạy thử (chỉ Owner, quyền order.delete). Đơn ẩn khỏi mọi màn và doanh số; lý do vào nhật ký.
+export async function deleteOrder(input: { orderId: string; reason: string }): Promise<ActionResult> {
+  const user = await requireUser();
+  if (user.viewAs) return READ_ONLY;
+  const p = z.object({ orderId: id, reason: z.string().trim().min(1).max(500) }).safeParse(input);
+  if (!p.success) return { ok: false, message: "Nhập lý do xóa." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_order", {
+    p_order_id: p.data.orderId,
+    p_reason: maskPhonesInText(p.data.reason),
+  });
+  if (error) return { ok: false, message: friendly(error.code, error.message) };
+  for (const path of ["/inventory", "/team", "/home", "/tasks", "/customers"]) revalidatePath(path);
+  return done(p.data.orderId, "Đã xóa đơn");
+}
+
 export async function approveCod(orderId: string): Promise<ActionResult> {
   const user = await requireUser();
   if (user.viewAs) return READ_ONLY;

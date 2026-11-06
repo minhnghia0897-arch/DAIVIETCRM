@@ -86,6 +86,10 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   p("order.edit_all", "Báo giá, đơn", "Sửa mọi đơn", [O, S]),
   p("order.discount_approve", "Báo giá, đơn", "Duyệt đơn giảm giá vượt giới hạn", [O], { sensitive: true }),
   p("order.cancel", "Báo giá, đơn", "Hủy đơn", [O, S]),
+  p("order.delete", "Báo giá, đơn", "Xóa đơn nhập sai, chạy thử (ẩn khỏi danh sách, doanh số)", [O], {
+    grantable: false,
+    sensitive: true,
+  }),
   p("order.allow_backorder", "Báo giá, đơn", "Cho đặt trước khi chưa đủ hàng", [O, S], { retired: true }),
   p("order.export", "Báo giá, đơn", "Xuất danh sách đơn ra file", [O], { sensitive: true }),
   p("payment.record", "Thanh toán", "Ghi nhận khoản khách trả", [O, S, T]),

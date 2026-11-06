@@ -41,6 +41,7 @@ const KIND: Record<string, string> = {
   quote_viewed: "Báo giá",
   quote_accepted: "Báo giá",
   order_status_changed: "Đơn hàng",
+  order_deleted: "Đơn hàng",
   payment_recorded: "Thanh toán",
   payment_confirmed: "Thanh toán",
   payment_rejected: "Thanh toán",
@@ -221,6 +222,8 @@ export function describeEvent(
         kind,
         text: `Đơn ${str(payload.code)}: ${ORDER_STATUS_LIVE[str(payload.to)]?.label ?? str(payload.to)}`,
       };
+    case "order_deleted":
+      return { kind, text: `Đơn ${str(payload.code)} đã bị xóa (nhập sai hoặc chạy thử)` };
     case "payment_recorded":
     case "payment_confirmed":
     case "payment_rejected": {
